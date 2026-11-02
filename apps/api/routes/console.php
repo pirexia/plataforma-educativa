@@ -15,6 +15,10 @@ Artisan::command('inspire', function () {
 // directamente. El *scheduler* corre en su propio contenedor
 // (`ADR-037`), nunca en el de la API.
 Schedule::command('core:purge-maintenance')->daily();
+
+// REQ-FAM-UNIT 1.14b-a, operacion.md §12.3. Barrido diario de fotografías de recogida huérfanas, por centro, a la cola
+// `default`. Depende del planificador (issue #453): mientras no tenga servicio desplegado, comando manual (`RUNBOOK.md`).
+Schedule::command('fam_unit:purge-orphan-photos')->daily();
 Schedule::job(new PurgeExpiredIdempotencyKeys)->daily();
 
 // REQ-AUTH 1.2, operacion.md §4. `auth:close-expired-lockouts` no es

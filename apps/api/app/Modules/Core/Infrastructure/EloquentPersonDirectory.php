@@ -4,12 +4,14 @@ namespace App\Modules\Core\Infrastructure;
 
 use App\Models\Person;
 use App\Models\User;
+use App\Modules\Core\Domain\DocumentType;
+use App\Modules\Core\Domain\PersonContact;
 use App\Modules\Core\Domain\PersonDirectory;
 use App\Modules\Core\Domain\PersonRef;
 use App\Modules\Core\Domain\UserPersonRef;
 
 /**
- * `OPEN-FAM-UNIT-03` (1.14-a). Una consulta por llamada, sin memoización. `Person::query()` y `User::query()`
+ * `OPEN-FAM-UNIT-03` (1.14-a) y `ADR-068 §5.2` (1.14b-a: búsqueda por nombre y por documento y datos de contacto). Una consulta por llamada, sin memoización. `Person::query()` y `User::query()`
  * aplican `TenantScope` y excluyen los borrados (`SoftDeletes`); RLS lo refuerza en la base de datos (`INV-001`).
  */
 final class EloquentPersonDirectory implements PersonDirectory
@@ -74,6 +76,69 @@ final class EloquentPersonDirectory implements PersonDirectory
         }
 
         return $refs;
+    }
+
+    public function searchByNameAmong(string $term, array $personIds, int $limit): array
+    {
+        $term = trim($term);
+
+        if ($term === '' || $personIds === [] || $limit < 1) {
+            return [];
+        }
+
+        // `ilike` con los comodines del texto escapados: «50%» busca un «%» literal (consulta parametrizada).
+        $pattern = str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $term).'%';
+        $display = "(given_name || ' ' || family_name_1)";
+
+        return Person::query()
+            ->whereIn('id', array_values(array_unique($personIds)))
+            ->where(function ($query) use ($pattern, $display): void {
+                $query->whereRaw("given_name ILIKE ? ESCAPE '\\'", [$pattern])
+                    ->orWhereRaw("family_name_1 ILIKE ? ESCAPE '\\'", [$pattern])
+                    ->orWhereRaw("family_name_2 ILIKE ? ESCAPE '\\'", [$pattern])
+                    ->orWhereRaw("{$display} ILIKE ? ESCAPE '\\'", [$pattern]);
+            })
+            ->orderByRaw('lower(given_name), lower(family_name_1), id')
+            ->limit($limit)
+            ->get()
+            ->map(static fn (Person $person): PersonRef => self::ref($person))
+            ->values()
+            ->all();
+    }
+
+    public function findByDocument(string $documentType, string $documentNumber): ?PersonRef
+    {
+        $type = DocumentType::fromCode($documentType);
+
+        if ($type === null || trim($documentNumber) === '') {
+            return null;
+        }
+
+        $person = Person::query()
+            ->where('document_type', $type->value)
+            ->where('document_number', $type->normalizeNumber($documentNumber))
+            ->first();
+
+        return $person === null ? null : self::ref($person);
+    }
+
+    public function contactDetailsByIds(array $personIds): array
+    {
+        if ($personIds === []) {
+            return [];
+        }
+
+        $contacts = [];
+
+        foreach (Person::query()->whereIn('id', array_values(array_unique($personIds)))->get(['id', 'contact_phone', 'document_type', 'document_number']) as $person) {
+            $contacts[(int) $person->id] = new PersonContact(
+                $person->contact_phone === null ? null : (string) $person->contact_phone,
+                $person->document_type === null ? null : (string) $person->document_type,
+                $person->document_number === null ? null : (string) $person->document_number,
+            );
+        }
+
+        return $contacts;
     }
 
     private static function ref(Person $person): PersonRef

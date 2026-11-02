@@ -3391,6 +3391,105 @@ namespace App\Modules\FamUnit\Domain\Models{
  */
 	#[\AllowDynamicProperties]
 	class IdeHelperTermsAcceptance {}
+/**
+ * REQ-FAM-UNIT/datos.md §8.1, §8.7 (1.14b-a, `REQ-FAM-UNIT-005`, `RN-FAM-UNIT-83`). Fotografía de recogida de una persona
+ *
+ * @property int $id
+ * @property int $tenant_id
+ * @property string $public_id
+ * @property int $person_id
+ * @property string $object_key
+ * @property string $mime_type
+ * @property int $byte_size
+ * @property int|null $created_by
+ * @property int|null $updated_by
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupPhoto newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupPhoto newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupPhoto onlyTrashed()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupPhoto query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupPhoto whereByteSize($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupPhoto whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupPhoto whereCreatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupPhoto whereDeletedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupPhoto whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupPhoto whereMimeType($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupPhoto whereObjectKey($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupPhoto wherePersonId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupPhoto wherePublicId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupPhoto whereTenantId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupPhoto whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupPhoto whereUpdatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupPhoto withTrashed(bool $withTrashed = true)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupPhoto withoutTrashed()
+ * @mixin \Eloquent
+ */
+	#[\AllowDynamicProperties]
+	class IdeHelperPickupPhoto {}
+/**
+ * REQ-FAM-UNIT/datos.md §8.2, §8.7 (1.14b-a, `REQ-FAM-UNIT-005`, `ADR-068`). Autorización de un tercero (permanente) o
+ *
+ * @property int $id
+ * @property int $tenant_id
+ * @property string $public_id
+ * @property int $student_person_id
+ * @property int $person_id
+ * @property string $relationship
+ * @property string $kind
+ * @property \Illuminate\Support\Carbon $valid_from
+ * @property \Illuminate\Support\Carbon|null $valid_until
+ * @property string|null $reason
+ * @property int $authorized_by_guardian_id
+ * @property int $terms_version_id
+ * @property string $channel
+ * @property \Illuminate\Support\Carbon $authorized_at
+ * @property int $recorded_by
+ * @property string|null $ip_address
+ * @property string|null $user_agent
+ * @property \Illuminate\Support\Carbon|null $withdrawn_at
+ * @property int|null $withdrawn_by
+ * @property int|null $created_by
+ * @property int|null $updated_by
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @property-read \App\Modules\FamUnit\Domain\Models\TermsVersion|null $termsVersion
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupAuthorization newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupAuthorization newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupAuthorization onlyTrashed()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupAuthorization query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupAuthorization whereAuthorizedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupAuthorization whereAuthorizedByGuardianId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupAuthorization whereChannel($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupAuthorization whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupAuthorization whereCreatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupAuthorization whereDeletedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupAuthorization whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupAuthorization whereIpAddress($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupAuthorization whereKind($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupAuthorization wherePersonId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupAuthorization wherePublicId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupAuthorization whereReason($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupAuthorization whereRecordedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupAuthorization whereRelationship($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupAuthorization whereStudentPersonId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupAuthorization whereTenantId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupAuthorization whereTermsVersionId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupAuthorization whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupAuthorization whereUpdatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupAuthorization whereUserAgent($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupAuthorization whereValidFrom($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupAuthorization whereValidUntil($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupAuthorization whereWithdrawnAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupAuthorization whereWithdrawnBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupAuthorization withTrashed(bool $withTrashed = true)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupAuthorization withoutTrashed()
+ * @mixin \Eloquent
+ */
+	#[\AllowDynamicProperties]
+	class IdeHelperPickupAuthorization {}
 }
 
 namespace App\Support\Tenancy{

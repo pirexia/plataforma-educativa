@@ -9,6 +9,7 @@ use App\Models\UserStatus;
 use App\Support\Tenancy\Tenant;
 use App\Support\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Testing\TestResponse;
@@ -373,5 +374,146 @@ final class FamUnitTestHelpers
             ->orderBy('id')
             ->get()
             ->all());
+    }
+
+    // ─── Autorizados de recogida (1.14b-a, ADR-068) ───
+
+    /** Un DNI con letra de control válida a partir de un número (la fábrica de datos de prueba, `REQ-SEED-005` aparte). */
+    public static function dni(int $number): string
+    {
+        $number = str_pad((string) $number, 8, '0', STR_PAD_LEFT);
+
+        return $number.'TRWAGMYFPDXBNJZSQVHLCKE'[((int) $number) % 23];
+    }
+
+    /** Crea y publica el texto `autorizacion_recogida`; devuelve su `public_id`. Publicar otro retira el anterior. */
+    public static function publishPickupText(object $tenant, User $admin): string
+    {
+        $id = self::call($tenant, $admin, 'post', '/terms-versions', [
+            'kind' => 'autorizacion_recogida',
+            'title_translations' => ['es-ES' => 'Autorización de recogida'],
+            'body_translations' => ['es-ES' => 'Autorizo a la persona indicada a recoger a mi hijo o hija.'],
+        ])->assertCreated()->json('public_id');
+        self::call($tenant, $admin, 'post', "/terms-versions/{$id}/publish")->assertOk();
+
+        return $id;
+    }
+
+    /**
+     * Una familia lista para autorizar terceros: un alumno en una unidad, un tutor **principal** con vínculo activo y
+     * representación legal, un segundo tutor con vínculo activo, y (opcional) el texto `autorizacion_recogida` publicado.
+     *
+     * @return array{tenant: Tenant, admin: User, unit: string, student: Person, principal: User, gp: string, lp: string, other: User, go: string, lo: string, text: ?string}
+     */
+    public static function pickupFamily(string $slug, bool $withText = true): array
+    {
+        [$tenant, $admin] = self::setup($slug);
+        $unit = self::unitId($tenant, $admin);
+        $student = self::person($tenant, 'Alumno', 'Recogida');
+        self::addStudent($tenant, $admin, $unit, $student)->assertCreated();
+
+        $principal = self::pickupGuardianUser($tenant, $admin, 'principal');
+        $gp = self::guardian($tenant, $admin, $principal, $unit)->assertCreated()->json('public_id');
+        $lp = self::link($tenant, $admin, $gp, $student, ['is_legal_guardian' => true, 'relationship' => 'madre'])->assertCreated()->json('public_id');
+        self::call($tenant, $admin, 'patch', "/family-units/{$unit}", ['principal_guardian' => $gp])->assertOk();
+
+        $other = self::pickupGuardianUser($tenant, $admin, 'otrotutor');
+        $go = self::guardian($tenant, $admin, $other, $unit)->assertCreated()->json('public_id');
+        $lo = self::link($tenant, $admin, $go, $student, ['relationship' => 'padre'])->assertCreated()->json('public_id');
+
+        $text = $withText ? self::publishPickupText($tenant, $admin) : null;
+
+        return compact('tenant', 'admin', 'unit', 'student', 'principal', 'gp', 'lp', 'other', 'go', 'lo', 'text');
+    }
+
+    /** Usuario tutor con ámbito `unidad_familiar` de lectura de familia, vínculos y lista de recogida. */
+    public static function pickupGuardianUser(object $tenant, User $admin, string $local): User
+    {
+        return self::userWith($tenant, $admin, $local, [
+            'familia.leer' => 'unidad_familiar',
+            'vinculo_tutor.leer' => 'unidad_familiar',
+            'autorizado_recogida.leer' => 'unidad_familiar',
+        ]);
+    }
+
+    /** Alta de una persona de recogida (`POST /pickup-persons`). */
+    public static function registerPerson(object $tenant, User $actor, array $body = []): TestResponse
+    {
+        return self::call($tenant, $actor, 'post', '/pickup-persons', $body + [
+            'given_name' => 'Abuelo',
+            'family_name_1' => 'Prueba',
+            'contact_phone' => '600000000',
+        ]);
+    }
+
+    /** `PUT /pickup-persons/{person}/photo` con una imagen (por defecto, un JPEG sintético pequeño). */
+    public static function putPhoto(object $tenant, User $actor, string $personId, ?string $bytes = null, string $name = 'foto.jpg'): TestResponse
+    {
+        resetSessionState();
+
+        return test()->actingAs($actor)->call('PUT', self::url($tenant, "/pickup-persons/{$personId}/photo"), [], [], [
+            'file' => UploadedFile::fake()->createWithContent($name, $bytes ?? ImageFixtures::jpeg()),
+        ], ['HTTP_ACCEPT' => 'application/json']);
+    }
+
+    /**
+     * Cuerpo válido de `POST /pickup-authorizations` para una familia de `pickupFamily()`; `$overrides` lo sobrescribe.
+     *
+     * @param  array{student: Person, gp: string, text: ?string}  $family
+     */
+    public static function authorizationBody(array $family, string $personId, array $overrides = []): array
+    {
+        return $overrides + [
+            'student_person' => $family['student']->public_id,
+            'person' => $personId,
+            'relationship' => 'abuelo',
+            'kind' => 'permanente',
+            'valid_from' => '2026-01-01',
+            'valid_until' => null,
+            'authorized_by' => $family['gp'],
+            'terms_version' => $family['text'],
+            'channel' => 'presencial',
+        ];
+    }
+
+    /**
+     * Un tercero autorizado de punta a punta: persona, autorización permanente y (opcional) fotografía. Devuelve el
+     * `public_id` de la persona y el de la autorización.
+     *
+     * @param  array{tenant: Tenant, admin: User, student: Person, gp: string, text: ?string}  $family
+     * @return array{person: string, authorization: string}
+     */
+    public static function thirdParty(array $family, int $docNumber, bool $photo = true, array $overrides = [], string $given = 'Abuelo'): array
+    {
+        $person = self::registerPerson($family['tenant'], $family['admin'], ['given_name' => $given, 'document_type' => 'dni', 'document_number' => self::dni($docNumber)])->assertCreated()->json('person');
+        $authorization = self::call($family['tenant'], $family['admin'], 'post', '/pickup-authorizations', self::authorizationBody($family, $person, $overrides))->assertCreated()->json('public_id');
+        $photo && self::putPhoto($family['tenant'], $family['admin'], $person)->assertOk();
+
+        return ['person' => $person, 'authorization' => $authorization];
+    }
+
+    /**
+     * Una persona de recogida con su autorización permanente ya registrada y **sin** fotografía: la persona figura en una
+     * autorización viva, así que los *endpoints* de `/pickup-persons` la alcanzan (`api.md §8.2`) y se le puede subir la
+     * fotografía. Devuelve el `public_id` de la persona.
+     *
+     * @param  array{tenant: Tenant, admin: User, student: Person, gp: string, text: ?string}  $family
+     */
+    public static function authorizedPerson(array $family, array $person = [], array $authorization = []): string
+    {
+        $id = self::registerPerson($family['tenant'], $family['admin'], $person)->assertCreated()->json('person');
+        self::call($family['tenant'], $family['admin'], 'post', '/pickup-authorizations', self::authorizationBody($family, $id, $authorization))->assertCreated();
+
+        return $id;
+    }
+
+    /**
+     * La lista calculada de un alumno como `public_id` de persona (`GET /pickup-lists/{student}`).
+     *
+     * @return list<string>
+     */
+    public static function listedPersons(object $tenant, User $actor, Person $student): array
+    {
+        return array_column(self::call($tenant, $actor, 'get', "/pickup-lists/{$student->public_id}")->assertOk()->json('data'), 'person');
     }
 }

@@ -2203,8 +2203,10 @@ components:
       type: string
       description: >
         Tipo de texto legal versionado (ADR-066 §5.5, RN-FAM-UNIT-73). Los dos de imagen se gestionan desde `1.14-b`;
-        `condiciones_uso` desde `1.14-c` (publicarlo activa el muro de condiciones, ADR-067). Enumerado **extensible**.
-      enum: [condiciones_uso, consentimiento_imagen_web, consentimiento_imagen_redes]
+        `condiciones_uso` desde `1.14-c` (publicarlo activa el muro de condiciones, ADR-067); `autorizacion_recogida`
+        desde `1.14b-a` (el texto que firma el tutor principal al autorizar a un tercero a recoger, RN-FAM-UNIT-85,
+        ADR-068 `L2`). Enumerado **extensible**.
+      enum: [condiciones_uso, consentimiento_imagen_web, consentimiento_imagen_redes, autorizacion_recogida]
       x-extensible-enum: true
 
     TermsVersionStatus:
@@ -2331,6 +2333,200 @@ components:
             - { type: 'null' }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
+
+    PickupRelationship:
+      type: string
+      description: 'Relación del tercero con el alumno (REQ-FAM-UNIT/datos.md §8.2). Enumerado **extensible**.'
+      enum: [abuelo, personal_apoyo, otra_familia, otro]
+      x-extensible-enum: true
+
+    PickupAuthorizationKind:
+      type: string
+      description: '`permanente` (con vigencia opcional) o `puntual` (una fecha y un motivo, caduca sola). Enumerado **extensible**.'
+      enum: [permanente, puntual]
+      x-extensible-enum: true
+
+    PickupChannel:
+      type: string
+      description: >
+        Canal por el que se registró la autorización (RN-FAM-UNIT-85): `presencial` (papel firmado en secretaría) o
+        `telefono` (solo `puntual`, con devolución de llamada al principal, OPEN-FAM-UNIT-35). `portal` llega con `1.22`.
+        Enumerado **extensible**.
+      enum: [presencial, telefono]
+      x-extensible-enum: true
+
+    PickupBasisKind:
+      type: string
+      description: 'Base por la que una persona figura en la lista: `tutor` (vínculo activo), `tercero` (autorización permanente) o `puntual`. Enumerado **extensible**.'
+      enum: [tutor, tercero, puntual]
+      x-extensible-enum: true
+
+    PickupIneffectiveReason:
+      type: string
+      description: >
+        Por qué una autorización no es vigente ahora (precedencia en este orden). La causa concreta solo la ve quien
+        tiene `revocacion_tutor.leer`; sin ese permiso **toda** causa se muestra como `no_vigente` (no se revela una
+        resolución judicial, RN-FAM-UNIT-36). Enumerado **extensible**.
+      enum: [retirada, fuera_de_vigencia, sin_foto, persona_excluida, no_vigente]
+      x-extensible-enum: true
+
+    PickupDocument:
+      type: object
+      description: 'Documento de identidad de una persona de recogida (`Core`, RN-CORE-90).'
+      required: [type, number]
+      properties:
+        type: { type: string, description: 'Catálogo de `Core` (`dni`, `nie`, `pasaporte`).' }
+        number: { type: string, description: 'Completo: solo en `PickupPerson`, con `autorizado_recogida.crear` o `.actualizar` (RN-FAM-UNIT-90).' }
+
+    PickupPerson:
+      type: object
+      description: >
+        REQ-FAM-UNIT/api.md §8.1. Una persona de recogida (un tutor o un tercero). El documento va **completo** (solo
+        aquí, RN-FAM-UNIT-90); en la lista de recogida va siempre enmascarado. `reused` y `data_mismatch` solo en la
+        respuesta de `POST /pickup-persons` (RN-FAM-UNIT-89). Una persona reutilizada que estos *endpoints* no alcanzan
+        solo expone `person`, `reused` y `data_mismatch`. Nunca incluye la clave del objeto de la fotografía.
+      required: [person]
+      properties:
+        person: { $ref: '#/components/schemas/PublicId' }
+        display_name: { type: string }
+        document:
+          oneOf:
+            - { $ref: '#/components/schemas/PickupDocument' }
+            - { type: 'null' }
+        contact_phone:
+          oneOf:
+            - { type: string }
+            - { type: 'null' }
+        has_photo: { type: boolean }
+        photo_updated_at:
+          oneOf:
+            - { type: string, format: date-time }
+            - { type: 'null' }
+        reused: { type: boolean }
+        data_mismatch: { type: boolean }
+
+    PickupPhotoUrl:
+      type: object
+      description: 'URL firmada de caducidad corta (5 minutos por defecto), generada en cada respuesta y nunca cacheable (RN-FAM-UNIT-83).'
+      required: [url, expires_at]
+      properties:
+        url: { type: string, format: uri }
+        expires_at: { type: string, format: date-time }
+
+    PickupAuthorization:
+      type: object
+      description: >
+        REQ-FAM-UNIT/api.md §8.1. Una autorización de tercero (permanente) o puntual. `is_effective` es el cálculo de
+        ahora (no un dato guardado); `ineffective_reason` es `null` si es vigente. `reason` (texto libre) solo con
+        `autorizado_recogida.leer` de ámbito `todos`. **No** se exponen `ip_address` ni `user_agent` (evidencia).
+      required: [public_id, student_person, person, relationship, kind, valid_from, valid_until, authorized_by, terms_version, channel, authorized_at, recorded_by, is_effective, ineffective_reason, withdrawn_at, created_at]
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        student_person: { $ref: '#/components/schemas/PublicId' }
+        person:
+          type: object
+          required: [public_id, display_name]
+          properties:
+            public_id: { $ref: '#/components/schemas/PublicId' }
+            display_name: { type: string }
+        relationship: { $ref: '#/components/schemas/PickupRelationship' }
+        kind: { $ref: '#/components/schemas/PickupAuthorizationKind' }
+        valid_from: { type: string, format: date }
+        valid_until:
+          oneOf:
+            - { type: string, format: date }
+            - { type: 'null' }
+        reason:
+          oneOf:
+            - { type: string }
+            - { type: 'null' }
+        authorized_by: { $ref: '#/components/schemas/PublicId' }
+        terms_version: { $ref: '#/components/schemas/TermsVersionRef' }
+        channel: { $ref: '#/components/schemas/PickupChannel' }
+        authorized_at: { type: string, format: date-time }
+        recorded_by: { $ref: '#/components/schemas/PublicId' }
+        is_effective: { type: boolean }
+        ineffective_reason:
+          oneOf:
+            - { $ref: '#/components/schemas/PickupIneffectiveReason' }
+            - { type: 'null' }
+        withdrawn_at:
+          oneOf:
+            - { type: string, format: date-time }
+            - { type: 'null' }
+        created_at: { type: string, format: date-time }
+
+    PickupListBasis:
+      type: object
+      description: >
+        Una base de una entrada de la lista. `tutor`: `guardian_link` (`public_id` del vínculo) y su `relationship`.
+        `tercero`: `authorization` y `valid_until`. `puntual`: `authorization`, `valid_from` y `valid_until`. Nunca el
+        motivo de una puntual.
+      required: [basis, relationship]
+      properties:
+        basis: { $ref: '#/components/schemas/PickupBasisKind' }
+        guardian_link: { $ref: '#/components/schemas/PublicId' }
+        authorization: { $ref: '#/components/schemas/PublicId' }
+        relationship: { type: string }
+        valid_from:
+          oneOf:
+            - { type: string, format: date }
+            - { type: 'null' }
+        valid_until:
+          oneOf:
+            - { type: string, format: date }
+            - { type: 'null' }
+
+    PickupListEntry:
+      type: object
+      description: >
+        REQ-FAM-UNIT/api.md §8.1. Una persona de la lista calculada de un alumno; sin `public_id` propio. `photo_url` es
+        una URL firmada de caducidad corta, `null` si no hay fotografía o el sujeto no la ve (ámbito `unidad_familiar`,
+        OPEN-FAM-UNIT-43). `document` va enmascarado siempre (RN-FAM-UNIT-90) y se omite (`null`) en los terceros con
+        ámbito `unidad_familiar` (RN-FAM-UNIT-91). Nunca se incluye la existencia de un vínculo revocado ni de una
+        persona excluida.
+      required: [person, display_name, bases, has_photo, photo_url, photo_url_expires_at, contact_phone, document]
+      properties:
+        person: { $ref: '#/components/schemas/PublicId' }
+        display_name: { type: string }
+        bases:
+          type: array
+          items: { $ref: '#/components/schemas/PickupListBasis' }
+        has_photo: { type: boolean }
+        photo_url:
+          oneOf:
+            - { type: string, format: uri }
+            - { type: 'null' }
+        photo_url_expires_at:
+          oneOf:
+            - { type: string, format: date-time }
+            - { type: 'null' }
+        contact_phone:
+          oneOf:
+            - { type: string }
+            - { type: 'null' }
+        document:
+          oneOf:
+            - type: object
+              required: [type, masked]
+              properties:
+                type: { type: string }
+                masked: { type: string, description: 'Solo los 4 últimos caracteres a la vista (`•••••123X`).' }
+            - { type: 'null' }
+
+    PickupList:
+      type: object
+      description: 'REQ-FAM-UNIT/api.md §8.3. La lista de un alumno en `meta.as_of` (instante del servidor).'
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/PickupListEntry' }
+        meta:
+          type: object
+          required: [as_of]
+          properties:
+            as_of: { type: string, format: date-time }
 
     MyTerms:
       type: object
@@ -2485,6 +2681,14 @@ components:
         type: string
         enum: [version_number, -version_number]
         default: -version_number
+    PickupAuthorizationSortParam:
+      name: sort
+      in: query
+      description: Prefijo "-" para descendente (ADR-038 §5.3). Lista blanca cerrada; desempate por `id`.
+      schema:
+        type: string
+        enum: [valid_from, -valid_from, created_at, -created_at]
+        default: -valid_from
     PageParam:
       name: page
       in: query

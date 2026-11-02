@@ -11,9 +11,12 @@
  *   create-link <guardianPublicId> <studentPersonPublicId> <emergency 0|1>
  *   record-decision <userPublicId> <studentPersonPublicId> <level> <decision>   (1.14-b, CA-FAM-UNIT-058: el propio tutor, canal portal)
  *   publish-text <termsVersionPublicId>                                          (1.14-b, CA-FAM-UNIT-099: publicar un borrador)
+ *   register-person <documentType> <documentNumber>                              (1.14b-a, CA-068-05: PersonRegistrar::registerOrReuse)
  */
 
 use App\Models\User;
+use App\Modules\Core\Domain\PersonRegistrar;
+use App\Modules\Core\Domain\PersonRegistration;
 use App\Modules\FamUnit\Application\FamilyUnitService;
 use App\Modules\FamUnit\Application\GuardianLinkService;
 use App\Modules\FamUnit\Application\GuardianService;
@@ -87,6 +90,11 @@ $result = app(TenantContext::class)->runFor((int) $tenantId, function () use ($o
                     );
 
                     return ['outcome' => 'ok', 'public_id' => $recorded['decision']->public_id, 'state' => $recorded['state']['state']];
+
+                case 'register-person':
+                    $registered = app(PersonRegistrar::class)->registerOrReuse(new PersonRegistration('Abuelo', 'Carrera', null, $args[0], $args[1]));
+
+                    return ['outcome' => 'ok', 'person_id' => $registered->personId, 'reused' => $registered->reused];
 
                 case 'publish-text':
                     $version = app(TermsVersionService::class)->publish($args[0], false);

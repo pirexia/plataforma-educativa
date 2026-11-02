@@ -147,35 +147,37 @@ Solo SPA (pantallas de personal de `funcional.md §10`): ninguna migración, var
 
 ## 12. Paso `1.14b` (autorizados y entrega de menores) — APROBADA (2026-10-29)
 
-> **Estado**: **APROBADA** (2026-10-29), con `ADR-068` ACEPTADA (`funcional.md §21.2`). Nada de esto se ha probado: no hay implementación.
+> **Estado**: **APROBADA** (2026-10-29), con `ADR-068` ACEPTADA (`funcional.md §21.2`). **`1.14b-a` implementada (2026-11-02)**: lo de `fam_unit` y del núcleo (§12.1 a §12.4, salvo `prl`). **Verificado** (`funcional.md §22.1`): la subida `PUT` multipart en FrankenPHP, `gd` y `exif` en el contenedor reconstruido, el reprocesado de 12 MP en 0,38 s y la suite completa dentro del contenedor. **Sin probar**: un MinIO/S3 real (la imagen de MinIO no se puede descargar), la reversión en servidor y el planificador (issue #453). Lo de `prl` (protocolo, `student_movements`, `pickup_alerts`) sigue sin implementar.
 
 ### 12.1 Variables de entorno y configuración
 
-**Ninguna variable de entorno nueva** (`files.disk` toma por defecto `filesystems.default`). Claves de configuración con valor por defecto (en `config/fam_unit.php` y, con `prl`, `config/prl.php`), revisables:
+**Variables de entorno**: ninguna propia de `fam_unit`, pero el almacenamiento privado exige S3 compatible fuera de los tests (`funcional.md §22` D-67): `FILESYSTEM_DISK=s3`, `AWS_ENDPOINT`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_DEFAULT_REGION`, `AWS_BUCKET` y `AWS_USE_PATH_STYLE_ENDPOINT=true` (`files.disk` toma por defecto `filesystems.default`). La imagen fija `upload_max_filesize = 6M`, `post_max_size = 8M` y `memory_limit = 256M`. Claves de configuración con valor por defecto (en `config/fam_unit.php` y, con `prl`, `config/prl.php`), revisables:
 
 | Clave | Defecto [DERIVADA] | Regla |
 |-------|--------------------|-------|
-| `files.disk` (núcleo, `config/files.php`, `App\Support\Files`) | `filesystems.default` (disco privado S3; MinIO en desarrollo) | Disco donde `PrivateObjectStore` escribe y firma las fotografías, bajo `tenants/<tenant public_id>/<área>/` (`ADR-068 §5.3`, `INV-001`). Clave compartida con cualquier fichero privado futuro, no propia de `fam_unit` |
+| `files.disk` (núcleo, `config/files.php`, `App\Support\Files`) | `filesystems.default` (disco privado S3; MinIO en desarrollo) | Disco donde `PrivateObjectStore` escribe y firma las fotografías (**sin S3 configurado la aplicación falla en cerrado**: rechaza un disco `local` fuera de los tests, `funcional.md §22` D-67), bajo `tenants/<tenant public_id>/<área>/` (`ADR-068 §5.3`, `INV-001`). Clave compartida con cualquier fichero privado futuro, no propia de `fam_unit` |
 | `fam_unit.pickup.photo.max_bytes` | 5 MB | `RN-FAM-UNIT-83` |
 | `fam_unit.pickup.photo.max_dimension` | 1024 px (lado mayor tras reprocesar) | `RN-FAM-UNIT-83` |
+| `fam_unit.pickup.photo.max_input_pixels` | 12 000 000 (4000 × 3000) | Píxeles máximos de **entrada**, comprobados antes de decodificar (`ADR-068 §5.3`); acota la memoria de `gd` (`funcional.md §22` D-57) |
 | `fam_unit.pickup.photo.signed_url_ttl_minutes` | 5 | `RN-FAM-UNIT-83` |
 | `fam_unit.pickup.photo.orphan_grace_days` | 30 (`OPEN-FAM-UNIT-37`) | §8.8 de `datos.md` |
-| `fam_unit.pickup.read_rate_limit` | 300 por hora, por centro y usuario | `RN-FAM-UNIT-93` |
+| `fam_unit.pickup.read_rate_limit` | 300 por hora, por centro y usuario (`attempts` y `decay_seconds`) | `RN-FAM-UNIT-93` |
+| `fam_unit.pickup.person_rate_limit.lookup` / `.register` | 60 por hora cada uno, por centro y usuario | Búsqueda por documento y alta de personas (`funcional.md §22` D-66) |
 
 El texto del protocolo ante persona no autorizada es **configuración del centro** (`settings` del módulo `prl`, `modulo.actualizar`, `ADR-045`), no del despliegue (`OPEN-FAM-UNIT-40`).
 
 ### 12.2 Servicios externos
 
-- **Almacenamiento S3** (MinIO en desarrollo): pasa a ser **necesario para la operación diaria** (fotografías en la puerta), no solo para informes. Si no responde, la lista se sirve con `photo_url = null` y el aviso de verificar por documento; **no** se bloquea la entrega a quien figura, porque la verificación por documento sigue siendo posible [DERIVADA, a ratificar]. El alta y sustitución de fotos sí falla (`503`) sin escribir nada.
-- **Extensiones de PHP `gd` y `exif`** para reprocesar fotografías (D3): `ADR-068` (hecho 7) verificó que la imagen no tiene ninguna; `L8` (aprobada 2026-10-29) las añade en `infra/containers/api/Containerfile` (etapa `base`, 7 a 9 extensiones) y en las dos listas de `.github/workflows/ci-api.yml` (6 a 8). Sin dependencia de Composer nueva.
+- **Almacenamiento S3** (MinIO en desarrollo): pasa a ser **necesario para la operación diaria** (fotografías en la puerta), no solo para informes. Sin S3 configurado (`FILESYSTEM_DISK` distinto de un disco S3 fuera de los tests) la subida y la firma **fallan en cerrado**. Si no responde, la lista se sirve con `photo_url = null` y el aviso de verificar por documento; **no** se bloquea la entrega a quien figura, porque la verificación por documento sigue siendo posible [DERIVADA, a ratificar]. El alta y sustitución de fotos sí falla (`503`) sin escribir nada.
+- **Extensiones de PHP `gd` y `exif`** para reprocesar fotografías (D3): `ADR-068` (hecho 7) verificó que la imagen no tiene ninguna; `L8` (aprobada 2026-10-29) las añade en `infra/containers/api/Containerfile` (etapa `base`, 7 a 9 extensiones) y en las dos listas de `.github/workflows/ci-api.yml` (6 a 8). Con la dependencia de Composer `league/flysystem-aws-s3-v3` (MIT) para el disco S3, decisión del usuario del 2026-11-02 (`funcional.md §22` D-67); las extensiones no añaden ningún paquete.
 - Ningún servicio de correo, SMS ni notificaciones (diferido a `1.19`).
 
 ### 12.3 Colas y tareas programadas
 
 | Trabajo | Cola | Cuándo | Notas |
 |---------|------|--------|-------|
-| Reprocesado de la fotografía | — (síncrono) | En la subida | Una imagen de 5 MB como máximo; la respuesta debe llevar la foto ya limpia y la autorización depende de ella (`RN-FAM-UNIT-84`). Si la medición en `1.14b-a` supera el objetivo de `RNF-PERF-001`, pasa a la cola `default` con estado «procesando» (decisión de implementación con `db-reviewer`) |
-| Barrido de fotografías huérfanas | `default` | Diario | Patrón `PurgeOrphanBrandingAssets`. **Depende del planificador**, que no tiene servicio desplegado (issue #453); mientras no lo tenga, comando manual documentado en `RUNBOOK.md` |
+| Reprocesado de la fotografía | — (síncrono) | En la subida | Una imagen de 5 MB como máximo; la respuesta debe llevar la foto ya limpia y la autorización depende de ella (`RN-FAM-UNIT-84`). Medido en `1.14b-a`: **0,38 s** para 12 MP con EXIF 6 (`funcional.md §22` D-70), dentro del objetivo, así que **se mantiene síncrono**; si una medición futura lo supera, pasaría a la cola `default` con estado «procesando» (decisión de implementación con `db-reviewer`) |
+| Barrido de fotografías huérfanas | `default` | Diario | Patrón `PurgeOrphanBrandingAssets`: `PurgeOrphanPickupPhotos`, despachado por centro con `php artisan fam_unit:purge-orphan-photos` (programado `daily()` en `routes/console.php`; criterios en `funcional.md §22` D-58). **Depende del planificador**, que no tiene servicio desplegado (issue #453); mientras no lo tenga, comando manual documentado en `RUNBOOK.md` |
 
 La caducidad de las autorizaciones puntuales **no** necesita tarea: es una condición de fecha en la consulta (`RN-FAM-UNIT-82`).
 

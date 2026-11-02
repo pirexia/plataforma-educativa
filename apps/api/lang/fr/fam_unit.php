@@ -13,6 +13,7 @@ return [
             'consentimiento_imagen' => 'Consentement à l\'utilisation de l\'image',
             'texto_legal' => 'Textes juridiques de l\'établissement',
             'aceptacion_condiciones' => 'Acceptations des conditions d\'utilisation',
+            'autorizado_recogida' => 'Personnes autorisées à récupérer un mineur',
         ],
     ],
 
@@ -61,6 +62,25 @@ return [
         'default_locale_missing' => 'Le titre et le texte doivent être rédigés dans la langue par défaut de l\'établissement (:locale) avant publication.',
     ],
 
+    'pickup' => [
+        'principal_required' => 'Seul le tuteur principal de l\'unité familiale, ayant un lien actif et la représentation légale sur l\'élève, peut autoriser une personne à le récupérer.',
+        'text_not_published' => 'L\'établissement n\'a pas publié le texte de l\'autorisation de récupération : on ne peut autoriser personne sans texte.',
+        'text_version_invalid' => 'La version du texte indiquée n\'est pas valide : elle doit être une version publiée ou retirée du texte de l\'autorisation de récupération.',
+        'text_version_outdated' => 'La version du texte affichée n\'est plus la version en vigueur : relisez le texte publié avant d\'autoriser.',
+        'person_not_eligible' => 'Cette personne ne peut pas être autorisée pour cet élève.',
+        'already_exists' => 'Une autorisation en vigueur de cette personne pour cet élève existe déjà.',
+        'channel_requires_puntual' => 'Une autorisation enregistrée par téléphone ne peut être que ponctuelle.',
+        'withdrawn' => 'L\'autorisation a été retirée et ne peut pas être modifiée.',
+        'invalid_transition' => 'L\'autorisation a déjà été retirée.',
+        'not_editable' => 'Cette donnée de l\'autorisation ne peut pas être modifiée : retirez-la et créez-en une nouvelle.',
+        'document_not_editable' => 'Le type et le numéro de document d\'identité d\'une personne ne peuvent pas être modifiés ici.',
+    ],
+
+    'photo' => [
+        'type_mismatch' => 'Le contenu de l\'image ne correspond pas à son extension ou ne peut pas être lu.',
+        'dimensions' => 'Les dimensions de l\'image dépassent le maximum admis ou ne peuvent pas être lues.',
+    ],
+
     'export' => [
         'q_not_allowed' => 'Le rapport de consentements n\'accepte pas la recherche libre (q).',
     ],
@@ -68,6 +88,8 @@ return [
     'errors' => [
         'consent_rate_limited' => 'Vous avez atteint la limite de décisions d\'image ou de rapports de consentements. Réessayez dans environ :minutes minutes.',
         'revocation_rate_limited' => 'Vous avez atteint la limite de révocations ou de levées de révocation. Réessayez dans environ :minutes minutes.',
+        'pickup_read_rate_limited' => 'Vous avez atteint la limite de consultations de la liste de récupération et des photographies. Réessayez dans environ :minutes minutes.',
+        'pickup_person_rate_limited' => 'Vous avez atteint la limite de recherches de personnes de récupération par document ou de créations de personnes. Réessayez dans environ :minutes minutes.',
     ],
 
     'validation' => [
@@ -90,5 +112,16 @@ return [
         'channel_invalid' => 'Le canal n\'est pas valide pour cet enregistrement.',
         'state_invalid' => 'L\'état n\'est pas valide.',
         'cursor_invalid' => 'Le curseur n\'est pas valide pour cette requête.',
+        'person_not_found' => 'La personne indiquée n\'existe pas.',
+        'pickup_relationship_invalid' => 'Le lien avec l\'élève n\'est pas valide.',
+        'pickup_kind_invalid' => 'Le type d\'autorisation n\'est pas valide.',
+        'date_invalid' => 'La date n\'est pas valide (format AAAA-MM-JJ).',
+        'date_range_invalid' => 'La date de fin ne peut pas être antérieure à la date de début (pour une autorisation ponctuelle, il doit s\'agir du même jour).',
+        'datetime_invalid' => 'La date et l\'heure ne sont pas valides (format ISO 8601).',
+        'authorized_at_future' => 'La date et l\'heure de l\'autorisation ne peuvent pas être futures.',
+        'reason_too_long' => 'Le motif ne peut pas dépasser :max caractères.',
+        'text_invalid' => 'La valeur doit être un texte.',
+        'text_too_long' => 'Le texte ne peut pas dépasser :max caractères.',
+        'at_least_one_field' => 'Indiquez au moins une donnée à corriger.',
     ],
 ];

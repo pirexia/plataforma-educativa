@@ -2,11 +2,12 @@
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Storage;
 use Symfony\Component\Yaml\Yaml;
 use Tests\Support\FamUnitTestHelpers as Fam;
 
-// CLAUDE.md §10 («el endpoint está documentado en OpenAPI»), REQ-FAM-UNIT/api.md §2, INV-006, INV-015. Los 35 endpoints de
-// 1.14-a, 1.14-b y 1.14-c (api.md §2.1 a §2.5, §2.7 y §2.8) documentados, y solo ellos; sus referencias resuelven; los
+// CLAUDE.md §10 («el endpoint está documentado en OpenAPI»), REQ-FAM-UNIT/api.md §2, INV-006, INV-015. Los 48 endpoints de
+// 1.14-a, 1.14-b, 1.14-c y 1.14b-a (api.md §2.1 a §2.5, §2.7, §2.8 y §8.1 a §8.3) documentados, y solo ellos; sus referencias resuelven; los
 // esquemas describen lo que la API devuelve de verdad.
 
 afterEach(function (): void {
@@ -30,7 +31,7 @@ function famDocumentedOperations(): array
     return $documented;
 }
 
-test('REQ-FAM-UNIT-001 REQ-FAM-UNIT-004 api.md §2: los 35 endpoints de 1.14-a, 1.14-b y 1.14-c están documentados en OpenAPI, enlazados desde openapi.yaml, y solo ellos', function (): void {
+test('REQ-FAM-UNIT-001 REQ-FAM-UNIT-004 api.md §2: los 48 endpoints de 1.14-a, 1.14-b, 1.14-c y 1.14b-a están documentados en OpenAPI, enlazados desde openapi.yaml, y solo ellos', function (): void {
     $root = Yaml::parseFile(base_path('openapi.yaml'));
     $paths = Yaml::parseFile(base_path('openapi/paths/fam-unit.yaml'))['paths'];
 
@@ -49,7 +50,7 @@ test('REQ-FAM-UNIT-001 REQ-FAM-UNIT-004 api.md §2: los 35 endpoints de 1.14-a, 
 
     sort($registered);
     // `{membershipPublicId}` es el nombre de ruta del segundo parámetro, igual en el contrato.
-    expect(famDocumentedOperations())->toHaveCount(35)->and($registered)->toBe(famDocumentedOperations());
+    expect(famDocumentedOperations())->toHaveCount(48)->and($registered)->toBe(famDocumentedOperations());
 });
 
 test('REQ-FAM-UNIT-001 api.md §2: toda referencia $ref de fam-unit.yaml resuelve en components.yaml y cada operación tiene identificador, etiqueta y cookie de sesión', function (): void {
@@ -175,7 +176,7 @@ test('REQ-FAM-UNIT-004 api.md §1.5 a §1.9: enumerados extensibles de 1.14-b, p
         ->and($components['schemas']['ImageConsentState']['enum'])->toBe(['autorizo', 'no_autorizo', 'pendiente'])
         ->and($components['schemas']['ImageConsentDecisionValue']['enum'])->toBe(['autorizo', 'no_autorizo'])
         ->and($components['schemas']['ImageConsentChannel']['enum'])->toBe(['portal', 'presencial'])
-        ->and($components['schemas']['TermsVersionKind']['enum'])->toBe(['condiciones_uso', 'consentimiento_imagen_web', 'consentimiento_imagen_redes'])
+        ->and($components['schemas']['TermsVersionKind']['enum'])->toBe(['condiciones_uso', 'consentimiento_imagen_web', 'consentimiento_imagen_redes', 'autorizacion_recogida'])
         ->and($components['schemas']['TermsVersionStatus']['enum'])->toBe(['borrador', 'publicada', 'retirada'])
         ->and($components['parameters']['ImageConsentSortParam']['schema']['enum'])->toBe(['last_decision_at', '-last_decision_at', 'state', '-state'])
         ->and($components['parameters']['TermsVersionSortParam']['schema']['enum'])->toBe(['version_number', '-version_number']);
@@ -271,4 +272,72 @@ test('REQ-FAM-UNIT-003 api.md §1.8, §2.8: los esquemas MyTerms y TermsAcceptan
     expect($me['session_walls'])->toBe([])
         ->and($documented['properties'])->toHaveKey('session_walls')
         ->and($documented['properties']['session_walls']['type'])->toBe('array');
+});
+
+test('REQ-FAM-UNIT-005 api.md §8.1 a §8.3: los esquemas de 1.14b-a describen exactamente las claves que la API devuelve (PickupAuthorization, PickupPerson, PickupListEntry, PickupList, PickupPhotoUrl) y los enumerados son extensibles', function (): void {
+    Storage::fake('local');
+    config(['filesystems.default' => 'local', 'files.disk' => null]);
+    Fam::freeze('2026-11-02 09:00:00');
+    $f = Fam::pickupFamily('fam-openapi-pk');
+    $third = Fam::thirdParty($f, 1);
+    $components = Yaml::parseFile(base_path('openapi/components.yaml'))['components'];
+    $schemas = $components['schemas'];
+    $paths = Yaml::parseFile(base_path('openapi/paths/fam-unit.yaml'))['paths'];
+    $propertiesOf = fn (string $schema): array => array_keys($schemas[$schema]['properties']);
+
+    $authorization = Fam::call($f['tenant'], $f['admin'], 'get', "/pickup-authorizations/{$third['authorization']}")->assertOk()->json();
+    $person = Fam::call($f['tenant'], $f['admin'], 'get', "/pickup-persons/{$third['person']}")->assertOk()->json();
+    $created = Fam::registerPerson($f['tenant'], $f['admin'], ['given_name' => 'Nueva'])->assertCreated()->json();
+    $list = Fam::call($f['tenant'], $f['admin'], 'get', "/pickup-lists/{$f['student']->public_id}")->assertOk()->json();
+    $photo = Fam::call($f['tenant'], $f['admin'], 'get', "/pickup-persons/{$third['person']}/photo")->assertOk()->json();
+    $entry = collect($list['data'])->firstWhere('person', $third['person']);
+
+    // `reason` es condicional (solo ámbito todos) y por eso no obligatoria; con ámbito todos viaja.
+    expect(array_keys($authorization))->toEqualCanonicalizing($propertiesOf('PickupAuthorization'))
+        ->and($schemas['PickupAuthorization']['required'])->toEqualCanonicalizing(array_values(array_diff($propertiesOf('PickupAuthorization'), ['reason'])))
+        // `reused` y `data_mismatch` solo en el alta; el resto, siempre.
+        ->and(array_keys($person))->toEqualCanonicalizing(array_values(array_diff($propertiesOf('PickupPerson'), ['reused', 'data_mismatch'])))
+        ->and(array_keys($created))->toEqualCanonicalizing($propertiesOf('PickupPerson'))
+        ->and($schemas['PickupPerson']['required'])->toBe(['person'])
+        ->and(array_keys($entry))->toEqualCanonicalizing($propertiesOf('PickupListEntry'))
+        ->and($schemas['PickupListEntry']['required'])->toEqualCanonicalizing($propertiesOf('PickupListEntry'))
+        ->and(array_keys($list))->toEqualCanonicalizing($propertiesOf('PickupList'))
+        ->and(array_keys($list['meta']))->toEqualCanonicalizing(array_keys($schemas['PickupList']['properties']['meta']['properties']))
+        ->and(array_keys($photo))->toEqualCanonicalizing($propertiesOf('PickupPhotoUrl'))
+        ->and(array_keys($authorization['terms_version']))->toEqualCanonicalizing($propertiesOf('TermsVersionRef'))
+        ->and(array_keys($entry['document']))->toEqualCanonicalizing(array_keys($schemas['PickupListEntry']['properties']['document']['oneOf'][0]['properties']))
+        ->and(array_keys($person['document']))->toEqualCanonicalizing($propertiesOf('PickupDocument'));
+
+    // Las bases: tutor, tercero y puntual llevan lo documentado y nada más.
+    $basisKeys = collect($list['data'])->flatMap(fn ($e) => $e['bases'])->flatMap(fn ($b) => array_keys($b))->unique()->all();
+    expect(array_diff($basisKeys, $propertiesOf('PickupListBasis')))->toBe([]);
+
+    // Ninguna clave interna ni dato de evidencia sale por la API.
+    foreach ([array_keys($authorization), array_keys($person), array_keys($entry), array_keys($photo)] as $names) {
+        expect($names)->not->toContain('id', 'tenant_id', 'created_by', 'updated_by', 'student_person_id', 'person_id', 'ip_address', 'user_agent', 'object_key', 'mime_type', 'byte_size', 'terms_version_id', 'recorded_by_id');
+    }
+
+    expect($schemas['PickupRelationship']['enum'])->toBe(['abuelo', 'personal_apoyo', 'otra_familia', 'otro'])
+        ->and($schemas['PickupAuthorizationKind']['enum'])->toBe(['permanente', 'puntual'])
+        ->and($schemas['PickupChannel']['enum'])->toBe(['presencial', 'telefono'])
+        ->and($schemas['PickupBasisKind']['enum'])->toBe(['tutor', 'tercero', 'puntual'])
+        ->and($schemas['PickupIneffectiveReason']['enum'])->toBe(['retirada', 'fuera_de_vigencia', 'sin_foto', 'persona_excluida', 'no_vigente'])
+        ->and($components['parameters']['PickupAuthorizationSortParam']['schema']['enum'])->toBe(['valid_from', '-valid_from', 'created_at', '-created_at']);
+
+    foreach (['PickupRelationship', 'PickupAuthorizationKind', 'PickupChannel', 'PickupBasisKind', 'PickupIneffectiveReason'] as $enum) {
+        expect($schemas[$enum]['x-extensible-enum'])->toBeTrue($enum);
+    }
+
+    // Filtros de varios valores en estilo form sin explode; la subida es multipart y la foto devuelve 413, 415 y 422.
+    foreach (collect($paths['/api/v1/pickup-authorizations']['get']['parameters'])->whereIn('name', ['student_person', 'person']) as $filter) {
+        expect($filter['style'])->toBe('form')->and($filter['explode'])->toBeFalse();
+    }
+
+    $put = $paths['/api/v1/pickup-persons/{personPublicId}/photo']['put'];
+    expect($put['requestBody']['content'])->toHaveKey('multipart/form-data')
+        ->and($put['responses'])->toHaveKeys(['200', '404', '413', '415', '422'])
+        ->and($paths['/api/v1/pickup-persons/{personPublicId}/photo']['get']['responses'])->toHaveKey('429')
+        ->and($paths['/api/v1/pickup-lists/{studentPersonPublicId}']['get']['responses'])->toHaveKeys(['200', '404', '429'])
+        ->and($paths['/api/v1/pickup-persons']['post']['responses'])->toHaveKeys(['200', '201', '422'])
+        ->and($paths['/api/v1/pickup-authorizations']['post']['requestBody']['content']['application/json']['schema']['properties']['channel']['$ref'])->toEndWith('/PickupChannel');
 });

@@ -4,6 +4,8 @@ namespace App\Modules\FamUnit\Infrastructure;
 
 use App\Modules\FamUnit\Application\FamilyRefs;
 use App\Modules\FamUnit\Application\FamilyUnitStudentService;
+use App\Modules\FamUnit\Application\PickupViewContext;
+use App\Modules\FamUnit\Domain\AuthorizedPickupList;
 use App\Modules\FamUnit\Domain\FamilyMembership;
 use App\Modules\FamUnit\Domain\FamilyUnitStudents;
 use App\Modules\FamUnit\Domain\GuardianRecipients;
@@ -13,8 +15,11 @@ use App\Modules\FamUnit\Domain\Models\FamilyUnitStudent;
 use App\Modules\FamUnit\Domain\Models\Guardian;
 use App\Modules\FamUnit\Domain\Models\GuardianStudentLink;
 use App\Modules\FamUnit\Domain\Models\ImageConsentDecision;
+use App\Modules\FamUnit\Domain\Models\PickupAuthorization;
+use App\Modules\FamUnit\Domain\Models\PickupPhoto;
 use App\Modules\FamUnit\Domain\Models\TermsAcceptance;
 use App\Modules\FamUnit\Domain\Models\TermsVersion;
+use App\Modules\FamUnit\Infrastructure\Console\PurgeOrphanPickupPhotosCommand;
 use App\Support\Authorization\ScopeResolverRegistry;
 use App\Support\Modules\DeclaresModuleRegistry;
 use App\Support\Sessions\SessionWallRegistry;
@@ -31,7 +36,8 @@ use Illuminate\Support\ServiceProvider;
  * Solo declara los permisos de los *endpoints* que existen: sin *endpoint*, un permiso invita a concederlo creyendo que
  * hace algo. `1.14-a`: `familia`, `vinculo_tutor`, `revocacion_tutor`. `1.14-b`: `consentimiento_imagen` y `texto_legal`
  * (`ADR-066`, `OPEN-066-03`: el recurso de las versiones de texto legal se llama `texto_legal`). `1.14-c`:
- * `aceptacion_condiciones` (`funcional.md §15`, D-6) y el muro de condiciones de uso (`ADR-067`).
+ * `aceptacion_condiciones` (`funcional.md §15`, D-6) y el muro de condiciones de uso (`ADR-067`). `1.14b-a`:
+ * `autorizado_recogida` (`ADR-068`, `permisos.md §8`).
  */
 class FamUnitServiceProvider extends ServiceProvider implements DeclaresModuleRegistry
 {
@@ -39,6 +45,8 @@ class FamUnitServiceProvider extends ServiceProvider implements DeclaresModuleRe
     {
         // Memoiza por petición los nombres y ids de personas y usuarios que piden las representaciones (RN-FAM-UNIT-34).
         $this->app->scoped(FamilyRefs::class);
+        // 1.14b-a: la vigencia calculada y la visibilidad de campos de las representaciones de una autorización, por petición.
+        $this->app->scoped(PickupViewContext::class);
 
         // §7: una instancia nueva por resolución y ninguna memoización entre peticiones (`RN-FAM-UNIT-34`).
         $this->app->bind(FamilyMembership::class, EloquentFamilyMembership::class);
@@ -46,11 +54,18 @@ class FamUnitServiceProvider extends ServiceProvider implements DeclaresModuleRe
         $this->app->bind(FamilyUnitStudents::class, FamilyUnitStudentService::class);
         // §7.3 (`INV-014`, `ADR-066 §5.3`): sin memoización entre llamadas; retirar un consentimiento surte efecto en la siguiente.
         $this->app->bind(ImageConsentPolicy::class, EloquentImageConsentPolicy::class);
+        // ADR-068 §5.5 (1.14b-a): la lista maestra de recogida. Sin memoización entre llamadas ni caché (`RN-FAM-UNIT-81`).
+        $this->app->bind(AuthorizedPickupList::class, EloquentAuthorizedPickupList::class);
     }
 
     public function boot(): void
     {
         $this->loadMigrationsFrom(app_path('Modules/FamUnit/Database/migrations'));
+
+        // 1.14b-a (operacion.md §12.3): barrido de fotografías de recogida huérfanas.
+        if ($this->app->runningInConsole()) {
+            $this->commands([PurgeOrphanPickupPhotosCommand::class]);
+        }
 
         // ADR-034 §3: `audit_logs` guarda el alias, nunca el FQCN.
         Relation::enforceMorphMap([
@@ -61,6 +76,9 @@ class FamUnitServiceProvider extends ServiceProvider implements DeclaresModuleRe
             'terms_version' => TermsVersion::class,
             'terms_acceptance' => TermsAcceptance::class,
             'image_consent_decision' => ImageConsentDecision::class,
+            // ADR-068 §6 `L10` (1.14b-a): alias estables (ADR-034 §3).
+            'pickup_photo' => PickupPhoto::class,
+            'pickup_authorization' => PickupAuthorization::class,
         ]);
 
         // permisos.md §3.1 (`ADR-044 §3.4`): `unidad_familiar` sobre los recursos propios del módulo.
@@ -68,6 +86,7 @@ class FamUnitServiceProvider extends ServiceProvider implements DeclaresModuleRe
         $registry->register(new FamiliaUnidadFamiliarScopeResolver);
         $registry->register(new VinculoTutorUnidadFamiliarScopeResolver);
         $registry->register(new ConsentimientoImagenUnidadFamiliarScopeResolver);
+        $registry->register(new AutorizadoRecogidaUnidadFamiliarScopeResolver);
 
         // ADR-067 §5.7: el muro de condiciones de uso, segundo en el orden cerrado L6. Se registra la clase (el
         // middleware la resuelve en cada petición) y siempre: si el módulo está activo lo decide `RequireSessionWalls`.
@@ -154,6 +173,21 @@ class FamUnitServiceProvider extends ServiceProvider implements DeclaresModuleRe
             'resource_label_key' => 'fam_unit.permissions.resources.aceptacion_condiciones',
             'applicable_scopes' => ['todos'],
         ];
+
+        // `autorizado_recogida` (1.14b-a, permisos.md §8.2, `ADR-068 §6` `L7`): personas de recogida, fotografías,
+        // autorizaciones y lista maestra. Solo `leer` admite `unidad_familiar` (lectura por la familia, `RN-FAM-UNIT-91`); la
+        // escritura por el tutor llega con `1.22` (`OPEN-FAM-UNIT-29`). Ni `exportar` (un listado de terceros con fotos es la
+        // vía de fuga más grave) ni `importar`; ninguno de categoría especial (`funcional.md §21.10`).
+        foreach (['leer' => ['todos', 'unidad_familiar'], 'crear' => ['todos'], 'actualizar' => ['todos'], 'eliminar' => ['todos']] as $action => $scopes) {
+            $permissions[] = [
+                'code' => "autorizado_recogida.{$action}",
+                'resource' => 'autorizado_recogida',
+                'action' => $action,
+                'is_special_category' => false,
+                'resource_label_key' => 'fam_unit.permissions.resources.autorizado_recogida',
+                'applicable_scopes' => $scopes,
+            ];
+        }
 
         return $permissions;
     }

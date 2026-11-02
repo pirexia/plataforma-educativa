@@ -13,6 +13,7 @@ return [
             'consentimiento_imagen' => 'Image use consent',
             'texto_legal' => 'School legal texts',
             'aceptacion_condiciones' => 'Acceptances of the terms of use',
+            'autorizado_recogida' => 'Persons authorised to collect a minor',
         ],
     ],
 
@@ -61,6 +62,25 @@ return [
         'default_locale_missing' => 'The title and the text must be written in the school\'s default language (:locale) before publishing.',
     ],
 
+    'pickup' => [
+        'principal_required' => 'Only the principal guardian of the family unit, with an active link and legal representation over the student, can authorise a person to collect them.',
+        'text_not_published' => 'The school has not published the pickup authorisation text: nobody can be authorised without a text.',
+        'text_version_invalid' => 'The indicated text version is not valid: it must be a published or withdrawn version of the pickup authorisation text.',
+        'text_version_outdated' => 'The text version that was shown is no longer the current one: read the published text again before authorising.',
+        'person_not_eligible' => 'That person cannot be authorised for this student.',
+        'already_exists' => 'A current authorisation of that person for this student already exists.',
+        'channel_requires_puntual' => 'An authorisation recorded by telephone can only be a one-off authorisation.',
+        'withdrawn' => 'The authorisation has been withdrawn and cannot be modified.',
+        'invalid_transition' => 'The authorisation has already been withdrawn.',
+        'not_editable' => 'This authorisation data cannot be changed: withdraw it and create a new one.',
+        'document_not_editable' => 'The type and number of a person\'s identity document cannot be changed here.',
+    ],
+
+    'photo' => [
+        'type_mismatch' => 'The image content does not match its file extension or cannot be read.',
+        'dimensions' => 'The image dimensions exceed the maximum allowed or cannot be read.',
+    ],
+
     'export' => [
         'q_not_allowed' => 'The consent report does not accept free-text search (q).',
     ],
@@ -68,6 +88,8 @@ return [
     'errors' => [
         'consent_rate_limited' => 'You have reached the limit of image decisions or consent reports. Try again in about :minutes minutes.',
         'revocation_rate_limited' => 'You have reached the limit of revocations or revocation lifts. Try again in about :minutes minutes.',
+        'pickup_read_rate_limited' => 'You have reached the limit of pickup list and photo lookups. Try again in about :minutes minutes.',
+        'pickup_person_rate_limited' => 'You have reached the limit of pickup person searches by document or of person registrations. Try again in about :minutes minutes.',
     ],
 
     'validation' => [
@@ -90,5 +112,16 @@ return [
         'channel_invalid' => 'The channel is not valid for this record.',
         'state_invalid' => 'The state is not valid.',
         'cursor_invalid' => 'The cursor is not valid for this query.',
+        'person_not_found' => 'The indicated person does not exist.',
+        'pickup_relationship_invalid' => 'The relationship with the student is not valid.',
+        'pickup_kind_invalid' => 'The type of authorisation is not valid.',
+        'date_invalid' => 'The date is not valid (format YYYY-MM-DD).',
+        'date_range_invalid' => 'The end date cannot be earlier than the start date (for a one-off authorisation, it must be the same day).',
+        'datetime_invalid' => 'The date and time are not valid (ISO 8601 format).',
+        'authorized_at_future' => 'The date and time of the authorisation cannot be in the future.',
+        'reason_too_long' => 'The reason cannot exceed :max characters.',
+        'text_invalid' => 'The value must be a text.',
+        'text_too_long' => 'The text cannot exceed :max characters.',
+        'at_least_one_field' => 'Specify at least one item to correct.',
     ],
 ];

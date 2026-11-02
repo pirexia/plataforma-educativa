@@ -1199,3 +1199,456 @@ paths:
         '403': { description: 'Módulo `fam_unit` no contratado (`403 urn:pge:error:module-disabled`) o, con el alta de MFA pendiente, `403 urn:pge:error:mfa-enrollment-required`.', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
         '409': { $ref: '../components.yaml#/components/responses/Conflict' }
         '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+
+  # ─── 1.14b-a · autorizados de recogida (REQ-FAM-UNIT-005, ADR-068; docs/modulos/REQ-FAM-UNIT/api.md §8) ───
+  /api/v1/pickup-persons:
+    get:
+      operationId: findPickupPerson
+      summary: Busca una persona de recogida por su documento
+      description: >
+        Permiso `autorizado_recogida.actualizar` (ámbito `todos`). Búsqueda **solo por documento**
+        (`document_type` y `document_number`, obligatorios): no hay directorio de personas del centro. Devuelve 0 o 1
+        persona **alcanzable** (un tutor del centro o una persona que figura en alguna autorización viva); una persona de
+        `Core` que estos *endpoints* no alcanzan (p. ej. un empleado) no aparece. El número se compara en su forma
+        canónica (RN-CORE-92). Un tipo fuera del catálogo o un documento desconocido devuelven la colección vacía. Con coincidencia, la lectura se **audita** (`read` sobre la persona, sin valores) y la búsqueda tiene un **cubo de frecuencia propio** por centro y usuario (60 por hora): superado, `429` con `Retry-After`.
+      tags: ['FamUnit / Personas de recogida']
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - name: document_type
+          in: query
+          required: true
+          schema: { type: string, maxLength: 32 }
+        - name: document_number
+          in: query
+          required: true
+          schema: { type: string, maxLength: 32 }
+      responses:
+        '200':
+          description: Colección de 0 o 1 persona
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    maxItems: 1
+                    items: { $ref: '../components.yaml#/components/schemas/PickupPerson' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `fam_unit` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+        '429': { $ref: '../components.yaml#/components/responses/TooManyRequests' }
+    post:
+      operationId: createPickupPerson
+      summary: Da de alta una persona de recogida, o reutiliza la que ya existe
+      description: >
+        Permiso `autorizado_recogida.crear`. Crea la persona **sin cuenta** por `PersonRegistrar` (ADR-068 §5.2) con
+        nombre, documento y teléfono (minimización: ni fecha de nacimiento, ni correo, ni dirección,
+        OPEN-FAM-UNIT-27). **Nunca modifica una persona existente** (RN-FAM-UNIT-89): si ya hay una persona viva del
+        centro con ese documento, responde `200` con `reused = true` y `data_mismatch = true` si algún dato aportado
+        difiere del registrado, sin decir cuál; el personal lo corrige en la ficha de la persona (por
+        `PATCH /pickup-persons/{personPublicId}` si no tiene usuario, o por `/users` si lo tiene). Si esa persona no es
+        alcanzable por estos *endpoints*, la respuesta solo lleva su identificador y los dos indicadores. Tiene un **cubo de frecuencia propio** por centro y usuario (60 por hora, también con reutilización): superado, `429`. Sin documento
+        siempre crea (no hay clave con la que reutilizar). El tipo, el formato y el dígito de control del documento los
+        valida `Core` (RN-CORE-90 a -93).
+      tags: ['FamUnit / Personas de recogida']
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [given_name, family_name_1]
+              properties:
+                given_name: { type: string, minLength: 1, maxLength: 255 }
+                family_name_1: { type: string, minLength: 1, maxLength: 255 }
+                family_name_2: { type: [string, 'null'], maxLength: 255 }
+                document_type: { type: [string, 'null'], maxLength: 32, description: 'Catálogo de `Core` (`dni`, `nie`, `pasaporte`); va con `document_number` o no va.' }
+                document_number: { type: [string, 'null'], maxLength: 32 }
+                contact_phone: { type: [string, 'null'], maxLength: 32 }
+      responses:
+        '200':
+          description: Ya existía una persona viva con ese documento; no se ha modificado
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/PickupPerson' }
+        '201':
+          description: Persona creada
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/PickupPerson' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `fam_unit` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+        '429': { $ref: '../components.yaml#/components/responses/TooManyRequests' }
+
+  /api/v1/pickup-persons/{personPublicId}:
+    parameters:
+      - name: personPublicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    get:
+      operationId: getPickupPerson
+      summary: Detalle de una persona de recogida
+      description: >
+        Permiso `autorizado_recogida.actualizar`. Devuelve el documento **completo** (RN-FAM-UNIT-90): es la ficha de
+        gestión, y su lectura se **audita** (`read` sobre la persona, sin valores). `404` si la persona no existe en el centro o no es alcanzable por estos *endpoints*.
+      tags: ['FamUnit / Personas de recogida']
+      security: [{ SessionCookie: [] }]
+      responses:
+        '200':
+          description: La persona
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/PickupPerson' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `fam_unit` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+    patch:
+      operationId: updatePickupPerson
+      summary: Corrige los datos de una persona de recogida sin usuario
+      description: >
+        Permiso `autorizado_recogida.actualizar`. Corrige `given_name`, `family_name_1`, `family_name_2` y `contact_phone`
+        (todos opcionales, **al menos uno**; cuerpo vacío ⇒ `422`) por `PersonRegistrar::correctUnaccounted` (OPEN-068-07);
+        lo audita `Core`. **`document_type` y `document_number` no son editables** (son la clave de reutilización):
+        enviarlos es `422`. Si la persona **tiene usuario** (se corrige por `/users`), no existe, es de otro centro o no
+        es alcanzable, `404` sin modificar nada ni revelar que existe. Sin límite de frecuencia propio.
+      tags: ['FamUnit / Personas de recogida']
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              properties:
+                given_name: { type: string, minLength: 1, maxLength: 255 }
+                family_name_1: { type: string, minLength: 1, maxLength: 255 }
+                family_name_2: { type: [string, 'null'], maxLength: 255 }
+                contact_phone: { type: [string, 'null'], maxLength: 32 }
+      responses:
+        '200':
+          description: La persona corregida
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/PickupPerson' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `fam_unit` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+
+  /api/v1/pickup-persons/{personPublicId}/photo:
+    parameters:
+      - name: personPublicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    put:
+      operationId: putPickupPersonPhoto
+      summary: Sube o sustituye la fotografía de recogida de una persona
+      description: >
+        Permiso `autorizado_recogida.actualizar`. `multipart/form-data` con el campo `file`. La imagen se valida y se
+        **reprocesa en el servidor** (RN-FAM-UNIT-83, ADR-068 §5.3): tipo real por contenido (JPEG, PNG o WebP; nunca SVG
+        ni HEIC) con `415`; tamaño máximo (5 MB por defecto) con `413`; la extensión declarada tiene que casar con el
+        tipo real (`422 fam_unit.photo.type_mismatch`); píxeles máximos de entrada y dimensiones ilegibles
+        (`422 fam_unit.photo.dimensions`). Lo que se guarda es una imagen **nueva** (orientación EXIF aplicada y
+        descartada, lado mayor ≤ 1024 px, sin EXIF, XMP, IPTC ni perfiles) en el *bucket* privado bajo
+        `tenants/<centro>/fam-unit/pickup-photos/<ULID>.<ext>`; el original no se guarda. Una fotografía viva por
+        persona: sustituir da de baja la anterior. Si el almacenamiento no responde, `503` sin escribir nada. Prohibido
+        cualquier tratamiento automatizado de la imagen. Sin la fotografía, la autorización de un tercero no es vigente
+        (RN-FAM-UNIT-84).
+      tags: ['FamUnit / Personas de recogida']
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        '200':
+          description: La persona, ya con fotografía
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/PickupPerson' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `fam_unit` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '413': { description: 'Fichero demasiado grande (`413`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '415': { description: 'Tipo real de imagen no admitido: SVG, HEIC... (`415`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+        '503': { description: 'Almacenamiento no disponible: no se escribe nada (`503`, `Retry-After`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+    get:
+      operationId: getPickupPersonPhotoUrl
+      summary: URL firmada de la fotografía de una persona de recogida
+      description: >
+        Permiso `autorizado_recogida.leer`, ámbito `todos`. Devuelve una URL **firmada de caducidad corta** (5 minutos
+        por defecto), generada en cada respuesta y nunca cacheable. **Auditada** (`read` sobre la persona, sin valores) y
+        con **límite** de lecturas (300 por centro y usuario y hora, RN-FAM-UNIT-93): superado, `429` con `Retry-After`.
+        La fila de auditoría se escribe antes de devolver la URL. `404` si la persona no tiene fotografía o no es
+        alcanzable. Con ámbito `unidad_familiar` la fotografía de un tercero no se sirve a la familia
+        (OPEN-FAM-UNIT-43, abierta): `404`.
+      tags: ['FamUnit / Personas de recogida']
+      security: [{ SessionCookie: [] }]
+      responses:
+        '200':
+          description: URL firmada
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/PickupPhotoUrl' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `fam_unit` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '429': { $ref: '../components.yaml#/components/responses/TooManyRequests' }
+    delete:
+      operationId: deletePickupPersonPhoto
+      summary: Elimina la fotografía de una persona de recogida
+      description: >
+        Permiso `autorizado_recogida.actualizar`. Baja lógica de la fotografía viva; el objeto del *bucket* lo purga el
+        barrido de huérfanos. Idempotente. Sin fotografía, las autorizaciones de terceros de esa persona dejan de ser
+        vigentes (`sin_foto`, RN-FAM-UNIT-84).
+      tags: ['FamUnit / Personas de recogida']
+      security: [{ SessionCookie: [] }]
+      responses:
+        '204': { description: Fotografía dada de baja }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `fam_unit` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+
+  /api/v1/pickup-authorizations:
+    get:
+      operationId: listPickupAuthorizations
+      summary: Lista las autorizaciones de recogida
+      description: >
+        Permiso `autorizado_recogida.leer`, ámbito `todos` o `unidad_familiar` (solo de los alumnos que el sujeto
+        alcanza por vínculo **activo**, RN-FAM-UNIT-91). Filtros `student_person`, `person` (varios `public_id`),
+        `kind` y `effective` (vigente ahora). Orden `valid_from` (defecto, descendente) y `created_at`, desempate por
+        `id`. `reason` solo con ámbito `todos`; `ineffective_reason` con su causa concreta solo con `revocacion_tutor.leer`
+        (si no, toda causa es `no_vigente`). No se exponen `ip_address` ni `user_agent`.
+      tags: ['FamUnit / Autorizaciones de recogida']
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - name: student_person
+          in: query
+          description: Uno o varios `public_id` de persona de alumno separados por coma.
+          style: form
+          explode: false
+          schema: { type: array, items: { $ref: '../components.yaml#/components/schemas/PublicId' } }
+        - name: person
+          in: query
+          description: Uno o varios `public_id` de la persona autorizada separados por coma.
+          style: form
+          explode: false
+          schema: { type: array, items: { $ref: '../components.yaml#/components/schemas/PublicId' } }
+        - name: kind
+          in: query
+          schema: { $ref: '../components.yaml#/components/schemas/PickupAuthorizationKind' }
+        - name: effective
+          in: query
+          description: '`true` ⇒ solo las vigentes ahora; `false` ⇒ solo las que no lo son.'
+          schema: { type: boolean }
+        - { $ref: '../components.yaml#/components/parameters/PickupAuthorizationSortParam' }
+        - { $ref: '../components.yaml#/components/parameters/PageParam' }
+        - { $ref: '../components.yaml#/components/parameters/PerPageParam' }
+      responses:
+        '200':
+          description: Página de resultados
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '../components.yaml#/components/schemas/PickupAuthorization' }
+                  meta: { $ref: '../components.yaml#/components/schemas/PageMeta' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `fam_unit` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+    post:
+      operationId: createPickupAuthorization
+      summary: Autoriza a un tercero a recoger a un alumno (permanente o puntual)
+      description: >
+        Permiso `autorizado_recogida.crear` (ámbito `todos`). **Autorización del tutor principal** (RN-FAM-UNIT-85):
+        `authorized_by` es el tutor principal de la unidad del alumno y tiene vínculo `activo` con representación legal
+        sobre él; si no (o la unidad no tiene principal), `422 pickup.principal_required`. `terms_version` es una versión
+        `publicada` o `retirada` del texto `autorizacion_recogida` (nunca un borrador, `422 pickup.text_version_invalid`);
+        sin ningún texto publicado, `422 pickup.text_not_published` y no se escribe nada. La persona no puede ser el propio
+        alumno ni alguien con el acceso revocado a ese alumno: `422 pickup.person_not_eligible` con el **mismo cuerpo** en
+        ambos casos (RN-FAM-UNIT-86). Una autorización idéntica a una viva: `422 pickup.already_exists` (RN-FAM-UNIT-88,
+        garantizado por índice). **`channel`**: `presencial` o `telefono` (`portal` llega con `1.22`; otro valor ⇒
+        `422 validation.channel_invalid`); **`telefono` solo con `puntual`** (`422 pickup.channel_requires_puntual`, y lo
+        impide también un `CHECK`). `puntual`: `valid_from` es la fecha, `valid_until` se omite o es igual, `reason`
+        obligatorio. `authorized_at` es el instante de la firma o de la llamada (no futuro; defecto: ahora). Una
+        autorización no es vigente hasta que la persona tenga fotografía (RN-FAM-UNIT-84). Se audita.
+      tags: ['FamUnit / Autorizaciones de recogida']
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [student_person, person, relationship, kind, valid_from, authorized_by, terms_version, channel]
+              properties:
+                student_person: { $ref: '../components.yaml#/components/schemas/PublicId' }
+                person: { $ref: '../components.yaml#/components/schemas/PublicId' }
+                relationship: { $ref: '../components.yaml#/components/schemas/PickupRelationship' }
+                kind: { $ref: '../components.yaml#/components/schemas/PickupAuthorizationKind' }
+                valid_from: { type: string, format: date, description: 'Fecha civil del centro.' }
+                valid_until:
+                  description: 'Opcional (sin caducidad si falta); en `puntual`, igual a `valid_from`.'
+                  oneOf:
+                    - { type: string, format: date }
+                    - { type: 'null' }
+                reason:
+                  description: 'Motivo, hasta 500 caracteres; obligatorio en `puntual`.'
+                  oneOf:
+                    - { type: string, maxLength: 500 }
+                    - { type: 'null' }
+                authorized_by: { $ref: '../components.yaml#/components/schemas/PublicId' }
+                terms_version: { $ref: '../components.yaml#/components/schemas/PublicId' }
+                channel: { $ref: '../components.yaml#/components/schemas/PickupChannel' }
+                authorized_at:
+                  oneOf:
+                    - { type: string, format: date-time }
+                    - { type: 'null' }
+      responses:
+        '201':
+          description: Autorización creada
+          headers:
+            Location:
+              description: URL del recurso creado
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/PickupAuthorization' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `fam_unit` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '409': { $ref: '../components.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+
+  /api/v1/pickup-authorizations/{publicId}:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    get:
+      operationId: getPickupAuthorization
+      summary: Detalle de una autorización de recogida
+      description: >
+        Permiso `autorizado_recogida.leer`, ámbito `todos` o `unidad_familiar`. Un alumno que el sujeto no alcanza (un
+        tutor revocado no alcanza al alumno) es `404`, igual que una autorización inexistente o de otro centro.
+      tags: ['FamUnit / Autorizaciones de recogida']
+      security: [{ SessionCookie: [] }]
+      responses:
+        '200':
+          description: La autorización
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/PickupAuthorization' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `fam_unit` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+    patch:
+      operationId: updatePickupAuthorization
+      summary: Cambia el fin de vigencia de una autorización permanente
+      description: >
+        Permiso `autorizado_recogida.actualizar`. Solo `valid_until` (obligatorio; una fecha o `null` para quitar la
+        caducidad) de una `permanente`; adelantarla es fallo en cerrado y siempre se admite. `kind`, `person`,
+        `student_person`, `authorized_by` y cualquier otro campo no son editables: `422 pickup.not_editable`. Retirada:
+        `409 pickup.withdrawn`. Se audita.
+      tags: ['FamUnit / Autorizaciones de recogida']
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [valid_until]
+              properties:
+                valid_until:
+                  oneOf:
+                    - { type: string, format: date }
+                    - { type: 'null' }
+      responses:
+        '200':
+          description: La autorización actualizada
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/PickupAuthorization' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `fam_unit` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../components.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+
+  /api/v1/pickup-authorizations/{publicId}/withdrawal:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    post:
+      operationId: withdrawPickupAuthorization
+      summary: Retira una autorización de recogida
+      description: >
+        Permiso `autorizado_recogida.eliminar`. Retirada **inmediata** e irreversible (se crea otra): en la petición
+        siguiente la persona ya no figura en ninguna consulta (RN-FAM-UNIT-87). No borra la fila: guarda `withdrawn_at` y
+        `withdrawn_by`. Una segunda retirada es `409 pickup.invalid_transition`. Se audita.
+      tags: ['FamUnit / Autorizaciones de recogida']
+      security: [{ SessionCookie: [] }]
+      responses:
+        '200':
+          description: La autorización retirada
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/PickupAuthorization' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `fam_unit` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../components.yaml#/components/responses/Conflict' }
+
+  /api/v1/pickup-lists/{studentPersonPublicId}:
+    parameters:
+      - name: studentPersonPublicId
+        in: path
+        required: true
+        description: '`public_id` de la persona del alumno.'
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    get:
+      operationId: getPickupList
+      summary: Lista calculada de quién puede recoger a un alumno ahora
+      description: >
+        Permiso `autorizado_recogida.leer`, ámbito `todos` o `unidad_familiar`. **La lista no se guarda: se calcula en
+        cada consulta** (RN-FAM-UNIT-79, -81): tutores con vínculo `activo` ∪ terceros con autorización permanente
+        vigente ∪ puntuales de hoy (fecha civil del centro, reloj del servidor), los dos últimos solo con fotografía, y
+        **menos** toda persona con acceso revocado a ese alumno, sea cual sea la base (RN-FAM-UNIT-80, issue #473). Una
+        persona aparece una vez con todas sus bases. Sin paginar (decenas como mucho): tutores primero, después terceros y
+        puntuales, por nombre. **Auditada** (`read`, finalidad `gestion`, sin valores) y con **límite** (300 por centro y
+        usuario y hora, RN-FAM-UNIT-93; `429` con `Retry-After`). El documento va enmascarado (últimos 4 caracteres). Con
+        ámbito `unidad_familiar`: sin documento de los terceros ni URL de fotografía (OPEN-FAM-UNIT-43, abierta). `404`
+        si el alumno no existe o el sujeto no lo alcanza. Nunca se revela la existencia de un vínculo revocado ni de una
+        persona excluida.
+      tags: ['FamUnit / Autorizaciones de recogida']
+      security: [{ SessionCookie: [] }]
+      responses:
+        '200':
+          description: La lista de ahora
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/PickupList' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `fam_unit` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '429': { $ref: '../components.yaml#/components/responses/TooManyRequests' }

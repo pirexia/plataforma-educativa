@@ -312,6 +312,16 @@ Síntoma: `php artisan migrate` falla en `2026_10_02_100200_normalize_people_doc
 4. Vuelve a lanzar `migrate`. Es idempotente.
 5. Para volver atrás tras una ejecución correcta no hay `down()`: restaura la copia de seguridad / PITR previa al despliegue (`docs/modulos/REQ-CORE/operacion.md §14.1`).
 
+### 3b.7 Barrido de fotografías de recogida huérfanas (`REQ-FAM-UNIT-005`, `1.14b-a`)
+
+El planificador no tiene servicio desplegado (issue [#453](https://github.com/pirexia/plataforma-educativa/issues/453)), así que `fam_unit:purge-orphan-photos` (programado `daily()` en `routes/console.php`) **no corre solo**. Mientras no lo tenga, se lanza a mano desde el contenedor `api`:
+
+```bash
+podman exec plataforma-api php artisan fam_unit:purge-orphan-photos
+```
+
+Despacha un trabajo por centro activo a la cola `default` (necesita el *worker*, §2.8). Da de baja la fotografía de las personas que no son tutoras y llevan más de `fam_unit.pickup.photo.orphan_grace_days` días (30) sin autorización vigente ni futura, y borra del *bucket* los objetos de `tenants/<centro>/fam-unit/pickup-photos/` sin fila viva con más de esos días (`docs/modulos/REQ-FAM-UNIT/funcional.md §22` D-58). Es idempotente y no toca los activos de marca. **Probado** solo con el disco local simulado de los tests; **no probado** contra un *bucket* S3 real.
+
 ## 4. Copias de seguridad y recuperación
 
 **No aplica todavía.** El módulo `REQ-BKP` (copias de seguridad, restauración granular en cuatro niveles, copia inmutable) no está implementado, y el proveedor de almacenamiento de copias distinto del host sigue sin decidir (`OPEN-10`). No hay nada que respaldar en un entorno sin datos reales.

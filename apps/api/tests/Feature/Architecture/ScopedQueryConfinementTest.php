@@ -11,11 +11,14 @@ use App\Modules\FamUnit\Application\FamilyUnitStudentService;
 use App\Modules\FamUnit\Application\GuardianLinkService;
 use App\Modules\FamUnit\Application\GuardianService;
 use App\Modules\FamUnit\Application\ImageConsentService;
+use App\Modules\FamUnit\Application\PickupListService;
 use App\Modules\FamUnit\Domain\Models\FamilyUnit;
 use App\Modules\FamUnit\Domain\Models\FamilyUnitStudent;
 use App\Modules\FamUnit\Domain\Models\Guardian;
 use App\Modules\FamUnit\Domain\Models\GuardianStudentLink;
 use App\Modules\FamUnit\Domain\Models\ImageConsentDecision;
+use App\Modules\FamUnit\Domain\Models\PickupAuthorization;
+use App\Modules\FamUnit\Domain\Models\PickupPhoto;
 use App\Support\Authorization\ScopedQuery;
 use Tests\Support\ArchitectureModules;
 use Tests\Support\PhpScanner;
@@ -107,6 +110,16 @@ function scopedResourceMap(): array
                 'Modules/FamUnit/Application/ImageConsentService.php',
             ],
         ],
+        // 1.14b-a (REQ-FAM-UNIT/permisos.md §8.3, `ADR-068 §6` `L1`, aprobada la ampliación del mapa el 2026-10-29):
+        // `autorizado_recogida.leer` admite `unidad_familiar`. Dos modelos (`PickupAuthorization` y `PickupPhoto`) y **un
+        // solo** servicio sancionado, el de la lista (patrón `consentimiento_imagen`), que además lee vínculos para la
+        // composición de la lista y la exclusión por revocación.
+        'autorizado_recogida' => [
+            'models' => [PickupAuthorization::class, PickupPhoto::class],
+            'files' => [
+                'Modules/FamUnit/Application/PickupListService.php',
+            ],
+        ],
     ];
 }
 
@@ -178,7 +191,7 @@ test('AR-10 CA-056-11 CA-056-15: cada recurso del mapa sigue teniendo un permiso
     $stale = array_values(array_diff(array_keys(scopedResourceMap()), array_keys($scoped)));
 
     expect($stale)->toBe([], 'entradas del mapa de AR-10 que ya no hacen falta, retirarlas: '.implode(', ', $stale))
-        ->and(array_keys(scopedResourceMap()))->toBe(['auditoria', 'reservas', 'familia', 'vinculo_tutor', 'consentimiento_imagen']);
+        ->and(array_keys(scopedResourceMap()))->toBe(['auditoria', 'reservas', 'familia', 'vinculo_tutor', 'consentimiento_imagen', 'autorizado_recogida']);
 });
 
 test('AR-10 CA-056-11: ningún fichero de app/ fuera de los sancionados hace una consulta estática sobre el modelo de un recurso con ámbito', function (): void {
@@ -224,7 +237,7 @@ arch('AR-10 CA-056-11 CA-ACAD-139: el fichero sancionado de reservas usa ScopedQ
     ->expect(FacilityBookingService::class)
     ->toUse(ScopedQuery::class);
 
-foreach ([FamilyUnitService::class, GuardianService::class, FamilyUnitStudentService::class, GuardianLinkService::class, ImageConsentService::class] as $sanctionedClass) {
+foreach ([FamilyUnitService::class, GuardianService::class, FamilyUnitStudentService::class, GuardianLinkService::class, ImageConsentService::class, PickupListService::class] as $sanctionedClass) {
     arch("AR-10 CA-056-11 CA-FAM-UNIT-046: el fichero sancionado {$sanctionedClass} usa ScopedQuery")
         ->expect($sanctionedClass)
         ->toUse(ScopedQuery::class);
@@ -237,7 +250,8 @@ test('AR-10 CA-056-11: las clases sancionadas de los arch() coinciden con los fi
         ->and(array_map($toPath, [FacilityBookingService::class]))->toBe(scopedResourceMap()['reservas']['files'])
         ->and(array_map($toPath, [FamilyUnitService::class, GuardianService::class, FamilyUnitStudentService::class]))->toBe(scopedResourceMap()['familia']['files'])
         ->and(array_map($toPath, [GuardianLinkService::class]))->toBe(scopedResourceMap()['vinculo_tutor']['files'])
-        ->and(array_map($toPath, [ImageConsentService::class]))->toBe(scopedResourceMap()['consentimiento_imagen']['files']);
+        ->and(array_map($toPath, [ImageConsentService::class]))->toBe(scopedResourceMap()['consentimiento_imagen']['files'])
+        ->and(array_map($toPath, [PickupListService::class]))->toBe(scopedResourceMap()['autorizado_recogida']['files']);
 });
 
 test('AR-10 CA-056-14 control negativo: la función detecta consulta no sancionada y no detecta ::class, escrituras ni comentarios', function (): void {

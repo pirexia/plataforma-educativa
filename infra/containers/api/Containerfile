@@ -15,7 +15,14 @@ FROM dunglas/frankenphp:1-php8.4-bookworm AS base
 # compilación solo). No se purgan las -dev por la misma razón documentada
 # en el Containerfile de desarrollo original: un intento anterior con
 # --auto-remove se llevó libpq.so.5/libzip.so.4 en tiempo de ejecución.
-RUN install-php-extensions pdo_pgsql pgsql zip intl mbstring redis opcache
+RUN install-php-extensions pdo_pgsql pgsql zip intl mbstring redis opcache gd exif
+
+# 1.14b-a (REQ-FAM-UNIT/operacion.md §12.2, ADR-068 §5.3): límites coherentes con la fotografía de recogida
+# (5 MB de fichero, 12 MP de entrada). `upload_max_filesize` deja holgura sobre los 5 MB para que sea la aplicación
+# quien responda 413 con su propio problema; `post_max_size` cubre el cuerpo multipart; `memory_limit` aguanta dos
+# copias de una imagen de 12 MP en `gd` (~100 MB) más el resto de la petición.
+RUN { echo 'upload_max_filesize = 6M'; echo 'post_max_size = 8M'; echo 'memory_limit = 256M'; } \
+    > "$PHP_INI_DIR/conf.d/99-plataforma-uploads.ini"
 
 WORKDIR /var/www/html
 

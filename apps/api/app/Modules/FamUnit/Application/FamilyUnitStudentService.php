@@ -156,4 +156,38 @@ final class FamilyUnitStudentService implements FamilyUnitStudents
 
         return ['public_id' => (string) $unit->public_id, 'principal_person_id' => $principal === null ? null : (int) $principal->person_id];
     }
+
+    /**
+     * Ids de persona de los alumnos con pertenencia **viva** a alguna unidad familiar (`AuthorizedPickupList::studentsMatching()`,
+     * `OPEN-068-06`).
+     *
+     * @return list<int>
+     */
+    public function memberStudentIds(): array
+    {
+        return array_map('intval', FamilyUnitStudent::query()->distinct()->pluck('student_person_id')->all());
+    }
+
+    /**
+     * Código de la unidad familiar de cada uno de esos alumnos, por id de persona; los alumnos sin unidad no aparecen.
+     *
+     * @param  list<int>  $studentPersonIds
+     * @return array<int, string>
+     */
+    public function unitCodesOfStudents(array $studentPersonIds): array
+    {
+        if ($studentPersonIds === []) {
+            return [];
+        }
+
+        $codes = [];
+
+        foreach (FamilyUnitStudent::query()->with('familyUnit')->whereIn('student_person_id', array_values(array_unique($studentPersonIds)))->get() as $membership) {
+            if ($membership->familyUnit !== null) {
+                $codes[(int) $membership->student_person_id] = (string) $membership->familyUnit->code;
+            }
+        }
+
+        return $codes;
+    }
 }

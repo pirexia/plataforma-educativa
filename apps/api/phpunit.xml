@@ -70,6 +70,12 @@
         <env name="DB_CONNECTION" value="pgsql" force="true"/>
         <env name="DB_DATABASE" value="plataforma_test" force="true"/>
         <env name="DB_URL" value="" force="true"/>
+        <!--
+            1.14b-a (decisión del usuario del 2026-11-02): el entorno de desarrollo fija FILESYSTEM_DISK=s3 (MinIO) y
+            PrivateObjectStore rechaza un disco local fuera de testing. Los tests simulan el disco con Storage::fake('local'),
+            así que el disco por defecto de la suite tiene que ser `local` aunque el contenedor traiga FILESYSTEM_DISK=s3.
+        -->
+        <env name="FILESYSTEM_DISK" value="local" force="true"/>
         <env name="MAIL_MAILER" value="array" force="true"/>
         <env name="QUEUE_CONNECTION" value="sync" force="true"/>
         <!--

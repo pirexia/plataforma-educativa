@@ -6,6 +6,17 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-02 · `1.14b-a`: autorizados de recogida en `fam_unit` y ampliaciones de `Core` (`REQ-FAM-UNIT-005`, rama `feature/REQ-FAM-UNIT-1-14ba-autorizados-recogida`)
+
+- **Implementación** (`ADR-068`): `App\Support\Files` (reprocesado de imágenes sin metadatos, almacén privado con URL firmada), `AuditRecorder::recordRead`, `PersonRegistrar`, ampliación de `PersonDirectory`, tablas `pickup_photos` y `pickup_authorizations` (3 migraciones con RLS), `kind` `autorizacion_recogida`, lista calculada con el predicado de `isAccessRevoked()` (resuelve #473), `AuthorizedPickupList`, 13 *endpoints*, 4 permisos `autorizado_recogida.*`, barrido de fotos huérfanas, OpenAPI.
+- **Decisiones del usuario (2026-11-02)**: orden de alta persona → autorización → foto (`OPEN-FAM-UNIT-48`); dependencia `league/flysystem-aws-s3-v3` (D-67); límite de frecuencia y auditoría de lectura en `/pickup-persons` (D-66, enmienda de `RN-FAM-UNIT-92`); `no_vigente` para toda causa sin `revocacion_tutor.leer`. Abiertas `OPEN-FAM-UNIT-49` y `-50`.
+- **Revisiones**: `db-reviewer` (1 Medio corregido: índices completos de las FK a `people`), `security-reviewer` (6 Medios corregidos y N1 de la 2.ª ronda), `doc-reviewer` (8 Medios corregidos).
+- **Verificado (suite completa, contenedor, `e9c28b0`)**: 2145 Pest en verde (2093 Unit+Feature, 52 Concurrency), 7 omitidos; Pint y Larastan limpios.
+- **No probado**: ciclo real contra S3/MinIO, reversión en servidor, planificador (#453).
+- **Documentación**: `REQ-FAM-UNIT/{funcional §22,datos,api,permisos,operacion}.md`, `REQ-CORE`, `ARCHITECTURE.md`, `SYSADMIN.md`, `SECURITY.md`, `PRIVACY.md`, `RUNBOOK.md`. Despliegue: reconstruir la imagen `api` y configurar S3; reversión = versión anterior (las migraciones se niegan con filas).
+
+---
+
 ## 2026-10-29 · `1.14b`: especificación aprobada y `ADR-068` con ampliaciones aprobadas (`REQ-FAM-UNIT-005`, `REQ-PRL-004`, rama `chore/spec-1-14b-autorizados-entrega`)
 
 - **Especificación `REQ-FAM-UNIT/funcional.md §21` APROBADA** por el usuario (2026-10-29, con ajustes finales el 2026-10-30). **Solo están aprobadas** las preguntas `OPEN-FAM-UNIT-26`, `-27`, `-28`, `-29`, `-30`, `-34`, `-35`, `-36` (esta, condición previa a datos reales), `-44` y `OPEN-068-01` a `-08`. **Siguen abiertas**, con su recomendación, `-31` a `-33`, `-37` a `-43`, `-46` y `-47`; `-45` queda pendiente para transporte.

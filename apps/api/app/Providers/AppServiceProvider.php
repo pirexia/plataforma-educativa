@@ -6,6 +6,8 @@ use App\Models\ModuleSubscription;
 use App\Models\Person;
 use App\Models\Role;
 use App\Models\User;
+use App\Support\Files\GdImageSanitizer;
+use App\Support\Files\ImageSanitizer;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\ServiceProvider;
@@ -17,7 +19,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // ADR-068 §5.3 (1.14b-a): la implementación de `ImageSanitizer` (hoy `gd` y `exif`) queda tras su interfaz
+        // (`RNF-MANT-007`); cualquier módulo la resuelve por el contenedor, sin importar la clase concreta.
+        $this->app->bind(ImageSanitizer::class, GdImageSanitizer::class);
     }
 
     /**

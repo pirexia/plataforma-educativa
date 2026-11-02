@@ -172,6 +172,20 @@ Mismo mecanismo que §2.3, protocolo distinto: cada centro cataloga su propio pr
 | Plazo de conservación | **Es evidencia: no se purga con el usuario** (`datos.md §6`); se conserva mientras dure el tratamiento y el plazo que fije `REQ-PRIV-006` (sin especificar). La versión del texto a la que apunta tampoco se borra (`RESTRICT`) |
 | Copias de seguridad | Sin particularidad respecto a `§2.9`; se anota para `REQ-BKP` (`1.26`) |
 
+### 2.11 Personas autorizadas a recoger a un menor: fotografía, documento y teléfono de terceros (`REQ-FAM-UNIT-005`, paso 1.14b-a, `ADR-068`)
+
+`fam_unit` trata datos de **terceros** (abuelos, personal de apoyo, otras familias) que **aporta el tutor, no el tercero**: nombre y apellidos, tipo y número de documento y teléfono (en `people`, sin cuenta) y una **fotografía** (`pickup_photos`, en un *bucket* privado). Son datos identificativos, no de categoría especial: la verificación visual la hace una persona y el tratamiento automatizado de la imagen (reconocimiento facial, comparación) está **prohibido** (convertiría la foto en dato biométrico, art. 9 RGPD).
+
+| Aspecto | Decisión |
+|---------|----------|
+| Minimización | Sin copia del documento (solo tipo y número), sin fecha de nacimiento, correo ni dirección. La fotografía se **reprocesa** y se guarda sin EXIF (incluida la geolocalización), XMP, IPTC ni perfiles; el original no se conserva. Finalidad única: verificar a quien recoge |
+| Quién ve qué | Personal con `autorizado_recogida.*`: el documento completo solo en la ficha de la persona; en la lista de recogida, **enmascarado** (4 últimos caracteres). La familia (`unidad_familiar`) ve la lista de **sus** alumnos sin el documento de los terceros y sin URL de fotografía (`OPEN-FAM-UNIT-43`, abierta); el teléfono está pendiente de decisión (`OPEN-FAM-UNIT-49`). Un tutor con el acceso revocado a un alumno no figura nunca en su lista |
+| Auditoría | Alta, retirada y cambio de vigencia de cada autorización y alta/sustitución de cada fotografía en `audit_logs` (`Selective`: sin nombre, documento, teléfono, motivo ni clave de objeto); cada **lectura** con fotografía o documento escribe una fila `read` sin valores |
+| Retención | Fotografía de un tercero **sin autorización vigente ni futura**: se da de baja tras **30 días** (`OPEN-FAM-UNIT-37`, recomendación aplicada, **a ratificar en `1.23b`**) y el objeto se borra del *bucket*; la de un tutor se retira al darse de baja su faceta. Autorizaciones, salidas y alertas son **evidencia** ante un incidente con un menor y siguen el catálogo de `REQ-PRIV-006` (sin plazos todavía) |
+| Derechos del tercero | Corregir sus datos: `PATCH /pickup-persons/{person}` (solo personas sin cuenta). **Supresión**: no tiene canal propio en `1.14b`; depende de la retención de `1.23b` (retira la autorización y la foto y anonimiza `people` cuando venza la obligación de conservar los registros que la referencian) |
+| Base legal e información (art. 6 y 14) | **Sin resolver**: quién informa al tercero, con qué texto y si hace falta su consentimiento para la fotografía es una cuestión jurídica (`OPEN-FAM-UNIT-36`). El texto `autorizacion_recogida` recoge la declaración del tutor. **Condición previa a cargar datos reales** (no a la implementación con datos de `REQ-SEED`) |
+| Copias de seguridad | Restaurar a un punto anterior a una retirada o a una revocación devolvería a alguien a la lista de un menor (`OPEN-FAM-UNIT-21`, para `1.26`) |
+
 ## 3. Registro de Actividades de Tratamiento (RAT) — plantilla
 
 Se completa cuando exista entidad jurídica responsable del tratamiento (`OPEN-07`). Estructura prevista:
