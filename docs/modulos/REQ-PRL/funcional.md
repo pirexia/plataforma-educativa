@@ -15,7 +15,7 @@
 
 Entra en `1.14b-b`: búsqueda de alumno y lista de puerta (lectura por `AuthorizedPickupList`), salidas verificadas, movimientos fuera de horario, correcciones, alertas por persona no autorizada y su resolución. No entra: pantallas (`1.14b-c`), salida autónoma, alerta de alumno no recogido y avisos automáticos (`1.14b-d`, `OPEN-FAM-UNIT-31` a `-33`).
 
-**Pantallas (`1.14b-c`)**: especificadas en `docs/modulos/REQ-FAM-UNIT/funcional.md §23` (APROBADA el 2026-11-02), junto con la sección de `fam_unit`, porque la entrega está definida en su §21.12; criterios nuevos `CA-PRL-014` a `CA-PRL-023`.
+**Pantallas (`1.14b-c`)**: especificadas en `docs/modulos/REQ-FAM-UNIT/funcional.md §23` (APROBADA el 2026-11-02), junto con la sección de `fam_unit`, porque la entrega está definida en su §21.12; criterios nuevos `CA-PRL-014` a `CA-PRL-025`.
 
 ## Flujos principales
 
@@ -60,6 +60,8 @@ Entra en `1.14b-b`: búsqueda de alumno y lista de puerta (lectura por `Authoriz
 - **CA-PRL-011** — *Dado* dos centros, *cuando* se ejercitan todos los *endpoints* de `prl` desde A, *entonces* nada de B (`INV-001`); *y* con `prl` descontratado, `403 module-disabled`; *y* `platform:sync-registry` registra `depends_on: ['fam_unit']`.
 - **CA-PRL-012** *(E2E, `1.14b-c`)* — *Dado* un conserje en navegador real, *cuando* busca a un alumno, abre su lista, verifica por la foto y registra la salida, y después intenta registrar a alguien que no figura y abre la alerta, *entonces* cada paso se refleja, la foto tiene texto alternativo y los estados no dependen solo del color (WCAG 2.2 AA).
 - **CA-PRL-013** — *Dado* las claves de `prl` en `es`, *entonces* existen en `en`, `de` y `fr` (`AR-12`), y ninguna regla compara códigos de rol ni importa internos de `fam_unit` (`AR-01`, `AR-02`, `AR-08`).
+
+**Pantallas de conserjería (`1.14b-c2`)**: `CA-PRL-014` a `CA-PRL-025` están en `docs/modulos/REQ-FAM-UNIT/funcional.md §23.9` (especificación de interfaz aprobada el 2026-11-02), junto con la ampliación de `CA-PRL-012` y `CA-PRL-013` a la SPA.
 
 ## Interacción con otros módulos
 
