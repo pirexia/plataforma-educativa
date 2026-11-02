@@ -6,6 +6,12 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-02 · `chore`: regla de traducciones pequeñas (`CLAUDE.md` 2.10.1)
+
+- Punto 9 de «Ahorro de cuota»: hasta ~15 claves nuevas no legales las traduce la sesión orquestadora; con más, `traductor`. Los textos legales, de consentimiento, de privacidad y de seguridad no se traducen automáticamente. Aprobada por el usuario.
+
+---
+
 ## 2026-11-02 · `chore`: aplicación de `ADR-069` (Codex como primer revisor; `CLAUDE.md` 2.10.0)
 
 - `CLAUDE.md` 2.10.0: sección 2, párrafo de Codex y punto 3 de «Ahorro de cuota» al régimen de `ADR-069`. **Condición `OPEN-069-01` confirmada por el usuario el 2026-11-02** (entrenamiento desactivado en su cuenta; declaración no verificable): régimen de `ADR-069` activo; interruptor en la skill.

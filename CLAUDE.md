@@ -1,6 +1,6 @@
 # CLAUDE.md — Normas de trabajo del proyecto
 
-> **Versión 2.10.0** · 2026-11-02 · Fichero de contexto permanente. Se carga en **todas** las sesiones. Contiene solo reglas estables.
+> **Versión 2.10.1** · 2026-11-02 · Fichero de contexto permanente. Se carga en **todas** las sesiones. Contiene solo reglas estables.
 > Proyecto: **Plataforma de Gestión Educativa Multi-tenant**. Fuente de verdad funcional: `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md`.
 
 ---
@@ -93,6 +93,7 @@ Reglas de composición visual del frontend: `docs/design-system.md §22`.
 6. **Salidas cortas.** Tests, linters y comandos con salida resumida o a fichero (`tail`, `grep`); ficheros grandes con `offset`/`limit` tras localizar con `grep`.
 7. **Tamaño de entrega.** Al planificar (`spec-writer`/`architect`/plan), cada entrega se dimensiona para caber en **≤3 tramos de `implementer`** (≈250 llamadas; cifra a recalibrar con `docs/metricas-agentes.md`). Si no cabe, se parte en entregas con sufijo de letra, como `1.14b-a`..`1.14b-d`.
 8. **Documentación.** `doc-precheck` (Haiku) se ejecuta **siempre** antes de `doc-reviewer`. La segunda ronda de documentación (que hay si la primera trajo Medios, punto 3) la hace `doc-precheck` sobre la lista cerrada de hallazgos de la primera; `doc-reviewer` solo vuelve a entrar si se corrigió un Crítico o un Alto (`OPEN-069-05`, aprobada el 2026-11-02).
+9. **Traducciones pequeñas.** Hasta ~15 claves nuevas no legales las traduce la sesión orquestadora directamente (lanzar `traductor` cuesta más en arranque y relectura que la propia traducción); con más, va `traductor`. Tratamiento formal («Sie», «vous»), placeholders intactos y paridad de claves comprobada con `TranslationParityTest`. Los textos legales, de consentimiento, de privacidad y de seguridad (p. ej. `prl.protocol.minimal`) no se traducen automáticamente en ningún caso (aprobada por el usuario el 2026-11-02).
 
 ---
 
