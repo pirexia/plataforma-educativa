@@ -407,6 +407,7 @@ test('INV-001 CA-FAM-UNIT-124: dos centros con familias, terceros, fotos y autor
     $thirdA = Fam::thirdParty($a, 12);
     $thirdB = Fam::thirdParty($b, 12);
     $before = app(TenantContext::class)->runFor($b['tenant']->id, fn () => [DB::table('pickup_authorizations')->count(), DB::table('pickup_photos')->count(), DB::table('people')->count()]);
+    $readsB = app(TenantContext::class)->runFor($b['tenant']->id, fn () => AuditLog::query()->where('event', 'read')->count());
 
     // Listado y detalle.
     $listing = Fam::call($a['tenant'], $a['admin'], 'get', '/pickup-authorizations')->assertOk();
@@ -438,8 +439,8 @@ test('INV-001 CA-FAM-UNIT-124: dos centros con familias, terceros, fotos y autor
             ->and($personB)->toBeGreaterThan(0);
     });
 
-    // El audit_log de lectura es del centro que lee.
-    expect(app(TenantContext::class)->runFor($b['tenant']->id, fn () => AuditLog::query()->where('event', 'read')->count()))->toBe(1);
+    // El audit_log de lectura es del centro que lee: las lecturas hechas desde A no añaden filas `read` a B.
+    expect(app(TenantContext::class)->runFor($b['tenant']->id, fn () => AuditLog::query()->where('event', 'read')->count()))->toBe($readsB);
 });
 
 test('RN-FAM-UNIT-36 (decisión del usuario del 2026-11-02): sin revocacion_tutor.leer, TODA causa de no vigencia — sin foto, fuera de vigencia, retirada y persona excluida — sale como no_vigente; con él, la causa concreta', function (): void {
