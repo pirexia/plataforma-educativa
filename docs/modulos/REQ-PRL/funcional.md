@@ -15,6 +15,8 @@
 
 Entra en `1.14b-b`: búsqueda de alumno y lista de puerta (lectura por `AuthorizedPickupList`), salidas verificadas, movimientos fuera de horario, correcciones, alertas por persona no autorizada y su resolución. No entra: pantallas (`1.14b-c`), salida autónoma, alerta de alumno no recogido y avisos automáticos (`1.14b-d`, `OPEN-FAM-UNIT-31` a `-33`).
 
+**Pantallas (`1.14b-c`)**: especificadas en `docs/modulos/REQ-FAM-UNIT/funcional.md §23` (APROBADA el 2026-11-02), junto con la sección de `fam_unit`, porque la entrega está definida en su §21.12; criterios nuevos `CA-PRL-014` a `CA-PRL-023`.
+
 ## Flujos principales
 
 **21.5.5 Entrega en la puerta (`prl`).** (1) El conserje busca al alumno por nombre (o código de unidad familiar; por grupo tras `1.15`). (2) Abre su lista: nombre, relación, base, fotografía (URL firmada), teléfono y documento enmascarado. La consulta queda auditada. (3) Compara a la persona presente con la foto y, si procede, con su documento. (4) Selecciona a la persona y el método de verificación y registra la salida. El servidor **vuelve a comprobar** en la misma transacción que la persona figura en la lista en ese instante; si no, rechaza sin escribir (§21.7). (5) Si quien se presenta no figura: **no entrega**, abre una alerta, sigue el protocolo del centro y llama al tutor principal (teléfono mostrado en la alerta), dejando constancia de la llamada.

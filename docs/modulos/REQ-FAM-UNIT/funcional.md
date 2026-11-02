@@ -1221,3 +1221,391 @@ Sobre §21 (aprobada), `ADR-068` (ACEPTADA), `api.md §8.1` a `§8.3`, `datos.md
 ### 22.1 Verificado
 
 Suite completa **dentro del contenedor** `plataforma-api` reconstruido el 2026-11-02 (`podman exec -w /var/www/html plataforma-api composer test`), con Pint `--test` y Larastan en el anfitrión; las cifras de cada pasada están en el mensaje del último commit. **Verificado además**: `php -m` del contenedor lista `gd` y `exif`; la subida `PUT` multipart en FrankenPHP (`D-70`); la medición de 12 MP (`D-70`). **No probado**: el ciclo subir/firmar/leer/borrar contra **MinIO** (`D-67`): la imagen `docker.io/minio/minio` ya no se puede descargar (`requested access to the resource is denied`; tampoco `quay.io/minio/minio`) y un servidor S3 alternativo no se ha ejecutado; la firma S3 se comprueba solo en el test de `PrivateObjectStore` con un disco `s3` de prueba (URL de estilo de ruta bien formada, sin red). Tampoco el *bucket* S3 real, la reversión en servidor ni el planificador (#453).
+
+---
+
+## 23. Especificación de interfaz de `1.14b-c` (personas autorizadas y conserjería) — APROBADA (2026-11-02)
+
+> **Estado**: **APROBADA por el usuario (2026-11-02)**, con la recomendación de `spec-writer` en todas las preguntas abiertas de §23.11: `-61` A (partición en `1.14b-c1` `fam-unit` y `1.14b-c2` `prl`), `-47` (documento obligatorio en el diálogo, sin cambio de servidor), `-54` A (la llamada la registra dirección), `-55` A, `-56` A (`administracion`, «Conserjería» con `shortcut: true`; sin enmienda de `ADR-053`), `-57` A, `-58` A, `-59` A, `-60` A, `-62` A (aserciones explícitas, sin `@axe-core/playwright`) y `-63` A (historial y correcciones fuera). `-40` queda con su recomendación (texto solo en español hasta traducción humana, decisión del centro). **Condición abierta**: los textos **[NT]** (`-59`) necesitan revisión humana antes de mezclar; sin ella no se cierra `CA-FAM-UNIT-143`. **Clasificación del paso: crítico** (`ADR-069 §4.2`). Estado original: PROPUESTA. Desarrolla la fila `1.14b-c` de §21.12 («sección "Personas autorizadas" en la ficha de familia y pantalla de conserjería, con E2E `CA-PRL-012`»). **Solo `apps/web`**: ningún *endpoint*, permiso, tabla ni clave de `apps/api/lang` nuevos; consume los 13 *endpoints* de `api.md §8.1`-`§8.3` (`1.14b-a`) y los 9 de `REQ-PRL/api.md §8.4` (`1.14b-b`) tal como están. Si la implementación descubre que hace falta tocar la API, **para y lo reporta** (sería otra entrega). Las pantallas de `prl` se especifican aquí, y no en `REQ-PRL/funcional.md`, porque la entrega `1.14b-c` está definida en §21.12 y comparte vocabulario, estados y criterios con la sección de `fam_unit`; `REQ-PRL/funcional.md` remite a esta sección.
+>
+> Donde esta sección fija algo que ni el requisito, ni un ADR, ni §21/§22 ni `REQ-PRL` fijan, va marcado **[DERIVADA]** con su motivo. Lo que no corresponde decidir aquí está en §23.11 como pregunta abierta.
+
+**Clasificación del paso: crítico** (`ADR-069 §4.2`). Aunque no hay *endpoint*, migración ni permiso nuevos en servidor, el paso: (a) **sube ficheros** (fotografía por `PUT …/photo`, multipart); (b) pinta y envía **datos personales de menores y de terceros** (nombre del alumno, nombre, teléfono, documento y fotografía de quien recoge, descripción de quien se presenta); (c) añade **rutas con `meta.permissions`** y ocultación de acciones por permiso en un módulo nuevo (`prl`), que no autorizan pero deben coincidir con el servidor; (d) dispara **lecturas auditadas y con cupo** (`RN-FAM-UNIT-92`/`-93`, `DP-11`) cuya frecuencia depende de cómo esté hecha la pantalla. Cualquiera de (a) o (b) basta según la lista de `ADR-069 §4.2`; ante la duda, crítico. Consecuencia: `security-reviewer` entra tras Codex con su columna del reparto.
+
+### 23.1 Fuentes y lo que no se reabre
+
+| Fuente | Qué fija para la interfaz |
+|--------|---------------------------|
+| `REQ-FAM-UNIT-005`, §21.4-§21.6, §21.9, §22 (`D-52`, `D-53`, `D-60`, `D-61`, `D-63`, `D-66`, `D-67`, `D-68`, `D-70`) | Orden persona → autorización → fotografía; vigencia calculada; causas de no vigencia enmascaradas como `no_vigente` sin `revocacion_tutor.leer`; documento enmascarado salvo en la ficha de la persona; `reason` solo con ámbito `todos`; sin URL de foto con ámbito `unidad_familiar`; 5 MB, JPEG/PNG/WebP, URL de 5 minutos |
+| `REQ-PRL-004`, `RN-PRL-02`..`-09`, `DP-2`..`DP-7`, `DP-11`, `CA-PRL-001`..`-013` | Recomprobación en servidor; mismo `422` para «no figura», «excluida» e «inexistente»; método `documento` obligatorio sin fotografía; motivos de fuera de horario; alerta con protocolo y teléfonos solo mientras está abierta; `Idempotency-Key` opcional; lecturas de alertas y movimientos auditadas y con cupo |
+| `api.md §8.1`-`§8.3`, `REQ-PRL/api.md §8.4`-`§8.7` | Contrato exacto. Parámetros de ruta `{personPublicId}`, `{studentPersonPublicId}`, `{publicId}` (`D-65`) |
+| `permisos.md §8`, `REQ-PRL/permisos.md §8` | Permisos de cada acción; siembra (conserjería sin `autorizado_recogida.*` y sin `alerta_entrega.actualizar`) |
+| `ADR-053`, `docs/design-system.md §22`, `CLAUDE.md §1` | `shell.ts` con tres listas; catálogo cerrado de secciones (`inicio`, `cuenta`, `administracion`); shadcn-vue único, tablas con `@/data-table` (TanStack); iconos de `@lucide/vue`; estados de carga y vacío siempre |
+
+**Decisiones cerradas que no se reabren**: `OPEN-FAM-UNIT-28` (foto obligatoria para terceros, opcional para tutores), `-34` (la puerta no distingue «no figura» de «excluido»), `-35` (canal `telefono` solo en puntual, por personal con `autorizado_recogida.crear`), `-48` (orden persona → autorización → fotografía).
+
+### 23.2 Principios transversales de las pantallas
+
+| # | Regla | Origen |
+|---|-------|--------|
+| UI-1 | **La interfaz oculta, el servidor decide.** Cada sección y cada acción se muestran si y solo si el permiso de su *endpoint* está en `/me.permissions` (`usePermissions().can`, patrón de `FamilyUnitDetailView`, `RN-CORE-61`); nunca se comprueba un rol. Un `403`/`404` del servidor se respeta aunque el permiso esté en `/me` (deny de otro rol, ámbito) y se pinta como estado «sin permiso» o «no encontrado», sin reintento | `INV-002`, `RPERM-007`, `RPERM-011` |
+| UI-2 | **Lecturas auditadas bajo demanda.** Ninguna lectura que escriba un `read` (`GET /pickup-lists/{…}`, `GET /pickup-persons*`, `GET …/photo`, `GET /door/students/{…}/pickup-list`, `GET /pickup-alerts/{id}` abierta, `GET /student-movements*`) se lanza al montar una pantalla, en segundo plano, por sondeo ni por *prefetch*: solo por una acción explícita del usuario (abrir la lista de **un** alumno, abrir la ficha de **una** persona). Sin refresco automático. [DERIVADA: cada lectura gasta el cupo de 300/h (`D-56`, `DP-11`) y deja una fila de auditoría; una pantalla que carga las listas de todos los alumnos de una unidad multiplicaría ambas cosas sin que nadie haya mirado] | `RN-FAM-UNIT-92`, `-93`, `DP-11` |
+| UI-3 | **Sin persistencia local de datos de personas.** Nada de la lista, fotografías, documentos, teléfonos ni términos de búsqueda en `localStorage`, `sessionStorage`, IndexedDB, caché de Service Worker ni en la URL de la SPA (el término de búsqueda de conserjería no se refleja en `route.query` ni en el historial). Las URL firmadas viven solo en memoria del componente y se descartan al desmontarlo | §21.10 (minimización), `OPEN-FAM-UNIT-41` |
+| UI-4 | **Fotografía**: `<img>` con la URL firmada tal cual, `referrerpolicy="no-referrer"`, `alt` traducido con el nombre de la persona (nunca vacío: es información, no decoración), sin descarga ni «abrir en pestaña nueva». Si la carga falla (URL caducada a los 5 minutos o almacenamiento caído), se sustituye por el estado «fotografía no disponible» con texto e icono y un botón «Volver a cargar la lista» (acción explícita, UI-2). Una persona con `has_photo = false` muestra «Sin fotografía» y el aviso «Verifica con el documento» | `RN-FAM-UNIT-83`, `RN-PRL-06`, `OPEN-FAM-UNIT-47` |
+| UI-5 | **Nada judicial a la vista.** La interfaz no pinta ni deduce revocaciones: muestra el `ineffective_reason` que devuelve el servidor (ya enmascarado, `D-68`) y nada más. En la puerta, una persona que no figura no tiene ninguna representación (no hay búsqueda de personas, §21.9) | `RN-FAM-UNIT-36`, `OPEN-FAM-UNIT-34` |
+| UI-6 | **Errores del servidor**: el mensaje de cada error de validación es el `message` traducido que trae `errors[campo][]` (`ADR-038 §6`; idioma por `Accept-Language`), pintado junto al campo o la acción (patrón `ActionNotices` de `fam-unit`); los `409`/`422`/`429` no cambian la pantalla hasta que la acción tiene éxito. Un `429` muestra el mensaje con su `Retry-After` y **no reintenta**. Los códigos de enumerado (`relationship`, `basis`, `verification_method`…) llegan como código técnico y la SPA traduce su etiqueta (`lang/*/prl.php`, cabecera) | `ADR-038`, `INV-010` |
+| UI-7 | **Validación en cliente solo como ayuda** (campos obligatorios, longitud, tamaño y tipo declarado del fichero antes de subirlo); el servidor valida siempre y su respuesta manda | `INV-010` |
+| UI-8 | **Datos de prueba**: los E2E y los ejemplos usan solo `REQ-SEED` (`@example.com`, documentos con dígito de control inválido, fotografías sin rostro real, `REQ-SEED-005`) | `ADR-030`, `CLAUDE.md §11` |
+
+### 23.3 Rutas SPA y navegación
+
+| Ruta | Nombre | Módulo | `meta.permissions` (anyOf) | Layout | Notas |
+|------|--------|--------|----------------------------|--------|-------|
+| `/familias/:publicId` (existente) | `fam-unit-detail` | `fam-unit` | `['familia.leer']` (sin cambios) | `app` | Gana la sección «Personas autorizadas» (§23.4). No se crea ruta nueva en `fam-unit` |
+| `/conserjeria` | `prl-door` | `prl` (nuevo) | `['entrega_menor.leer']` | `app` | Búsqueda de alumno (§23.5.1) |
+| `/conserjeria/alumnos/:studentPersonPublicId` | `prl-door-student` | `prl` | `['entrega_menor.leer']` | `app` | Lista de puerta del alumno y acciones (§23.5.2). Sin entrada de menú; `breadcrumbParent: 'prl-door'` (`ADR-053 §4.4`). El nombre del alumno **no** va en la ruta, solo su `public_id` |
+| `/conserjeria/alertas` | `prl-alerts` | `prl` | `['alerta_entrega.leer']` | `app` | Listado de alertas (§23.5.4) |
+| `/conserjeria/alertas/:publicId` | `prl-alert-detail` | `prl` | `['alerta_entrega.leer']` | `app` | Detalle y resolución (§23.5.4); `breadcrumbParent: 'prl-alerts'`. Declarada después de `/conserjeria/alertas` y de `/conserjeria/alumnos/:…` |
+
+Ninguna ruta usa `permissions: []`: no se amplía la lista cerrada de `src/navigation/modules.spec.ts`.
+
+**Entradas de menú** (`ADR-053 §4.1`; se ven solo si el usuario puede montar la ruta, `RMOD-008`; con `prl` descontratado `/me.permissions` deja de traer sus permisos y desaparecen): `prl.door` («Conserjería», icono `DoorOpen`, ruta `prl-door`) y `prl.alerts` («Alertas de entrega», icono `ShieldAlert`, ruta `prl-alerts`). **Sección y acceso directo: `OPEN-FAM-UNIT-56`** (recomendación: `administracion`, `shortcut: true` en `prl.door`). Sin bloques de panel en esta entrega. Orden en `src/navigation/modules.ts`: `prlShell` inmediatamente después de `famUnitShell` (dependencia funcional, `depends_on ['fam_unit']`).
+
+**Módulo web `prl`** (piezas de `AR-11`, skill `modulo-nuevo`): `apps/web/src/modules/prl/{shell.ts, api/index.ts, types/index.ts, locales/{es,en,de,fr}.json, views/, components/, composables/}`, la línea del `shell` en `src/navigation/modules.ts` y los cuatro imports en `src/i18n/index.ts`. **`prl` no importa nada de `fam-unit`** salvo, si hiciera falta, su `api/`, `types/` o `shell` (`AR-11`); como la lista de puerta tiene su propio *endpoint* y sus propios tipos, la recomendación es **no** importar nada de `fam-unit` y definir en `prl/types` las formas que consume (`DoorStudent`, `DoorPickupList`, `PickupListEntry` según `openapi/components.yaml`, `StudentMovement`, `PickupAlert`). Los componentes compartibles (tarjeta de persona con foto) se duplican en vez de importarse de los internos de otro módulo; si la duplicación resulta grande, se plantea moverlos a `src/components/` (pregunta, no decisión del implementador).
+
+### 23.4 Sección «Personas autorizadas» en `FamilyUnitDetailView` (`fam-unit`)
+
+**Visibilidad**: la sección existe si `can('autorizado_recogida.leer')`. Sin ese permiso no se monta y no se hace **ninguna** petición a `/pickup-*`. La vista actual tiene 684 líneas: la sección se implementa como componente propio `components/PickupPersonsSection.vue` que recibe la unidad, sus alumnos y su tutor principal ya cargados por la vista (no vuelve a pedirlos).
+
+#### 23.4.1 Árbol de componentes
+
+```
+FamilyUnitDetailView.vue (existente)
+└─ PickupPersonsSection.vue                      ← sección <section aria-labelledby>, <h2>
+   ├─ StudentPicker (Select/RadioGroup de shadcn-vue) ← alumnos de la unidad (ya cargados)
+   ├─ PickupListPanel.vue                         ← lista vigente del alumno elegido, bajo demanda (UI-2)
+   │  ├─ Button «Ver lista de recogida»           ← GET /pickup-lists/{student}
+   │  ├─ LoadingState / ErrorState (existentes)
+   │  └─ PickupPersonCard.vue × N                 ← Card: foto o «Sin fotografía», nombre, bases, documento enmascarado, teléfono
+   ├─ PickupAuthorizationsTable.vue               ← DataTable (@/data-table, TanStack) paginado
+   │  └─ acciones de fila: vigencia · retirar · fotografía · datos de la persona
+   ├─ PickupAuthorizationWizard.vue               ← Dialog de 3 pasos: persona → autorización → fotografía
+   │  ├─ PickupPersonStep.vue                     ← búsqueda por documento y alta/reutilización
+   │  ├─ PickupAuthorizationStep.vue              ← tipo, relación, vigencia, canal, texto, firma
+   │  └─ PickupPhotoStep.vue                      ← subida (input file + vista previa)
+   ├─ PickupValidityDialog.vue                    ← PATCH valid_until
+   ├─ PickupPhotoDialog.vue                       ← sustituir / quitar fotografía (reutiliza la subida del paso 3)
+   ├─ PickupPersonDialog.vue                      ← ficha de la persona (documento completo) y corrección de datos
+   └─ ConfirmDialog (existente)                   ← retirada
+```
+
+Componentes de `src/components/ui/` previstos: `Button`, `Dialog`, `Input`, `Label`, `Select`, `RadioGroup`, `Checkbox`, `Textarea`, `Badge`, `Card`, `Alert`. Si alguno no está vendorizado, se añade con `shadcn-vue add` y se revisa según `docs/design-system.md §12.2`; ninguna otra librería de componentes.
+
+#### 23.4.2 Mapeo de acciones a *endpoint* y permiso
+
+| Acción | *Endpoint* | Permiso que la muestra | Notas |
+|--------|------------|------------------------|-------|
+| Ver lista vigente de un alumno | `GET /pickup-lists/{studentPersonPublicId}` | `autorizado_recogida.leer` | Bajo demanda, una petición por pulsación; auditada (`gestion`) y con cupo |
+| Ver autorizaciones del alumno | `GET /pickup-authorizations?student_person=…` | `autorizado_recogida.leer` | Paginado, orden `valid_from` desc; filtros `kind`, `effective`. **No** escribe `read` (sin foto ni documento): se carga al elegir alumno |
+| Nueva autorización (asistente) | `GET /pickup-persons?document_type=&document_number=` → `POST /pickup-persons` → `POST /pickup-authorizations` → `PUT /pickup-persons/{p}/photo` | Botón visible con `autorizado_recogida.crear`; el paso de búsqueda por documento, con `.actualizar`; el paso de fotografía, con `.actualizar` | §23.4.3 |
+| Cambiar fecha de fin | `PATCH /pickup-authorizations/{publicId}` (`{ valid_until }`) | `autorizado_recogida.actualizar` | Solo en filas `permanente` no retiradas (`D-61`); `null` = sin fecha de fin |
+| Retirar | `POST /pickup-authorizations/{publicId}/withdrawal` | `autorizado_recogida.eliminar` | Con confirmación (`RN-CORE-64`); irreversible (`RN-FAM-UNIT-87`): el texto lo dice. Tras éxito, se recarga la tabla (no la lista: UI-2) |
+| Subir / sustituir fotografía | `PUT /pickup-persons/{personPublicId}/photo` (multipart, campo `file`) | `autorizado_recogida.actualizar` | Vista previa local con `URL.createObjectURL`, liberada al cerrar |
+| Quitar fotografía | `DELETE /pickup-persons/{personPublicId}/photo` | `autorizado_recogida.actualizar` | Con confirmación: el texto advierte que las autorizaciones de un tercero dejan de ser vigentes (`RN-FAM-UNIT-84`) |
+| Ver ficha de la persona (documento completo) | `GET /pickup-persons/{personPublicId}` | `autorizado_recogida.actualizar` | Bajo demanda; auditada (`D-66`) |
+| Corregir datos de la persona | `PATCH /pickup-persons/{personPublicId}` | `autorizado_recogida.actualizar` | Nombre, apellidos y teléfono; **documento no editable** (campo de solo lectura). `404` ⇒ «Esta persona no se puede corregir desde aquí; si tiene cuenta, se corrige en Usuarios» (sin decir cuál de los dos casos, `api.md §8.2`) |
+| Elegir versión del texto firmado | `GET /terms-versions` filtrado por `kind = autorizacion_recogida` y estados `publicada`/`retirada` | `texto_legal.leer` | Ver `OPEN-FAM-UNIT-55`. El implementador comprueba los nombres exactos de los filtros en `openapi/paths/fam-unit.yaml` (§2.8) |
+
+#### 23.4.3 Asistente de alta (orden persona → autorización → fotografía, `OPEN-FAM-UNIT-48`)
+
+1. **Persona.** Tipo y número de documento. Si el usuario tiene `.actualizar`, «Buscar» llama a `GET /pickup-persons?…`: con coincidencia, se muestra la persona (nombre y documento) y se ofrece «Usar esta persona»; sin coincidencia, se abre el formulario de alta. Sin `.actualizar`, se va directo al alta. El alta (`POST /pickup-persons`) pide nombre, primer apellido, segundo apellido (opcional) y teléfono, y el documento ya escrito. Respuesta `200 reused = true`: aviso «Ya existía una persona con ese documento; se usará la existente sin cambiar sus datos»; si `data_mismatch = true`, aviso adicional «Los datos que has escrito no coinciden con los registrados; revísalos después en la ficha de la persona» (`RN-FAM-UNIT-89`, `CA-FAM-UNIT-126`). La persona reutilizada no alcanzable solo trae `person` (`D-52`): el asistente no muestra más datos de ella.
+2. **Autorización.** Alumno (preseleccionado el del panel; seleccionable entre los de la unidad); relación (`abuelo`, `personal_apoyo`, `otra_familia`, `otro`); tipo (`permanente` / `puntual`); `valid_from` (por defecto hoy) y `valid_until` opcional (solo `permanente`; en `puntual` es la misma fecha y no se pide, `D-60`); motivo (obligatorio y visible solo en `puntual`); canal (`presencial`; `telefono` habilitado **solo** con `puntual`, `OPEN-FAM-UNIT-35`); versión del texto `autorizacion_recogida` firmada (por defecto la publicada vigente); `authorized_at` (fecha y hora de la firma o de la llamada, por defecto ahora, no futura); **tutor que autoriza**: el tutor principal de la unidad, mostrado como dato de solo lectura y enviado como `authorized_by` [DERIVADA: `RN-FAM-UNIT-85` no admite a otro, así que ofrecer un selector solo produciría `422`]. Si la unidad **no tiene tutor principal**, el botón «Nueva autorización» está deshabilitado con la explicación visible «Para autorizar a terceros, la unidad necesita un tutor principal» (el servidor respondería `422 principal_required`). Errores de servidor por campo (UI-6), incluidos `principal_required`, `text_not_published`, `person_not_eligible` (se muestra su mensaje tal cual, que no distingue la causa), `already_exists`, `channel_requires_puntual`.
+3. **Fotografía.** Tras el `201` de la autorización. `<input type="file" accept="image/jpeg,image/png,image/webp">` con comprobación previa de tamaño (≤ 5 MB) y tipo declarado (UI-7); `413`/`415`/`422 photo.*` del servidor se muestran junto al campo. Texto fijo del paso: «Hasta que subas la fotografía, esta autorización no es vigente» (`RN-FAM-UNIT-84`). Se puede **cerrar sin subirla**: la autorización queda con `ineffective_reason = sin_foto` (o `no_vigente`, `D-68`) y la tabla ofrece «Subir fotografía» en su fila. Si la persona ya tenía fotografía, el paso la muestra (con la URL que devuelva el servidor, si la devuelve) y ofrece conservarla o sustituirla.
+
+Cada paso envía su petición al pulsar «Siguiente»; volver atrás tras un éxito no deshace nada (la persona y la autorización ya existen). Al cerrar el asistente se recarga la tabla de autorizaciones (no la lista vigente, UI-2).
+
+#### 23.4.4 Contenido de la lista y de la tabla
+
+- **`PickupPersonCard`**: fotografía (UI-4) o «Sin fotografía» + «Verifica con el documento»; `display_name`; una etiqueta por base (`tutor` con su relación, `tercero` con relación y «hasta {fecha}» o «sin fecha de fin», `puntual` «solo hoy»), con texto, no solo color; documento enmascarado tal como llega (`•••••123X`, `D-63`) con tipo traducido; teléfono. El orden es el del servidor (`api.md §8.5`). Pie de la lista: «Lista calculada el {as_of}» con `meta.as_of`.
+- **`PickupAuthorizationsTable`** (columnas): persona, relación, tipo, vigencia (`valid_from`–`valid_until`), estado (**«Vigente»** con icono `CircleCheck` o **«No vigente: {causa}»** con icono `CircleX`, causa traducida de `ineffective_reason`, incluido `no_vigente`), canal, registrada (`authorized_at`), retirada (`withdrawn_at`), motivo (columna presente solo si alguna fila trae `reason`, es decir, con ámbito `todos`) y acciones. Nombre accesible único por botón de fila («Retirar la autorización de {persona} para {alumno}»).
+- **Con ámbito `unidad_familiar`** (tutor que llegara a esta ficha): el servidor ya omite fotos y documento de terceros (`D-53`); la tarjeta pinta lo que llega y no ofrece acciones de escritura (el tutor no tiene `.crear`/`.actualizar`/`.eliminar` en `1.14b`). Las pantallas propias de la familia son de `1.22`.
+
+#### 23.4.5 Estados de la sección
+
+| Estado | Lista vigente | Tabla de autorizaciones | Asistente y diálogos |
+|--------|---------------|-------------------------|----------------------|
+| Inicial | Texto «Elige un alumno y pulsa "Ver lista de recogida"» y botón; ninguna petición | Se carga al elegir alumno | — |
+| Carga | `LoadingState` con `aria-busy` y anuncio *polite* | Esqueleto o `LoadingState` del `DataTable` | Botón de envío deshabilitado con indicador; foco no se pierde |
+| Vacío | «Nadie puede recoger a este alumno en este momento» (posible: alumno sin tutores activos ni terceros vigentes) | «Este alumno no tiene autorizaciones de terceros» + botón de alta si `.crear` | — |
+| Error | `ErrorState` con «Reintentar» (acción explícita) | `ErrorState` del `DataTable` | Error junto al campo o la acción (UI-6) |
+| `404` | «No se encuentra este alumno» | Ídem | «Esta persona no está disponible» |
+| `403` | «No tienes permiso para ver esta información» | Ídem | Se oculta la acción tras el `403` |
+| `429` | Mensaje del servidor con su tiempo de espera; sin reintento automático | Ídem | Ídem |
+| Sin permiso (`/me`) | La sección no se monta | — | El botón no se muestra |
+| Sin tutor principal | — | — | Botón de alta deshabilitado con explicación |
+
+### 23.5 Módulo `prl`: conserjería (`entrega_menor`, `alerta_entrega`)
+
+Pensado para **tableta en la puerta**: objetivos táctiles de 44 px, *reflow* a 320 px, fotografía grande (lado mayor ≥ 160 px CSS en la tarjeta [DERIVADA: la verificación visual es el fin del requisito]), un paso por pantalla, sin tablas para la lista de puerta (tarjetas), tabla (`@/data-table`) solo en el listado de alertas.
+
+#### 23.5.1 Búsqueda de alumno (`/conserjeria`)
+
+- Campo de búsqueda con etiqueta visible «Buscar alumno por nombre o apellidos». Petición `GET /door/students?q=` solo con **2 a 100 caracteres** (por debajo, ninguna petición y el texto de ayuda «Escribe al menos 2 letras»), con espera de 300 ms tras dejar de teclear [DERIVADA] y cancelación de la petición anterior. Resultado: hasta 20 alumnos (`display_name` y `family_unit_code`), cada uno un enlace a `prl-door-student`. Anuncio *polite* del número de resultados.
+- El término no se guarda en la URL ni en el historial (UI-3).
+- Estados: inicial (ayuda), carga, vacío («No hay ningún alumno con ese nombre»), error, `422` (mensaje del servidor), `403`.
+- Enlace a «Alertas de entrega» si `can('alerta_entrega.leer')`.
+
+#### 23.5.2 Lista de puerta (`/conserjeria/alumnos/:studentPersonPublicId`)
+
+- Al entrar, **una** petición `GET /door/students/{…}/pickup-list` (es la acción explícita de abrir la lista: UI-2; finalidad `puerta`, auditada). Sin refresco automático. Botón «Volver a cargar la lista» (nueva lectura). Si la URL de una fotografía caduca o falla, UI-4.
+- Cabecera: nombre del alumno y código de unidad (los recibidos al buscar; si se llega por URL directa, solo lo que traiga la lista — `OPEN-FAM-UNIT-58`). Línea «Lista calculada a las {hora}» (`meta.as_of`).
+- Tarjeta por persona (como `PickupPersonCard`, §23.4.4, en `prl/components/DoorPersonCard.vue`), con el botón **«Entregar a {persona}»** si `can('entrega_menor.crear')`.
+- Debajo de la lista, siempre visible si `can('alerta_entrega.crear')`: botón **«Quien se presenta no está en la lista»** → alerta (§23.5.3). Texto fijo: «No entregues al alumno a nadie que no esté en esta lista» (`RN-PRL-03`).
+- Si `can('entrega_menor.crear')`: botón secundario «Registrar entrada fuera de horario» (§23.5.3, `RN-PRL-07`).
+- Estados: carga, vacío («Nadie puede recoger a este alumno en este momento. No lo entregues y avisa a dirección»), error, `404` («No se encuentra este alumno»), `403`, `429` (mensaje del servidor, sin reintento).
+
+#### 23.5.3 Registro de salida, entrada y alerta
+
+| Acción | *Endpoint* | Permiso | Formulario y comportamiento |
+|--------|------------|---------|------------------------------|
+| Entregar (salida) | `POST /student-movements` con `direction = salida`, `picked_up_by` = persona de la tarjeta | `entrega_menor.crear` | `Dialog` con la fotografía de nuevo, método de verificación (`RadioGroup`: «Por la fotografía», «Por el documento», «Por la fotografía y el documento»; con `has_photo = false` solo «Por el documento» está habilitado y preseleccionado, con la explicación visible, `RN-PRL-06`); «Fuera de horario» (`Checkbox`) que despliega motivo (`medico`, `familiar`, `actividad`, `retraso`, `otro`) y nota (obligatoria con `otro`, ≤ 500); `delivered_by` no se ofrece y se envía `null` (= quien registra; `OPEN-FAM-UNIT-57`). Éxito `201`: el diálogo se cierra y un aviso *polite* persistente dice «Salida registrada: {alumno} con {persona} a las {hora}» (de `occurred_at`) |
+| Entrada fuera de horario | `POST /student-movements` con `direction = entrada`, `off_schedule = true` | `entrega_menor.crear` | Motivo y nota; sin persona ni método (`DP-3`) |
+| Abrir alerta | `POST /pickup-alerts` (`student_person`, `presenter_description`) | `alerta_entrega.crear` | `Textarea` «Nombre que dice tener y, si lo enseña, su documento» (≤ 500, contador visible). Éxito `201`: pantalla de alerta abierta con **protocolo** (texto `protocol` del servidor, tal cual, en un bloque destacado con `role="region"` y título «Qué hacer ahora») y **teléfonos** `contacts.principal_phone` y `contacts.emergency_phone` como enlaces `tel:`; un teléfono `null` se pinta «No disponible» (sin explicar por qué: puede ser una revocación, `DP-5`). Si además `can('alerta_entrega.actualizar')`, se ofrece registrar la llamada y cerrar (§23.5.4); si no, texto «Avisa a dirección para que registre la llamada y cierre la alerta» (`OPEN-FAM-UNIT-54`) |
+
+**Idempotencia** (`RN-PRL-09`, `DP-4`) [DERIVADA en cliente]: cada apertura de un diálogo de salida, entrada o alerta genera **una** `Idempotency-Key` (`crypto.randomUUID()`, 36 caracteres ASCII visibles) que se reutiliza en todos los reintentos de **ese** envío (doble toque, error de red) y se descarta al cerrar el diálogo o al cambiar el cuerpo. El botón de envío se deshabilita mientras la petición está en curso. Una respuesta con `Idempotency-Replayed: true` se trata como éxito normal. `409 prl.idempotency_mismatch` se muestra y obliga a cerrar y reabrir el diálogo.
+
+**Errores de la salida**: `422 prl.movement.person_not_authorized` ⇒ el diálogo muestra el mensaje del servidor (igual para todas las causas, `OPEN-FAM-UNIT-34`), **no** registra nada y ofrece dos acciones: «Volver a cargar la lista» y, si `alerta_entrega.crear`, «Abrir una alerta». `422 verification_requires_document` ⇒ mensaje junto al método. `422 reason_required` ⇒ junto al motivo.
+
+#### 23.5.4 Alertas (`/conserjeria/alertas`, `/conserjeria/alertas/:publicId`)
+
+- **Listado** `GET /pickup-alerts` (página de 25, `raised_at` desc; filtros `status`, `date`): `DataTable` con alumno, estado (**«Abierta»** con icono `TriangleAlert` / **«Cerrada»** con icono `CircleCheck`, texto siempre), abierta por, fecha, resolución. El listado no lleva teléfonos ni protocolo (`DP-5`) y, según `DP-11`, no escribe `read` ni gasta cupo; se carga al entrar, sin sondeo.
+- **Detalle** `GET /pickup-alerts/{publicId}` (bajo demanda: al abrirlo). Abierta: protocolo y teléfonos como en §23.5.3. Cerrada: resolución, notas, quién y cuándo; sin teléfonos.
+- **Registrar la llamada / cerrar** `PATCH /pickup-alerts/{publicId}` (`alerta_entrega.actualizar`; dirección y administrador por defecto): `principal_contacted_at` (fecha y hora, por defecto ahora; ni futura ni anterior a la apertura, el servidor lo comprueba) que se puede guardar con la alerta abierta; cierre con `resolution` (`no_entregado`, `recogido_por_autorizado`, `autorizacion_puntual_registrada`, `otro`) y `resolution_notes` (≤ 1000). Cerrar pide confirmación («Una alerta cerrada no se puede reabrir», `CA-PRL-008`). `409 prl.alert.closed` ⇒ mensaje y recarga del detalle (acción explícita).
+- Estados de ambas: carga, vacío («No hay alertas»), error, `404`, `403`, `429`.
+
+### 23.6 Datos de menores, de terceros y auditoría visibles en la interfaz
+
+| Dato | Dónde aparece | Regla |
+|------|---------------|-------|
+| Nombre del alumno | Ficha de familia, búsqueda y lista de puerta, alertas | Nunca en la URL (solo `public_id`); nunca su fotografía (no existe en estos *endpoints*) |
+| Fotografía de quien recoge | Lista vigente, lista de puerta, diálogo de salida, asistente | UI-3, UI-4; nunca fuera de estos contextos (limitación de finalidad, §21.4) |
+| Documento | Lista y tarjetas: enmascarado; completo solo en `PickupPersonDialog` | `RN-FAM-UNIT-90`; el completo no se copia a avisos, títulos ni `document.title` |
+| Teléfonos | Tarjetas, alerta abierta | Enlace `tel:`; nunca en avisos persistentes ni en la URL |
+| Descripción de quien se presenta | Alerta | Texto libre acotado; no se repite en avisos |
+| Revocación judicial | En ninguna pantalla | UI-5 |
+| **Aviso de registro de la consulta** | Encima de la lista vigente, de la lista de puerta, de la ficha de la persona y del detalle de una alerta abierta | Texto fijo «Esta consulta queda registrada con tu usuario, la fecha y la hora» [DERIVADA: informa al personal del efecto de su acción, `RN-FAM-UNIT-92`, `DP-11`]. **Texto de privacidad**: no se traduce automáticamente (§23.8, `OPEN-FAM-UNIT-59`) |
+
+`document.title` y las migas de pan de las rutas de `prl` usan títulos fijos («Conserjería», «Lista de recogida», «Alerta»), nunca el nombre del alumno ni de una persona [DERIVADA: el título de la pestaña queda en el historial del navegador de un dispositivo compartido].
+
+### 23.7 Accesibilidad (WCAG 2.2 AA, `RNF-UX-002`)
+
+| Criterio | Aplicación |
+|----------|------------|
+| 1.1.1 Contenido no textual | Toda fotografía de persona lleva `alt` traducido «Fotografía de {persona}»; los iconos de estado acompañan a un texto y llevan `aria-hidden="true"` (`design-system §22` regla 6) |
+| 1.3.1 Información y relaciones | Secciones con `<h2>`/`<h3>`; lista de tarjetas como `<ul>`/`<li>`; campos con `<label>` asociada; grupos de radio con `fieldset`/`legend` (o el equivalente de `RadioGroup` con `aria-labelledby`) |
+| 1.4.1 Uso del color | Vigente/no vigente, abierta/cerrada, con/sin fotografía y cada base se distinguen por **texto e icono**, no solo por color (`CA-PRL-012`) |
+| 1.4.3 / 1.4.11 Contraste | Solo tokens semánticos (`ADR-052`); estados con `success`/`warning`/`destructive` y su `-foreground` |
+| 1.4.10 *Reflow* | Usable a 320 px sin desplazamiento horizontal; la tabla de autorizaciones usa el comportamiento responsivo de `@/data-table` |
+| 2.1.1 Teclado / 2.4.3 Orden del foco | Todo operable con teclado; el foco entra en el diálogo al abrirlo, queda atrapado y vuelve al botón que lo abrió; en el asistente, el foco va al encabezado de cada paso |
+| 2.4.6 / 4.1.2 Nombre accesible | Cada botón de tarjeta o fila incluye el nombre de la persona («Entregar a {persona}», «Retirar la autorización de {persona}») |
+| 2.5.8 Tamaño del objetivo (AA 2.2) | ≥ 24 × 24 px como mínimo normativo; en conserjería, 44 × 44 px (`design-system §22` regla 1) |
+| 3.3.1 / 3.3.3 Errores | Error de servidor junto al campo con `aria-describedby` y `aria-invalid`; resumen anunciado con `role="alert"` solo para errores bloqueantes |
+| 3.3.7 Entrada redundante (AA 2.2) | El asistente conserva lo escrito entre pasos; el documento del paso 1 no se vuelve a pedir |
+| 3.1.2 Idioma de las partes | El bloque de protocolo de la alerta lleva `lang` del texto si difiere del de la interfaz (`OPEN-FAM-UNIT-40` derivado: hoy `prl.protocol.minimal` está solo en español en los cuatro ficheros; ver `OPEN-FAM-UNIT-59`) |
+| 4.1.3 Mensajes de estado | Resultado de búsqueda, carga, salida registrada y alerta abierta anunciados con región *live* `polite`; la alerta abierta, con `assertive` |
+| 2.3.3 / movimiento | Sin animaciones propias; respeta `prefers-reduced-motion` (`design-system §4.6`) |
+
+### 23.8 Claves de traducción
+
+Prefijos: `famUnit.pickup.*` en `apps/web/src/modules/fam-unit/locales/*.json` y `prl.*` en `apps/web/src/modules/prl/locales/*.json`. Español con tuteo (como el resto de `fam-unit`); alemán con «Sie»; francés con «vous». Placeholders con la sintaxis de `vue-i18n` (`{persona}` se escribe `{person}` en la clave). Paridad comprobada por `AR-12`/`TranslationParityTest` y `lint:i18n` (`CA-PRL-013`, `CA-FAM-UNIT-143`). Marcadas **[NT]**: textos de **seguridad o privacidad** que **no** se traducen automáticamente (`CLAUDE.md §2` punto 9): en/de/fr se proponen aquí como borrador y **requieren revisión humana** antes de mezclar (no los completa `traductor` ni la sesión). Los enumerados ya traducidos en `fam-unit` (p. ej. tipos de documento, si existen) se reutilizan; el implementador no duplica claves existentes. El número de claves (~110) supera el umbral de ~15 del punto 9: las no marcadas las completa `traductor` a partir de es-ES; esta tabla da el es-ES vinculante y una propuesta para el resto.
+
+#### 23.8.1 `famUnit.pickup.*` (T1-T2 de `1.14b-c1`)
+
+| Clave | es-ES | en | de | fr |
+|-------|-------|----|----|----|
+| `section.title` | Personas autorizadas a recoger | People authorised to collect | Abholberechtigte Personen | Personnes autorisées à récupérer l'élève |
+| `section.chooseStudent` | Alumno | Student | Schüler/in | Élève |
+| `list.show` | Ver lista de recogida | Show pickup list | Abholliste anzeigen | Afficher la liste de récupération |
+| `list.reload` | Volver a cargar la lista | Reload the list | Liste neu laden | Recharger la liste |
+| `list.initial` | Elige un alumno y pulsa «Ver lista de recogida». | Choose a student and press "Show pickup list". | Wählen Sie eine/n Schüler/in und klicken Sie auf „Abholliste anzeigen“. | Choisissez un élève et cliquez sur « Afficher la liste de récupération ». |
+| `list.empty` | Nadie puede recoger a este alumno en este momento. | Nobody can collect this student at the moment. | Derzeit darf niemand diese/n Schüler/in abholen. | Personne ne peut récupérer cet élève pour le moment. |
+| `list.asOf` | Lista calculada el {date} | List calculated on {date} | Liste berechnet am {date} | Liste calculée le {date} |
+| `list.auditNotice` **[NT]** | Esta consulta queda registrada con tu usuario, la fecha y la hora. | This lookup is recorded with your user, the date and the time. | Diese Abfrage wird mit Ihrem Benutzer, Datum und Uhrzeit protokolliert. | Cette consultation est enregistrée avec votre utilisateur, la date et l'heure. |
+| `photo.alt` | Fotografía de {person} | Photograph of {person} | Foto von {person} | Photo de {person} |
+| `photo.none` | Sin fotografía | No photograph | Kein Foto | Pas de photo |
+| `photo.verifyDocument` **[NT]** | Verifica con el documento. | Verify with the identity document. | Prüfen Sie den Ausweis. | Vérifiez avec la pièce d'identité. |
+| `photo.unavailable` | Fotografía no disponible | Photograph not available | Foto nicht verfügbar | Photo indisponible |
+| `basis.tutor` | Tutor/a ({relationship}) | Guardian ({relationship}) | Erziehungsberechtigte/r ({relationship}) | Responsable légal ({relationship}) |
+| `basis.tercero` | Autorizado/a | Authorised person | Bevollmächtigte Person | Personne autorisée |
+| `basis.puntual` | Solo hoy | Today only | Nur heute | Aujourd'hui seulement |
+| `basis.until` | Hasta el {date} | Until {date} | Bis {date} | Jusqu'au {date} |
+| `basis.noEnd` | Sin fecha de fin | No end date | Ohne Enddatum | Sans date de fin |
+| `relationship.abuelo` | Abuelo/a | Grandparent | Großelternteil | Grand-parent |
+| `relationship.personal_apoyo` | Personal de apoyo | Support staff | Betreuungsperson | Personnel d'accompagnement |
+| `relationship.otra_familia` | Otra familia | Another family | Andere Familie | Autre famille |
+| `relationship.otro` | Otro | Other | Andere | Autre |
+| `kind.permanente` | Permanente | Permanent | Dauerhaft | Permanente |
+| `kind.puntual` | Puntual (un día) | One-off (one day) | Einmalig (ein Tag) | Ponctuelle (un jour) |
+| `channel.presencial` | En persona (papel firmado) | In person (signed form) | Persönlich (unterschriebenes Formular) | En personne (formulaire signé) |
+| `channel.telefono` | Por teléfono (con devolución de llamada) | By phone (with call-back) | Telefonisch (mit Rückruf) | Par téléphone (avec rappel) |
+| `status.effective` | Vigente | In force | Gültig | En vigueur |
+| `status.ineffective` | No vigente: {reason} | Not in force: {reason} | Nicht gültig: {reason} | Pas en vigueur : {reason} |
+| `ineffective.sin_foto` | falta la fotografía | photograph missing | Foto fehlt | photo manquante |
+| `ineffective.fuera_de_vigencia` | fuera de las fechas | outside its dates | außerhalb des Zeitraums | hors période |
+| `ineffective.retirada` | retirada | withdrawn | widerrufen | retirée |
+| `ineffective.persona_excluida` | persona excluida | person excluded | Person ausgeschlossen | personne exclue |
+| `ineffective.no_vigente` | no vigente | not in force | nicht gültig | pas en vigueur |
+| `table.empty` | Este alumno no tiene autorizaciones de terceros. | This student has no third-party authorisations. | Für diese/n Schüler/in gibt es keine Vollmachten für Dritte. | Cet élève n'a aucune autorisation de tiers. |
+| `table.columns.person` / `.relationship` / `.kind` / `.validity` / `.status` / `.channel` / `.authorizedAt` / `.withdrawnAt` / `.reason` / `.actions` | Persona / Relación / Tipo / Vigencia / Estado / Canal / Autorizada el / Retirada el / Motivo / Acciones | Person / Relationship / Type / Validity / Status / Channel / Authorised on / Withdrawn on / Reason / Actions | Person / Beziehung / Art / Gültigkeit / Status / Kanal / Bevollmächtigt am / Widerrufen am / Grund / Aktionen | Personne / Lien / Type / Validité / Statut / Canal / Autorisée le / Retirée le / Motif / Actions |
+| `actions.new` | Nueva autorización | New authorisation | Neue Vollmacht | Nouvelle autorisation |
+| `actions.newDisabledNoPrincipal` | Para autorizar a terceros, la unidad necesita un tutor principal. | To authorise third parties, the family unit needs a main guardian. | Um Dritte zu bevollmächtigen, braucht die Familieneinheit eine/n Haupterziehungsberechtigte/n. | Pour autoriser des tiers, l'unité familiale doit avoir un responsable principal. |
+| `actions.withdraw` | Retirar la autorización de {person} para {student} | Withdraw {person}'s authorisation for {student} | Vollmacht von {person} für {student} widerrufen | Retirer l'autorisation de {person} pour {student} |
+| `actions.editValidity` | Cambiar la fecha de fin de {person} | Change {person}'s end date | Enddatum von {person} ändern | Modifier la date de fin de {person} |
+| `actions.uploadPhoto` | Subir fotografía de {person} | Upload {person}'s photograph | Foto von {person} hochladen | Téléverser la photo de {person} |
+| `actions.removePhoto` | Quitar la fotografía de {person} | Remove {person}'s photograph | Foto von {person} entfernen | Supprimer la photo de {person} |
+| `actions.viewPerson` | Ver los datos de {person} | View {person}'s details | Daten von {person} anzeigen | Voir les données de {person} |
+| `confirmWithdraw.title` | ¿Retirar la autorización de {person}? | Withdraw {person}'s authorisation? | Vollmacht von {person} widerrufen? | Retirer l'autorisation de {person} ? |
+| `confirmWithdraw.description` **[NT]** | Desde ahora no podrá recoger a {student}. La retirada no se puede deshacer: para volver a autorizarle, crea una autorización nueva. | From now on they cannot collect {student}. This cannot be undone: to authorise them again, create a new authorisation. | Ab sofort darf diese Person {student} nicht mehr abholen. Dies kann nicht rückgängig gemacht werden: Legen Sie für eine erneute Berechtigung eine neue Vollmacht an. | Dès maintenant, cette personne ne pourra plus récupérer {student}. Ce retrait est définitif : pour l'autoriser à nouveau, créez une nouvelle autorisation. |
+| `confirmRemovePhoto.description` **[NT]** | Sin fotografía, las autorizaciones de un tercero dejan de ser vigentes. | Without a photograph, a third party's authorisations stop being in force. | Ohne Foto sind die Vollmachten einer dritten Person nicht mehr gültig. | Sans photo, les autorisations d'un tiers ne sont plus en vigueur. |
+| `wizard.title` | Nueva persona autorizada | New authorised person | Neue bevollmächtigte Person | Nouvelle personne autorisée |
+| `wizard.steps.person` / `.authorization` / `.photo` | 1. Persona / 2. Autorización / 3. Fotografía | 1. Person / 2. Authorisation / 3. Photograph | 1. Person / 2. Vollmacht / 3. Foto | 1. Personne / 2. Autorisation / 3. Photo |
+| `wizard.next` / `.back` / `.finish` / `.skipPhoto` | Siguiente / Atrás / Terminar / Cerrar sin fotografía | Next / Back / Finish / Close without photograph | Weiter / Zurück / Fertig / Ohne Foto schließen | Suivant / Retour / Terminer / Fermer sans photo |
+| `person.documentType` / `.documentNumber` / `.search` / `.useExisting` / `.givenName` / `.familyName1` / `.familyName2` / `.phone` | Tipo de documento / Número de documento / Buscar / Usar esta persona / Nombre / Primer apellido / Segundo apellido / Teléfono | Document type / Document number / Search / Use this person / First name / First surname / Second surname / Phone | Ausweisart / Ausweisnummer / Suchen / Diese Person verwenden / Vorname / Erster Nachname / Zweiter Nachname / Telefon | Type de pièce / Numéro de pièce / Rechercher / Utiliser cette personne / Prénom / Premier nom / Second nom / Téléphone |
+| `person.notFound` | No hay ninguna persona con ese documento. Completa sus datos. | No person has that document. Fill in their details. | Keine Person mit diesem Ausweis. Bitte Daten ergänzen. | Aucune personne avec cette pièce. Complétez ses données. |
+| `person.reused` | Ya existía una persona con ese documento; se usará la existente sin cambiar sus datos. | A person with that document already existed; the existing one will be used without changing their details. | Eine Person mit diesem Ausweis existierte bereits; sie wird ohne Änderung ihrer Daten verwendet. | Une personne avec cette pièce existait déjà ; elle sera utilisée sans modifier ses données. |
+| `person.dataMismatch` | Los datos que has escrito no coinciden con los registrados; revísalos después en la ficha de la persona. | The details you entered do not match those on record; review them later in the person's record. | Die eingegebenen Daten stimmen nicht mit den gespeicherten überein; prüfen Sie sie später in den Personendaten. | Les données saisies ne correspondent pas à celles enregistrées ; vérifiez-les ensuite dans la fiche de la personne. |
+| `person.documentReadOnly` | El documento no se puede cambiar. | The document cannot be changed. | Der Ausweis kann nicht geändert werden. | La pièce d'identité ne peut pas être modifiée. |
+| `person.notCorrectable` | Esta persona no se puede corregir desde aquí; si tiene cuenta de usuario, se corrige en Usuarios. | This person cannot be corrected here; if they have a user account, correct it in Users. | Diese Person kann hier nicht korrigiert werden; hat sie ein Benutzerkonto, korrigieren Sie sie unter Benutzer. | Cette personne ne peut pas être corrigée ici ; si elle a un compte utilisateur, corrigez-la dans Utilisateurs. |
+| `authorization.student` / `.relationship` / `.kind` / `.validFrom` / `.validUntil` / `.reason` / `.channel` / `.termsVersion` / `.authorizedAt` / `.authorizedBy` | Alumno / Relación / Tipo / Desde / Hasta (opcional) / Motivo / Canal / Texto firmado (versión) / Fecha y hora de la firma o la llamada / Autoriza | Student / Relationship / Type / From / Until (optional) / Reason / Channel / Signed text (version) / Date and time of signature or call / Authorised by | Schüler/in / Beziehung / Art / Ab / Bis (optional) / Grund / Kanal / Unterzeichneter Text (Version) / Datum und Uhrzeit der Unterschrift oder des Anrufs / Bevollmächtigt durch | Élève / Lien / Type / Du / Au (facultatif) / Motif / Canal / Texte signé (version) / Date et heure de la signature ou de l'appel / Autorisé par |
+| `authorization.termsVersionLabel` | Versión {number} ({state}) | Version {number} ({state}) | Version {number} ({state}) | Version {number} ({state}) |
+| `authorization.noPublishedText` | No hay ningún texto de autorización de recogida publicado. Pide a administración que lo publique. | No pickup authorisation text is published. Ask the administration to publish it. | Es ist kein Text für Abholvollmachten veröffentlicht. Bitten Sie die Verwaltung, ihn zu veröffentlichen. | Aucun texte d'autorisation de récupération n'est publié. Demandez à l'administration de le publier. |
+| `authorization.telefonoOnlyPuntual` | Por teléfono solo se registran autorizaciones de un día. | Phone authorisations can only be for a single day. | Telefonisch sind nur eintägige Vollmachten möglich. | Par téléphone, seules les autorisations d'un jour sont possibles. |
+| `photo.stepNotice` **[NT]** | Hasta que subas la fotografía, esta autorización no es vigente. | Until you upload the photograph, this authorisation is not in force. | Bis Sie das Foto hochladen, ist diese Vollmacht nicht gültig. | Tant que vous n'avez pas téléversé la photo, cette autorisation n'est pas en vigueur. |
+| `photo.file` / `.hint` / `.tooLarge` / `.wrongType` / `.keep` / `.replace` | Fotografía / JPEG, PNG o WebP; hasta 5 MB. / El fichero supera 5 MB. / Solo se admiten JPEG, PNG o WebP. / Conservar la actual / Sustituir | Photograph / JPEG, PNG or WebP; up to 5 MB. / The file exceeds 5 MB. / Only JPEG, PNG or WebP are accepted. / Keep current / Replace | Foto / JPEG, PNG oder WebP; bis 5 MB. / Die Datei ist größer als 5 MB. / Nur JPEG, PNG oder WebP. / Aktuelles behalten / Ersetzen | Photo / JPEG, PNG ou WebP ; 5 Mo maximum. / Le fichier dépasse 5 Mo. / Seuls JPEG, PNG ou WebP sont acceptés. / Conserver l'actuelle / Remplacer |
+| `states.notFound` / `.forbidden` | No se encuentra esta información. / No tienes permiso para ver esta información. | This information cannot be found. / You do not have permission to view this information. | Diese Information wurde nicht gefunden. / Sie haben keine Berechtigung, diese Information anzuzeigen. | Information introuvable. / Vous n'avez pas l'autorisation de consulter cette information. |
+
+(El texto `photo.hint` y `photo.tooLarge` dependen de los 5 MB de `D-57`: si el valor es configurable por centro, el límite debería venir del servidor; ver `OPEN-FAM-UNIT-60`.)
+
+#### 23.8.2 `prl.*` (T1-T2 de `1.14b-c2`)
+
+| Clave | es-ES | en | de | fr |
+|-------|-------|----|----|----|
+| `nav.door` / `nav.alerts` | Conserjería / Alertas de entrega | Front desk / Release alerts | Empfang / Übergabe-Warnungen | Accueil / Alertes de remise |
+| `door.title` / `door.studentTitle` / `alert.title` | Conserjería / Lista de recogida / Alerta | Front desk / Pickup list / Alert | Empfang / Abholliste / Warnung | Accueil / Liste de récupération / Alerte |
+| `search.label` | Buscar alumno por nombre o apellidos | Search student by name or surname | Schüler/in nach Vor- oder Nachname suchen | Rechercher un élève par prénom ou nom |
+| `search.minChars` | Escribe al menos 2 letras. | Type at least 2 letters. | Geben Sie mindestens 2 Buchstaben ein. | Saisissez au moins 2 lettres. |
+| `search.results` | {count} alumno \| {count} alumnos | {count} student \| {count} students | {count} Schüler/in \| {count} Schüler/innen | {count} élève \| {count} élèves |
+| `search.empty` | No hay ningún alumno con ese nombre. | No student with that name. | Kein/e Schüler/in mit diesem Namen. | Aucun élève portant ce nom. |
+| `door.asOf` | Lista calculada a las {time} | List calculated at {time} | Liste berechnet um {time} | Liste calculée à {time} |
+| `door.empty` **[NT]** | Nadie puede recoger a este alumno en este momento. No lo entregues y avisa a dirección. | Nobody can collect this student at the moment. Do not release them and inform the management. | Derzeit darf niemand diese/n Schüler/in abholen. Nicht übergeben und die Schulleitung informieren. | Personne ne peut récupérer cet élève pour le moment. Ne le remettez pas et prévenez la direction. |
+| `door.onlyListed` **[NT]** | No entregues al alumno a nadie que no esté en esta lista. | Do not release the student to anyone who is not on this list. | Übergeben Sie das Kind niemandem, der nicht auf dieser Liste steht. | Ne remettez l'élève à personne qui ne figure pas sur cette liste. |
+| `door.auditNotice` **[NT]** | (igual que `famUnit.pickup.list.auditNotice`) | … | … | … |
+| `door.notListed` | Quien se presenta no está en la lista | The person is not on the list | Die Person steht nicht auf der Liste | La personne ne figure pas sur la liste |
+| `door.deliver` | Entregar a {person} | Release to {person} | An {person} übergeben | Remettre à {person} |
+| `door.entryOffSchedule` | Registrar entrada fuera de horario | Record off-schedule entry | Eintritt außerhalb der Zeiten erfassen | Enregistrer une entrée hors horaire |
+| `verification.legend` | Cómo has comprobado su identidad | How you verified their identity | Wie Sie die Identität geprüft haben | Comment vous avez vérifié son identité |
+| `verification.foto` / `.documento` / `.foto_y_documento` | Por la fotografía / Por el documento / Por la fotografía y el documento | By photograph / By identity document / By photograph and document | Anhand des Fotos / Anhand des Ausweises / Anhand von Foto und Ausweis | Par la photo / Par la pièce d'identité / Par la photo et la pièce |
+| `verification.documentOnly` **[NT]** | Esta persona no tiene fotografía: solo puedes verificar con el documento. | This person has no photograph: you can only verify with the document. | Diese Person hat kein Foto: Prüfen Sie nur anhand des Ausweises. | Cette personne n'a pas de photo : vérifiez uniquement avec la pièce d'identité. |
+| `movement.offSchedule` / `.reason` / `.notes` | Fuera de horario / Motivo / Nota | Off schedule / Reason / Note | Außerhalb der Zeiten / Grund / Notiz | Hors horaire / Motif / Note |
+| `reason.medico` / `.familiar` / `.actividad` / `.retraso` / `.otro` | Médico / Familiar / Actividad / Retraso / Otro | Medical / Family / Activity / Late arrival / Other | Arzt / Familie / Aktivität / Verspätung / Sonstiges | Médical / Familial / Activité / Retard / Autre |
+| `direction.salida` / `.entrada` | Salida / Entrada | Exit / Entry | Ausgang / Eingang | Sortie / Entrée |
+| `basis.tutor` / `.tercero` / `.puntual` | Tutor/a / Autorizado/a / Solo hoy | Guardian / Authorised person / Today only | Erziehungsberechtigte/r / Bevollmächtigte Person / Nur heute | Responsable légal / Personne autorisée / Aujourd'hui seulement |
+| `movement.recorded` | Salida registrada: {student} con {person} a las {time}. | Exit recorded: {student} with {person} at {time}. | Ausgang erfasst: {student} mit {person} um {time}. | Sortie enregistrée : {student} avec {person} à {time}. |
+| `movement.entryRecorded` | Entrada registrada a las {time}. | Entry recorded at {time}. | Eingang erfasst um {time}. | Entrée enregistrée à {time}. |
+| `movement.submit` / `.cancel` | Registrar / Cancelar | Record / Cancel | Erfassen / Abbrechen | Enregistrer / Annuler |
+| `movement.rejectedActions` | Volver a cargar la lista / Abrir una alerta | Reload the list / Open an alert | Liste neu laden / Warnung öffnen | Recharger la liste / Ouvrir une alerte |
+| `alert.presenterLabel` | Nombre que dice tener y, si lo enseña, su documento | Name they give and, if shown, their document | Angegebener Name und, falls vorgezeigt, Ausweis | Nom déclaré et, si elle la présente, sa pièce d'identité |
+| `alert.open` | Abrir alerta | Open alert | Warnung öffnen | Ouvrir l'alerte |
+| `alert.protocolTitle` **[NT]** | Qué hacer ahora | What to do now | Was jetzt zu tun ist | Que faire maintenant |
+| `alert.phones.principal` / `.emergency` / `.unavailable` | Tutor principal / Contacto de emergencia / No disponible | Main guardian / Emergency contact / Not available | Haupterziehungsberechtigte/r / Notfallkontakt / Nicht verfügbar | Responsable principal / Contact d'urgence / Indisponible |
+| `alert.callManagement` **[NT]** | Avisa a dirección para que registre la llamada y cierre la alerta. | Inform the management so they record the call and close the alert. | Informieren Sie die Schulleitung, damit sie den Anruf erfasst und die Warnung schließt. | Prévenez la direction pour qu'elle enregistre l'appel et clôture l'alerte. |
+| `alert.status.abierta` / `.cerrada` | Abierta / Cerrada | Open / Closed | Offen / Geschlossen | Ouverte / Clôturée |
+| `alert.principalContactedAt` / `.saveCall` | Hora de la llamada al tutor principal / Guardar la llamada | Time of call to main guardian / Save call | Uhrzeit des Anrufs bei der/dem Haupterziehungsberechtigten / Anruf speichern | Heure de l'appel au responsable principal / Enregistrer l'appel |
+| `alert.resolution` / `.resolutionNotes` / `.close` | Resolución / Notas de la resolución / Cerrar la alerta | Resolution / Resolution notes / Close alert | Lösung / Notizen zur Lösung / Warnung schließen | Résolution / Notes de résolution / Clôturer l'alerte |
+| `resolution.no_entregado` / `.recogido_por_autorizado` / `.autorizacion_puntual_registrada` / `.otro` | No entregado / Recogido por una persona autorizada / Autorización puntual registrada / Otro | Not released / Collected by an authorised person / One-off authorisation recorded / Other | Nicht übergeben / Von bevollmächtigter Person abgeholt / Einmalige Vollmacht erfasst / Sonstiges | Non remis / Récupéré par une personne autorisée / Autorisation ponctuelle enregistrée / Autre |
+| `alert.confirmClose` | Una alerta cerrada no se puede reabrir. | A closed alert cannot be reopened. | Eine geschlossene Warnung kann nicht wieder geöffnet werden. | Une alerte clôturée ne peut pas être rouverte. |
+| `alerts.empty` | No hay alertas. | There are no alerts. | Keine Warnungen. | Aucune alerte. |
+| `alerts.columns.student` / `.status` / `.raisedBy` / `.raisedAt` / `.resolution` | Alumno / Estado / Abierta por / Fecha / Resolución | Student / Status / Opened by / Date / Resolution | Schüler/in / Status / Geöffnet von / Datum / Lösung | Élève / Statut / Ouverte par / Date / Résolution |
+| `photo.alt` / `.none` / `.unavailable` | (como `famUnit.pickup.photo.*`) | … | … | … |
+| `states.notFound` / `.forbidden` / `.studentNotFound` | No se encuentra esta información. / No tienes permiso para ver esta información. / No se encuentra este alumno. | … / … / This student cannot be found. | … / … / Diese/r Schüler/in wurde nicht gefunden. | … / … / Élève introuvable. |
+
+«…» = mismo texto que la clave homónima de `famUnit.pickup.*` en ese idioma (se duplica, no se importa: `AR-11`). El texto del **protocolo** no es una clave de la SPA: lo devuelve el servidor (`prl.protocol.minimal`, `DP-5`) y la SPA lo pinta tal cual (`OPEN-FAM-UNIT-40`, `-59`).
+
+### 23.9 Criterios de aceptación de la interfaz
+
+Vitest salvo los marcados **[E2E real]** (Playwright contra la API real en ejecución, cookie de sesión y CSRF, datos de `REQ-SEED`, `CLAUDE.md §3`). Cada test cita su ID.
+
+**Personas autorizadas (`fam-unit`, `REQ-FAM-UNIT-005`)**
+
+- **CA-FAM-UNIT-132** [`INV-002`, `RN-CORE-61`] — *Dado* un usuario sin `autorizado_recogida.leer` en `/me.permissions`, *cuando* abre `/familias/:publicId`, *entonces* la sección «Personas autorizadas» no existe en el DOM y no se ha hecho ninguna petición a `/pickup-*`; *y dado* `.leer` sin `.crear`/`.actualizar`/`.eliminar`, *entonces* no hay botón de alta ni acciones de fila.
+- **CA-FAM-UNIT-133** [`RN-FAM-UNIT-92`, `-93`, UI-2] — *Dado* la ficha de una unidad con tres alumnos, *cuando* se monta la sección, *entonces* no hay ninguna petición a `/pickup-lists/*` ni a `/pickup-persons*`; *y cuando* se pulsa «Ver lista de recogida» para un alumno, *entonces* hay **exactamente una** petición a `GET /pickup-lists/{ese alumno}` y ninguna más pasados 6 minutos (temporizadores simulados).
+- **CA-FAM-UNIT-134** [`RN-FAM-UNIT-84`, `-90`, `D-63`, UI-4, UI-5] — *Dado* una lista con un tutor sin foto, un tercero con foto y una puntual, *entonces* el tercero muestra `<img alt="Fotografía de {nombre}">`, el tutor muestra «Sin fotografía» y «Verifica con el documento» en texto, cada base tiene etiqueta de texto, el documento se pinta tal como llega enmascarado, y no aparece ninguna palabra relativa a revocación; *y cuando* el `<img>` emite `error`, *entonces* se sustituye por «Fotografía no disponible» con el botón «Volver a cargar la lista», sin petición automática.
+- **CA-FAM-UNIT-135** [`D-68`, `D-53`] — *Dado* autorizaciones con `ineffective_reason` `sin_foto`, `no_vigente` y `persona_excluida`, *entonces* el estado se pinta «No vigente: {causa}» con icono y texto para cada una; *y dado* respuestas sin `reason`, *entonces* la columna «Motivo» no se pinta.
+- **CA-FAM-UNIT-136** [`OPEN-FAM-UNIT-48`, `D-52`, `RN-FAM-UNIT-85`, `-89`] — *Dado* el asistente, *cuando* se completa, *entonces* las peticiones salen en el orden `POST /pickup-persons` → `POST /pickup-authorizations` (con `authorized_by` = el tutor principal de la unidad, mostrado sin selector) → `PUT …/photo`; *y dado* `200 reused = true, data_mismatch = true`, *entonces* se muestran los dos avisos y el paso 2 continúa con esa persona; *y dado* una unidad sin tutor principal, *entonces* el botón de alta está deshabilitado con su explicación visible y asociada por `aria-describedby`.
+- **CA-FAM-UNIT-137** [`RN-FAM-UNIT-84`, `RN-FAM-UNIT-83`] — *Dado* el paso de fotografía, *cuando* se cierra sin subirla, *entonces* la autorización aparece en la tabla como no vigente con la acción «Subir fotografía de {persona}»; *y dado* un fichero de 6 MB o un `.gif`, *entonces* no se envía y se muestra el aviso en cliente; *y dado* un `413`, `415` o `422 photo.type_mismatch` del servidor, *entonces* su mensaje aparece junto al campo y la autorización no cambia en pantalla.
+- **CA-FAM-UNIT-138** [`OPEN-FAM-UNIT-35`, `D-60`] — *Dado* el paso de autorización, *cuando* el tipo es `permanente`, *entonces* el canal `telefono` está deshabilitado con su explicación; *y cuando* es `puntual`, *entonces* `valid_until` no se pide, el motivo es obligatorio y `telefono` se puede elegir; *y dado* un `422 channel_requires_puntual` o `text_not_published` del servidor, *entonces* se muestra junto al campo correspondiente.
+- **CA-FAM-UNIT-139** [`RN-FAM-UNIT-87`, `D-61`, `RN-CORE-64`] — *Dado* una autorización vigente, *cuando* se pulsa «Retirar…», *entonces* aparece la confirmación con el texto de irreversibilidad y solo tras confirmar sale `POST …/withdrawal`; *y dado* un `409 invalid_transition`, *entonces* se muestra y la fila no cambia; *y dado* una `puntual` o una retirada, *entonces* no se ofrece «Cambiar la fecha de fin».
+- **CA-FAM-UNIT-140** [`RN-FAM-UNIT-89`, `-90`, `D-66`, `CA-FAM-UNIT-130`] — *Dado* la ficha de una persona, *entonces* se abre solo al pulsar «Ver los datos de {persona}» (una petición `GET /pickup-persons/{p}`), el documento completo es de solo lectura y no aparece en avisos ni en `document.title`; *y dado* un `404` al corregir, *entonces* se muestra `person.notCorrectable` sin distinguir la causa.
+- **CA-FAM-UNIT-141** [UI-3, §21.10] — *Dado* cualquier pantalla de esta sección tras cargar lista, persona y foto, *entonces* `localStorage`, `sessionStorage` y la URL no contienen nombres, documentos, teléfonos ni URL firmadas (test que inspecciona ambos almacenes y `route.fullPath`).
+- **CA-FAM-UNIT-142** [E2E real] [`REQ-FAM-UNIT-005`, `CA-FAM-UNIT-111`, `-117`, `-120`] — *Dado* un usuario de secretaría de `REQ-SEED` en navegador real contra la API real, *cuando* da de alta un tercero (persona → autorización → foto sintética sin rostro), *entonces* tras subir la foto la autorización pasa a «Vigente» y la persona figura en la lista vigente con su `alt`; *y cuando* la retira, *entonces* deja de figurar en la siguiente lectura; *y* todos los controles usados son alcanzables con teclado, tienen nombre accesible y los estados no dependen solo del color. Se registra si el almacenamiento fue MinIO, S3 falso o disco local (`D-67`).
+- **CA-FAM-UNIT-143** [`INV-009`, `AR-12`] — *Dado* las claves `famUnit.pickup.*` en `es`, *entonces* existen en `en`, `de` y `fr`, `lint:i18n` no encuentra literales en los componentes nuevos, y las claves **[NT]** tienen constancia de revisión humana en el PR.
+
+**Conserjería (`prl`, `REQ-PRL-004`)**
+
+- **CA-PRL-014** [`RMOD-008`, `INV-002`, `CA-PRL-009`] — *Dado* un usuario sin `entrega_menor.leer`, *entonces* no ve «Conserjería» en el menú y al navegar a `/conserjeria` obtiene la pantalla de sin permiso sin peticiones a `/door/*`; *y dado* `prl` descontratado (sin sus permisos en `/me`), *entonces* las entradas desaparecen; *y dado* `.leer` sin `entrega_menor.crear`, *entonces* no hay botones «Entregar a…» ni de entrada fuera de horario; *y* sin `alerta_entrega.crear`, no hay «Quien se presenta no está en la lista».
+- **CA-PRL-015** [UI-3, `REQ-PRL/api.md §8.7`] — *Dado* la búsqueda, *cuando* se escribe 1 carácter, *entonces* no hay petición y se ve la ayuda; *cuando* se escriben 2 o más y se espera, *entonces* hay una petición `GET /door/students?q=` y la anterior en vuelo se cancela; *y* el término no aparece en `route.fullPath` ni en el historial; *y* un resultado vacío muestra su estado.
+- **CA-PRL-016** [`RN-PRL-10`, `CA-PRL-010`, UI-2] — *Dado* la entrada en `/conserjeria/alumnos/:id`, *entonces* hay exactamente una petición a la lista de puerta y ninguna más sin acción del usuario; `document.title` no contiene el nombre del alumno.
+- **CA-PRL-017** [`RN-PRL-06`, `CA-PRL-006`] — *Dado* una persona con `has_photo = false`, *cuando* se abre «Entregar a…», *entonces* solo «Por el documento» está habilitado y preseleccionado y la explicación es visible; *y dado* `has_photo = true`, los tres métodos están habilitados.
+- **CA-PRL-018** [`RN-PRL-09`, `DP-4`, `CA-PRL-005`] — *Dado* el diálogo de salida, *cuando* el primer envío falla por red y se reintenta, *entonces* ambas peticiones llevan la **misma** `Idempotency-Key`; *y cuando* se cierra y se reabre, *entonces* la clave es distinta; *y* el botón está deshabilitado mientras hay petición en curso; *y* una respuesta con `Idempotency-Replayed: true` se muestra como éxito.
+- **CA-PRL-019** [`RN-PRL-02`, `OPEN-FAM-UNIT-34`, `CA-PRL-002`] — *Dado* un `422 prl.movement.person_not_authorized`, *entonces* se muestra el mensaje del servidor, no se anuncia ninguna salida, y se ofrecen «Volver a cargar la lista» y (con permiso) «Abrir una alerta»; la interfaz no muestra ningún texto distinto según la causa.
+- **CA-PRL-020** [`RN-PRL-07`, `DP-3`, `CA-PRL-007`] — *Dado* «Fuera de horario» marcado sin motivo, o con `otro` sin nota, *entonces* el envío no sale (ayuda en cliente) y el `422 reason_required` del servidor, si llega, se pinta junto al campo; *y* la entrada fuera de horario envía `direction = entrada` sin `picked_up_by` ni `verification_method`.
+- **CA-PRL-021** [`RN-PRL-08`, `DP-5`, `OPEN-FAM-UNIT-33`] — *Dado* un `201` de `POST /pickup-alerts` con `protocol` y `contacts` (uno `null`), *entonces* se pinta el protocolo tal cual en una región con título, el teléfono presente como enlace `tel:` y el ausente como «No disponible», con anuncio `assertive`; *y dado* un usuario sin `alerta_entrega.actualizar`, *entonces* no se ofrecen la llamada ni el cierre y aparece `alert.callManagement`.
+- **CA-PRL-022** [`CA-PRL-008`, `DP-6`] — *Dado* una alerta abierta y un usuario con `alerta_entrega.actualizar`, *cuando* guarda la hora de la llamada, *entonces* sale `PATCH` con solo `principal_contacted_at`; *cuando* cierra con resolución, *entonces* se pide confirmación y, tras el `200`, el detalle se muestra cerrado sin teléfonos ni protocolo; *y dado* un `409 prl.alert.closed`, *entonces* se muestra y se ofrece recargar.
+- **CA-PRL-023** [`WCAG 1.4.1`, `1.1.1`] — *Dado* el listado de alertas y la lista de puerta, *entonces* «Abierta»/«Cerrada», «Vigente», las bases y «Sin fotografía» llevan texto además de icono y color, y toda fotografía tiene `alt` no vacío.
+- **CA-PRL-012** (existente, [E2E real]) — se implementa en `apps/web/e2e/` contra la API real con un conserje de `REQ-SEED` (`conserjeria_pas`): busca, abre la lista, verifica por foto y registra la salida (comprobando el `201` y el aviso), intenta registrar a alguien que no figura (por la API dentro del mismo *spec*, ya que la interfaz no lo permite: `RN-PRL-03`) y abre la alerta; comprueba `alt`, nombres accesibles, foco del diálogo y que los estados no dependen solo del color. Un segundo usuario de dirección registra la llamada y cierra la alerta (`CA-PRL-022` de extremo a extremo).
+- **CA-PRL-013** (existente) — se extiende a `apps/web/src/modules/prl/locales/*.json` (paridad y `lint:i18n`) y a `AR-11` (el módulo web `prl` no importa internos de `fam-unit`).
+
+### 23.10 Partición en tramos y entregas
+
+**Dimensionado.** Con la referencia de `CLAUDE.md §2` («≤ 3 tramos de ~60-100 llamadas por entrega») y la estimación de esta especificación, los cuatro tramos previstos **no caben bien**: T1 de la propuesta original (sección completa con asistente de tres pasos, cuatro diálogos, cliente, tipos, ~60 claves en cuatro idiomas y sus tests) se estima en 120-150 llamadas, y las dos mitades (`fam-unit` y `prl`) necesitan **cada una** su E2E real (`CLAUDE.md §3`). Se propone partir `1.14b-c` en dos entregas de tres tramos (nombres a confirmar, `OPEN-FAM-UNIT-61`):
+
+| Entrega · tramo | Contenido | Lee (y nada más) | Cierra con |
+|-----------------|-----------|------------------|------------|
+| **`1.14b-c1` · T1** lectura | `fam-unit/api/pickup.ts` (los 13 *endpoints* tipados, `apiFetch`, multipart para `PUT …/photo`), tipos en `types/index.ts`, `PickupPersonsSection`, `PickupListPanel`, `PickupPersonCard`, `PickupAuthorizationsTable` (sin acciones), estados de §23.4.5, claves `famUnit.pickup.*` de lectura en es-ES | §23.1, §23.2, §23.4.1, §23.4.2 (filas de lectura), §23.4.4, §23.4.5, §23.6, §23.7, §23.8.1 (claves de lectura); `api.md §8.1`-`§8.3`; `openapi/paths/fam-unit.yaml` (rutas `pickup-*`) | Vitest `CA-FAM-UNIT-132`..`-135`, `-141`; commit `Verificado` |
+| **`1.14b-c1` · T2** escritura | Asistente (§23.4.3), `PickupValidityDialog`, `PickupPhotoDialog`, `PickupPersonDialog`, retirada; resto de claves es-ES; en/de/fr (con `traductor` para las no **[NT]**) | §23.4.2 (filas de escritura), §23.4.3, §23.8.1; `D-52`, `D-60`, `D-61`, `D-66` | Vitest `CA-FAM-UNIT-136`..`-140`, `-143`; `lint`, `lint:i18n`, `vue-tsc` |
+| **`1.14b-c1` · T3** E2E real | `CA-FAM-UNIT-142` en `apps/web/e2e/`, reutilizando `scripts/e2e-real-api.sh` y el demo de `REQ-SEED` (recrear el demo está permitido) | §23.9 (`CA-FAM-UNIT-142`), `REQ-PRL/operacion.md §12.7` si aplica, `D-67` | Informe de qué se probó y qué no (almacenamiento) |
+| **`1.14b-c2` · T1** módulo `prl` y lectura | Módulo web `prl` (siete piezas de `AR-11` + registros en `modules.ts` e `i18n/index.ts`), `shell.ts` (rutas y menú de §23.3), `api/door.ts` (búsqueda, lista, movimientos, alertas), tipos, `DoorSearchView`, `DoorStudentView` (solo lectura), `DoorPersonCard`, `AlertsView` y `AlertDetailView` en lectura; claves `prl.*` de lectura | §23.1-§23.3, §23.5.1, §23.5.2, §23.5.4 (lectura), §23.6-§23.8.2; `REQ-PRL/api.md §8.4`-`§8.7`; `openapi/paths/prl.yaml`; skill `modulo-nuevo` (estructura del frontend) | Vitest `CA-PRL-014`..`-016`, `-023`; `AR-11` en verde |
+| **`1.14b-c2` · T2** salida, entrada y alerta | Diálogos de salida y entrada (`Idempotency-Key`), alta de alerta, `PATCH` de alerta (llamada y cierre); resto de claves y en/de/fr | §23.5.3, §23.5.4 (escritura), §23.8.2; `RN-PRL-02`..`-09`, `DP-3`..`DP-6`, `DP-11` | Vitest `CA-PRL-017`..`-022`; `lint`, `lint:i18n`, `vue-tsc` |
+| **`1.14b-c2` · T3** E2E real | `CA-PRL-012` en navegador sobre `scripts/e2e-real-prl.sh` y `CA-PRL-013` ampliado | §23.9 (`CA-PRL-012`, `-013`), `REQ-PRL/funcional.md DP-10`, `operacion.md §12.7` | Informe del paso; registro en `memory.md` (lo hace la sesión) |
+
+Si el usuario prefiere **no** partir, la alternativa es una sola entrega de seis tramos (incumple el punto 7 de `CLAUDE.md §2`, que exige partir) o los cuatro tramos originales con T1 sobredimensionado (riesgo de corte por cuota a mitad de un tramo). Accesibilidad: no hay `@axe-core/playwright` en `package.json`; las comprobaciones de los E2E son aserciones explícitas (roles, nombres, `alt`, foco). Añadir un analizador automático sería una dependencia nueva sujeta a `CLAUDE.md §1` (`OPEN-FAM-UNIT-62`).
+
+### 23.11 Preguntas abiertas de `1.14b-c`
+
+**Heredadas, con impacto en la interfaz (no se resuelven aquí):**
+
+| ID | Pregunta | Impacto en UI | Recomendación |
+|----|----------|---------------|---------------|
+| `OPEN-FAM-UNIT-40` | Protocolo ante persona no autorizada: texto del centro o mínimo del producto | La SPA pinta el `protocol` del servidor sin transformarlo; no tiene clave propia. Hoy `prl.protocol.minimal` existe en los cuatro ficheros de `apps/api/lang` **con el texto en español** (paridad de `AR-12` sin traducción, por ser texto de seguridad). El texto se muestra en español también con la interfaz en en/de/fr | Mantener el texto solo en español hasta que una persona lo traduzca y lo valide el centro (no traducción automática); la interfaz lo pinta tal cual y marca su idioma (ver `-59`). La traducción humana y el texto propio del centro siguen siendo decisión del usuario |
+| `OPEN-FAM-UNIT-47` | Almacenamiento caído en la puerta: ¿se entrega sin ver la foto? | Con la foto no disponible (UI-4), ¿se deja habilitado «Por la fotografía»? | **Sí a quien figura, exigiendo el documento**: si la imagen de una persona con `has_photo = true` falla al cargar, el diálogo de salida deshabilita «Por la fotografía» y «Por la fotografía y el documento» y preselecciona «Por el documento», con la explicación visible. Es solo cliente (el servidor acepta `documento` siempre) y no bloquea la salida del resto del alumnado. Si el usuario dice «no», el diálogo bloquea la entrega de esa persona hasta que la foto cargue |
+
+**Nuevas de esta especificación:**
+
+| ID | Pregunta | Opciones | Recomendación |
+|----|----------|----------|---------------|
+| `OPEN-FAM-UNIT-54` | Conserjería (`conserjeria_pas`) puede abrir una alerta pero **no** registrar la llamada al tutor principal (`PATCH` exige `alerta_entrega.actualizar`, que su siembra no tiene), mientras el flujo 21.5.5 (5) dice que el conserje «llama al tutor principal … dejando constancia de la llamada». ¿Quién registra la llamada? | A dirección (siembra actual; la UI dice «Avisa a dirección»); B conceder `alerta_entrega.actualizar` a conserjería (también podría cerrar); C separar «registrar la llamada» de «cerrar» (cambio de API y permisos: otra entrega) | **A** para `1.14b-c` (no toca servidor); si el centro quiere que conserjería registre la llamada, es **C**, que exige especificación y probablemente un ajuste de `permisos.md §8` |
+| `OPEN-FAM-UNIT-55` | Elegir la versión del texto `autorizacion_recogida` exige `texto_legal.leer` (secretaría y administrador lo tienen por siembra). Un rol personalizado con `autorizado_recogida.crear` y sin `texto_legal.leer` no puede completar el alta | A la UI exige ambos para ofrecer «Nueva autorización» y lo explica; B la UI envía siempre la versión publicada vigente sin listarla (no sirve para una versión `retirada` firmada en papel) | **A** |
+| `OPEN-FAM-UNIT-56` | Sección del menú y acceso directo de «Conserjería» y «Alertas de entrega»: el catálogo de `ADR-053 §4.2` es cerrado (`inicio`, `cuenta`, `administracion`) | A `administracion`; B `inicio`; C sección nueva «operación» (enmienda `ADR-053`, requiere `architect`) | **A** con `shortcut: true` en «Conserjería» (aparece en los accesos directos del panel del conserje), sin tocar el ADR |
+| `OPEN-FAM-UNIT-57` | `delivered_by` (quién entrega, si no es quien registra): ¿se ofrece en la interfaz? Elegir a otro usuario exige un buscador de usuarios (`Core`, con su permiso) y tiene el hallazgo abierto `OPEN-FAM-UNIT-53` (1) | A no se ofrece en `1.14b-c` (`null` = quien registra); B selector de usuarios | **A** hasta que se cierre `OPEN-FAM-UNIT-53` (1) |
+| `OPEN-FAM-UNIT-58` | Cabecera de la lista de puerta al entrar por URL directa: `GET /door/students/{…}/pickup-list` no devuelve el nombre del alumno | A el nombre viaja en el estado de navegación desde la búsqueda (`history.state`, en memoria) y, por URL directa, la cabecera dice solo «Lista de recogida»; B ampliar la respuesta de la API (otra entrega) | **A** (no se guarda en la URL ni en almacenamiento, UI-3) |
+| `OPEN-FAM-UNIT-59` | Textos de seguridad y privacidad de la interfaz (marcados **[NT]**) y el idioma del protocolo | A borradores en/de/fr de §23.8 revisados por una persona antes de mezclar; B dejar en/de/fr con el texto español hasta revisión (paridad sin traducción, como `prl.protocol.minimal`) | **A**; y para el protocolo, `lang="es-ES"` en su bloque mientras el texto del servidor sea solo español (WCAG 3.1.2). Hoy la API no dice el idioma del `protocol`: si se quiere robusto, la API debería devolverlo (otra entrega) |
+| `OPEN-FAM-UNIT-60` | El límite de 5 MB y los tipos admitidos de la fotografía son configurables en servidor (`D-57`); la interfaz los escribe fijos en la ayuda y en la comprobación previa | A fijos en cliente como ayuda (el servidor manda, UI-7); B exponerlos por API (otra entrega) | **A** |
+| `OPEN-FAM-UNIT-61` | Partición de `1.14b-c` en dos entregas de tres tramos (§23.10) y su nombre | A `1.14b-c1` (`fam-unit`) y `1.14b-c2` (`prl`); B una sola entrega de cuatro tramos con T1 sobredimensionado | **A** |
+| `OPEN-FAM-UNIT-62` | Comprobación automática de accesibilidad en los E2E | A aserciones explícitas sin dependencia nueva; B añadir `@axe-core/playwright` (dependencia nueva: justificar mantenimiento, licencia MPL-2.0 y frecuencia de *releases*, `CLAUDE.md §1`) | **A** en `1.14b-c`; B como mejora propia, con su justificación |
+| `OPEN-FAM-UNIT-63` | Historial de movimientos (`GET /student-movements`) y **correcciones** (`corrects`, `RN-PRL-04`): la API existe, §21.12 no los nombra entre las pantallas | A fuera de `1.14b-c` (solo el aviso de salida registrada); B pantalla de historial del día y corrección en `1.14b-c2` (un tramo más) | **A**: §21.12 pide «pantalla de conserjería» con el flujo de entrega; el historial y la corrección se especifican cuando el usuario los pida, sin inventarlos aquí |
+
+### 23.12 Fuera de esta especificación (se reporta, no se hace)
+
+- No hace falta **ADR** para `1.14b-c` si se aprueba la recomendación **A** de `OPEN-FAM-UNIT-56`; la opción C (sección de menú nueva) enmendaría `ADR-053` y requiere `architect`.
+- `OPEN-FAM-UNIT-54` opción C y `OPEN-FAM-UNIT-58` opción B son cambios de API: no caben en una entrega «solo frontend».
+- La traducción humana de los textos **[NT]** necesita un responsable (usuario o centro piloto); sin ella, `1.14b-c` no puede cerrar `CA-FAM-UNIT-143`.
