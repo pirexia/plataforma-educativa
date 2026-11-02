@@ -89,7 +89,7 @@ return [
         'consent_rate_limited' => 'You have reached the limit of image decisions or consent reports. Try again in about :minutes minutes.',
         'revocation_rate_limited' => 'You have reached the limit of revocations or revocation lifts. Try again in about :minutes minutes.',
         'pickup_read_rate_limited' => 'You have reached the limit of pickup list and photo lookups. Try again in about :minutes minutes.',
-        'pickup_person_rate_limited' => 'Has alcanzado el límite de búsquedas de personas de recogida por documento o de altas de personas. Inténtalo de nuevo en unos :minutes minutos.',
+        'pickup_person_rate_limited' => 'You have reached the limit of pickup person searches by document or of person registrations. Try again in about :minutes minutes.',
     ],
 
     'validation' => [
