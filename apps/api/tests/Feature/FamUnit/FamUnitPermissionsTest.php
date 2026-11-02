@@ -25,6 +25,7 @@ afterEach(function (): void {
 
 const FAM_UNIT_CODES = [
     'aceptacion_condiciones.leer',
+    'autorizado_recogida.actualizar', 'autorizado_recogida.crear', 'autorizado_recogida.eliminar', 'autorizado_recogida.leer',
     'consentimiento_imagen.actualizar', 'consentimiento_imagen.exportar', 'consentimiento_imagen.leer',
     'familia.actualizar', 'familia.crear', 'familia.eliminar', 'familia.leer',
     'revocacion_tutor.crear', 'revocacion_tutor.eliminar', 'revocacion_tutor.leer',
@@ -37,7 +38,8 @@ function famCodeFilter(): Closure
 {
     return fn ($q) => $q->where('permission_code', 'like', 'familia.%')->orWhere('permission_code', 'like', 'vinculo_tutor.%')
         ->orWhere('permission_code', 'like', 'revocacion_tutor.%')->orWhere('permission_code', 'like', 'consentimiento_imagen.%')
-        ->orWhere('permission_code', 'like', 'texto_legal.%')->orWhere('permission_code', 'like', 'aceptacion_condiciones.%');
+        ->orWhere('permission_code', 'like', 'texto_legal.%')->orWhere('permission_code', 'like', 'aceptacion_condiciones.%')
+        ->orWhere('permission_code', 'like', 'autorizado_recogida.%');
 }
 
 /** @return list<string> permisos de familias de un rol, ordenados, con su ámbito (`código:ámbito`) */
@@ -68,7 +70,7 @@ function famRevokeAll(object $tenant): void
     });
 }
 
-test('permisos.md §2 ADR-034 §5: tras platform:sync-registry, permissions contiene exactamente los veinte códigos de 1.14-a, 1.14-b y 1.14-c con el ámbito de permisos.md, sin los de custodia', function (): void {
+test('permisos.md §2 ADR-034 §5: tras platform:sync-registry, permissions contiene exactamente los veinticuatro códigos de 1.14-a, 1.14-b, 1.14-c y 1.14b-a con el ámbito de permisos.md, sin los de custodia', function (): void {
     test()->artisan('platform:sync-registry')->assertSuccessful();
 
     $rows = Permission::query()->where('module_code', 'fam_unit')->orderBy('code')->get();
@@ -76,7 +78,7 @@ test('permisos.md §2 ADR-034 §5: tras platform:sync-registry, permissions cont
     expect($rows->pluck('code')->all())->toBe(FAM_UNIT_CODES);
 
     foreach ($rows as $permission) {
-        $expected = in_array($permission->code, ['familia.leer', 'vinculo_tutor.leer', 'consentimiento_imagen.leer', 'consentimiento_imagen.actualizar'], true) ? ['todos', 'unidad_familiar'] : ['todos'];
+        $expected = in_array($permission->code, ['familia.leer', 'vinculo_tutor.leer', 'consentimiento_imagen.leer', 'consentimiento_imagen.actualizar', 'autorizado_recogida.leer'], true) ? ['todos', 'unidad_familiar'] : ['todos'];
 
         expect($permission->applicable_scopes)->toBe($expected, $permission->code)
             ->and($permission->is_special_category)->toBeFalse()
@@ -112,7 +114,7 @@ test('ADR-045 OPEN-FAM-UNIT-14: el descriptor del módulo es fam_unit, fase 1, s
 test('CA-FAM-UNIT-082 CA-PERM-134 AR-12: el nombre del módulo, la etiqueta de cada recurso y los mensajes de error existen en es, en, de y fr, y cada permiso declara su resource_label_key', function (): void {
     $keys = [
         'modules.fam_unit',
-        ...array_map(static fn (string $r): string => "fam_unit.permissions.resources.{$r}", ['familia', 'vinculo_tutor', 'revocacion_tutor', 'consentimiento_imagen', 'texto_legal']),
+        ...array_map(static fn (string $r): string => "fam_unit.permissions.resources.{$r}", ['familia', 'vinculo_tutor', 'revocacion_tutor', 'consentimiento_imagen', 'texto_legal', 'aceptacion_condiciones', 'autorizado_recogida']),
         'fam_unit.family_unit.code_taken', 'fam_unit.family_unit.code_invalid', 'fam_unit.family_unit.principal_not_member', 'fam_unit.family_unit.has_members',
         'fam_unit.guardian.already_exists', 'fam_unit.guardian.not_editable', 'fam_unit.guardian.user_not_eligible', 'fam_unit.student.already_in_unit',
         'fam_unit.link.already_exists', 'fam_unit.link.self_link', 'fam_unit.link.emergency_contact_taken', 'fam_unit.link.invalid_transition',
@@ -124,6 +126,11 @@ test('CA-FAM-UNIT-082 CA-PERM-134 AR-12: el nombre del módulo, la etiqueta de c
         'fam_unit.terms.not_draft', 'fam_unit.terms.default_locale_missing', 'fam_unit.export.q_not_allowed',
         // 1.14-c (ADR-067, api.md §7): aceptación de las condiciones y su etiqueta de recurso.
         'fam_unit.terms.version_not_current', 'fam_unit.validation.terms_version_not_found', 'fam_unit.permissions.resources.aceptacion_condiciones',
+        // 1.14b-a (api.md §8.6): errores nuevos de las autorizaciones de recogida, de la fotografía y de la lectura de la lista.
+        ...array_map(static fn (string $k): string => "fam_unit.pickup.{$k}", ['principal_required', 'text_not_published', 'text_version_invalid', 'text_version_outdated', 'person_not_eligible', 'already_exists', 'channel_requires_puntual', 'withdrawn', 'invalid_transition', 'not_editable', 'document_not_editable']),
+        ...array_map(static fn (string $k): string => "fam_unit.photo.{$k}", ['type_mismatch', 'dimensions']),
+        'fam_unit.errors.pickup_read_rate_limited',
+        ...array_map(static fn (string $k): string => "fam_unit.validation.{$k}", ['person_not_found', 'pickup_relationship_invalid', 'pickup_kind_invalid', 'date_invalid', 'date_range_invalid', 'datetime_invalid', 'authorized_at_future', 'reason_too_long', 'text_invalid', 'text_too_long', 'at_least_one_field']),
         ...array_map(static fn (string $k): string => "fam_unit.validation.{$k}", ['level_invalid', 'decision_invalid', 'channel_invalid', 'state_invalid', 'cursor_invalid']),
         ...array_map(static fn (string $k): string => "fam_unit.validation.{$k}", [
             'user_not_found', 'student_not_found', 'guardian_not_found', 'family_unit_not_found', 'principal_guardian_not_found',
@@ -140,7 +147,7 @@ test('CA-FAM-UNIT-082 CA-PERM-134 AR-12: el nombre del módulo, la etiqueta de c
 
     $declared = (new FamUnitServiceProvider(app()))->declaredPermissions();
 
-    expect($declared)->toHaveCount(20);
+    expect($declared)->toHaveCount(24);
 
     foreach ($declared as $permission) {
         expect($permission['resource_label_key'])->toBe("fam_unit.permissions.resources.{$permission['resource']}");
@@ -157,21 +164,29 @@ test('permisos.md §4 OPEN-FAM-UNIT-10 OPEN-FAM-UNIT-22: tenant:provision-defaul
         $admin = [
             ...$all('familia', $crud), ...$all('vinculo_tutor', $crud), ...$all('revocacion_tutor', ['crear', 'eliminar', 'leer']),
             ...$all('consentimiento_imagen', ['actualizar', 'exportar', 'leer']), ...$all('texto_legal', [...$crud, 'publicar']),
-            'aceptacion_condiciones.leer:todos',
+            'aceptacion_condiciones.leer:todos', ...$all('autorizado_recogida', $crud),
         ];
         sort($admin);
         $secretaria = [
             ...$all('familia', $crud), ...$all('vinculo_tutor', $crud), 'revocacion_tutor.leer:todos',
             ...$all('consentimiento_imagen', ['actualizar', 'exportar', 'leer']), 'texto_legal.leer:todos',
-            'aceptacion_condiciones.leer:todos',
+            'aceptacion_condiciones.leer:todos', ...$all('autorizado_recogida', $crud),
         ];
         sort($secretaria);
 
         expect(famGrantsOf('administrador_centro'))->toBe($admin)
             ->and(famGrantsOf('secretaria'))->toBe($secretaria)
-            ->and(famGrantsOf('direccion'))->toBe(['consentimiento_imagen.leer:todos', 'familia.leer:todos', 'revocacion_tutor.leer:todos', 'vinculo_tutor.leer:todos'])
+            ->and(famGrantsOf('direccion'))->toBe(['autorizado_recogida.leer:todos', 'consentimiento_imagen.leer:todos', 'familia.leer:todos', 'revocacion_tutor.leer:todos', 'vinculo_tutor.leer:todos'])
             ->and(famGrantsOf('administrativo'))->toBe(['familia.leer:todos', 'vinculo_tutor.leer:todos'])
-            ->and(famGrantsOf('tutor_legal'))->toBe(['consentimiento_imagen.actualizar:unidad_familiar', 'consentimiento_imagen.leer:unidad_familiar', 'familia.leer:unidad_familiar', 'vinculo_tutor.leer:unidad_familiar']);
+            ->and(famGrantsOf('tutor_legal'))->toBe(['autorizado_recogida.leer:unidad_familiar', 'consentimiento_imagen.actualizar:unidad_familiar', 'consentimiento_imagen.leer:unidad_familiar', 'familia.leer:unidad_familiar', 'vinculo_tutor.leer:unidad_familiar']);
+
+        // permisos.md §8.4 (L9): conserjería no recibe `autorizado_recogida.crear` ni ninguno (sus permisos de la puerta llegan con `prl`).
+        expect(famGrantsOf('conserjeria_pas'))->toBe([]);
+
+        // Alta, fotografía y retirada de autorizados, solo el administrador y secretaría; dirección solo lee.
+        $writers = PermissionRole::query()->whereIn('permission_code', ['autorizado_recogida.crear', 'autorizado_recogida.actualizar', 'autorizado_recogida.eliminar'])->get()
+            ->map(static fn (PermissionRole $p): string => Role::find($p->role_id)->code)->unique()->sort()->values()->all();
+        expect($writers)->toBe(['administrador_centro', 'secretaria']);
 
         // Revocar y levantar, solo el administrador (consecuencias legales, permisos.md §4).
         $revokers = PermissionRole::query()->whereIn('permission_code', ['revocacion_tutor.crear', 'revocacion_tutor.eliminar'])->pluck('role_id')->unique();
@@ -256,19 +271,19 @@ test('operacion.md §3: fam_unit:grant-permissions concede lo que falta a un cen
     famRevokeAll($tenant);
     expect(famGrantCount($tenant))->toBe(0);
 
-    // 20 (administrador) + 14 (secretaria) + 4 (direccion) + 2 (administrativo) + 4 (tutor_legal).
+    // 24 (administrador) + 18 (secretaria) + 5 (direccion) + 2 (administrativo) + 5 (tutor_legal).
     test()->artisan('fam_unit:grant-permissions')->assertSuccessful();
-    expect(famGrantCount($tenant))->toBe(44);
+    expect(famGrantCount($tenant))->toBe(54);
 
     test()->artisan('fam_unit:grant-permissions')->assertSuccessful();
-    expect(famGrantCount($tenant))->toBe(44);
+    expect(famGrantCount($tenant))->toBe(54);
 
     app(TenantContext::class)->runFor($tenant->id, function (): void {
         $custom = Role::where('code', 'rol_custom_fam')->firstOrFail();
 
         expect(PermissionRole::where('role_id', $custom->id)->pluck('permission_code')->all())->toBe(['usuario.leer'])
-            ->and(famGrantsOf('tutor_legal'))->toBe(['consentimiento_imagen.actualizar:unidad_familiar', 'consentimiento_imagen.leer:unidad_familiar', 'familia.leer:unidad_familiar', 'vinculo_tutor.leer:unidad_familiar'])
-            ->and(famGrantsOf('direccion'))->toBe(['consentimiento_imagen.leer:todos', 'familia.leer:todos', 'revocacion_tutor.leer:todos', 'vinculo_tutor.leer:todos']);
+            ->and(famGrantsOf('tutor_legal'))->toBe(['autorizado_recogida.leer:unidad_familiar', 'consentimiento_imagen.actualizar:unidad_familiar', 'consentimiento_imagen.leer:unidad_familiar', 'familia.leer:unidad_familiar', 'vinculo_tutor.leer:unidad_familiar'])
+            ->and(famGrantsOf('direccion'))->toBe(['autorizado_recogida.leer:todos', 'consentimiento_imagen.leer:todos', 'familia.leer:todos', 'revocacion_tutor.leer:todos', 'vinculo_tutor.leer:todos']);
     });
 
     // Una concesión previa de otro ámbito (un centro que acotó `administrativo`) no se toca ni se duplica.
@@ -321,10 +336,10 @@ test('CA-FAM-UNIT-081 RMOD-008 RMOD-009: con el módulo no contratado, toda ruta
 
     $routes = array_values(array_filter(iterator_to_array(Route::getRoutes()), static fn ($r): bool => str_starts_with((string) $r->getName(), 'fam-unit.')));
 
-    expect($routes)->toHaveCount(35);
+    expect($routes)->toHaveCount(48);
 
     foreach ($routes as $route) {
-        $uri = '/'.str_replace(['api/v1', '{publicId}', '{membershipPublicId}'], ['', '01JZZZZZZZZZZZZZZZZZZZZZZZ', '01JZZZZZZZZZZZZZZZZZZZZZZY'], $route->uri());
+        $uri = '/'.str_replace(['api/v1', '{publicId}', '{membershipPublicId}', '{person}', '{studentPerson}'], ['', '01JZZZZZZZZZZZZZZZZZZZZZZZ', '01JZZZZZZZZZZZZZZZZZZZZZZY', '01JZZZZZZZZZZZZZZZZZZZZZZX', '01JZZZZZZZZZZZZZZZZZZZZZZW'], $route->uri());
         $uri = preg_replace('#//+#', '/', $uri);
         $method = $route->methods()[0];
 

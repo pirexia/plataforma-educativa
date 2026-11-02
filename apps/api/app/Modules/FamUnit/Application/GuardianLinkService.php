@@ -359,6 +359,17 @@ final class GuardianLinkService
         return GuardianStudentLink::query()->where('guardian_id', $guardianId)->where('student_person_id', $studentPersonId)->where('status', 'revocado')->exists();
     }
 
+    /**
+     * Ids de persona de los alumnos con algún vínculo **vivo** como alumno, activo o revocado (`AuthorizedPickupList::
+     * studentsMatching()`, `OPEN-068-06`).
+     *
+     * @return list<int>
+     */
+    public function linkedStudentIds(): array
+    {
+        return array_map('intval', GuardianStudentLink::query()->distinct()->pluck('student_person_id')->all());
+    }
+
     /** Vínculos vivos del alumno, de cualquier estado (`RN-FAM-UNIT-22`). */
     public function liveCountForStudent(int $studentPersonId): int
     {

@@ -11,7 +11,8 @@ use App\Support\Tenancy\TenantModel;
 
 /**
  * REQ-FAM-UNIT/datos.md §1.8, §4 (1.14-b, `REQ-FAM-UNIT-003`/`-004`, `ADR-066 §5.5`). Versión de un texto legal del
- * centro con su `kind` (`condiciones_uso`, `consentimiento_imagen_web`, `consentimiento_imagen_redes`). Título y cuerpo
+ * centro con su `kind` (`condiciones_uso`, `consentimiento_imagen_web`, `consentimiento_imagen_redes` y, con `1.14b-a`,
+ * `autorizacion_recogida`). Título y cuerpo
  * son contenido del centro traducible (`ADR-062`).
  *
  * ADR-035: `Full`. Son textos del centro, sin datos personales; los largos se redactan solos como `oversized`
@@ -32,7 +33,10 @@ class TermsVersion extends TenantModel implements Auditable
 
     public const KIND_IMAGE_SOCIAL = 'consentimiento_imagen_redes';
 
-    public const KINDS = [self::KIND_TERMS_OF_USE, self::KIND_IMAGE_WEB, self::KIND_IMAGE_SOCIAL];
+    /** `ADR-068 §6` `L2` (1.14b-a): el texto que firma el tutor principal al autorizar a un tercero a recoger (`RN-FAM-UNIT-85`). */
+    public const KIND_PICKUP_AUTHORIZATION = 'autorizacion_recogida';
+
+    public const KINDS = [self::KIND_TERMS_OF_USE, self::KIND_IMAGE_WEB, self::KIND_IMAGE_SOCIAL, self::KIND_PICKUP_AUTHORIZATION];
 
     public const STATUS_DRAFT = 'borrador';
 

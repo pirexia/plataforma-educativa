@@ -249,8 +249,12 @@ final class ProvisionTenantDefaults implements TenantProvisioner
      * Con `1.14-b` (`OPEN-FAM-UNIT-22`) se suman `consentimiento_imagen` (leer, actualizar y exportar al administrador y a
      * secretaría; leer a dirección) y `texto_legal` (todo al administrador, que es el único que redacta y publica
      * textos legales; **solo `leer`** a secretaría, para listar la versión `retirada` que firmó una familia, `RN-FAM-UNIT-69`).
-     * Los de `aceptacion_condiciones` entran con `1.14-c`. Ninguna regla de código compara estos códigos de rol
-     * (`RN-PERM-46`).
+     * Los de `aceptacion_condiciones` entran con `1.14-c`. Con `1.14b-a` (`ADR-068 §6` `L9`, `permisos.md §8.4`) entra
+     * `autorizado_recogida`: los cuatro al administrador y a secretaría, `leer` a dirección. **Conserjería no recibe
+     * `autorizado_recogida.crear`** (una recogida no prevista pasa por secretaría o dirección, `OPEN-FAM-UNIT-35`); sus
+     * permisos de la puerta (`entrega_menor.*`, `alerta_entrega.*`) llegan con el módulo `prl` (`1.14b-b`), porque un
+     * permiso sin *endpoint* invita a concederlo creyendo que hace algo. Ninguna regla de código compara estos códigos de
+     * rol (`RN-PERM-46`).
      *
      * @var array<string, list<string>>
      */
@@ -262,6 +266,7 @@ final class ProvisionTenantDefaults implements TenantProvisioner
             'consentimiento_imagen.leer', 'consentimiento_imagen.actualizar', 'consentimiento_imagen.exportar',
             'texto_legal.leer', 'texto_legal.crear', 'texto_legal.actualizar', 'texto_legal.eliminar', 'texto_legal.publicar',
             'aceptacion_condiciones.leer',
+            'autorizado_recogida.leer', 'autorizado_recogida.crear', 'autorizado_recogida.actualizar', 'autorizado_recogida.eliminar',
         ],
         'secretaria' => [
             'familia.leer', 'familia.crear', 'familia.actualizar', 'familia.eliminar',
@@ -270,20 +275,22 @@ final class ProvisionTenantDefaults implements TenantProvisioner
             'consentimiento_imagen.leer', 'consentimiento_imagen.actualizar', 'consentimiento_imagen.exportar',
             'texto_legal.leer',
             'aceptacion_condiciones.leer',
+            'autorizado_recogida.leer', 'autorizado_recogida.crear', 'autorizado_recogida.actualizar', 'autorizado_recogida.eliminar',
         ],
-        'direccion' => ['familia.leer', 'vinculo_tutor.leer', 'revocacion_tutor.leer', 'consentimiento_imagen.leer'],
+        'direccion' => ['familia.leer', 'vinculo_tutor.leer', 'revocacion_tutor.leer', 'consentimiento_imagen.leer', 'autorizado_recogida.leer'],
         'administrativo' => ['familia.leer', 'vinculo_tutor.leer'],
     ];
 
     /**
-     * REQ-FAM-UNIT/permisos.md §4 (1.14-a, 1.14-b): las concesiones de ámbito `unidad_familiar` —`tutor_legal` lee su
-     * familia y los vínculos de sus alumnos y, con `1.14-b`, lee y decide el consentimiento de imagen de sus alumnos—. Lista aparte de `FAMILY_PERMISSION_GRANTS` (ámbito `todos`); la lee también
+     * REQ-FAM-UNIT/permisos.md §4, §8.4 (1.14-a, 1.14-b, 1.14b-a): las concesiones de ámbito `unidad_familiar` —`tutor_legal` lee su
+     * familia y los vínculos de sus alumnos y, con `1.14-b`, lee y decide el consentimiento de imagen de sus alumnos y, con
+     * `1.14b-a`, lee la lista de recogida de sus alumnos (`autorizado_recogida.leer`)—. Lista aparte de `FAMILY_PERMISSION_GRANTS` (ámbito `todos`); la lee también
      * `GrantFamUnitPermissionsCommand`. El resolutor del ámbito lo registra `fam_unit` (`ADR-044 §3.4`).
      *
      * @var array<string, list<string>>
      */
     public const FAMILY_PERMISSION_UNIDAD_FAMILIAR_GRANTS = [
-        'tutor_legal' => ['familia.leer', 'vinculo_tutor.leer', 'consentimiento_imagen.leer', 'consentimiento_imagen.actualizar'],
+        'tutor_legal' => ['familia.leer', 'vinculo_tutor.leer', 'consentimiento_imagen.leer', 'consentimiento_imagen.actualizar', 'autorizado_recogida.leer'],
     ];
 
     /**

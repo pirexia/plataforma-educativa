@@ -1,7 +1,7 @@
 <?php
 
-// Rutas de REQ-FAM-UNIT (pasos 1.14-a, 1.14-b y 1.14-c), documentadas en apps/api/openapi/paths/fam-unit.yaml
-// (docs/modulos/REQ-FAM-UNIT/api.md §2.1 a §2.5, §2.7 y §2.8). Todas pasan antes por el registro de muros de sesión
+// Rutas de REQ-FAM-UNIT (pasos 1.14-a, 1.14-b, 1.14-c y 1.14b-a), documentadas en apps/api/openapi/paths/fam-unit.yaml
+// (docs/modulos/REQ-FAM-UNIT/api.md §2.1 a §2.5, §2.7, §2.8 y §8.1 a §8.3). Todas pasan antes por el registro de muros de sesión
 // (`require-session-walls`, ADR-067) del grupo `v1`.
 // Requerido desde routes/api-v1.php, ya dentro del grupo
 // prefix('v1')->middleware(['resolve-tenant', 'resolve-locale', ...]).
@@ -12,7 +12,8 @@
 // petición anónima sea 401 aunque el módulo no esté contratado; no se usa el
 // alias `auth` porque Laravel lo ordena antes de `resolve-tenant` (500 real).
 // Recursos de permiso: `familia` (unidades, tutores, alumnado), `vinculo_tutor`, `revocacion_tutor`,
-// `consentimiento_imagen`, `texto_legal` y `aceptacion_condiciones` (permisos.md §2); `/me/terms*` van por identidad (L1).
+// `consentimiento_imagen`, `texto_legal`, `aceptacion_condiciones` y `autorizado_recogida` (permisos.md §2 y §8); `/me/terms*`
+// van por identidad (L1).
 
 use App\Http\Middleware\RequireAuthenticatedUser;
 use App\Modules\FamUnit\Http\Controllers\FamilyUnitsController;
@@ -24,6 +25,9 @@ use App\Modules\FamUnit\Http\Controllers\ImageConsentDecisionsController;
 use App\Modules\FamUnit\Http\Controllers\ImageConsentsController;
 use App\Modules\FamUnit\Http\Controllers\ImageConsentTextsController;
 use App\Modules\FamUnit\Http\Controllers\MeTermsController;
+use App\Modules\FamUnit\Http\Controllers\PickupAuthorizationsController;
+use App\Modules\FamUnit\Http\Controllers\PickupListsController;
+use App\Modules\FamUnit\Http\Controllers\PickupPersonsController;
 use App\Modules\FamUnit\Http\Controllers\TermsAcceptancesController;
 use App\Modules\FamUnit\Http\Controllers\TermsVersionsController;
 use Illuminate\Support\Facades\Route;
@@ -76,4 +80,20 @@ Route::middleware([RequireAuthenticatedUser::class, 'module-enabled:fam_unit'])-
     // muro de condiciones (L3). `module-enabled:fam_unit` (AR-07b) va en el grupo.
     Route::get('/me/terms', [MeTermsController::class, 'show'])->name('fam-unit.me-terms.show');
     Route::post('/me/terms-acceptances', [MeTermsController::class, 'store'])->name('fam-unit.me-terms-acceptances.store');
+    // api.md §8.2 (1.14b-a, ADR-068): personas de recogida y su fotografía (recurso `autorizado_recogida`). La búsqueda por
+    // documento y toda escritura exigen `.actualizar` (o `.crear` al dar de alta); la lectura de la fotografía, `.leer` con ámbito.
+    Route::get('/pickup-persons', [PickupPersonsController::class, 'index'])->middleware('permission:autorizado_recogida.actualizar')->name('fam-unit.pickup-persons.index');
+    Route::post('/pickup-persons', [PickupPersonsController::class, 'store'])->middleware('permission:autorizado_recogida.crear')->name('fam-unit.pickup-persons.store');
+    Route::get('/pickup-persons/{person}', [PickupPersonsController::class, 'show'])->middleware('permission:autorizado_recogida.actualizar')->name('fam-unit.pickup-persons.show');
+    Route::patch('/pickup-persons/{person}', [PickupPersonsController::class, 'update'])->middleware('permission:autorizado_recogida.actualizar')->name('fam-unit.pickup-persons.update');
+    Route::put('/pickup-persons/{person}/photo', [PickupPersonsController::class, 'putPhoto'])->middleware('permission:autorizado_recogida.actualizar')->name('fam-unit.pickup-persons.photo.put');
+    Route::get('/pickup-persons/{person}/photo', [PickupPersonsController::class, 'showPhoto'])->middleware('permission:autorizado_recogida.leer')->name('fam-unit.pickup-persons.photo.show');
+    Route::delete('/pickup-persons/{person}/photo', [PickupPersonsController::class, 'destroyPhoto'])->middleware('permission:autorizado_recogida.actualizar')->name('fam-unit.pickup-persons.photo.destroy');
+    // api.md §8.3: autorizaciones de tercero y puntuales, y la lista calculada de un alumno (sin tabla de lista, `RN-FAM-UNIT-79`).
+    Route::get('/pickup-authorizations', [PickupAuthorizationsController::class, 'index'])->middleware('permission:autorizado_recogida.leer')->name('fam-unit.pickup-authorizations.index');
+    Route::post('/pickup-authorizations', [PickupAuthorizationsController::class, 'store'])->middleware('permission:autorizado_recogida.crear')->name('fam-unit.pickup-authorizations.store');
+    Route::get('/pickup-authorizations/{publicId}', [PickupAuthorizationsController::class, 'show'])->middleware('permission:autorizado_recogida.leer')->name('fam-unit.pickup-authorizations.show');
+    Route::patch('/pickup-authorizations/{publicId}', [PickupAuthorizationsController::class, 'update'])->middleware('permission:autorizado_recogida.actualizar')->name('fam-unit.pickup-authorizations.update');
+    Route::post('/pickup-authorizations/{publicId}/withdrawal', [PickupAuthorizationsController::class, 'withdraw'])->middleware('permission:autorizado_recogida.eliminar')->name('fam-unit.pickup-authorizations.withdrawal');
+    Route::get('/pickup-lists/{studentPerson}', [PickupListsController::class, 'show'])->middleware('permission:autorizado_recogida.leer')->name('fam-unit.pickup-lists.show');
 });

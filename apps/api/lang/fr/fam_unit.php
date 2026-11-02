@@ -13,6 +13,7 @@ return [
             'consentimiento_imagen' => 'Consentement à l\'utilisation de l\'image',
             'texto_legal' => 'Textes juridiques de l\'établissement',
             'aceptacion_condiciones' => 'Acceptations des conditions d\'utilisation',
+            'autorizado_recogida' => 'Personas autorizadas a recoger a un menor',
         ],
     ],
 
@@ -61,6 +62,25 @@ return [
         'default_locale_missing' => 'Le titre et le texte doivent être rédigés dans la langue par défaut de l\'établissement (:locale) avant publication.',
     ],
 
+    'pickup' => [
+        'principal_required' => 'Solo el tutor principal de la unidad familiar, con vínculo activo y representación legal sobre el alumno, puede autorizar a una persona a recogerlo.',
+        'text_not_published' => 'El centro no ha publicado el texto de autorización de recogida: no se puede autorizar a nadie sin texto.',
+        'text_version_invalid' => 'La versión del texto indicada no es válida: debe ser una versión publicada o retirada del texto de autorización de recogida.',
+        'text_version_outdated' => 'La versión del texto que se mostró ya no es la vigente: vuelve a leer el texto publicado antes de autorizar.',
+        'person_not_eligible' => 'Esa persona no se puede autorizar para este alumno.',
+        'already_exists' => 'Ya existe una autorización vigente de esa persona para ese alumno.',
+        'channel_requires_puntual' => 'Una autorización registrada por teléfono solo puede ser puntual.',
+        'withdrawn' => 'La autorización está retirada y no se puede modificar.',
+        'invalid_transition' => 'La autorización ya está retirada.',
+        'not_editable' => 'Este dato de la autorización no se puede cambiar: retírala y crea otra.',
+        'document_not_editable' => 'El tipo y el número de documento de una persona no se pueden cambiar por aquí.',
+    ],
+
+    'photo' => [
+        'type_mismatch' => 'El contenido de la imagen no coincide con su extensión o no se puede leer.',
+        'dimensions' => 'Las dimensiones de la imagen superan el máximo admitido o no se pueden leer.',
+    ],
+
     'export' => [
         'q_not_allowed' => 'Le rapport de consentements n\'accepte pas la recherche libre (q).',
     ],
@@ -68,6 +88,7 @@ return [
     'errors' => [
         'consent_rate_limited' => 'Vous avez atteint la limite de décisions d\'image ou de rapports de consentements. Réessayez dans environ :minutes minutes.',
         'revocation_rate_limited' => 'Vous avez atteint la limite de révocations ou de levées de révocation. Réessayez dans environ :minutes minutes.',
+        'pickup_read_rate_limited' => 'Has alcanzado el límite de consultas de la lista de recogida y de fotografías. Inténtalo de nuevo en unos :minutes minutos.',
     ],
 
     'validation' => [
@@ -90,5 +111,16 @@ return [
         'channel_invalid' => 'Le canal n\'est pas valide pour cet enregistrement.',
         'state_invalid' => 'L\'état n\'est pas valide.',
         'cursor_invalid' => 'Le curseur n\'est pas valide pour cette requête.',
+        'person_not_found' => 'La persona indicada no existe.',
+        'pickup_relationship_invalid' => 'La relación con el alumno no es válida.',
+        'pickup_kind_invalid' => 'El tipo de autorización no es válido.',
+        'date_invalid' => 'La fecha no es válida (formato AAAA-MM-DD).',
+        'date_range_invalid' => 'La fecha de fin no puede ser anterior a la de inicio (en una autorización puntual, debe ser el mismo día).',
+        'datetime_invalid' => 'La fecha y hora no son válidas (formato ISO 8601).',
+        'authorized_at_future' => 'La fecha y hora de la autorización no pueden ser futuras.',
+        'reason_too_long' => 'El motivo no puede superar los :max caracteres.',
+        'text_invalid' => 'El valor debe ser un texto.',
+        'text_too_long' => 'El texto no puede superar los :max caracteres.',
+        'at_least_one_field' => 'Indica al menos un dato que corregir.',
     ],
 ];

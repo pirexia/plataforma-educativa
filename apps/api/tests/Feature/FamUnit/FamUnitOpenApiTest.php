@@ -5,8 +5,8 @@ use Illuminate\Support\Facades\Route;
 use Symfony\Component\Yaml\Yaml;
 use Tests\Support\FamUnitTestHelpers as Fam;
 
-// CLAUDE.md §10 («el endpoint está documentado en OpenAPI»), REQ-FAM-UNIT/api.md §2, INV-006, INV-015. Los 35 endpoints de
-// 1.14-a, 1.14-b y 1.14-c (api.md §2.1 a §2.5, §2.7 y §2.8) documentados, y solo ellos; sus referencias resuelven; los
+// CLAUDE.md §10 («el endpoint está documentado en OpenAPI»), REQ-FAM-UNIT/api.md §2, INV-006, INV-015. Los 48 endpoints de
+// 1.14-a, 1.14-b, 1.14-c y 1.14b-a (api.md §2.1 a §2.5, §2.7, §2.8 y §8.1 a §8.3) documentados, y solo ellos; sus referencias resuelven; los
 // esquemas describen lo que la API devuelve de verdad.
 
 afterEach(function (): void {
@@ -30,7 +30,7 @@ function famDocumentedOperations(): array
     return $documented;
 }
 
-test('REQ-FAM-UNIT-001 REQ-FAM-UNIT-004 api.md §2: los 35 endpoints de 1.14-a, 1.14-b y 1.14-c están documentados en OpenAPI, enlazados desde openapi.yaml, y solo ellos', function (): void {
+test('REQ-FAM-UNIT-001 REQ-FAM-UNIT-004 api.md §2: los 48 endpoints de 1.14-a, 1.14-b, 1.14-c y 1.14b-a están documentados en OpenAPI, enlazados desde openapi.yaml, y solo ellos', function (): void {
     $root = Yaml::parseFile(base_path('openapi.yaml'));
     $paths = Yaml::parseFile(base_path('openapi/paths/fam-unit.yaml'))['paths'];
 
@@ -49,7 +49,7 @@ test('REQ-FAM-UNIT-001 REQ-FAM-UNIT-004 api.md §2: los 35 endpoints de 1.14-a, 
 
     sort($registered);
     // `{membershipPublicId}` es el nombre de ruta del segundo parámetro, igual en el contrato.
-    expect(famDocumentedOperations())->toHaveCount(35)->and($registered)->toBe(famDocumentedOperations());
+    expect(famDocumentedOperations())->toHaveCount(48)->and($registered)->toBe(famDocumentedOperations());
 });
 
 test('REQ-FAM-UNIT-001 api.md §2: toda referencia $ref de fam-unit.yaml resuelve en components.yaml y cada operación tiene identificador, etiqueta y cookie de sesión', function (): void {
@@ -175,7 +175,7 @@ test('REQ-FAM-UNIT-004 api.md §1.5 a §1.9: enumerados extensibles de 1.14-b, p
         ->and($components['schemas']['ImageConsentState']['enum'])->toBe(['autorizo', 'no_autorizo', 'pendiente'])
         ->and($components['schemas']['ImageConsentDecisionValue']['enum'])->toBe(['autorizo', 'no_autorizo'])
         ->and($components['schemas']['ImageConsentChannel']['enum'])->toBe(['portal', 'presencial'])
-        ->and($components['schemas']['TermsVersionKind']['enum'])->toBe(['condiciones_uso', 'consentimiento_imagen_web', 'consentimiento_imagen_redes'])
+        ->and($components['schemas']['TermsVersionKind']['enum'])->toBe(['condiciones_uso', 'consentimiento_imagen_web', 'consentimiento_imagen_redes', 'autorizacion_recogida'])
         ->and($components['schemas']['TermsVersionStatus']['enum'])->toBe(['borrador', 'publicada', 'retirada'])
         ->and($components['parameters']['ImageConsentSortParam']['schema']['enum'])->toBe(['last_decision_at', '-last_decision_at', 'state', '-state'])
         ->and($components['parameters']['TermsVersionSortParam']['schema']['enum'])->toBe(['version_number', '-version_number']);
