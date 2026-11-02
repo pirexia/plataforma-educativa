@@ -307,6 +307,83 @@
       "loadError": "The terms of use could not be loaded. Please try again in a few minutes.",
       "acceptError": "Your acceptance could not be recorded. Please try again.",
       "outdated": "The school published a new version while you were reading. Review the updated text before accepting."
+    },
+    "pickup": {
+      "section": {
+        "title": "Personas autorizadas a recoger",
+        "chooseStudent": "Alumno"
+      },
+      "list": {
+        "title": "Lista de recogida vigente",
+        "show": "Ver lista de recogida",
+        "reload": "Volver a cargar la lista",
+        "initial": "Elige un alumno y pulsa «Ver lista de recogida».",
+        "empty": "Nadie puede recoger a este alumno en este momento.",
+        "asOf": "Lista calculada el {date}",
+        "auditNotice": "Esta consulta queda registrada con tu usuario, la fecha y la hora."
+      },
+      "photo": {
+        "alt": "Fotografía de {person}",
+        "none": "Sin fotografía",
+        "verifyDocument": "Verifica con el documento.",
+        "unavailable": "Fotografía no disponible"
+      },
+      "basis": {
+        "tutor": "Tutor/a ({relationship})",
+        "tercero": "Autorizado/a",
+        "puntual": "Solo hoy",
+        "until": "Hasta el {date}",
+        "noEnd": "Sin fecha de fin"
+      },
+      "relationship": {
+        "abuelo": "Abuelo/a",
+        "personal_apoyo": "Personal de apoyo",
+        "otra_familia": "Otra familia",
+        "otro": "Otro"
+      },
+      "kind": {
+        "permanente": "Permanente",
+        "puntual": "Puntual (un día)"
+      },
+      "channel": {
+        "presencial": "En persona (papel firmado)",
+        "telefono": "Por teléfono (con devolución de llamada)"
+      },
+      "status": {
+        "effective": "Vigente",
+        "ineffective": "No vigente: {reason}"
+      },
+      "ineffective": {
+        "sin_foto": "falta la fotografía",
+        "fuera_de_vigencia": "fuera de las fechas",
+        "retirada": "retirada",
+        "persona_excluida": "persona excluida",
+        "no_vigente": "no vigente"
+      },
+      "table": {
+        "title": "Autorizaciones de recogida",
+        "caption": "Autorizaciones de recogida del alumno",
+        "empty": "Este alumno no tiene autorizaciones de terceros.",
+        "columns": {
+          "person": "Persona",
+          "relationship": "Relación",
+          "kind": "Tipo",
+          "validity": "Vigencia",
+          "status": "Estado",
+          "channel": "Canal",
+          "authorizedAt": "Autorizada el",
+          "withdrawnAt": "Retirada el",
+          "reason": "Motivo"
+        }
+      },
+      "person": {
+        "documentNumber": "Número de documento",
+        "phone": "Teléfono"
+      },
+      "states": {
+        "notFound": "No se encuentra esta información.",
+        "forbidden": "No tienes permiso para ver esta información."
+      }
     }
   }
 }

@@ -28,6 +28,7 @@ import LoadingState from '@/layouts/components/LoadingState.vue'
 import ActionNotices from '../components/ActionNotices.vue'
 import GuardianFormDialog from '../components/GuardianFormDialog.vue'
 import LinkFormDialog from '../components/LinkFormDialog.vue'
+import PickupPersonsSection from '../components/PickupPersonsSection.vue'
 import StatusBadge from '../components/StatusBadge.vue'
 import StudentFormDialog from '../components/StudentFormDialog.vue'
 import {
@@ -83,6 +84,8 @@ const publicId = computed(() => String(route.params.publicId))
 const canReadLinks = computed(() => can('vinculo_tutor.leer'))
 const canReadRevocations = computed(() => can('revocacion_tutor.leer'))
 const canReadConsents = computed(() => can('consentimiento_imagen.leer'))
+/** `§23.4`: la sección «Personas autorizadas» existe solo con este permiso (`RN-CORE-61`, UI-1). */
+const canReadPickup = computed(() => can('autorizado_recogida.leer'))
 const canAddGuardian = computed(() => can('familia.crear'))
 const canUpdate = computed(() => can('familia.actualizar'))
 const canRemoveGuardian = computed(() => can('familia.eliminar'))
@@ -653,6 +656,8 @@ function consentIcon(state: string) {
           </template>
         </DataTable>
       </section>
+
+      <PickupPersonsSection v-if="canReadPickup" :unit="data.unit" :students="data.students" />
 
       <GuardianFormDialog
         v-model:open="guardianFormOpen"

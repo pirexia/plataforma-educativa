@@ -14,7 +14,16 @@ export function useLabels() {
     return text === key ? code : text
   }
 
+  /** `famUnit.pickup.<grupo>.<código>` (relación, tipo, canal y causa de no vigencia de una autorización de recogida). */
+  function pickupLabel(group: string, code: string): string {
+    const key = `famUnit.pickup.${group}.${code}`
+    const text = t(key)
+
+    return text === key ? code : text
+  }
+
   return {
+    pickupLabel,
     relationshipLabel: (code: string) => label('relationship', code),
     accessLevelLabel: (code: string) => label('accessLevel', code),
     linkStatusLabel: (code: string) => label('linkStatus', code),
