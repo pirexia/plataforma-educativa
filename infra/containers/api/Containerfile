@@ -15,7 +15,7 @@ FROM dunglas/frankenphp:1-php8.4-bookworm AS base
 # compilación solo). No se purgan las -dev por la misma razón documentada
 # en el Containerfile de desarrollo original: un intento anterior con
 # --auto-remove se llevó libpq.so.5/libzip.so.4 en tiempo de ejecución.
-RUN install-php-extensions pdo_pgsql pgsql zip intl mbstring redis opcache
+RUN install-php-extensions pdo_pgsql pgsql zip intl mbstring redis opcache gd exif
 
 WORKDIR /var/www/html
 

@@ -109,6 +109,65 @@ final class AuditRecorder
     }
 
     /**
+     * ADR-068 §5.4 (`D4`, `L6`), `RN-FAM-UNIT-92`: registra la **lectura** de datos de terceros sobre un sujeto que el
+     * llamador identifica por alias e id, sin tener en la mano el modelo (el módulo que audita no puede importar
+     * `App\Models\Person`, `INV-007`). Escribe `event = read` con `changes = NULL`, el mismo actor, IP, agente y
+     * `request_id` que `record()`, la misma validación de `context` y las mismas reglas de modo plataforma.
+     *
+     * **Fallo en cerrado**: si no se puede escribir (alias desconocido, `context` inválido, sin centro en curso, o un
+     * error de base de datos), lanza. Quien devuelve datos escribe esta fila **antes** de devolverlos: sin rastro no hay
+     * datos. Por eso, a diferencia de `record()`, la ausencia de centro en curso no es un retorno silencioso.
+     *
+     * @param  array<string, mixed>  $context  ADR-035 §5, como en `record()`: códigos, ULID y enteros; nunca nombres, documentos, teléfonos ni claves de objeto.
+     *
+     * @throws InvalidArgumentException si `context` no cumple ADR-035 §5
+     * @throws RuntimeException si el alias no está en el morph map o no hay centro en curso
+     */
+    public function recordRead(string $auditableAlias, int $auditableId, ?string $auditablePublicId, array $context = []): void
+    {
+        $this->assertContextIsAllowed($context);
+
+        if (Relation::getMorphedModel($auditableAlias) === null) {
+            throw new RuntimeException("El alias de auditoría «{$auditableAlias}» no está en el morph map (ADR-034 §3).");
+        }
+
+        $tenantContext = app(TenantContext::class);
+
+        if ($tenantContext->isPlatformMode()) {
+            // Mismas reglas que `record()` (ADR-046 §6.5): un mantenimiento no lee datos de un centro, y con un propósito
+            // de backoffice el rastro es `admin_action_logs`, no esta tabla.
+            if ($tenantContext->platformPurpose() === PlatformAccessPurpose::Mantenimiento) {
+                throw new RuntimeException(
+                    'AuditRecorder no escribe en modo plataforma con propósito Mantenimiento '.
+                    '(TenantContext::runAsPlatform()); el rastro de esa operación corresponde '.
+                    'a admin_action_logs, no a audit_logs.'
+                );
+            }
+
+            return;
+        }
+
+        if (! $tenantContext->hasTenant()) {
+            throw new RuntimeException('Una lectura auditada exige un centro en curso: sin rastro no se devuelven datos.');
+        }
+
+        AuditLog::create([
+            'occurred_at' => now(),
+            'actor_user_id' => AuditActor::resolveUserId(),
+            'actor_type' => AuditActor::resolveType(),
+            'auditable_type' => $auditableAlias,
+            'auditable_id' => $auditableId,
+            'auditable_public_id' => $auditablePublicId,
+            'event' => 'read',
+            'changes' => null,
+            'ip_address' => request()->ip(),
+            'user_agent' => request()->userAgent(),
+            'request_id' => app(RequestId::class)->current(),
+            'context' => $context === [] ? null : $context,
+        ]);
+    }
+
+    /**
      * ADR-035 §5: `context` transporta identificadores y códigos, nunca
      * valores de atributos. No se puede decidir por semántica qué es un
      * valor de atributo, pero sí imponer su forma: claves de mapa
