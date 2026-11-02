@@ -8,7 +8,7 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ## 2026-11-02 · `chore`: aplicación de `ADR-069` (Codex como primer revisor; `CLAUDE.md` 2.10.0)
 
-- `CLAUDE.md` 2.10.0: sección 2, párrafo de Codex y punto 3 de «Ahorro de cuota» al régimen de `ADR-069`. **Condición `OPEN-069-01` pendiente**: hasta que el usuario confirme la política de entrenamiento de su cuenta de OpenAI no se lanza Codex sobre código del proyecto y rige `ADR-050`; interruptor en la skill.
+- `CLAUDE.md` 2.10.0: sección 2, párrafo de Codex y punto 3 de «Ahorro de cuota» al régimen de `ADR-069`. **Condición `OPEN-069-01` confirmada por el usuario el 2026-11-02** (entrenamiento desactivado en su cuenta; declaración no verificable): régimen de `ADR-069` activo; interruptor en la skill.
 - Skill `revision-con-codex` reescrita (reparto de la lista de comprobación, clasificación crítico/ordinario, segunda ronda por Codex, lanzamiento por `Bash` solo con `review` y `adversarial-review`, respaldo `ADR-050`) y nuevo `contexto-codex.md`.
 - Agentes: `security-reviewer` (modo acotado), `db-reviewer` (recibe hallazgos de Codex), `spec-writer` (campo «Clasificación del paso»).
 - `PLAN-IMPLEMENTACION.md` 2.3.19 (anexo A), `SECURITY.md` 0.3.17 (§2.2), `PRIVACY.md` 0.3.12 (§2.12), requisitos 3.2.24 (sección 20.2).

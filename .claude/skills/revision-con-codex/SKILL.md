@@ -7,7 +7,7 @@ description: Protocolo de revisión con Codex (openai/codex-plugin-cc) como prim
 
 `ADR-069` decide el régimen; `ADR-049` y `ADR-050` siguen vigentes en lo que `ADR-069` no sustituye. Esta skill es su protocolo (la «interfaz propia» de `RNF-MANT-007`, `ADR-049 §6`). Si algo de aquí contradice un ADR, manda el ADR.
 
-**Estado de OPEN-069-01: pendiente**
+**Estado de OPEN-069-01: confirmada (2026-11-02)** — por declaración del usuario (desactivó el entrenamiento con sus datos en su cuenta de ChatGPT/OpenAI); la sesión no puede verificarlo. Régimen de `ADR-069` ACTIVO.
 
 > Interruptor. La sesión lo cambia a `confirmada (AAAA-MM-DD)` **solo** cuando el usuario confirme que el entrenamiento con sus datos está desactivado en su cuenta de OpenAI (o que usa una capa de pago). Mientras diga `pendiente`: **no se lanza Codex sobre código del proyecto y rige el régimen de ADR-050** (sección «Régimen de respaldo» de abajo): Codex opcional, `security-reviewer` completo, segunda ronda como antes. Al cambiarlo, se actualiza también el párrafo de `CLAUDE.md §2` si hiciera falta.
 
