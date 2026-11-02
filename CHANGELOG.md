@@ -6,6 +6,12 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-02 · `chore`: estado de `1.14b-c` y seguimientos en `memory.md`
+
+- `memory.md`: la especificación de `1.14b-c` no está cerrada (primero `spec-writer`), tramos propuestos, PR de Renovate para después de `1.14` y seguimiento de seguridad `php2shell`/`node2shell`. Sin cambios de código.
+
+---
+
 ## 2026-11-02 · `1.14b-b`: puerta y entrega de menores, módulo `prl` (`REQ-PRL-004`, rama `feature/REQ-PRL-1-14bb-puerta-entrega-menores`)
 
 - **Implementación** (`ADR-068`): módulo `prl` con `student_movements` (solo anexar) y `pickup_alerts`, 9 *endpoints*, permisos `entrega_menor.*` y `alerta_entrega.*` con siembra, ampliación aditiva `AuthorizedPickupList::grantFor`/`PickupBasis::$referenceId` (DP-1, aprobada), auditoría y cupo de lectura en alertas y movimientos (DP-11), documentación trasladada a `docs/modulos/REQ-PRL/`. Corrige un fallo latente de Backoffice (#501).
