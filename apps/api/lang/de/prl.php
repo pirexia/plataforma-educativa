@@ -8,44 +8,44 @@
 return [
     'permissions' => [
         'resources' => [
-            'entrega_menor' => 'Entrega de menores en la puerta',
-            'alerta_entrega' => 'Alertas por persona no autorizada en la entrega',
+            'entrega_menor' => 'Übergabe von Minderjährigen an der Tür',
+            'alerta_entrega' => 'Warnungen bei nicht berechtigter Person bei der Übergabe',
         ],
     ],
 
     'movement' => [
-        'person_not_authorized' => 'Esa persona no figura en la lista de recogida de este alumno: no se le puede entregar.',
-        'verification_requires_document' => 'Esta persona no tiene fotografía registrada: la entrega solo puede verificarse por documento.',
-        'reason_required' => 'Un movimiento fuera de horario necesita un motivo (y una nota si el motivo es «otro»).',
+        'person_not_authorized' => 'Diese Person steht nicht auf der Abholliste dieses Schülers: Der Schüler kann ihr nicht übergeben werden.',
+        'verification_requires_document' => 'Für diese Person ist kein Foto hinterlegt: Die Übergabe kann nur anhand eines Dokuments überprüft werden.',
+        'reason_required' => 'Eine Bewegung außerhalb der Zeiten braucht einen Grund (und eine Anmerkung, wenn der Grund „sonstiges" ist).',
     ],
 
     'alert' => [
-        'closed' => 'La alerta ya está cerrada y no se puede modificar.',
+        'closed' => 'Die Warnung ist bereits geschlossen und kann nicht mehr geändert werden.',
     ],
 
-    'idempotency_mismatch' => 'Esa clave de idempotencia ya se usó con un contenido distinto.',
+    'idempotency_mismatch' => 'Dieser Idempotenzschlüssel wurde bereits mit anderem Inhalt verwendet.',
 
     'protocol' => [
         'minimal' => 'No entregues al alumno. Retenlo en el centro, avisa a dirección y llama al tutor principal con el teléfono que figura en esta alerta. Anota después la hora de la llamada y la resolución.',
     ],
 
     'validation' => [
-        'required' => 'Este campo es obligatorio.',
-        'reference_invalid' => 'El identificador indicado no es válido.',
-        'enum_invalid' => 'El valor indicado no es válido.',
-        'text_invalid' => 'El texto no es válido o supera los :max caracteres.',
-        'boolean_invalid' => 'El valor debe ser verdadero o falso.',
-        'datetime_invalid' => 'La fecha y hora no son válidas (formato ISO 8601).',
-        'student_not_found' => 'El alumno indicado no existe.',
-        'user_not_found' => 'El usuario indicado no existe o no está activo.',
-        'reference_not_found' => 'El movimiento que se corrige no existe para este alumno.',
-        'entry_without_pickup' => 'Una entrada no lleva persona que recoge ni método de verificación.',
-        'off_schedule_reason_unexpected' => 'Solo un movimiento fuera de horario lleva motivo.',
-        'cursor_invalid' => 'El cursor no es válido para esta consulta.',
-        'idempotency_key_invalid' => 'La clave de idempotencia debe tener entre 1 y 128 caracteres visibles.',
-        'field_not_editable' => 'Este dato de la alerta no se puede cambiar.',
-        'notes_without_resolution' => 'Las notas de resolución solo se indican junto con la resolución.',
-        'empty_body' => 'Indica al menos un dato: la llamada al tutor principal o la resolución.',
-        'contact_time_out_of_range' => 'La hora de la llamada no puede ser futura ni anterior a la apertura de la alerta.',
+        'required' => 'Dieses Feld ist ein Pflichtfeld.',
+        'reference_invalid' => 'Die angegebene Kennung ist nicht gültig.',
+        'enum_invalid' => 'Der angegebene Wert ist nicht gültig.',
+        'text_invalid' => 'Der Text ist nicht gültig oder überschreitet :max Zeichen.',
+        'boolean_invalid' => 'Der Wert muss „wahr" oder „falsch" sein.',
+        'datetime_invalid' => 'Datum und Uhrzeit sind nicht gültig (Format ISO 8601).',
+        'student_not_found' => 'Der angegebene Schüler existiert nicht.',
+        'user_not_found' => 'Der angegebene Benutzer existiert nicht oder ist nicht aktiv.',
+        'reference_not_found' => 'Die zu korrigierende Bewegung existiert für diesen Schüler nicht.',
+        'entry_without_pickup' => 'Ein Eintrag enthält weder eine abholende Person noch eine Überprüfungsmethode.',
+        'off_schedule_reason_unexpected' => 'Nur eine Bewegung außerhalb der Zeiten enthält einen Grund.',
+        'cursor_invalid' => 'Der Cursor ist für diese Abfrage nicht gültig.',
+        'idempotency_key_invalid' => 'Der Idempotenzschlüssel muss zwischen 1 und 128 sichtbare Zeichen lang sein.',
+        'field_not_editable' => 'Dieses Datum der Warnung kann nicht geändert werden.',
+        'notes_without_resolution' => 'Anmerkungen zur Klärung können nur zusammen mit der Klärung angegeben werden.',
+        'empty_body' => 'Geben Sie mindestens eine Angabe an: den Anruf beim Hauptverantwortlichen oder die Klärung.',
+        'contact_time_out_of_range' => 'Die Uhrzeit des Anrufs darf weder in der Zukunft liegen noch vor der Eröffnung der Warnung.',
     ],
 ];
