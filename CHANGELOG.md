@@ -6,6 +6,14 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-02 · `chore`: recorte de contexto fijo (`CLAUDE.md` 2.9.0)
+
+- `CLAUDE.md` 2.9.0 (de 29 783 a ~25 000 bytes): relatos de «caso real» movidos a `docs/proceso/casos-reales.md` (con referencia `Motivo:` de una línea), restauración de la configuración del 08/10 a `docs/proceso/restauracion-configuracion.md`, frases reescritas sin cambiar reglas. Nuevos puntos 7 (tamaño de entrega, ≤3 tramos de `implementer`) y 8 (`doc-precheck` siempre antes de `doc-reviewer` y sustituto en segunda ronda sin Críticos, Altos ni Medios) en «Ahorro de cuota».
+- `memory.md` (de 51 196 a ~16 000 bytes): solo estado vigente; el original íntegro en `docs/proceso/memoria-archivo.md`.
+- `docs/proceso/recorte-trazabilidad.md`: tabla original → destino para revisar que no se perdió ninguna regla.
+
+---
+
 ## 2026-11-02 · `chore`: normas de ahorro de cuota y E2E contra la API real (`CLAUDE.md` 2.8.0)
 
 - `CLAUDE.md` 2.8.0: sección 2 «Ahorro de cuota» (tramos secuenciales de `implementer`, prompt mínimo por tramo, revisiones acotadas con segunda ronda solo si hay Críticos, Altos o Medios, métricas por subagente, contexto principal pequeño, salidas cortas) y sección 3 «E2E contra la API real» (se permite recrear el demo).
