@@ -6,6 +6,17 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-02 · `1.14b-b`: puerta y entrega de menores, módulo `prl` (`REQ-PRL-004`, rama `feature/REQ-PRL-1-14bb-puerta-entrega-menores`)
+
+- **Implementación** (`ADR-068`): módulo `prl` con `student_movements` (solo anexar) y `pickup_alerts`, 9 *endpoints*, permisos `entrega_menor.*` y `alerta_entrega.*` con siembra, ampliación aditiva `AuthorizedPickupList::grantFor`/`PickupBasis::$referenceId` (DP-1, aprobada), auditoría y cupo de lectura en alertas y movimientos (DP-11), documentación trasladada a `docs/modulos/REQ-PRL/`. Corrige un fallo latente de Backoffice (#501).
+- **Decisiones del usuario (2026-11-02)**: DP-1 aprobada; DP-9 (carrera TOCTOU) aceptada y diferida a `1.14b-d` (`OPEN-FAM-UNIT-51`); auditar y limitar las lecturas de alertas y movimientos; el disco local solo falla en cerrado en `production` y `staging`.
+- **Revisiones**: `db-reviewer` (4 Bajos), `security-reviewer` (2 Medios corregidos), `doc-reviewer` (3 Medios corregidos) y **primera revisión real con Codex** (`ADR-069`, procedencia `/codex:adversarial-review`): 1 Medio, tratado en `OPEN-FAM-UNIT-51`.
+- **Verificado**: suite completa en el contenedor (2154 + 55 Pest en verde, `85790d2`); E2E real contra la API en verde; tras el último ajuste, 338 tests afectados y CI.
+- **No probado**: S3/MinIO real, reversión en servidor, planificador (#453). Abiertas `OPEN-FAM-UNIT-51` a `-53` y `-40`.
+- **Documentación**: `REQ-PRL/*`, `REQ-FAM-UNIT/{funcional,datos,permisos,operacion}.md`, `ARCHITECTURE.md`, `SYSADMIN.md`, `RUNBOOK.md`, `SECURITY.md`, `PRIVACY.md` (§2.13). Despliegue: migrar, `platform:sync-registry`, contratar `prl`, `fam_unit:grant-permissions`.
+
+---
+
 ## 2026-11-02 · `chore`: regla de traducciones pequeñas (`CLAUDE.md` 2.10.1)
 
 - Punto 9 de «Ahorro de cuota»: hasta ~15 claves nuevas no legales las traduce la sesión orquestadora; con más, `traductor`. Los textos legales, de consentimiento, de privacidad y de seguridad no se traducen automáticamente. Aprobada por el usuario.
