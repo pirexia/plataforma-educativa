@@ -95,7 +95,8 @@ test('CA-PRL-008 RN-PRL-08: una alerta abierta se resuelve con no_entregado y la
     expect(Prl::call($f['tenant'], $f['direccion'], 'get', "/pickup-alerts/{$id}")->assertOk()->json('status'))->toBe('cerrada');
 
     // Auditoría Selective: alta y resolución, sin la descripción de quien se presenta ni las notas.
-    $logs = Fam::audit($f['tenant'], 'pickup_alert');
+    // (Las lecturas con teléfonos, `read`, tienen su propio test: `PrlReadAuditTest`.)
+    $logs = array_values(array_filter(Fam::audit($f['tenant'], 'pickup_alert'), fn ($l) => $l->event !== 'read'));
     expect(array_column($logs, 'event'))->toBe(['created', 'updated', 'updated']);
     $json = json_encode(array_map(fn ($l) => $l->changes, $logs));
     expect($json)->toContain('no_entregado')->not->toContain('Carlos P.')->not->toContain('El alumno se quedó')->not->toContain('12345678Z');

@@ -2,6 +2,7 @@
 
 namespace App\Modules\Prl\Http\Controllers;
 
+use App\Modules\Prl\Application\PrlReadGuard;
 use App\Modules\Prl\Application\PrlRefs;
 use App\Modules\Prl\Application\StudentMovementService;
 use App\Modules\Prl\Domain\Models\StudentMovement;
@@ -33,10 +34,17 @@ class StudentMovementsController extends PrlController
         return $result['replayed'] ? $response->header('Idempotency-Replayed', 'true') : $response;
     }
 
-    public function index(IndexStudentMovementsRequest $request, StudentMovementService $service, PrlRefs $refs): JsonResponse
+    public function index(IndexStudentMovementsRequest $request, StudentMovementService $service, PrlRefs $refs, PrlReadGuard $reads): JsonResponse
     {
+        // `DP-11`: el listado devuelve el nombre de quien recogió; cupo de lectura y fila `read` sin valores antes de devolverlo.
+        $reads->limit();
         $result = $service->history($request->filters(), $request->cursorValue(), $request->integer('limit', 50));
         $this->prepare($result['rows'], $service, $refs);
+
+        if ($result['rows'] !== []) {
+            $first = $result['rows'][0];
+            $reads->audit('student_movement', (int) $first->id, (string) $first->public_id, PrlReadGuard::PURPOSE_HISTORY, count($result['rows']));
+        }
 
         return response()->json([
             'data' => StudentMovementResource::collection($result['rows'])->resolve($request),
@@ -44,10 +52,12 @@ class StudentMovementsController extends PrlController
         ]);
     }
 
-    public function show(Request $request, string $publicId, StudentMovementService $service, PrlRefs $refs): StudentMovementResource
+    public function show(Request $request, string $publicId, StudentMovementService $service, PrlRefs $refs, PrlReadGuard $reads): StudentMovementResource
     {
         $movement = $service->find($publicId);
+        $reads->limit();
         $this->prepare([$movement], $service, $refs);
+        $reads->audit('student_movement', (int) $movement->id, (string) $movement->public_id, PrlReadGuard::PURPOSE_HISTORY, 1);
 
         return new StudentMovementResource($movement);
     }

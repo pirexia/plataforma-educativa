@@ -76,6 +76,8 @@ return new class extends Migration
                     CHECK ((status = 'cerrada') = (resolution IS NOT NULL AND resolved_at IS NOT NULL AND resolved_by IS NOT NULL)),
                 ADD CONSTRAINT pickup_alerts_open_without_resolution_check
                     CHECK (status = 'cerrada' OR (resolution IS NULL AND resolved_at IS NULL AND resolved_by IS NULL AND resolution_notes IS NULL)),
+                ADD CONSTRAINT pickup_alerts_idempotency_key_length_check
+                    CHECK (idempotency_key IS NULL OR length(idempotency_key) <= 255),
                 ADD CONSTRAINT pickup_alerts_idempotency_coherence_check
                     CHECK ((idempotency_key IS NULL) = (idempotency_body_hash IS NULL))
             SQL);

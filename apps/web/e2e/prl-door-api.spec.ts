@@ -509,11 +509,14 @@ test.describe('REQ-PRL-004 (1.14b-b): puerta y entrega de menores contra la API 
       200,
     )
     expect((movementAudit.data as unknown[]).length).toBeGreaterThanOrEqual(3)
-    expect((alertAudit.data as Array<{ event: string }>).map((row) => row.event).sort()).toEqual([
+    // Las lecturas de teléfonos (`read`, DP-11) se auditan aparte de la creación y la resolución.
+    const alertEvents = (alertAudit.data as Array<{ event: string }>).map((row) => row.event)
+    expect(alertEvents.filter((event) => event !== 'read').sort()).toEqual([
       'created',
       'updated',
       'updated',
     ])
+    expect(alertEvents.filter((event) => event === 'read').length).toBeGreaterThanOrEqual(2)
     expect(JSON.stringify([movementAudit, alertAudit])).not.toContain('Carlos F.')
     expect(JSON.stringify([movementAudit, alertAudit])).not.toContain('esperó en dirección')
 

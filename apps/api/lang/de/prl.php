@@ -29,6 +29,10 @@ return [
         'minimal' => 'No entregues al alumno. Retenlo en el centro, avisa a dirección y llama al tutor principal con el teléfono que figura en esta alerta. Anota después la hora de la llamada y la resolución.',
     ],
 
+    'errors' => [
+        'read_rate_limited' => 'Has alcanzado el límite de consultas de alertas y movimientos de la puerta. Inténtalo de nuevo en unos :minutes minutos.',
+    ],
+
     'validation' => [
         'required' => 'Dieses Feld ist ein Pflichtfeld.',
         'reference_invalid' => 'Die angegebene Kennung ist nicht gültig.',

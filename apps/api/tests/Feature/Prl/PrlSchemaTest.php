@@ -237,6 +237,8 @@ test('datos.md §8.4 RN-PRL-07 RN-PRL-04: el motor hace cumplir los CHECK de stu
         // Corrección: movimiento y motivo juntos.
         ->and(prlTryInsert('student_movements', $row(['correction_reason' => 'x'])))->toContain('student_movements_correction_coherence_check')
         ->and(prlTryInsert('student_movements', $row(['idempotency_key' => 'k'])))->toContain('student_movements_idempotency_coherence_check')
+        ->and(prlTryInsert('student_movements', $row(['idempotency_key' => str_repeat('k', 256), 'idempotency_body_hash' => 'h'])))->toContain('student_movements_idempotency_key_length_check')
+        ->and(prlTryInsert('student_movements', $row(['idempotency_key' => str_repeat('k', 255), 'idempotency_body_hash' => 'h'])))->toBeNull()
         ->and(prlTryInsert('student_movements', $row(['idempotency_key' => 'k', 'idempotency_body_hash' => 'h'])))->toBeNull();
 });
 
@@ -259,6 +261,7 @@ test('datos.md §8.5 RN-PRL-08 CA-PRL-008: el motor hace cumplir los CHECK de pi
         ->and(prlTryInsert('pickup_alerts', $row(['resolution_notes' => 'x'])))->toContain('pickup_alerts_open_without_resolution_check')
         ->and(prlTryInsert('pickup_alerts', $row(['resolution' => 'huir'] + $closed)))->toContain('pickup_alerts_resolution_check')
         ->and(prlTryInsert('pickup_alerts', $row($closed + ['resolution_notes' => str_repeat('x', 1001)])))->toContain('pickup_alerts_resolution_notes_length_check')
+        ->and(prlTryInsert('pickup_alerts', $row(['idempotency_key' => str_repeat('k', 256), 'idempotency_body_hash' => 'h'])))->toContain('pickup_alerts_idempotency_key_length_check')
         ->and(prlTryInsert('pickup_alerts', $row(['idempotency_key' => 'k'])))->toContain('pickup_alerts_idempotency_coherence_check');
 });
 

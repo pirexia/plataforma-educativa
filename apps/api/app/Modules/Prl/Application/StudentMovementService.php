@@ -138,12 +138,15 @@ final class StudentMovementService
     {
         $person = $this->people->findByPublicId($personPublicId);
 
-        // Una persona que no existe, de otro centro o borrada: el mismo cuerpo que «no figura» (`OPEN-FAM-UNIT-34`).
-        if ($person === null || $person->removed || ! $this->pickupList->isAuthorized($person->id, $studentId)) {
+        // Una persona que no existe, de otro centro o borrada: el mismo cuerpo que «no figura» (`OPEN-FAM-UNIT-34`) y el mismo
+        // camino (las dos consultas de la interfaz, con el id `0` que nunca existe) para no distinguirla por el tiempo de respuesta.
+        $personId = ($person === null || $person->removed) ? 0 : $person->id;
+        $authorized = $this->pickupList->isAuthorized($personId, $studentId);
+        $grant = $this->pickupList->grantFor($personId, $studentId);
+
+        if ($person === null || $person->removed || ! $authorized || $grant === null) {
             throw PrlErrors::personNotAuthorized();
         }
-
-        $grant = $this->pickupList->grantFor($person->id, $studentId) ?? throw PrlErrors::personNotAuthorized();
 
         if (! $grant->hasPhoto && $method !== StudentMovement::VERIFICATION_DOCUMENT) {
             throw PrlErrors::invalid('verification_method', 'prl.movement.verification_requires_document');

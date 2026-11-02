@@ -110,6 +110,8 @@ return new class extends Migration
                     CHECK ((corrects_movement_id IS NULL) = (correction_reason IS NULL)),
                 ADD CONSTRAINT student_movements_correction_reason_length_check
                     CHECK (correction_reason IS NULL OR length(correction_reason) <= 500),
+                ADD CONSTRAINT student_movements_idempotency_key_length_check
+                    CHECK (idempotency_key IS NULL OR length(idempotency_key) <= 255),
                 ADD CONSTRAINT student_movements_idempotency_coherence_check
                     CHECK ((idempotency_key IS NULL) = (idempotency_body_hash IS NULL))
             SQL);

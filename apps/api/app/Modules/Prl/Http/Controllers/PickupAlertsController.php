@@ -4,6 +4,7 @@ namespace App\Modules\Prl\Http\Controllers;
 
 use App\Modules\Prl\Application\AlertGuidance;
 use App\Modules\Prl\Application\PickupAlertService;
+use App\Modules\Prl\Application\PrlReadGuard;
 use App\Modules\Prl\Application\PrlRefs;
 use App\Modules\Prl\Domain\Models\PickupAlert;
 use App\Modules\Prl\Http\Requests\IndexPickupAlertsRequest;
@@ -22,13 +23,15 @@ use Illuminate\Http\Request;
  */
 class PickupAlertsController extends PrlController
 {
-    public function store(StorePickupAlertRequest $request, PickupAlertService $service, AlertGuidance $guidance, PrlRefs $refs): JsonResponse
+    public function store(StorePickupAlertRequest $request, PickupAlertService $service, AlertGuidance $guidance, PrlRefs $refs, PrlReadGuard $reads): JsonResponse
     {
+        // El cupo se consume antes de crear nada: la respuesta lleva teléfonos (`DP-11`).
+        $reads->limit();
         $result = $service->raise($request->payload(), $this->actor($request), $request->idempotencyKey());
         $alert = $result['alert'];
         $this->prepare([$alert], $refs);
 
-        $response = $this->detail($alert, $guidance)
+        $response = $this->detail($alert, $guidance, $reads)
             ->response()
             ->setStatusCode(201)
             ->header('Location', url("/api/v1/pickup-alerts/{$alert->public_id}"));
@@ -44,32 +47,45 @@ class PickupAlertsController extends PrlController
         return PagePaginatedResponse::make($page, PickupAlertResource::class);
     }
 
-    public function show(Request $request, string $publicId, PickupAlertService $service, AlertGuidance $guidance, PrlRefs $refs): PickupAlertResource
+    public function show(Request $request, string $publicId, PickupAlertService $service, AlertGuidance $guidance, PrlRefs $refs, PrlReadGuard $reads): PickupAlertResource
     {
         $alert = $service->find($publicId);
         $this->prepare([$alert], $refs);
+        if ($alert->status === PickupAlert::STATUS_OPEN) {
+            $reads->limit();
+        }
 
-        return $this->detail($alert, $guidance);
+        return $this->detail($alert, $guidance, $reads);
     }
 
-    public function update(UpdatePickupAlertRequest $request, string $publicId, PickupAlertService $service, AlertGuidance $guidance, PrlRefs $refs): PickupAlertResource
+    public function update(UpdatePickupAlertRequest $request, string $publicId, PickupAlertService $service, AlertGuidance $guidance, PrlRefs $refs, PrlReadGuard $reads): PickupAlertResource
     {
         $service->find($publicId);
         $alert = $service->update($publicId, $request->payload(), $this->actor($request));
         $this->prepare([$alert], $refs);
+        if ($alert->status === PickupAlert::STATUS_OPEN) {
+            $reads->limit();
+        }
 
-        return $this->detail($alert, $guidance);
+        return $this->detail($alert, $guidance, $reads);
     }
 
-    /** La alerta con el protocolo y los teléfonos de la llamada manual (solo mientras está abierta). */
-    private function detail(PickupAlert $alert, AlertGuidance $guidance): PickupAlertResource
+    /**
+     * La alerta con el protocolo y los teléfonos de la llamada manual (solo mientras está abierta). Con teléfonos, la fila `read`
+     * sin valores se escribe **antes** de devolverlos (`DP-11`); el cupo ya lo consumió el llamador.
+     */
+    private function detail(PickupAlert $alert, AlertGuidance $guidance, PrlReadGuard $reads): PickupAlertResource
     {
         $open = $alert->status === PickupAlert::STATUS_OPEN;
 
-        return (new PickupAlertResource($alert))->withGuidance($open ? [
-            'protocol' => $guidance->protocol(),
-            'contacts' => $guidance->contactsFor((int) $alert->student_person_id),
-        ] : null);
+        if (! $open) {
+            return (new PickupAlertResource($alert))->withGuidance(null);
+        }
+
+        $contacts = $guidance->contactsFor((int) $alert->student_person_id);
+        $reads->audit('pickup_alert', (int) $alert->id, (string) $alert->public_id, PrlReadGuard::PURPOSE_ALERT, count(array_filter($contacts, static fn (?string $phone): bool => $phone !== null)));
+
+        return (new PickupAlertResource($alert))->withGuidance(['protocol' => $guidance->protocol(), 'contacts' => $contacts]);
     }
 
     /**

@@ -8,12 +8,21 @@
  * directorio local. Sirve las URL firmadas (`GET` con `X-Amz-*`) sin comprobar la firma ni su caducidad: **la comprobación de
  * la caducidad y de la firma NO se prueba con esto**.
  *
- * Uso (ver `apps/web/e2e/README` y `docs/modulos/REQ-PRL/operacion.md`): `php -S 0.0.0.0:9000 tests/Support/e2e-fake-s3.php`
+ * SOLO DESARROLLO y datos sintéticos (`ADR-030`). Uso (ver `apps/web/e2e/README` y `docs/modulos/REQ-PRL/operacion.md`): `php -S 0.0.0.0:9000 tests/Support/e2e-fake-s3.php`
  * dentro de un contenedor de la red de desarrollo con nombre `minio`. Los datos viven en `FAKE_S3_DIR` (por defecto
  * `/tmp/fake-s3`); solo datos sintéticos (`ADR-030`, `REQ-SEED-005`).
  */
 if (PHP_SAPI !== 'cli-server') {
     exit(1);
+}
+
+// Solo desarrollo y datos sintéticos: no valida firmas, así que se niega a atender fuera de loopback y de redes privadas
+// (la red de contenedores de desarrollo). Publicar el puerto solo en 127.0.0.1 (`-p 127.0.0.1:9000:9000`).
+$remote = (string) ($_SERVER['REMOTE_ADDR'] ?? '');
+
+if (filter_var($remote, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) !== false) {
+    http_response_code(403);
+    exit;
 }
 
 $root = rtrim((string) (getenv('FAKE_S3_DIR') ?: '/tmp/fake-s3'), '/');
