@@ -180,7 +180,8 @@ test('permisos.md §4 OPEN-FAM-UNIT-10 OPEN-FAM-UNIT-22: tenant:provision-defaul
             ->and(famGrantsOf('administrativo'))->toBe(['familia.leer:todos', 'vinculo_tutor.leer:todos'])
             ->and(famGrantsOf('tutor_legal'))->toBe(['autorizado_recogida.leer:unidad_familiar', 'consentimiento_imagen.actualizar:unidad_familiar', 'consentimiento_imagen.leer:unidad_familiar', 'familia.leer:unidad_familiar', 'vinculo_tutor.leer:unidad_familiar']);
 
-        // permisos.md §8.4 (L9): conserjería no recibe `autorizado_recogida.crear` ni ninguno (sus permisos de la puerta llegan con `prl`).
+        // permisos.md §8.4 (L9): conserjería no recibe `autorizado_recogida.crear` ni ninguno de `autorizado_recogida` (los de la puerta,
+        // `entrega_menor.*` y `alerta_entrega.*`, son de `prl` y los cubre `tests/Feature/Prl/PrlPermissionsTest.php`).
         expect(famGrantsOf('conserjeria_pas'))->toBe([]);
 
         // Alta, fotografía y retirada de autorizados, solo el administrador y secretaría; dirección solo lee.
@@ -210,7 +211,7 @@ test('permisos.md §4 OPEN-FAM-UNIT-10 OPEN-FAM-UNIT-22: tenant:provision-defaul
         }
     });
 
-    expect(array_keys(ProvisionTenantDefaults::FAMILY_PERMISSION_GRANTS))->toBe(['administrador_centro', 'secretaria', 'direccion', 'administrativo'])
+    expect(array_keys(ProvisionTenantDefaults::FAMILY_PERMISSION_GRANTS))->toBe(['administrador_centro', 'secretaria', 'direccion', 'administrativo', 'conserjeria_pas'])
         ->and(array_keys(ProvisionTenantDefaults::FAMILY_PERMISSION_UNIDAD_FAMILIAR_GRANTS))->toBe(['tutor_legal']);
 });
 
