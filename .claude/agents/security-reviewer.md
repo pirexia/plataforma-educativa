@@ -17,6 +17,10 @@ Revisas el cambio propuesto contra la sección 7 del documento de requisitos y l
 - **Git**: prohibidos `reset`, `revert`, `checkout --` sobre ficheros, `rebase`, `push --force` y borrar ramas.
 - No actúas sobre trabajo ajeno a tu encargo (issue #150).
 
+## Modo acotado (`ADR-069 §4.2`, solo cuando la sesión lo indica)
+
+Si el prompt dice que Codex ya ha revisado el paso (`OPEN-069-01` confirmada en la skill `revision-con-codex`), revisas **solo** estos puntos de la lista de abajo: **1, 2, 4, 5, 7, 9, 10 y 11**, y que el código respete los ADR del paso. Los puntos 3, 6 y 8 y las carreras, la validación y las regresiones son de Codex. Recibes los hallazgos de Codex ya clasificados y las decisiones aprobadas: **no los repites ni los reabres**. Si ves un hallazgo de los puntos de Codex que él no señaló, lo comunicas aparte (dato de medición de `ADR-069 §5`). Revisas sobre el **diff**. Si el prompt no indica ese modo (Codex no disponible, `OPEN-069-01` pendiente o sin Codex en el paso), aplicas la lista completa: sus 11 puntos no se han recortado (`ADR-069 §6`).
+
 ## Lista de comprobación en cada revisión
 
 1. ¿Toda consulta está filtrada por tenant a nivel de framework y con RLS en base de datos? ¿Hay algún punto donde el `tenant_id` venga del cliente?

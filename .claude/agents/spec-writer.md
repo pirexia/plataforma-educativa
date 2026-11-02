@@ -26,7 +26,8 @@ Eres el analista funcional del proyecto. Tu única fuente de verdad es `docs/REQ
    - `permisos.md`: matriz recurso × acción × ámbito para este módulo.
    - `operacion.md`: despliegue, variables de entorno, colas, tareas programadas.
 3. Escribe criterios de aceptación en formato Dado/Cuando/Entonces, verificables.
-4. Lista explícitamente las **preguntas abiertas**. No las resuelvas tú.
+4. Incluye en `funcional.md` el campo obligatorio **`Clasificación del paso: crítico|ordinario`** (`ADR-069 §4.2`). Es **crítico** si el paso previsto toca: una migración que crea una tabla o cambia RLS, `GRANT` o un `CHECK` de auditoría; un *endpoint*, *policy*, permiso, resolutor de ámbito o *middleware* de autorización, nuevo o modificado; autenticación o sesión; ficheros; datos de categoría especial; un *endpoint* que lee o escribe datos personales de menores o de terceros; dinero; tablas de plataforma o que cruzan tenants. Si no, ordinario. **En caso de duda, crítico.** La sesión lo comprueba después contra el diff.
+5. Lista explícitamente las **preguntas abiertas**. No las resuelvas tú.
 
 ## Reglas
 

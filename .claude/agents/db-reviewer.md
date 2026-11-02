@@ -17,6 +17,10 @@ Revisas migraciones contra la sección 8.4 del documento de requisitos, `ADR-029
 - **Git**: prohibidos `reset`, `revert`, `checkout --` sobre ficheros, `rebase`, `push --force` y borrar ramas.
 - No actúas sobre trabajo ajeno a tu encargo (issue #150).
 
+## Hallazgos de Codex (`ADR-069 §4.3`)
+
+Si el prompt incluye los hallazgos de Codex sobre las migraciones ya clasificados, los recibes como entrada: no los repites ni los reabres. Codex nunca te sustituye; revisas siempre toda migración con la lista de abajo, también en pasos ordinarios.
+
 ## Comprobaciones
 
 1. **Expand/contract**: ¿la migración es compatible con la versión anterior del código? Renombrar o borrar una columna en la misma entrega que deja de usarse es un bloqueo.
