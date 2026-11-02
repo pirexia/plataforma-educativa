@@ -2528,6 +2528,247 @@ components:
           properties:
             as_of: { type: string, format: date-time }
 
+    # ─── REQ-PRL (1.14b-b): puerta y entrega de menores ───
+
+    MovementDirection:
+      type: string
+      description: 'Sentido de un movimiento del alumno en la puerta. Enumerado **extensible**.'
+      enum: [entrada, salida]
+      x-extensible-enum: true
+
+    MovementVerificationMethod:
+      type: string
+      description: >
+        Cómo verificó quien entrega la identidad de la persona que recoge (RN-PRL-05). Un tutor **sin fotografía** solo
+        admite `documento` (RN-PRL-06). Enumerado **extensible**.
+      enum: [foto, documento, foto_y_documento]
+      x-extensible-enum: true
+
+    MovementOffScheduleReason:
+      type: string
+      description: 'Motivo de un movimiento fuera de horario (RN-PRL-07). `otro` exige además `notes`. Enumerado **extensible**.'
+      enum: [medico, familiar, actividad, retraso, otro]
+      x-extensible-enum: true
+
+    PickupAlertKind:
+      type: string
+      description: 'Tipo de alerta. En `1.14b-b` solo `persona_no_autorizada`; `alumno_no_recogido` llega con `1.14b-d`. Enumerado **extensible**.'
+      enum: [persona_no_autorizada]
+      x-extensible-enum: true
+
+    PickupAlertStatus:
+      type: string
+      description: 'Estado de una alerta: `abierta` o `cerrada` (no se reabre). Enumerado **extensible**.'
+      enum: [abierta, cerrada]
+      x-extensible-enum: true
+
+    PickupAlertResolution:
+      type: string
+      description: 'Resolución con la que se cierra una alerta (RN-PRL-08). Enumerado **extensible**.'
+      enum: [no_entregado, recogido_por_autorizado, autorizacion_puntual_registrada, otro]
+      x-extensible-enum: true
+
+    DoorStudent:
+      type: object
+      description: >
+        REQ-PRL/api.md §8.4. Un alumno del buscador de la puerta, nombrado por el `public_id` de su persona.
+        `family_unit_code` es el código de su unidad familiar, o `null` si solo tiene vínculos (OPEN-068-06).
+      required: [student_person, display_name, family_unit_code]
+      properties:
+        student_person: { $ref: '#/components/schemas/PublicId' }
+        display_name: { type: string }
+        family_unit_code:
+          oneOf:
+            - { type: string }
+            - { type: 'null' }
+
+    DoorPickupList:
+      type: object
+      description: >
+        REQ-PRL/api.md §8.4. La lista de puerta de un alumno en `meta.as_of` (instante del servidor): la misma forma que
+        `PickupList` de `fam_unit`. Sin caché (`Cache-Control: no-store`; las URLs de fotografía caducan en minutos).
+        `meta.protocol_available`: el protocolo de actuación ante una persona no autorizada está disponible (siempre el
+        mínimo del producto en `1.14b-b`).
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/PickupListEntry' }
+        meta:
+          type: object
+          required: [as_of, protocol_available]
+          properties:
+            as_of: { type: string, format: date-time }
+            protocol_available: { type: boolean }
+
+    StudentMovement:
+      type: object
+      description: >
+        REQ-PRL/api.md §8.4. Un movimiento de un alumno en la puerta: **solo anexar**, no se edita ni se borra (RN-PRL-04);
+        una corrección es otro movimiento con `corrects`. `basis` y `verification_method` son `null` en una entrada.
+        `delivered_by` y `recorded_by` son el `public_id` de un usuario. No se exponen las referencias internas de la
+        evidencia (vínculo o autorización).
+      required: [public_id, student_person, direction, off_schedule, off_schedule_reason, notes, picked_up_by, basis, verification_method, delivered_by, recorded_by, corrects, correction_reason, occurred_at]
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        student_person: { $ref: '#/components/schemas/PublicId' }
+        direction: { $ref: '#/components/schemas/MovementDirection' }
+        off_schedule: { type: boolean }
+        off_schedule_reason:
+          oneOf:
+            - { $ref: '#/components/schemas/MovementOffScheduleReason' }
+            - { type: 'null' }
+        notes:
+          oneOf:
+            - { type: string, maxLength: 500 }
+            - { type: 'null' }
+        picked_up_by:
+          oneOf:
+            - type: object
+              required: [person, display_name]
+              properties:
+                person: { $ref: '#/components/schemas/PublicId' }
+                display_name: { type: string }
+            - { type: 'null' }
+        basis:
+          oneOf:
+            - { $ref: '#/components/schemas/PickupBasisKind' }
+            - { type: 'null' }
+        verification_method:
+          oneOf:
+            - { $ref: '#/components/schemas/MovementVerificationMethod' }
+            - { type: 'null' }
+        delivered_by: { $ref: '#/components/schemas/PublicId' }
+        recorded_by: { $ref: '#/components/schemas/PublicId' }
+        corrects:
+          oneOf:
+            - { $ref: '#/components/schemas/PublicId' }
+            - { type: 'null' }
+        correction_reason:
+          oneOf:
+            - { type: string, maxLength: 500 }
+            - { type: 'null' }
+        occurred_at: { type: string, format: date-time }
+
+    StudentMovementRequest:
+      type: object
+      description: >
+        REQ-PRL/api.md §8.4. Cuerpo de `POST /student-movements`. El servidor resuelve `basis` y la referencia con la lista
+        de `fam_unit` **dentro de la transacción** (el cliente no los envía). Una `salida` exige `picked_up_by` y
+        `verification_method`; una `entrada` no lleva ninguno. `delivered_by` nulo = quien registra; si se indica, es un
+        usuario vivo y activo del centro. `off_schedule = true` exige `off_schedule_reason` (y `notes` con `otro`).
+        `corrects` (movimiento del mismo alumno) exige `correction_reason`.
+      required: [student_person, direction]
+      properties:
+        student_person: { $ref: '#/components/schemas/PublicId' }
+        direction: { $ref: '#/components/schemas/MovementDirection' }
+        picked_up_by:
+          oneOf:
+            - { $ref: '#/components/schemas/PublicId' }
+            - { type: 'null' }
+        verification_method:
+          oneOf:
+            - { $ref: '#/components/schemas/MovementVerificationMethod' }
+            - { type: 'null' }
+        delivered_by:
+          oneOf:
+            - { $ref: '#/components/schemas/PublicId' }
+            - { type: 'null' }
+        off_schedule: { type: boolean, default: false }
+        off_schedule_reason:
+          oneOf:
+            - { $ref: '#/components/schemas/MovementOffScheduleReason' }
+            - { type: 'null' }
+        notes:
+          oneOf:
+            - { type: string, maxLength: 500 }
+            - { type: 'null' }
+        corrects:
+          oneOf:
+            - { $ref: '#/components/schemas/PublicId' }
+            - { type: 'null' }
+        correction_reason:
+          oneOf:
+            - { type: string, maxLength: 500 }
+            - { type: 'null' }
+
+    PickupAlert:
+      type: object
+      description: >
+        REQ-PRL/api.md §8.4. Alerta por persona no autorizada (RN-PRL-08). Una alerta **cerrada** no se reabre (`409
+        prl.alert.closed`) ni se borra. `protocol` y `contacts` van solo en el alta y en el detalle **mientras está
+        abierta**, calculados al leer y nunca guardados: el protocolo de actuación (texto mínimo del producto en el idioma
+        de la petición) y los teléfonos del tutor principal y del contacto de emergencia para la llamada manual
+        (`null` si no hay o no se pueden mostrar). **No envía nada** automáticamente (OPEN-FAM-UNIT-33).
+      required: [public_id, student_person, kind, presenter_description, status, raised_by, raised_at, principal_contacted_at, resolution, resolution_notes, resolved_by, resolved_at]
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        student_person: { $ref: '#/components/schemas/PublicId' }
+        kind: { $ref: '#/components/schemas/PickupAlertKind' }
+        presenter_description: { type: string, maxLength: 500 }
+        status: { $ref: '#/components/schemas/PickupAlertStatus' }
+        raised_by: { $ref: '#/components/schemas/PublicId' }
+        raised_at: { type: string, format: date-time }
+        principal_contacted_at:
+          oneOf:
+            - { type: string, format: date-time }
+            - { type: 'null' }
+        resolution:
+          oneOf:
+            - { $ref: '#/components/schemas/PickupAlertResolution' }
+            - { type: 'null' }
+        resolution_notes:
+          oneOf:
+            - { type: string, maxLength: 1000 }
+            - { type: 'null' }
+        resolved_by:
+          oneOf:
+            - { $ref: '#/components/schemas/PublicId' }
+            - { type: 'null' }
+        resolved_at:
+          oneOf:
+            - { type: string, format: date-time }
+            - { type: 'null' }
+        protocol: { type: string }
+        contacts:
+          type: object
+          required: [principal_phone, emergency_phone]
+          properties:
+            principal_phone:
+              oneOf:
+                - { type: string }
+                - { type: 'null' }
+            emergency_phone:
+              oneOf:
+                - { type: string }
+                - { type: 'null' }
+
+    PickupAlertCreateRequest:
+      type: object
+      description: 'REQ-PRL/api.md §8.4. Cuerpo de `POST /pickup-alerts`. `presenter_description`: nombre declarado y documento exhibido por quien se presenta (1 a 500 caracteres).'
+      required: [student_person, presenter_description]
+      properties:
+        student_person: { $ref: '#/components/schemas/PublicId' }
+        kind: { $ref: '#/components/schemas/PickupAlertKind' }
+        presenter_description: { type: string, minLength: 1, maxLength: 500 }
+
+    PickupAlertUpdateRequest:
+      type: object
+      description: >
+        REQ-PRL/api.md §8.4. Cuerpo de `PATCH /pickup-alerts/{id}`: al menos un campo. `principal_contacted_at` registra la
+        llamada al tutor principal (no futura ni anterior a la apertura); `resolution` cierra la alerta y `resolution_notes`
+        (hasta 1 000 caracteres) solo va con ella. Cualquier otro campo de la alerta no se edita (`422`).
+      properties:
+        principal_contacted_at:
+          oneOf:
+            - { type: string, format: date-time }
+            - { type: 'null' }
+        resolution: { $ref: '#/components/schemas/PickupAlertResolution' }
+        resolution_notes:
+          oneOf:
+            - { type: string, maxLength: 1000 }
+            - { type: 'null' }
+
     MyTerms:
       type: object
       description: >
@@ -2716,6 +2957,16 @@ components:
       in: query
       description: Búsqueda de texto libre. Campos sobre los que busca declarados por endpoint.
       schema: { type: string }
+    PrlIdempotencyKeyHeader:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: >
+        REQ-PRL RN-PRL-09 (INV-011). Opcional: de 1 a 128 caracteres ASCII visibles. La misma clave del mismo usuario con el
+        mismo cuerpo devuelve el resultado original sin duplicar (`201` con `Idempotency-Replayed: true`); con otro cuerpo,
+        `409 prl.idempotency_mismatch`. No es la cabecera ULID obligatoria del resto de la API: aquí la deduplicación es de la
+        propia tabla.
+      schema: { type: string, minLength: 1, maxLength: 128 }
     IdempotencyKeyHeader:
       name: Idempotency-Key
       in: header
