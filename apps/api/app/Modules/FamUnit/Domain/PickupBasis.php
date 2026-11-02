@@ -12,6 +12,11 @@ namespace App\Modules\FamUnit\Domain;
  *
  * `validFrom` y `validUntil` (fechas civiles del centro, `Y-m-d`) solo en `tercero` y `puntual`; `validUntil` nulo =
  * sin caducidad. Nunca se incluye el motivo de una puntual (texto libre).
+ *
+ * `referenceId` (1.14b-b, `REQ-PRL-004`): el id interno del vínculo o de la autorización. Es la clave con la que un consumidor
+ * guarda la **evidencia** de la base con la que se entregó a un menor (`student_movements.guardian_student_link_id` o
+ * `.pickup_authorization_id`, `datos.md §8.4` de `REQ-PRL`): una clave foránea de evidencia, nunca una lectura de las tablas de
+ * `fam_unit` (`INV-007`, `ADR-068 §5.1`). Es un entero interno, como `PickupEntry::$personId`.
  */
 final class PickupBasis
 {
@@ -27,5 +32,6 @@ final class PickupBasis
         public readonly string $relationship,
         public readonly ?string $validFrom = null,
         public readonly ?string $validUntil = null,
+        public readonly ?int $referenceId = null,
     ) {}
 }

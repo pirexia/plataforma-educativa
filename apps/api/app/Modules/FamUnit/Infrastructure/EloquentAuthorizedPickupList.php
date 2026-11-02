@@ -8,6 +8,8 @@ use App\Modules\FamUnit\Application\GuardianLinkService;
 use App\Modules\FamUnit\Application\PickupListReader;
 use App\Modules\FamUnit\Application\PickupListService;
 use App\Modules\FamUnit\Domain\AuthorizedPickupList;
+use App\Modules\FamUnit\Domain\PickupBasis;
+use App\Modules\FamUnit\Domain\PickupGrant;
 use App\Modules\FamUnit\Domain\StudentMatch;
 use App\Support\Modules\ModuleAvailability;
 
@@ -33,6 +35,33 @@ final class EloquentAuthorizedPickupList implements AuthorizedPickupList
     public function isAuthorized(int $personId, int $studentPersonId): bool
     {
         return $this->authorizedAmong($studentPersonId, [$personId]) !== [];
+    }
+
+    public function grantFor(int $personId, int $studentPersonId): ?PickupGrant
+    {
+        if (! $this->modules->isEnabled('fam_unit')) {
+            return null;
+        }
+
+        // Fallo en cerrado: ni el alumno ni la persona pueden ser desconocidos, de otro centro ni estar borrados.
+        $refs = $this->people->refsByIds([$studentPersonId, $personId]);
+
+        foreach ([$studentPersonId, $personId] as $id) {
+            if (! isset($refs[$id]) || $refs[$id]->removed) {
+                return null;
+            }
+        }
+
+        $bases = array_map(
+            static fn (array $row): PickupBasis => new PickupBasis($row['basis'], $row['reference'], $row['relationship'], $row['valid_from'], $row['valid_until'], $row['reference_id']),
+            $this->list->compose($studentPersonId, [$personId]),
+        );
+
+        if ($bases === []) {
+            return null;
+        }
+
+        return new PickupGrant($personId, $bases, isset($this->list->photosAmong([$personId])[$personId]));
     }
 
     public function entriesFor(int $studentPersonId, string $purpose): array
