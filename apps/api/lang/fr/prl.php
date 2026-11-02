@@ -30,7 +30,7 @@ return [
     ],
 
     'errors' => [
-        'read_rate_limited' => 'Has alcanzado el límite de consultas de alertas y movimientos de la puerta. Inténtalo de nuevo en unos :minutes minutos.',
+        'read_rate_limited' => 'Vous avez atteint la limite de consultations des alertes et des mouvements de la porte. Réessayez dans environ :minutes minutes.',
     ],
 
     'validation' => [
