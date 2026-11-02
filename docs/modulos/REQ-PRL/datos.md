@@ -1,6 +1,6 @@
 # REQ-PRL · Puerta y entrega de menores · Datos
 
-> **Origen del contenido.** Traslado **sin cambios de contenido** de lo marcado `prl` en `docs/modulos/REQ-FAM-UNIT/` (especificación del paso `1.14b`, aprobada el 2026-10-29), tal como exige `ADR-068 §5.1`. La numeración de IDs (`RN-PRL-*`, `CA-PRL-*`, `OPEN-*`, secciones `§21.x`/`§8.x`) se conserva tal cual para que las referencias cruzadas existentes sigan siendo válidas. Las referencias a `§N` sin más indican la sección de `REQ-FAM-UNIT/funcional.md`, `datos.md`, `api.md`, `permisos.md` u `operacion.md` del fichero homónimo de ese módulo.
+> **Origen del contenido.** Traslado **sin cambios de contenido** (salvo las secciones de implementación de `1.14b-b`, que son nuevas) de lo marcado `prl` en `docs/modulos/REQ-FAM-UNIT/` (especificación del paso `1.14b`, aprobada el 2026-10-29), tal como exige `ADR-068 §5.1`. La numeración de IDs (`RN-PRL-*`, `CA-PRL-*`, `OPEN-*`, secciones `§21.x`/`§8.x`) se conserva tal cual para que las referencias cruzadas existentes sigan siendo válidas. Las referencias a `§N` sin más indican la sección de `REQ-FAM-UNIT/funcional.md`, `datos.md`, `api.md`, `permisos.md` u `operacion.md` del fichero homónimo de ese módulo.
 
 ### 8.4 `prl` · `student_movements` (`1.14b-b`) — solo anexar
 
@@ -66,4 +66,5 @@ Tabla ordinaria (con `deleted_at` por `INV-005`, pero sin *endpoint* de borrado:
 - **`CHECK`s** hechos cumplir por el motor (todos con test en `PrlSchemaTest`): `direction`, `off_schedule_reason`, fuera de horario con motivo, motivo `otro` con nota, `notes` ≤ 500, salida con persona que recoge, `basis`, `verification_method`, persona/base/método juntos o ninguno, base coherente con la referencia presente, corrección con motivo, idempotencia con *hash*.
 - **`pickup_alerts`**: `tenantTable()` (con `deleted_at` por `INV-005`, sin *endpoint* de borrado). Además del `CHECK` de cierre de `§8.5` se añade `pickup_alerts_open_without_resolution_check` (una abierta no lleva resolución, instante, autor ni notas de resolución; `funcional.md DP-6`).
 - **Índices**: los de `§8.6`, el único parcial de idempotencia de cada tabla (`(tenant_id, recorded_by | raised_by, idempotency_key) WHERE idempotency_key IS NOT NULL`) y, por `AR-16`, un índice **completo** (`indpred IS NULL`) con prefijo `(tenant_id, columna)` para cada clave foránea compuesta (comprobado en `PrlSchemaTest`).
-- **`down()`**: se niega (`RuntimeException`) si hay filas en cualquier centro (evidencia ante un incidente con un menor; `tests/Concurrency/PrlConcurrencyTest.php`).
+- **`down()`**: se niega (`RuntimeException`) si hay filas en cualquier centro (evidencia ante un incidente con un menor; `apps/api/tests/Concurrency/PrlConcurrencyTest.php`).
+- **Longitud de la clave de idempotencia**: `CHECK (idempotency_key IS NULL OR length(idempotency_key) <= 255)` en ambas tablas (`..._idempotency_key_length_check`); la petición ya la limita a 128 (`funcional.md DP-13`).

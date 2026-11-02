@@ -1,13 +1,13 @@
 # REQ-PRL · Puerta y entrega de menores · API
 
-> **Origen del contenido.** Traslado **sin cambios de contenido** de lo marcado `prl` en `docs/modulos/REQ-FAM-UNIT/` (especificación del paso `1.14b`, aprobada el 2026-10-29), tal como exige `ADR-068 §5.1`. La numeración de IDs (`RN-PRL-*`, `CA-PRL-*`, `OPEN-*`, secciones `§21.x`/`§8.x`) se conserva tal cual para que las referencias cruzadas existentes sigan siendo válidas. Las referencias a `§N` sin más indican la sección de `REQ-FAM-UNIT/funcional.md`, `datos.md`, `api.md`, `permisos.md` u `operacion.md` del fichero homónimo de ese módulo.
+> **Origen del contenido.** Traslado **sin cambios de contenido** (salvo las secciones de implementación de `1.14b-b`, que son nuevas) de lo marcado `prl` en `docs/modulos/REQ-FAM-UNIT/` (especificación del paso `1.14b`, aprobada el 2026-10-29), tal como exige `ADR-068 §5.1`. La numeración de IDs (`RN-PRL-*`, `CA-PRL-*`, `OPEN-*`, secciones `§21.x`/`§8.x`) se conserva tal cual para que las referencias cruzadas existentes sigan siendo válidas. Las referencias a `§N` sin más indican la sección de `REQ-FAM-UNIT/funcional.md`, `datos.md`, `api.md`, `permisos.md` u `operacion.md` del fichero homónimo de ese módulo.
 
 ### 8.4 Puerta (`prl`, `1.14b-b`)
 
 | Verbo y ruta | Permiso | Respuesta | Errores propios |
 |---|---|---|---|
 | `GET /door/students?q=` | `entrega_menor.leer` | 200 colección (máx. 20, sin paginar): `student_person`, `display_name`, `family_unit_code`. `q` de 2 a 100 caracteres | 422 |
-| `GET /door/students/{student_person}/pickup-list` | `entrega_menor.leer` | 200 `{ data: [PickupListEntry], meta: { as_of, protocol_available } }`; lectura auditada con finalidad `puerta` y límite | 404, 429 |
+| `GET /door/students/{studentPersonPublicId}/pickup-list` | `entrega_menor.leer` | 200 `{ data: [PickupListEntry], meta: { as_of, protocol_available } }`; lectura auditada con finalidad `puerta` y límite | 404, 429 |
 | `POST /student-movements` | `entrega_menor.crear` | 201 `StudentMovement`; con `Idempotency-Key` repetida, la respuesta original | 422 `prl.movement.person_not_authorized`, `prl.movement.verification_requires_document`, `prl.movement.reason_required`, `validation.*`; 409 `idempotency_mismatch` |
 | `GET /student-movements` | `entrega_menor.leer` | 200 colección, cursor `(occurred_at DESC, id DESC)`; filtros `student_person`, `date`, `direction`, `off_schedule` | 422 |
 | `GET /student-movements/{id}` | `entrega_menor.leer` | 200 | 404 |
@@ -56,7 +56,10 @@ El servidor resuelve `basis` y la referencia (vínculo o autorización) con `Aut
 
 - **`Idempotency-Key`** (`POST /student-movements`, `POST /pickup-alerts`): opcional, de 1 a 128 caracteres ASCII visibles, por usuario que registra (`funcional.md DP-4`). Repetición con el mismo cuerpo: `201` con el recurso original y `Idempotency-Replayed: true`.
 - **`StudentMovement`** añade `correction_reason` (`DP-7`). **`PickupAlert`** añade, en el alta y en el detalle **mientras está abierta**, `protocol` y `contacts` (`{ principal_phone, emergency_phone }`, calculados al leer, `DP-5`); el listado y la alerta cerrada no los llevan.
-- **`GET /door/students/{student_person}/pickup-list`**: lectura auditada de `fam_unit` con finalidad `puerta` (una fila `read` por consulta, `CA-PRL-010`) y el cubo de lectura compartido de `RN-FAM-UNIT-93` (`429` con `Retry-After`); `Cache-Control: no-store`; `404` si el alumno no existe o es de otro centro.
+- **`GET /door/students/{studentPersonPublicId}/pickup-list`**: lectura auditada de `fam_unit` con finalidad `puerta` (una fila `read` por consulta, `CA-PRL-010`) y el cubo de lectura compartido de `RN-FAM-UNIT-93` (`429` con `Retry-After`); `Cache-Control: no-store`; `404` si el alumno no existe o es de otro centro.
 - **`GET /door/students?q=`**: de 2 a 100 caracteres (`422` fuera de rango), máximo 20 resultados, por comienzo de nombre o apellidos sin distinguir mayúsculas.
 - **`GET /student-movements`**: cursor opaco y cifrado ligado a los filtros y al centro (`422` si no corresponde); `limit` de 1 a 200 (por defecto 50). **`GET /pickup-alerts`**: página de 25 por defecto (máximo 100).
 - **No existen** `PATCH`/`DELETE` de movimientos (`405`) ni `DELETE` de alertas (`405`): son evidencia.
+- **Protocolo**: en `1.14b-b` solo existe el **texto mínimo fijo** del producto (`funcional.md DP-5`); el texto propio del centro (`OPEN-FAM-UNIT-40`) sigue abierto.
+- **Lecturas con datos de personas** (`funcional.md DP-11`, decisión del usuario del 2026-11-02): `POST /pickup-alerts`, `GET` y `PATCH /pickup-alerts/{id}` (alerta abierta), `GET /student-movements` y `GET /student-movements/{id}` escriben una fila `read` sin valores y consumen el cupo de lectura de `prl` (`429` con `Retry-After`).
+- **Parámetros de ruta**: en código y en OpenAPI `{studentPersonPublicId}` (`ADR-051 §5.2`); el texto de `§8.4` escribe `{student_person}` por herencia de la especificación.

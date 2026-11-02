@@ -1,6 +1,6 @@
 # REQ-PRL · Puerta y entrega de menores · Permisos
 
-> **Origen del contenido.** Traslado **sin cambios de contenido** de lo marcado `prl` en `docs/modulos/REQ-FAM-UNIT/` (especificación del paso `1.14b`, aprobada el 2026-10-29), tal como exige `ADR-068 §5.1`. La numeración de IDs (`RN-PRL-*`, `CA-PRL-*`, `OPEN-*`, secciones `§21.x`/`§8.x`) se conserva tal cual para que las referencias cruzadas existentes sigan siendo válidas. Las referencias a `§N` sin más indican la sección de `REQ-FAM-UNIT/funcional.md`, `datos.md`, `api.md`, `permisos.md` u `operacion.md` del fichero homónimo de ese módulo.
+> **Origen del contenido.** Traslado **sin cambios de contenido** (salvo las secciones de implementación de `1.14b-b`, que son nuevas) de lo marcado `prl` en `docs/modulos/REQ-FAM-UNIT/` (especificación del paso `1.14b`, aprobada el 2026-10-29), tal como exige `ADR-068 §5.1`. La numeración de IDs (`RN-PRL-*`, `CA-PRL-*`, `OPEN-*`, secciones `§21.x`/`§8.x`) se conserva tal cual para que las referencias cruzadas existentes sigan siendo válidas. Las referencias a `§N` sin más indican la sección de `REQ-FAM-UNIT/funcional.md`, `datos.md`, `api.md`, `permisos.md` u `operacion.md` del fichero homónimo de ese módulo.
 
 ## 8.1 Recursos
 
@@ -13,7 +13,7 @@
 
 | `code` | `applicable_scopes` | *Endpoints* (`api.md §8`) |
 |--------|---------------------|---------------------------|
-| `entrega_menor.leer` (`prl`) | `['todos']` | `GET /door/students`, `GET /door/students/{…}/pickup-list`, `GET /student-movements*` |
+| `entrega_menor.leer` (`prl`) | `['todos']` | `GET /door/students`, `GET /door/students/{studentPersonPublicId}/pickup-list`, `GET /student-movements*` |
 | `entrega_menor.crear` (`prl`) | `['todos']` | `POST /student-movements` |
 | `alerta_entrega.leer` (`prl`) | `['todos']` | `GET /pickup-alerts*` |
 | `alerta_entrega.crear` (`prl`) | `['todos']` | `POST /pickup-alerts` |
@@ -37,8 +37,10 @@
 | `direccion` | `autorizado_recogida.leer`, `entrega_menor.leer`, `alerta_entrega.*` | `todos` |
 | `conserjeria_pas` (rol predefinido de `ProvisionTenantDefaults`, `ADR-068` hecho 16) | `entrega_menor.leer`, `entrega_menor.crear`, `alerta_entrega.leer`, `alerta_entrega.crear` | `todos` |
 
-Conserjería **no** recibe `autorizado_recogida.crear`: una recogida no prevista pasa por secretaría o dirección, que la registran como autorización puntual por el canal `telefono` tras devolver la llamada al principal (`OPEN-FAM-UNIT-35`, aprobada; `RN-FAM-UNIT-85`). Siembra por `ProvisionTenantDefaults` y por un comando de `Core` para centros existentes (patrón `fam_unit:grant-permissions`; uno por módulo o ampliar el existente: decisión de implementación), idempotente y sin conceder nada si falta un permiso (#387). **MFA** (recomendación, no se aplica): un rol con `autorizado_recogida.crear` debería llevar `mfa_obligatorio`, porque puede añadir a un extraño a la lista de un menor.
+Conserjería **no** recibe `autorizado_recogida.crear`: una recogida no prevista pasa por secretaría o dirección, que la registran como autorización puntual por el canal `telefono` tras devolver la llamada al principal (`OPEN-FAM-UNIT-35`, aprobada; `RN-FAM-UNIT-85`). Siembra por `ProvisionTenantDefaults` y por un comando de `Core` para centros existentes (se amplió el existente, `fam_unit:grant-permissions`), idempotente y sin conceder nada si falta un permiso (#387). **MFA** (recomendación, no se aplica): un rol con `autorizado_recogida.crear` debería llevar `mfa_obligatorio`, porque puede añadir a un extraño a la lista de un menor.
 
 ### 8.5 Implementación de `1.14b-b`
 
-> **Estado**: **IMPLEMENTADA** (2026-11-02). Los cinco permisos los declara `PrlServiceProvider::declaredPermissions()` (ámbito `todos`, ninguno de categoría especial, ni `exportar` ni `importar`; `AR-09`). La siembra de `§8.4` es `ProvisionTenantDefaults::FAMILY_PERMISSION_GRANTS` (centros nuevos) y `fam_unit:grant-permissions` (centros existentes): `administrador_centro` los cinco; `secretaria` `entrega_menor.leer` y `alerta_entrega.leer`; `direccion` `entrega_menor.leer` y `alerta_entrega.{leer,crear,actualizar}`; `conserjeria_pas` `entrega_menor.{leer,crear}` y `alerta_entrega.{leer,crear}` (sin `autorizado_recogida.*`, sin cerrar alertas). Sin siembra para docentes ni `tutor_legal` (`OPEN-FAM-UNIT-42`). Tests: `tests/Feature/Prl/PrlPermissionsTest.php` y `DoorApiTest.php` (`CA-PRL-009`: sin permiso, también un tutor con ámbito `unidad_familiar`, `403`; `deny` en uno de los roles, `403`).
+> **Estado**: **IMPLEMENTADA** (2026-11-02). Los cinco permisos los declara `PrlServiceProvider::declaredPermissions()` (ámbito `todos`, ninguno de categoría especial, ni `exportar` ni `importar`; `AR-09`). La siembra de `§8.4` es `ProvisionTenantDefaults::FAMILY_PERMISSION_GRANTS` (centros nuevos) y `fam_unit:grant-permissions` (centros existentes): `administrador_centro` los cinco; `secretaria` `entrega_menor.leer` y `alerta_entrega.leer`; `direccion` `entrega_menor.leer` y `alerta_entrega.{leer,crear,actualizar}`; `conserjeria_pas` `entrega_menor.{leer,crear}` y `alerta_entrega.{leer,crear}` (sin `autorizado_recogida.*`, sin cerrar alertas). Sin siembra para docentes ni `tutor_legal` (`OPEN-FAM-UNIT-42`). Tests: `apps/api/tests/Feature/Prl/PrlPermissionsTest.php` y `DoorApiTest.php` (`CA-PRL-009`: sin permiso, también un tutor con ámbito `unidad_familiar`, `403`; `deny` en uno de los roles, `403`).
+
+Un rol con estos permisos en un ámbito distinto de `todos` (p. ej. insertado a mano) **no concede nada**: `entrega_menor.*` y `alerta_entrega.*` no tienen resolutor de ámbito y las nueve rutas responden `403` (`PrlReadAuditTest`, seguridad M2).

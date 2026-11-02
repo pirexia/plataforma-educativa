@@ -207,7 +207,7 @@ Ningún cambio de `mfa_required` en roles. Recomendación que no se aplica aquí
 
 ### 8.4 Siembra en roles predefinidos (`L9`, aprobada 2026-10-29)
 
-> **`1.14b-a` siembra solo los cuatro permisos `autorizado_recogida.*`** (administrador y secretaría, los cuatro; dirección y `tutor_legal`, `leer`). Las filas de `entrega_menor.*` y `alerta_entrega.*` de la tabla (`direccion`, `secretaria`, `conserjeria_pas`, `administrador_centro`) **no se siembran todavía**: esos permisos no existen sin el módulo `prl` y se declaran y siembran en `1.14b-b` (`funcional.md §22` D-59). Conserjería no recibe nada hasta entonces.
+> **`1.14b-a` siembra solo los cuatro permisos `autorizado_recogida.*`** (administrador y secretaría, los cuatro; dirección y `tutor_legal`, `leer`). Las filas de `entrega_menor.*` y `alerta_entrega.*` de la tabla (`direccion`, `secretaria`, `conserjeria_pas`, `administrador_centro`) **no se siembran todavía**: esos permisos no existen sin el módulo `prl` y se declaran y siembran en `1.14b-b` (`funcional.md §22` D-59). Conserjería no recibe nada hasta entonces. **(Cumplido en `1.14b-b`: `docs/modulos/REQ-PRL/permisos.md §8.5`.)**
 
 | Rol | Permisos | Ámbito |
 |-----|----------|--------|
