@@ -2,8 +2,8 @@
 
 | Campo | Valor |
 |-------|-------|
-| **Versión** | 3.2.23 |
-| **Fecha** | 2026-10-29 |
+| **Versión** | 3.2.24 |
+| **Fecha** | 2026-11-02 |
 | **Estado** | Borrador consolidado — pendiente de aprobación |
 | **Autor** | Product Owner |
 | **Documento sustituye a** | v1.2.0 (mismo contenido, reorganizado y ampliado) |
@@ -3363,6 +3363,7 @@ Se mantendrá una matriz de trazabilidad (generada automáticamente desde las re
 
 | Versión | Fecha | Autor | Descripción |
 |---------|-------|-------|-------------|
+| 3.2.24 | 2026-11-02 | Product Owner | `ADR-069` (Codex como primer revisor del pipeline, con reparto de la revisión por tipo de comprobación) aplicado: `CLAUDE.md` 2.10.0, skill `revision-con-codex` con `contexto-codex.md`, agentes `security-reviewer`/`db-reviewer`/`spec-writer`, `PLAN-IMPLEMENTACION.md` 2.3.19, `SECURITY.md` 0.3.17 y `PRIVACY.md` 0.3.12. Condición `OPEN-069-01` pendiente: hasta su confirmación rige `ADR-050`. Sin cambios en los requisitos de las secciones 1-17. |
 | 3.2.16 | 2026-10-10 | Product Owner | `ADR-061` (actualización de PostgreSQL 17 a 18) aceptado y aplicado en la rama `chore/postgres-18`: imágenes `postgres:18` en desarrollo, prodlike, Quadlet y CI, volumen nuevo `postgres-cluster` montado en `/var/lib/postgresql`, `CA-058-02` actualizado a la lista de clases de PostgreSQL 18. Sustituye solo la fila de `ADR-037` que nombra `postgres-data.volume`; `ADR-001` («PostgreSQL 17+») intacto. Sin cambios en los requisitos de las secciones 1-17. |
 | 3.2.17 | 2026-10-10 | Product Owner | `ADR-062` (contenido del centro traducible, columna `jsonb` `<campo>_translations`) y `ADR-063` (ámbitos `grupo`, `clase` y `departamento`: `1.11` no registra ninguno; enmienda `ADR-044 §3`) propuestos con la especificación de `REQ-ACAD-001` (paso `1.11`). Sin cambios en los requisitos de las secciones 1-17. |
 | 3.2.18 | 2026-10-12 | Product Owner | `ADR-062` y `ADR-063` aceptados; `REQ-ACAD-001` (estructura académica) implementado en `1.11-b`. Desviaciones aprobadas respecto a la especificación, en `docs/modulos/REQ-ACAD/funcional.md §16`: `RPERM-013` acotada (ignora los permisos inertes de un módulo no contratado solo al asignar o clonar un rol que ya los contiene), un padre del cuerpo o `academic_year` de un curso cerrado ilegible es indistinguible de uno inexistente, y el código `acad.validation.invalid_characters`. Sin cambios en los requisitos de las secciones 1-17. |
