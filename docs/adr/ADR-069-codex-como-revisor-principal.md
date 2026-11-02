@@ -1,6 +1,6 @@
 # ADR-069 · Codex como primer revisor del pipeline, con reparto del trabajo de revisión por tipo de comprobación
 
-**Estado**: **PROPUESTA** (2026-11-02). La acepta el usuario; `OPEN-069-01` es condición previa de la aceptación (`§9`).
+**Estado**: **ACEPTADA** (2026-11-02) por el usuario, con el reparto de `§5` tal como está redactado y la segunda ronda de Medios delegada en Codex. **Condición de uso pendiente (`OPEN-069-01`)**: no se lanza Codex sobre código del proyecto hasta que el usuario confirme que el entrenamiento con sus datos está desactivado en su cuenta de OpenAI (o que usa una capa de pago); mientras tanto rige el régimen de `ADR-050`. Resueltas el 2026-11-02: `OPEN-069-03` (la sesión lanza Codex por `Bash` con `allow` solo para `review` y `adversarial-review`), `OPEN-069-04` (`spec-writer` clasifica, la sesión lo comprueba contra el diff, la duda es crítico) y `OPEN-069-05` (aprobada con la palanca 5 de ahorro de cuota). Siguen abiertas, con su recomendación, `OPEN-069-02` y `OPEN-069-06`.
 **Fecha**: 2026-11-02
 **Origen**: decisión del usuario del 2026-11-02 de dar más responsabilidad a Codex (`openai/codex-plugin-cc`, cuota de OpenAI) para gastar menos cuota de Claude en revisiones.
 **Sustituye parcialmente**:
