@@ -1,6 +1,6 @@
 # CLAUDE.md — Normas de trabajo del proyecto
 
-> **Versión 2.7.3** · 2026-10-21 · Fichero de contexto permanente. Se carga en **todas** las sesiones. Contiene solo reglas estables.
+> **Versión 2.8.0** · 2026-11-02 · Fichero de contexto permanente. Se carga en **todas** las sesiones. Contiene solo reglas estables.
 > Proyecto: **Plataforma de Gestión Educativa Multi-tenant**. Fuente de verdad funcional: `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md`.
 
 ---
@@ -94,6 +94,15 @@ git checkout config-claude-2026-10-08 -- CLAUDE.md .claude/agents .claude/skills
 - No cargues herramientas adicionales a mitad de sesión más veces de las necesarias (`ToolSearch` sobre herramientas diferidas, activar una skill que añade herramientas nuevas): cada herramienta nueva cambia el bloque de definiciones y invalida el prefijo cacheado para el resto de la sesión. Decide de una vez qué hará falta, no de forma incremental.
 - Esto no releva el protocolo de cierre de sesión de la sección 3 (cierre por cuota, cierre entre pasos del plan): esas normas son de higiene de contexto y priman sobre el ahorro de caché, aunque reabrir sesión pague un fallo de caché inevitable en el primer mensaje.
 
+**Ahorro de cuota (norma del usuario, 2026-11-02).** La cuota semanal del plan Pro se agota hacia el miércoles o el jueves y el proyecto durará meses: el gasto de tokens es una restricción de diseño del proceso, no un detalle.
+
+1. **Tramos de `implementer`.** No se lanza un único `implementer` largo por paso. Se parte en tramos **secuenciales** (nunca en paralelo en la misma rama: el contenedor monta el checkout principal) cortados en costuras naturales — datos y permisos / servicios y *endpoints* / UI / E2E real —, de unas 60-100 llamadas o menos de ~1 h cada uno. Coste aproximado = `k·R + c·n²/(2k)` (k tramos, R = lectura inicial de cada tramo, n = llamadas totales, c = coste por llamada y unidad de contexto): los pasos grandes piden más tramos y las lecturas iniciales caras, menos. Cada tramo cierra con un commit `Verificado: X/X …` y deja la nota viva de la sección 3; la fidelidad literal a la especificación de la sección 3 rige en cada tramo.
+2. **Prompt mínimo por tramo.** El prompt de cada subagente lista **solo** las secciones de la especificación que ese tramo necesita (con fichero y sección), no la especificación entera, y las decisiones ya aprobadas para que no se reabran. Es el mayor ahorro, porque reduce la lectura inicial.
+3. **Revisiones acotadas.** Los revisores se lanzan **una vez**, al final del paso, sobre el diff (no sobre la rama entera) y con las decisiones aprobadas en el prompt. Hay **segunda ronda solo si la primera trae Críticos, Altos o Medios**; los Bajos se corrigen directamente. `db-reviewer` solo si hay migraciones; un cambio solo web no lo lleva. Las correcciones se reúnen en **una sola reanudación** tras recibir **todos** los informes (cada reanudación recarga el contexto del agente).
+4. **Métricas.** Al terminar cada subagente se anota una fila (`subagent_tokens`, `tool_uses`, `duration_ms`; en reanudaciones, el delta) en `docs/metricas-agentes.md`. Al cerrar cada paso se recalculan media, mediana y tokens por llamada **por tipo de agente** y se ajusta el número de tramos del paso siguiente. Con menos de 5 observaciones por tipo, las cifras son orientativas. `subagent_tokens` no incluye lecturas de caché: sirve para comparar tramos, no como coste real.
+5. **Contexto principal pequeño.** La lectura, la búsqueda y la ejecución van en subagentes. No se reinicia la sesión por sistema: con un contexto pequeño (≈16 %) arrastrarlo cuesta menos que releer los ficheros de un arranque en frío; se reinicia por encima de ~50 % de contexto o antes de una pausa larga (la caché caduca tras ~1 h de inactividad, p. ej. mientras un subagente trabaja más de una hora). Esto **no** releva el cierre por cuota ni el cierre entre pasos de la sección 3, que sigue rigiendo salvo orden explícita del usuario.
+6. **Salidas cortas.** Los tests, linters y comandos se ejecutan con salida resumida o redirigida a fichero y se lee lo necesario (`tail`, `grep`); los ficheros grandes se leen con `offset`/`limit` tras localizar con `grep`.
+
 ---
 
 ## 3. Protocolo de sesión
@@ -128,6 +137,8 @@ git checkout config-claude-2026-10-08 -- CLAUDE.md .claude/agents .claude/skills
 Un relanzamiento que encuentra esa nota confía en los commits que cubre sin volver a ejecutar la suite sobre ellos, y solo verifica de verdad lo que quede sin commitear o sea posterior a la nota. Esto **no** afloja la norma anterior: ahorra reverificación de lo ya confirmado, no habilita recortar, ampliar ni reinterpretar alcance por su cuenta — eso sigue estando fuera de lo que decide un subagente relanzado.
 
 **Cuándo se ejecuta la suite (`ADR-060 §4.4`).** Durante el trabajo, solo los ficheros o directorios afectados (`php -d memory_limit=-1 vendor/bin/pest <rutas>`). La suite completa (`composer test`: Unit y Feature en paralelo, una base `plataforma_test_N` por proceso, y `Concurrency` en serie) se ejecuta **una vez en local antes de abrir el PR**, y CI la repite en cada *push*. Los revisores no la relanzan salvo necesidad justificada en su informe. El mensaje `Verificado` dice su alcance: `(suite completa)` o `(ficheros afectados: …)`, y un relanzamiento solo da por buena la suite completa con un `Verificado` de suite completa. Las bases por proceso se crean con el script de `SYSADMIN.md`; `composer test:serie` queda como vuelta atrás.
+
+**E2E contra la API real (norma del usuario, 2026-11-02).** Cuando un paso está implementado y su suite en verde, se prueba además **de extremo a extremo contra la API real** en ejecución (Playwright o HTTP real con cookie de sesión y CSRF, datos de `REQ-SEED`), no solo con cliente de pruebas ni con API simulada. Se permite **recrear el demo o la base** cuantas veces haga falta, sin pedir permiso. El resultado (qué se probó y qué no, p. ej. S3/MinIO) se registra en `memory.md` y en el informe del paso.
 
 ---
 

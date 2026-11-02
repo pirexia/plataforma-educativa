@@ -6,6 +6,13 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-02 · `chore`: normas de ahorro de cuota y E2E contra la API real (`CLAUDE.md` 2.8.0)
+
+- `CLAUDE.md` 2.8.0: sección 2 «Ahorro de cuota» (tramos secuenciales de `implementer`, prompt mínimo por tramo, revisiones acotadas con segunda ronda solo si hay Críticos, Altos o Medios, métricas por subagente, contexto principal pequeño, salidas cortas) y sección 3 «E2E contra la API real» (se permite recrear el demo).
+- Nuevo `docs/metricas-agentes.md` con las mediciones de `1.14b-a`.
+
+---
+
 ## 2026-11-02 · `1.14b-a`: autorizados de recogida en `fam_unit` y ampliaciones de `Core` (`REQ-FAM-UNIT-005`, rama `feature/REQ-FAM-UNIT-1-14ba-autorizados-recogida`)
 
 - **Implementación** (`ADR-068`): `App\Support\Files` (reprocesado de imágenes sin metadatos, almacén privado con URL firmada), `AuditRecorder::recordRead`, `PersonRegistrar`, ampliación de `PersonDirectory`, tablas `pickup_photos` y `pickup_authorizations` (3 migraciones con RLS), `kind` `autorizacion_recogida`, lista calculada con el predicado de `isAccessRevoked()` (resuelve #473), `AuthorizedPickupList`, 13 *endpoints*, 4 permisos `autorizado_recogida.*`, barrido de fotos huérfanas, OpenAPI.
