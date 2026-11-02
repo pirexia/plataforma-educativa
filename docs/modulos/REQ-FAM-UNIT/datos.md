@@ -267,7 +267,7 @@ La purga física de un tenant completo debe incluir estas **ocho** tablas (nueve
 | `mime_type` | `text` | No | `CHECK IN ('image/jpeg','image/png','image/webp')`: tipo real **tras** el reprocesado |
 | `byte_size` | `integer` | No | `CHECK (byte_size > 0)` |
 
-Restricciones: `UNIQUE (tenant_id, person_id) WHERE deleted_at IS NULL` (una foto viva por persona, `RN-FAM-UNIT-83`; es también el índice de la FK a `people`, `AR-16`). Sustituir = baja lógica de la anterior + alta; el objeto anterior lo purga el barrido de §8.6.
+Restricciones: `UNIQUE (tenant_id, person_id) WHERE deleted_at IS NULL` (una foto viva por persona, `RN-FAM-UNIT-83`). Índice completo `(tenant_id, person_id)` de la FK a `people` (`AR-16`; un índice parcial no sirve para comprobar la clave foránea, `db-reviewer`, `funcional.md §22` D-69). Sustituir = baja lógica de la anterior + alta; el objeto anterior lo purga el barrido de §8.6.
 
 ### 8.2 `fam_unit` · `pickup_authorizations` (`1.14b-a`)
 
@@ -291,7 +291,7 @@ Restricciones: `UNIQUE (tenant_id, person_id) WHERE deleted_at IS NULL` (una fot
 | `withdrawn_at` | `TIMESTAMPTZ` | Sí | — | Retirada (`RN-FAM-UNIT-87`) |
 | `withdrawn_by` | `bigint` | Sí | — | FK compuesta → `users`. `CHECK ((withdrawn_at IS NULL) = (withdrawn_by IS NULL))` |
 
-Restricciones: `UNIQUE (tenant_id, student_person_id, person_id) WHERE kind = 'permanente' AND withdrawn_at IS NULL AND deleted_at IS NULL`; `UNIQUE (tenant_id, student_person_id, person_id, valid_from) WHERE kind = 'puntual' AND withdrawn_at IS NULL AND deleted_at IS NULL` (`RN-FAM-UNIT-88`, por índice y no por comprobación). Tabla ordinaria (no de solo anexar) porque la retirada cambia su estado; el índice de `student_person_id` (`AR-16`) lo dan los dos únicos parciales y el de la lista, que comparten el prefijo `(tenant_id, student_person_id)`; el historial queda en `audit_logs` y en la propia fila (nunca se borra físicamente mientras exista una salida que la referencie).
+Restricciones: `UNIQUE (tenant_id, student_person_id, person_id) WHERE kind = 'permanente' AND withdrawn_at IS NULL AND deleted_at IS NULL`; `UNIQUE (tenant_id, student_person_id, person_id, valid_from) WHERE kind = 'puntual' AND withdrawn_at IS NULL AND deleted_at IS NULL` (`RN-FAM-UNIT-88`, por índice y no por comprobación). Tabla ordinaria (no de solo anexar) porque la retirada cambia su estado; la FK a `people` por `student_person_id` tiene su índice completo `(tenant_id, student_person_id)` (`AR-16`; los parciales de §8.6 no sirven para comprobarla); el historial queda en `audit_logs` y en la propia fila (nunca se borra físicamente mientras exista una salida que la referencie).
 
 ### 8.3 `fam_unit` · `terms_versions.kind` (`1.14b-a`, ampliación)
 
@@ -342,8 +342,9 @@ Tabla ordinaria (con `deleted_at` por `INV-005`, pero sin *endpoint* de borrado:
 
 | Índice | Consulta |
 |--------|----------|
+| `pickup_authorizations (tenant_id, student_person_id)` (completo, de la FK) | Comprobación de la clave foránea a `people` |
 | `pickup_authorizations (tenant_id, student_person_id, valid_from, valid_until) WHERE withdrawn_at IS NULL AND deleted_at IS NULL` | Composición de la lista de un alumno (`RN-FAM-UNIT-79`), la consulta caliente de la puerta |
-| `pickup_photos (tenant_id, person_id)` | Cubierto por el único parcial de §8.1 |
+| `pickup_photos (tenant_id, person_id)` (completo, de la FK) | Comprobación de la clave foránea a `people`; el único parcial de §8.1 hace cumplir «una viva por persona» |
 | `student_movements (tenant_id, student_person_id, occurred_at DESC, id DESC)` | Historial de un alumno (cursor) |
 | `student_movements (tenant_id, occurred_at DESC, id DESC)` | Salidas del día en conserjería |
 | `pickup_alerts (tenant_id, status, raised_at DESC) WHERE deleted_at IS NULL` | Alertas abiertas |

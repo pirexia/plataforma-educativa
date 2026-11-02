@@ -303,6 +303,8 @@ Nota: el issue #60 (`ValidationErrorFormatter` antepone `core.` al `code` de cua
 
 ### 8.1 Representaciones
 
+> **Parámetros de ruta**: este documento escribe `{person}` y `{student_person}`; en el código y en OpenAPI son `{personPublicId}` y `{studentPersonPublicId}` (`ADR-051 §5.2`, `funcional.md §22` D-65). Las autorizaciones usan `{publicId}`.
+
 **`PickupListEntry`** (una persona en la lista de un alumno, calculada; sin `public_id` propio):
 
 ```json
@@ -320,7 +322,7 @@ Nota: el issue #60 (`ValidationErrorFormatter` antepone `core.` al `code` de cua
 
 `bases[].basis` ∈ `tutor` (con `guardian_link` y `relationship` del vínculo), `tercero`, `puntual` (con `valid_from`/`valid_until` y sin `reason`). `photo_url` solo en las lecturas auditadas (§8.3); `null` si `has_photo = false`. `document` enmascarado siempre (`RN-FAM-UNIT-90`); con ámbito `unidad_familiar`, `document` se omite en los terceros (`RN-FAM-UNIT-91`). Nunca se incluye la existencia de un vínculo revocado ni de una persona excluida.
 
-**`PickupAuthorization`**: `public_id`, `student_person`, `person` (`public_id` + `display_name`), `relationship`, `kind`, `valid_from`, `valid_until`, `reason` (solo con `autorizado_recogida.leer` de ámbito `todos`), `authorized_by` (`public_id` del tutor), `terms_version` (`{ public_id, kind, version_number }`), `channel`, `authorized_at`, `recorded_by`, `is_effective` (vigente ahora, calculado), `ineffective_reason` (`sin_foto`, `fuera_de_vigencia`, `retirada`, `persona_excluida` — este último **solo** con `revocacion_tutor.leer`; sin él se muestra `no_vigente`), `withdrawn_at`, `created_at`. Nunca `ip_address` ni `user_agent`.
+**`PickupAuthorization`**: `public_id`, `student_person`, `person` (`public_id` + `display_name`), `relationship`, `kind`, `valid_from`, `valid_until`, `reason` (solo con `autorizado_recogida.leer` de ámbito `todos`), `authorized_by` (`public_id` del tutor), `terms_version` (`{ public_id, kind, version_number }`), `channel`, `authorized_at`, `recorded_by`, `is_effective` (vigente ahora, calculado), `ineffective_reason` (`sin_foto`, `fuera_de_vigencia`, `retirada`, `persona_excluida` — la causa concreta **solo** con `revocacion_tutor.leer`; sin él, **toda** causa se muestra como `no_vigente`, decisión del usuario del 2026-11-02), `withdrawn_at`, `created_at`. Nunca `ip_address` ni `user_agent`.
 
 **`PickupPerson`** (gestión de un tercero o tutor como persona de recogida): `person`, `display_name`, `document` (completo solo aquí y con `autorizado_recogida.actualizar`, `RN-FAM-UNIT-90`), `contact_phone`, `has_photo`, `photo_updated_at`.
 
@@ -328,15 +330,15 @@ Nota: el issue #60 (`ValidationErrorFormatter` antepone `core.` al `code` de cua
 
 | Verbo y ruta | Permiso | Ámbito | Respuesta | Errores propios |
 |---|---|---|---|---|
-| `GET /pickup-persons?document_type=&document_number=` | `autorizado_recogida.actualizar` | — | 200 colección (0 o 1) | 422 |
-| `POST /pickup-persons` | `autorizado_recogida.crear` | — | 201 `PickupPerson`; **200** con `reused = true` y `data_mismatch = bool` si ya existía una persona viva con ese documento (`RN-FAM-UNIT-89`) | 422 `validation.*` |
-| `GET /pickup-persons/{person}` | `autorizado_recogida.actualizar` | — | 200 | 404 |
+| `GET /pickup-persons?document_type=&document_number=` | `autorizado_recogida.actualizar` | — | 200 colección (0 o 1); con coincidencia, **auditada** (`read`) y con cubo de frecuencia propio | 422, 429 |
+| `POST /pickup-persons` | `autorizado_recogida.crear` | — | 201 `PickupPerson`; **200** con `reused = true` y `data_mismatch = bool` si ya existía una persona viva con ese documento (`RN-FAM-UNIT-89`); cubo de frecuencia propio | 422 `validation.*`, 429 |
+| `GET /pickup-persons/{person}` | `autorizado_recogida.actualizar` | — | 200; **auditada** (`read`, sin valores) | 404 |
 | `PATCH /pickup-persons/{person}` | `autorizado_recogida.actualizar` | — | 200 `PickupPerson` (corrige datos; solo si la persona **no tiene usuario**) | 404, 422 `validation.*` |
 | `PUT /pickup-persons/{person}/photo` | `autorizado_recogida.actualizar` | — | 200 `PickupPerson` (multipart, campo `file`) | 404, 413, 415, 422 `fam_unit.photo.type_mismatch`, `fam_unit.photo.dimensions` |
 | `GET /pickup-persons/{person}/photo` | `autorizado_recogida.leer` | sí | 200 `{ url, expires_at }`; **auditada** (`read`) y con límite | 404, 429 |
 | `DELETE /pickup-persons/{person}/photo` | `autorizado_recogida.actualizar` | — | 204 | 404 |
 
-**Alcance implementado** (`funcional.md §22` D-52): «figura en alguna autorización viva» es una autorización no dada de baja (retirada o no); una persona recién creada y aún sin autorización es `404` en `GET`/`PATCH`/`PUT`/`DELETE`, de modo que el orden es crear la persona, registrar su autorización (no vigente hasta tener foto) y subir la fotografía; una persona reutilizada no alcanzable responde `200` solo con `person`, `reused` y `data_mismatch`. Con ámbito `unidad_familiar`, `GET …/photo` es `404` y la lista no lleva URL de foto ni documento de terceros (`OPEN-FAM-UNIT-43`, abierta; D-53).
+**Alcance y orden** (`OPEN-FAM-UNIT-48`, resuelta el 2026-11-02; `funcional.md §22` D-52): el orden es persona → autorización → fotografía; «figura en alguna autorización viva» es una autorización no dada de baja (retirada o no); una persona recién creada y aún sin autorización es `404` en `GET`/`PATCH`/`PUT`/`DELETE`, de modo que el orden es crear la persona, registrar su autorización (no vigente hasta tener foto) y subir la fotografía; una persona reutilizada no alcanzable responde `200` solo con `person`, `reused` y `data_mismatch`. Con ámbito `unidad_familiar`, `GET …/photo` es `404` y la lista no lleva URL de foto ni documento de terceros (`OPEN-FAM-UNIT-43`, abierta; D-53).
 
 `POST /pickup-persons` cuerpo: `{ "given_name", "family_name_1", "family_name_2", "document_type", "document_number", "contact_phone" }`. Crea la persona por `PersonRegistrar` (D2); **nunca** modifica una existente. Una persona de recogida es alcanzable por estos *endpoints* si es tutor del centro o figura en alguna autorización viva; cualquier otra persona de `Core` es `404` (no se convierten en un directorio de personas del centro). **Corrección de datos de una persona sin usuario**: la invoca `fam_unit` por `PersonRegistrar::correctUnaccounted` con `autorizado_recogida.actualizar` (`OPEN-068-07`); **Endpoint definido** (aprobado por el usuario el 2026-10-29): `PATCH /pickup-persons/{person}`.
 
@@ -426,5 +428,5 @@ El servidor resuelve `basis` y la referencia (vínculo o autorización) con `Aut
 
 - **Eventos**: ninguno (`ADR-048`); `prl` emitirá uno para `COM` cuando exista (`OPEN-FAM-UNIT-33`).
 - **Exportaciones**: ninguna (ningún requisito la pide; un listado de terceros con fotos es la vía de fuga más grave). No se declara `exportar`.
-- **Errores nuevos** (`fam_unit.` y `prl.`, en los cuatro idiomas): `pickup.principal_required`, `pickup.text_not_published`, `pickup.text_version_invalid`, `pickup.text_version_outdated`, `pickup.person_not_eligible`, `pickup.already_exists`, `pickup.channel_requires_puntual`, `pickup.withdrawn`, `pickup.invalid_transition`, `photo.type_mismatch`, `photo.dimensions`, `errors.pickup_read_rate_limited` (`429`); `prl.movement.person_not_authorized`, `prl.movement.verification_requires_document`, `prl.movement.reason_required`, `prl.alert.closed`, `prl.idempotency_mismatch`. `413`/`415` usan los tipos transversales existentes del *branding* (`ApiException::payloadTooLarge`/`unsupportedMediaType`).
+- **Errores nuevos** (`fam_unit.` y `prl.`, en los cuatro idiomas): `pickup.principal_required`, `pickup.text_not_published`, `pickup.text_version_invalid`, `pickup.text_version_outdated`, `pickup.person_not_eligible`, `pickup.already_exists`, `pickup.channel_requires_puntual`, `pickup.withdrawn`, `pickup.invalid_transition`, `photo.type_mismatch`, `photo.dimensions`, `errors.pickup_read_rate_limited` y `errors.pickup_person_rate_limited` (`429`; esta última, de la búsqueda por documento y del alta de personas), `pickup.not_editable` (`422`, campo de la autorización que no se edita por `PATCH`), `pickup.document_not_editable` (`422`, `document_type`/`document_number` en `PATCH /pickup-persons/{person}`); `pickup.text_version_outdated` está definido pero **no se usa** hasta el canal `portal` (`1.22`, `funcional.md §22` D-60); `prl.movement.person_not_authorized`, `prl.movement.verification_requires_document`, `prl.movement.reason_required`, `prl.alert.closed`, `prl.idempotency_mismatch`. `413`/`415` usan los tipos transversales existentes del *branding* (`ApiException::payloadTooLarge`/`unsupportedMediaType`).
 - **OpenAPI**: todas las rutas en `apps/api/openapi/paths/fam-unit.yaml` y, con `prl`, en un fichero `prl.yaml`, con enumerados extensibles (`ADR-038 §7.3`).

@@ -151,7 +151,7 @@ Solo SPA (pantallas de personal de `funcional.md §10`): ninguna migración, var
 
 ### 12.1 Variables de entorno y configuración
 
-**Ninguna variable de entorno nueva** (`files.disk` toma por defecto `filesystems.default`). Claves de configuración con valor por defecto (en `config/fam_unit.php` y, con `prl`, `config/prl.php`), revisables:
+**Variables de entorno**: ninguna propia de `fam_unit`, pero el almacenamiento privado exige S3 compatible fuera de los tests (`funcional.md §22` D-67): `FILESYSTEM_DISK=s3`, `AWS_ENDPOINT`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_DEFAULT_REGION`, `AWS_BUCKET` y `AWS_USE_PATH_STYLE_ENDPOINT=true` (`files.disk` toma por defecto `filesystems.default`). La imagen fija `upload_max_filesize = 6M`, `post_max_size = 8M` y `memory_limit = 256M`. Claves de configuración con valor por defecto (en `config/fam_unit.php` y, con `prl`, `config/prl.php`), revisables:
 
 | Clave | Defecto [DERIVADA] | Regla |
 |-------|--------------------|-------|
@@ -162,6 +162,7 @@ Solo SPA (pantallas de personal de `funcional.md §10`): ninguna migración, var
 | `fam_unit.pickup.photo.signed_url_ttl_minutes` | 5 | `RN-FAM-UNIT-83` |
 | `fam_unit.pickup.photo.orphan_grace_days` | 30 (`OPEN-FAM-UNIT-37`) | §8.8 de `datos.md` |
 | `fam_unit.pickup.read_rate_limit` | 300 por hora, por centro y usuario (`attempts` y `decay_seconds`) | `RN-FAM-UNIT-93` |
+| `fam_unit.pickup.person_rate_limit.lookup` / `.register` | 60 por hora cada uno, por centro y usuario | Búsqueda por documento y alta de personas (`funcional.md §22` D-66) |
 
 El texto del protocolo ante persona no autorizada es **configuración del centro** (`settings` del módulo `prl`, `modulo.actualizar`, `ADR-045`), no del despliegue (`OPEN-FAM-UNIT-40`).
 

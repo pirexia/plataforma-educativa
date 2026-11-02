@@ -1210,7 +1210,7 @@ paths:
         (`document_type` y `document_number`, obligatorios): no hay directorio de personas del centro. Devuelve 0 o 1
         persona **alcanzable** (un tutor del centro o una persona que figura en alguna autorización viva); una persona de
         `Core` que estos *endpoints* no alcanzan (p. ej. un empleado) no aparece. El número se compara en su forma
-        canónica (RN-CORE-92). Un tipo fuera del catálogo o un documento desconocido devuelven la colección vacía.
+        canónica (RN-CORE-92). Un tipo fuera del catálogo o un documento desconocido devuelven la colección vacía. Con coincidencia, la lectura se **audita** (`read` sobre la persona, sin valores) y la búsqueda tiene un **cubo de frecuencia propio** por centro y usuario (60 por hora): superado, `429` con `Retry-After`.
       tags: ['FamUnit / Personas de recogida']
       security: [{ SessionCookie: [] }]
       parameters:
@@ -1238,6 +1238,7 @@ paths:
         '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
         '403': { description: 'Sin el permiso (`403`) o módulo `fam_unit` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
         '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+        '429': { $ref: '../components.yaml#/components/responses/TooManyRequests' }
     post:
       operationId: createPickupPerson
       summary: Da de alta una persona de recogida, o reutiliza la que ya existe
@@ -1248,7 +1249,7 @@ paths:
         centro con ese documento, responde `200` con `reused = true` y `data_mismatch = true` si algún dato aportado
         difiere del registrado, sin decir cuál; el personal lo corrige en la ficha de la persona (por
         `PATCH /pickup-persons/{personPublicId}` si no tiene usuario, o por `/users` si lo tiene). Si esa persona no es
-        alcanzable por estos *endpoints*, la respuesta solo lleva su identificador y los dos indicadores. Sin documento
+        alcanzable por estos *endpoints*, la respuesta solo lleva su identificador y los dos indicadores. Tiene un **cubo de frecuencia propio** por centro y usuario (60 por hora, también con reutilización): superado, `429`. Sin documento
         siempre crea (no hay clave con la que reutilizar). El tipo, el formato y el dígito de control del documento los
         valida `Core` (RN-CORE-90 a -93).
       tags: ['FamUnit / Personas de recogida']
@@ -1281,6 +1282,7 @@ paths:
         '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
         '403': { description: 'Sin el permiso (`403`) o módulo `fam_unit` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
         '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+        '429': { $ref: '../components.yaml#/components/responses/TooManyRequests' }
 
   /api/v1/pickup-persons/{personPublicId}:
     parameters:
@@ -1293,7 +1295,7 @@ paths:
       summary: Detalle de una persona de recogida
       description: >
         Permiso `autorizado_recogida.actualizar`. Devuelve el documento **completo** (RN-FAM-UNIT-90): es la ficha de
-        gestión. `404` si la persona no existe en el centro o no es alcanzable por estos *endpoints*.
+        gestión, y su lectura se **audita** (`read` sobre la persona, sin valores). `404` si la persona no existe en el centro o no es alcanzable por estos *endpoints*.
       tags: ['FamUnit / Personas de recogida']
       security: [{ SessionCookie: [] }]
       responses:
