@@ -53,7 +53,7 @@ abstract class PrlRequest extends ApiFormRequest
             return null;
         }
 
-        if (! is_string($header) || ! IdempotencyKey::isValid($header)) {
+        if (! IdempotencyKey::isValid($header)) {
             throw PrlErrors::invalid('idempotency_key', 'prl.validation.idempotency_key_invalid');
         }
 
