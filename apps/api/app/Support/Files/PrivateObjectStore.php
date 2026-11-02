@@ -19,7 +19,7 @@ use RuntimeException;
  * centro. `temporaryUrl()` y `delete()` solo aceptan claves que cuelguen del prefijo del centro en curso y lanzan
  * `ForeignObjectKeyException` en cualquier otro caso. La clave es un ULID: nunca contiene datos de la persona.
  *
- * Disco: `files.disk` (por defecto `filesystems.default`). Sin memoización del `public_id` del centro: el contexto cambia
+ * Disco: `files.disk` (por defecto `filesystems.default`), que debe ser S3 compatible fuera de los tests (`disk()`). Sin memoización del `public_id` del centro: el contexto cambia
  * entre peticiones, trabajos y tests.
  */
 final class PrivateObjectStore
@@ -121,10 +121,21 @@ final class PrivateObjectStore
         }
     }
 
+    /**
+     * El disco privado (`files.disk`, por defecto `filesystems.default`). **Falla en cerrado con un disco `local` fuera de
+     * los tests**: las fotografías de recogida son datos de menores y de terceros y el almacenamiento de la aplicación es
+     * S3 compatible (MinIO en desarrollo, `ADR-013`); un disco local escribiría en el sistema de ficheros del contenedor
+     * (aplicación *stateless*, `CLAUDE.md §9`) y sus «URL firmadas» no serían de un *bucket* privado.
+     */
     private function disk(): Filesystem
     {
         $configured = config('files.disk');
+        $name = is_string($configured) && $configured !== '' ? $configured : (string) config('filesystems.default');
 
-        return Storage::disk(is_string($configured) && $configured !== '' ? $configured : (string) config('filesystems.default'));
+        if (config("filesystems.disks.{$name}.driver") === 'local' && ! app()->environment('testing')) {
+            throw new RuntimeException('El almacenamiento privado no puede ser un disco local: configura FILESYSTEM_DISK=s3 y las variables AWS_* (MinIO en desarrollo).');
+        }
+
+        return Storage::disk($name);
     }
 }
