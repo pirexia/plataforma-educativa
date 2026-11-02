@@ -310,3 +310,18 @@ test('datos.md §1.6 §1.8 ADR-066 §5.8 (db-reviewer B-3): el down() de image_c
     $count = fn (string $table) => app(TenantContext::class)->runFor($f['tenant']->id, fn () => DB::table($table)->count());
     expect($count('image_consent_decisions'))->toBe(1)->and($count('terms_versions'))->toBeGreaterThanOrEqual(2);
 });
+
+test('CA-068-05 ADR-068 §5.2: dos registerOrReuse simultáneos con el mismo documento producen una persona y los dos resultados apuntan a ella, nunca un 500', function (): void {
+    [$tenant] = Fam::setup('fam-conc-068');
+
+    // Ambos hijos pasan la búsqueda (aún no hay nadie con ese documento) y esperan para insertar en `people`: el índice único
+    // parcial decide, y la que pierde relee y reutiliza.
+    $results = famRace($tenant, 'people', ['register-person', ['dni', '12345678Z']], ['register-person', ['dni', '12345678Z']]);
+
+    expect(array_column($results, 'outcome'))->toBe(['ok', 'ok'])
+        ->and($results[0]['person_id'])->toBe($results[1]['person_id'])
+        // Exactamente una creó y la otra reutilizó.
+        ->and(collect($results)->where('reused', true)->count())->toBe(1);
+
+    expect(app(TenantContext::class)->runFor($tenant->id, fn () => DB::table('people')->where('document_number', '12345678Z')->whereNull('deleted_at')->count()))->toBe(1);
+});

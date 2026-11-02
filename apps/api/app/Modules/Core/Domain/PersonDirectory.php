@@ -51,4 +51,30 @@ interface PersonDirectory
      * @return array<int, UserPersonRef>
      */
     public function usersByPersonIds(array $personIds): array;
+
+    /**
+     * ADR-068 §5.2 (`L4`, `OPEN-068-02`): personas **vivas** del centro cuyo nombre o apellidos empiezan por `$term`
+     * (también el nombre visible, «Nombre Apellido»), sin distinguir mayúsculas y con los comodines del texto escapados,
+     * **acotadas** a `$personIds`, en una consulta y ordenadas por nombre visible. Sin plegado de acentos (no hay
+     * `unaccent` en la base). `$limit` máximo de resultados. Lista vacía o término vacío ⇒ vacío.
+     *
+     * @param  list<int>  $personIds
+     * @return list<PersonRef>
+     */
+    public function searchByNameAmong(string $term, array $personIds, int $limit): array;
+
+    /**
+     * ADR-068 §5.2 (`L5`, `OPEN-068-05`): la persona **viva** del centro con ese documento; `null` si no hay, el tipo
+     * no es del catálogo o el par no es válido. El número se compara en su forma canónica (`RN-CORE-92`).
+     */
+    public function findByDocument(string $documentType, string $documentNumber): ?PersonRef;
+
+    /**
+     * ADR-068 §5.2 (`L5`, `OPEN-068-05`): teléfono y documento (completo) de esas personas vivas, por id interno. Las
+     * personas que no existen, están borradas o son de otro centro no aparecen. Una consulta.
+     *
+     * @param  list<int>  $personIds
+     * @return array<int, PersonContact>
+     */
+    public function contactDetailsByIds(array $personIds): array;
 }

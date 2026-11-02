@@ -19,6 +19,7 @@ use App\Modules\Core\Domain\Models\UserInvitation;
 use App\Modules\Core\Domain\ModuleCatalog;
 use App\Modules\Core\Domain\ModuleContracting;
 use App\Modules\Core\Domain\PersonDirectory;
+use App\Modules\Core\Domain\PersonRegistrar;
 use App\Modules\Core\Domain\TenantProvisioner;
 use App\Modules\Core\Domain\TenantSettingsReader;
 use App\Modules\Core\Domain\UserDirectory;
@@ -63,6 +64,7 @@ class CoreServiceProvider extends ServiceProvider implements DeclaresModuleRegis
         $this->app->bind(UserDirectory::class, EloquentUserDirectory::class);
         // REQ-FAM-UNIT `OPEN-FAM-UNIT-03` (1.14-a): lectura de personas y resolución usuario ⇄ persona.
         $this->app->bind(PersonDirectory::class, EloquentPersonDirectory::class);
+        $this->app->bind(PersonRegistrar::class, EloquentPersonRegistrar::class);
         $this->app->bind(InvitationRedeemer::class, EloquentInvitationRedeemer::class);
 
         // ADR-048 §4.4: ProvisionTenantDefaults NO sigue la convención
