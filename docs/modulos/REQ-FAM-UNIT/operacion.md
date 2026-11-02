@@ -147,7 +147,7 @@ Solo SPA (pantallas de personal de `funcional.md §10`): ninguna migración, var
 
 ## 12. Paso `1.14b` (autorizados y entrega de menores) — APROBADA (2026-10-29)
 
-> **Estado**: **APROBADA** (2026-10-29), con `ADR-068` ACEPTADA (`funcional.md §21.2`). Nada de esto se ha probado: no hay implementación.
+> **Estado**: **APROBADA** (2026-10-29), con `ADR-068` ACEPTADA (`funcional.md §21.2`). **`1.14b-a` implementada (2026-11-02)**: lo de `fam_unit` y del núcleo (§12.1 a §12.4, salvo `prl`); la subida de fotografías por `PUT` multipart contra el servidor real, la imagen del contenedor con `gd` y `exif` y la medición de los 2 s **no se han probado** (`funcional.md §22.1`). Lo de `prl` (protocolo, `student_movements`, `pickup_alerts`) sigue sin implementar.
 
 ### 12.1 Variables de entorno y configuración
 
@@ -158,9 +158,10 @@ Solo SPA (pantallas de personal de `funcional.md §10`): ninguna migración, var
 | `files.disk` (núcleo, `config/files.php`, `App\Support\Files`) | `filesystems.default` (disco privado S3; MinIO en desarrollo) | Disco donde `PrivateObjectStore` escribe y firma las fotografías, bajo `tenants/<tenant public_id>/<área>/` (`ADR-068 §5.3`, `INV-001`). Clave compartida con cualquier fichero privado futuro, no propia de `fam_unit` |
 | `fam_unit.pickup.photo.max_bytes` | 5 MB | `RN-FAM-UNIT-83` |
 | `fam_unit.pickup.photo.max_dimension` | 1024 px (lado mayor tras reprocesar) | `RN-FAM-UNIT-83` |
+| `fam_unit.pickup.photo.max_input_pixels` | 12 000 000 (4000 × 3000) | Píxeles máximos de **entrada**, comprobados antes de decodificar (`ADR-068 §5.3`); acota la memoria de `gd` (`funcional.md §22` D-57) |
 | `fam_unit.pickup.photo.signed_url_ttl_minutes` | 5 | `RN-FAM-UNIT-83` |
 | `fam_unit.pickup.photo.orphan_grace_days` | 30 (`OPEN-FAM-UNIT-37`) | §8.8 de `datos.md` |
-| `fam_unit.pickup.read_rate_limit` | 300 por hora, por centro y usuario | `RN-FAM-UNIT-93` |
+| `fam_unit.pickup.read_rate_limit` | 300 por hora, por centro y usuario (`attempts` y `decay_seconds`) | `RN-FAM-UNIT-93` |
 
 El texto del protocolo ante persona no autorizada es **configuración del centro** (`settings` del módulo `prl`, `modulo.actualizar`, `ADR-045`), no del despliegue (`OPEN-FAM-UNIT-40`).
 
@@ -175,7 +176,7 @@ El texto del protocolo ante persona no autorizada es **configuración del centro
 | Trabajo | Cola | Cuándo | Notas |
 |---------|------|--------|-------|
 | Reprocesado de la fotografía | — (síncrono) | En la subida | Una imagen de 5 MB como máximo; la respuesta debe llevar la foto ya limpia y la autorización depende de ella (`RN-FAM-UNIT-84`). Si la medición en `1.14b-a` supera el objetivo de `RNF-PERF-001`, pasa a la cola `default` con estado «procesando» (decisión de implementación con `db-reviewer`) |
-| Barrido de fotografías huérfanas | `default` | Diario | Patrón `PurgeOrphanBrandingAssets`. **Depende del planificador**, que no tiene servicio desplegado (issue #453); mientras no lo tenga, comando manual documentado en `RUNBOOK.md` |
+| Barrido de fotografías huérfanas | `default` | Diario | Patrón `PurgeOrphanBrandingAssets`: `PurgeOrphanPickupPhotos`, despachado por centro con `php artisan fam_unit:purge-orphan-photos` (programado `daily()` en `routes/console.php`; criterios en `funcional.md §22` D-58). **Depende del planificador**, que no tiene servicio desplegado (issue #453); mientras no lo tenga, comando manual documentado en `RUNBOOK.md` |
 
 La caducidad de las autorizaciones puntuales **no** necesita tarea: es una condición de fecha en la consulta (`RN-FAM-UNIT-82`).
 

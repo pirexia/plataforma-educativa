@@ -163,7 +163,7 @@ Ningún cambio de `mfa_required` en roles. Recomendación que no se aplica aquí
 
 ## 8. Paso `1.14b` (autorizados y entrega de menores) — APROBADA (2026-10-29)
 
-> **Estado**: **APROBADA** (2026-10-29), con `ADR-068` ACEPTADA (`funcional.md §21.2`). Aprobados el catálogo de nueve permisos (`L7`), la siembra de §8.4 (`L9`, `OPEN-FAM-UNIT-42`) y la entrada de `autorizado_recogida` en el mapa de `AR-10` (`L1`, 5 a 6). Acciones solo de `RPERM-003`; ninguna inventada. Ningún permiso es de categoría especial (`funcional.md §21.10`): no dispara `AR-09`.
+> **Estado**: **APROBADA** (2026-10-29), con `ADR-068` ACEPTADA (`funcional.md §21.2`). **`1.14b-a` implementada (2026-11-02)**: los cuatro permisos `autorizado_recogida.*`, su siembra (`administrador_centro`, `secretaria`, `direccion` y `tutor_legal`) y su resolutor `unidad_familiar`; los cinco de `prl` y la siembra de conserjería llegan con `1.14b-b` (`funcional.md §22` D-59). Aprobados el catálogo de nueve permisos (`L7`), la siembra de §8.4 (`L9`, `OPEN-FAM-UNIT-42`) y la entrada de `autorizado_recogida` en el mapa de `AR-10` (`L1`, 5 a 6). Acciones solo de `RPERM-003`; ninguna inventada. Ningún permiso es de categoría especial (`funcional.md §21.10`): no dispara `AR-09`.
 
 ### 8.1 Recursos nuevos
 
@@ -197,7 +197,7 @@ Ningún cambio de `mfa_required` en roles. Recomendación que no se aplica aquí
 | `entrega_menor` | `todos` | `todos` | — | — | — |
 | `alerta_entrega` | `todos` | `todos` | `todos` | — | — |
 
-**Resolutor `(unidad_familiar, autorizado_recogida)`**: autorizaciones y listas de los alumnos con vínculo **activo** con el tutor del sujeto (`§3.6`), sin documento de terceros (`RN-FAM-UNIT-91`). Entra en el mapa cerrado de `AR-10` con los modelos `PickupAuthorization` y `PickupPhoto` y un servicio sancionado (ampliación `L1` de `ADR-068`, **aprobada por el usuario el 2026-10-29**). La lista calculada lee vínculos, autorizaciones y fotos dentro de ese servicio sancionado, como `ImageConsentService` (`funcional.md §18` D-16).
+**Resolutor `(unidad_familiar, autorizado_recogida)`** (`Infrastructure/AutorizadoRecogidaUnidadFamiliarScopeResolver`): autorizaciones y listas de los alumnos con vínculo **activo** con el tutor del sujeto (`§3.6`), sin documento de terceros (`RN-FAM-UNIT-91`); para `PickupPhoto` no devuelve ninguna fila (`OPEN-FAM-UNIT-43` abierta). Entra en el mapa cerrado de `AR-10` con los modelos `PickupAuthorization` y `PickupPhoto` y un servicio sancionado (ampliación `L1` de `ADR-068`, **aprobada por el usuario el 2026-10-29**). La lista calculada lee vínculos, autorizaciones y fotos dentro de ese servicio sancionado, como `ImageConsentService` (`funcional.md §18` D-16).
 
 **Reglas que no son permiso** (se comprueban además): autorización del tutor principal y texto publicado (`RN-FAM-UNIT-85`), exclusión por revocación (`RN-FAM-UNIT-80`), recomprobación al registrar la salida (`RN-PRL-02`), método de verificación (`RN-PRL-06`). Ver el `reason` de una autorización exige ámbito `todos`; ver `ineffective_reason = persona_excluida`, `revocacion_tutor.leer`.
 

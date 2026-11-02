@@ -299,7 +299,7 @@ Nota: el issue #60 (`ValidationErrorFormatter` antepone `core.` al `code` de cua
 
 ## 8. Paso `1.14b` (autorizados y entrega de menores) — APROBADA (2026-10-29)
 
-> **Estado**: **APROBADA** (2026-10-29), con `ADR-068` ACEPTADA (`funcional.md §21.2`); `GET /pickup-persons` por documento ya no depende de nada pendiente (`OPEN-068-05` resuelta). Mismas convenciones de §0 (`ADR-038`, cadena `RequireAuthenticatedUser` → `module-enabled:<módulo>` → `permission:<código>`, `404` frente a `403`, `public_id` ULID; el alumno y las personas se nombran por el `public_id` de su **persona**). Ningún recurso es por curso académico. Las rutas de §8.4 son del módulo `prl` (`OPEN-068-01` = B, aprobada), con `module-enabled:prl`.
+> **Estado**: **APROBADA** (2026-10-29); **§8.1 a §8.3 IMPLEMENTADOS en `1.14b-a` (2026-11-02; decisiones de detalle en `funcional.md §22`, OpenAPI en `openapi/paths/fam-unit.yaml`)**, §8.4 (`prl`) sin implementar. Con `ADR-068` ACEPTADA (`funcional.md §21.2`); `GET /pickup-persons` por documento ya no depende de nada pendiente (`OPEN-068-05` resuelta). Mismas convenciones de §0 (`ADR-038`, cadena `RequireAuthenticatedUser` → `module-enabled:<módulo>` → `permission:<código>`, `404` frente a `403`, `public_id` ULID; el alumno y las personas se nombran por el `public_id` de su **persona**). Ningún recurso es por curso académico. Las rutas de §8.4 son del módulo `prl` (`OPEN-068-01` = B, aprobada), con `module-enabled:prl`.
 
 ### 8.1 Representaciones
 
@@ -335,6 +335,8 @@ Nota: el issue #60 (`ValidationErrorFormatter` antepone `core.` al `code` de cua
 | `PUT /pickup-persons/{person}/photo` | `autorizado_recogida.actualizar` | — | 200 `PickupPerson` (multipart, campo `file`) | 404, 413, 415, 422 `fam_unit.photo.type_mismatch`, `fam_unit.photo.dimensions` |
 | `GET /pickup-persons/{person}/photo` | `autorizado_recogida.leer` | sí | 200 `{ url, expires_at }`; **auditada** (`read`) y con límite | 404, 429 |
 | `DELETE /pickup-persons/{person}/photo` | `autorizado_recogida.actualizar` | — | 204 | 404 |
+
+**Alcance implementado** (`funcional.md §22` D-52): «figura en alguna autorización viva» es una autorización no dada de baja (retirada o no); una persona recién creada y aún sin autorización es `404` en `GET`/`PATCH`/`PUT`/`DELETE`, de modo que el orden es crear la persona, registrar su autorización (no vigente hasta tener foto) y subir la fotografía; una persona reutilizada no alcanzable responde `200` solo con `person`, `reused` y `data_mismatch`. Con ámbito `unidad_familiar`, `GET …/photo` es `404` y la lista no lleva URL de foto ni documento de terceros (`OPEN-FAM-UNIT-43`, abierta; D-53).
 
 `POST /pickup-persons` cuerpo: `{ "given_name", "family_name_1", "family_name_2", "document_type", "document_number", "contact_phone" }`. Crea la persona por `PersonRegistrar` (D2); **nunca** modifica una existente. Una persona de recogida es alcanzable por estos *endpoints* si es tutor del centro o figura en alguna autorización viva; cualquier otra persona de `Core` es `404` (no se convierten en un directorio de personas del centro). **Corrección de datos de una persona sin usuario**: la invoca `fam_unit` por `PersonRegistrar::correctUnaccounted` con `autorizado_recogida.actualizar` (`OPEN-068-07`); **Endpoint definido** (aprobado por el usuario el 2026-10-29): `PATCH /pickup-persons/{person}`.
 
