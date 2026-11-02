@@ -2364,9 +2364,9 @@ components:
     PickupIneffectiveReason:
       type: string
       description: >
-        Por qué una autorización no es vigente ahora (precedencia en este orden). `persona_excluida` solo lo ve quien
-        tiene `revocacion_tutor.leer`; sin ese permiso se muestra `no_vigente` (no se revela una resolución judicial,
-        RN-FAM-UNIT-36). Enumerado **extensible**.
+        Por qué una autorización no es vigente ahora (precedencia en este orden). La causa concreta solo la ve quien
+        tiene `revocacion_tutor.leer`; sin ese permiso **toda** causa se muestra como `no_vigente` (no se revela una
+        resolución judicial, RN-FAM-UNIT-36). Enumerado **extensible**.
       enum: [retirada, fuera_de_vigencia, sin_foto, persona_excluida, no_vigente]
       x-extensible-enum: true
 

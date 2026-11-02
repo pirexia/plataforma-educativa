@@ -142,7 +142,7 @@ test('datos.md §8.2 ADR-029 AR-04: ninguna columna es varchar, timestamp sin zo
     expect($bad)->toBe([])->and($cascading)->toBe([]);
 });
 
-test('datos.md §8.6 AR-16: existen los únicos parciales y el índice de la lista, y cada clave foránea compuesta (salvo la de autoría) tiene un índice cuyo prefijo es (tenant_id, columna)', function (): void {
+test('datos.md §8.6 AR-16: existen los únicos parciales y el índice de la lista, y cada clave foránea compuesta (salvo la de autoría) tiene un índice completo (no parcial) cuyo prefijo es (tenant_id, columna)', function (): void {
     $indexes = collect(DB::connection('pgsql_owner')->select(
         "SELECT indexname, indexdef FROM pg_indexes WHERE schemaname = 'public' AND tablename = ANY (?)", ['{'.implode(',', PICKUP_TABLES).'}']
     ))->pluck('indexdef', 'indexname');
@@ -160,14 +160,15 @@ test('datos.md §8.6 AR-16: existen los únicos parciales y el índice de la lis
           AND NOT EXISTS (
               SELECT 1 FROM pg_index i
               WHERE i.indrelid = c.conrelid
+                AND i.indpred IS NULL
                 AND (i.indkey::int2[])[0:cardinality(c.conkey) - 1] = c.conkey
           )
         SQL, ['{'.implode(',', PICKUP_TABLES).'}']);
 
-    expect($uncovered)->toBe([]);
-    // Los índices de las FK que ya cubre un único parcial no se duplican.
-    expect($indexes->keys()->all())->not->toContain(TenantMigration::indexName('pickup_authorizations', 'student_person_id'))
-        ->not->toContain(TenantMigration::indexName('pickup_photos', 'person_id'));
+    // `db-reviewer`: el índice de la FK tiene que ser completo (`indpred IS NULL`): uno parcial no lo usa el motor para comprobarla.
+    expect($uncovered)->toBe([])
+        ->and($indexes->keys()->all())->toContain(TenantMigration::indexName('pickup_authorizations', 'student_person_id'))
+        ->toContain(TenantMigration::indexName('pickup_photos', 'person_id'));
 });
 
 test('datos.md §8.2 OPEN-FAM-UNIT-35 CA-FAM-UNIT-131: el motor hace cumplir los CHECK — telefono solo con puntual, puntual de un día y con motivo, persona distinta del alumno, rango de fechas, vocabularios y coherencia de la retirada', function (): void {

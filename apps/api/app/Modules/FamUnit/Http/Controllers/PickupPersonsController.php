@@ -2,6 +2,7 @@
 
 namespace App\Modules\FamUnit\Http\Controllers;
 
+use App\Modules\FamUnit\Application\PickupPersonRateLimit;
 use App\Modules\FamUnit\Application\PickupPersonService;
 use App\Modules\FamUnit\Application\PickupPhotoService;
 use App\Modules\FamUnit\Http\Requests\FindPickupPersonRequest;
@@ -22,16 +23,18 @@ use Illuminate\Http\Response;
 class PickupPersonsController extends FamUnitController
 {
     /** `GET /pickup-persons?document_type=&document_number=`: 0 o 1 persona alcanzable con ese documento. */
-    public function index(FindPickupPersonRequest $request, PickupPersonService $persons): JsonResponse
+    public function index(FindPickupPersonRequest $request, PickupPersonService $persons, PickupPersonRateLimit $rateLimit): JsonResponse
     {
+        $rateLimit->hit('lookup', (int) $this->actor($request)->id);
         $person = $persons->findByDocument((string) $request->query('document_type'), (string) $request->query('document_number'));
 
-        return response()->json(['data' => $person === null ? [] : [(new PickupPersonResource($persons->view($person)))->resolve($request)]]);
+        return response()->json(['data' => $person === null ? [] : [(new PickupPersonResource($persons->auditedView($person)))->resolve($request)]]);
     }
 
     /** `POST /pickup-persons`: `201` si crea; `200` con `reused = true` si ya existía una persona viva con ese documento. */
-    public function store(StorePickupPersonRequest $request, PickupPersonService $persons): JsonResponse
+    public function store(StorePickupPersonRequest $request, PickupPersonService $persons, PickupPersonRateLimit $rateLimit): JsonResponse
     {
+        $rateLimit->hit('register', (int) $this->actor($request)->id);
         $view = $persons->register($request->payload());
 
         return (new PickupPersonResource($view))->response()->setStatusCode($view->reused === true ? 200 : 201);
@@ -39,7 +42,7 @@ class PickupPersonsController extends FamUnitController
 
     public function show(Request $request, string $personPublicId, PickupPersonService $persons): PickupPersonResource
     {
-        return new PickupPersonResource($persons->view($persons->find($personPublicId)));
+        return new PickupPersonResource($persons->auditedView($persons->find($personPublicId)));
     }
 
     /** `PATCH`: corrige datos de una persona **sin usuario** (`OPEN-068-07`); con usuario o no alcanzable, `404`. */

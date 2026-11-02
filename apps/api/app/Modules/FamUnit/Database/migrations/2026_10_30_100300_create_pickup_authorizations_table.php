@@ -21,8 +21,7 @@ use Illuminate\Support\Facades\DB;
  *   (`OPEN-FAM-UNIT-35`, aprobado por el usuario el 2026-10-30; `portal` llega con `1.22` y amplía el `CHECK` de canal con su
  *   especificación).
  * - Los dos únicos parciales (`RN-FAM-UNIT-88`) hacen cumplir «una viva por (alumno, persona) permanente» y «una por
- *   (alumno, persona, fecha) puntual» **por índice** y no por comprobación (dos altas simultáneas la romperían). Sirven
- *   además de índice de `student_person_id` (`AR-16`), cuyo prefijo `(tenant_id, student_person_id)` comparten.
+ *   (alumno, persona, fecha) puntual» **por índice** y no por comprobación (dos altas simultáneas la romperían).
  * - El índice `(tenant_id, student_person_id, valid_from, valid_until) WHERE withdrawn_at IS NULL AND deleted_at IS NULL` sirve
  *   la composición de la lista de un alumno, la consulta caliente de la puerta (`datos.md §8.6`).
  *
@@ -35,8 +34,9 @@ return new class extends Migration
     {
         TenantMigration::tenantTable('pickup_authorizations', function (Blueprint $table): void {
             $table->ulid('public_id')->unique();
-            // Sin índice propio: los únicos y el de la lista de abajo empiezan por (tenant_id, student_person_id).
-            TenantMigration::tenantForeignId($table, 'student_person_id', 'people', withIndex: false);
+            // Índice completo (tenant_id, student_person_id) de la FK (`db-reviewer`): los índices parciales de abajo no los usa el
+            // motor para comprobar la clave foránea.
+            TenantMigration::tenantForeignId($table, 'student_person_id', 'people');
             TenantMigration::tenantForeignId($table, 'person_id', 'people');
             $table->text('relationship');
             $table->text('kind');

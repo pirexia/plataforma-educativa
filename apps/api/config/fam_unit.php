@@ -41,6 +41,11 @@ return [
             'attempts' => 300,
             'decay_seconds' => 3600,
         ],
+        // RN-FAM-UNIT-92 enmendada (decisión del usuario del 2026-11-02): búsqueda por documento y alta con reutilización.
+        'person_rate_limit' => [
+            'lookup' => ['attempts' => 60, 'decay_seconds' => 3600],
+            'register' => ['attempts' => 60, 'decay_seconds' => 3600],
+        ],
     ],
 
     'revocation' => [

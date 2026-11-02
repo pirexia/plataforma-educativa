@@ -89,6 +89,7 @@ return [
         'consent_rate_limited' => 'Sie haben das Limit für Bildentscheidungen oder Einwilligungsberichte erreicht. Versuchen Sie es in etwa :minutes Minuten erneut.',
         'revocation_rate_limited' => 'Das Limit für Entzüge oder Aufhebungen von Entzügen wurde erreicht. Versuche es in etwa :minutes Minuten erneut.',
         'pickup_read_rate_limited' => 'Sie haben das Limit für Abfragen der Abholliste und der Fotos erreicht. Versuchen Sie es in etwa :minutes Minuten erneut.',
+        'pickup_person_rate_limited' => 'Has alcanzado el límite de búsquedas de personas de recogida por documento o de altas de personas. Inténtalo de nuevo en unos :minutes minutos.',
     ],
 
     'validation' => [

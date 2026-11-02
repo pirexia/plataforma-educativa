@@ -441,3 +441,19 @@ test('INV-001 CA-FAM-UNIT-124: dos centros con familias, terceros, fotos y autor
     // El audit_log de lectura es del centro que lee.
     expect(app(TenantContext::class)->runFor($b['tenant']->id, fn () => AuditLog::query()->where('event', 'read')->count()))->toBe(1);
 });
+
+test('RN-FAM-UNIT-36 (decisión del usuario del 2026-11-02): sin revocacion_tutor.leer, TODA causa de no vigencia — sin foto, fuera de vigencia, retirada y persona excluida — sale como no_vigente; con él, la causa concreta', function (): void {
+    Fam::freeze('2026-11-02 09:00:00');
+    $f = Fam::pickupFamily('pa-m6');
+    $sinFoto = Fam::thirdParty($f, 40, photo: false);
+    $caducada = Fam::thirdParty($f, 41, overrides: ['valid_until' => '2026-10-01']);
+    $retirada = Fam::thirdParty($f, 42);
+    Fam::call($f['tenant'], $f['admin'], 'post', "/pickup-authorizations/{$retirada['authorization']}/withdrawal")->assertOk();
+    $vigente = Fam::thirdParty($f, 43);
+    $plain = Fam::userWith($f['tenant'], $f['admin'], 'sinrevoc', ['autorizado_recogida.leer' => 'todos']);
+
+    $reasons = fn ($user) => collect(Fam::call($f['tenant'], $user, 'get', '/pickup-authorizations')->assertOk()->json('data'))->mapWithKeys(fn ($r) => [$r['public_id'] => $r['ineffective_reason']])->all();
+
+    expect($reasons($f['admin']))->toEqual([$sinFoto['authorization'] => 'sin_foto', $caducada['authorization'] => 'fuera_de_vigencia', $retirada['authorization'] => 'retirada', $vigente['authorization'] => null])
+        ->and($reasons($plain))->toEqual([$sinFoto['authorization'] => 'no_vigente', $caducada['authorization'] => 'no_vigente', $retirada['authorization'] => 'no_vigente', $vigente['authorization'] => null]);
+});

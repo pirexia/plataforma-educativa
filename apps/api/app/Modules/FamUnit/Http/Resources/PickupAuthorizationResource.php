@@ -11,8 +11,8 @@ use Illuminate\Http\Resources\Json\JsonResource;
 /**
  * REQ-FAM-UNIT/api.md §8.1, `PickupAuthorization`. **No** se exponen `ip_address` ni `user_agent`: se conservan como
  * evidencia. `reason` (texto libre) solo con `autorizado_recogida.leer` de ámbito `todos`; `ineffective_reason`
- * `persona_excluida` solo con `revocacion_tutor.leer` (sin él, `no_vigente`: no se revela una resolución judicial,
- * `RN-FAM-UNIT-36`). `is_effective` es el cálculo de ahora, no un dato guardado. Los `public_id` de alumno, persona, tutor y
+ * detallado solo con `revocacion_tutor.leer`; sin él, toda causa sale como `no_vigente` (no se revela una resolución
+ * judicial por exclusión, `RN-FAM-UNIT-36`; decisión del usuario del 2026-11-02). `is_effective` es el cálculo de ahora, no un dato guardado. Los `public_id` de alumno, persona, tutor y
  * usuario los precarga el controlador en `FamilyRefs`; el estado, en `PickupViewContext`.
  *
  * @mixin PickupAuthorization
@@ -29,7 +29,9 @@ class PickupAuthorizationResource extends JsonResource
         $state = $view->effectiveness[(int) $this->id] ?? ['effective' => false, 'reason' => null];
         $person = $refs->person((int) $this->person_id);
         $version = $this->termsVersion;
-        $reason = $state['reason'] === 'persona_excluida' && ! $view->showExcluded ? 'no_vigente' : $state['reason'];
+        // Sin `revocacion_tutor.leer`, TODA causa de no vigencia sale como `no_vigente` (decisión del usuario del 2026-11-02): distinguir
+        // `persona_excluida` de las demás revelaría una resolución judicial (RN-FAM-UNIT-36).
+        $reason = $state['reason'] !== null && ! $view->showExcluded ? 'no_vigente' : $state['reason'];
 
         $data = [
             'public_id' => $this->public_id,

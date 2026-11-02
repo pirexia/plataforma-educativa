@@ -1428,8 +1428,8 @@ paths:
         Permiso `autorizado_recogida.leer`, ámbito `todos` o `unidad_familiar` (solo de los alumnos que el sujeto
         alcanza por vínculo **activo**, RN-FAM-UNIT-91). Filtros `student_person`, `person` (varios `public_id`),
         `kind` y `effective` (vigente ahora). Orden `valid_from` (defecto, descendente) y `created_at`, desempate por
-        `id`. `reason` solo con ámbito `todos`; `ineffective_reason = persona_excluida` solo con `revocacion_tutor.leer`
-        (si no, `no_vigente`). No se exponen `ip_address` ni `user_agent`.
+        `id`. `reason` solo con ámbito `todos`; `ineffective_reason` con su causa concreta solo con `revocacion_tutor.leer`
+        (si no, toda causa es `no_vigente`). No se exponen `ip_address` ni `user_agent`.
       tags: ['FamUnit / Autorizaciones de recogida']
       security: [{ SessionCookie: [] }]
       parameters:

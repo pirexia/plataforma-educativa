@@ -432,3 +432,71 @@ test('api.md §8.2: sin el módulo contratado la subida de fotografía no escrib
     expect($response->json('type'))->toBe('urn:pge:error:module-disabled')
         ->and(Storage::disk('local')->allFiles())->toBe([]);
 });
+
+test('RN-FAM-UNIT-83 ADR-068 §5.3 (security M2): una fotografía del máximo admitido — 12 MP con orientación EXIF 6 — se reprocesa girada y reducida sin sobrepasar la memoria, y se mide el tiempo de la subida', function (): void {
+    $f = Fam::pickupFamily('pp-12mp');
+    $person = Fam::authorizedPerson($f);
+    $big = ImageFixtures::jpegWithExifAndGps(4000, 3000, 6);
+    expect(strlen($big))->toBeLessThan(5 * 1024 * 1024);
+
+    $start = microtime(true);
+    Fam::putPhoto($f['tenant'], $f['admin'], $person, $big, 'camara.jpg')->assertOk();
+    $elapsed = microtime(true) - $start;
+
+    $key = app(TenantContext::class)->runFor($f['tenant']->id, fn () => DB::table('pickup_photos')->value('object_key'));
+    $stored = Storage::disk('local')->get($key);
+
+    // 4000 x 3000 con orientación 6 es 3000 x 4000 al verla; a 1024 px de lado mayor, 768 x 1024. Sin metadatos.
+    expect(ImageFixtures::size($stored))->toBe([768, 1024])
+        ->and($stored)->not->toContain('Exif')->not->toContain('comentario-secreto-del-movil')
+        ->and(memory_get_peak_usage(true))->toBeLessThan(512 * 1024 * 1024);
+    fwrite(STDERR, sprintf("[medición ADR-068 §5.3] subida de 12 MP: %.2f s\n", $elapsed));
+});
+
+test('RN-FAM-UNIT-92 enmendada (decisión del usuario del 2026-11-02): GET /pickup-persons con coincidencia y GET /pickup-persons/{p} escriben una fila read sobre la persona, sin valores; sin coincidencia, ninguna', function (): void {
+    Fam::freeze('2026-11-02 09:00:00');
+    $f = Fam::pickupFamily('pp-lectura');
+    $third = Fam::thirdParty($f, 20);
+    $reads = fn () => Fam::audit($f['tenant'], 'person', 'read');
+    $before = count($reads());
+
+    Fam::call($f['tenant'], $f['admin'], 'get', '/pickup-persons?document_type=dni&document_number='.Fam::dni(21))->assertOk();
+    expect(count($reads()))->toBe($before);
+
+    Fam::call($f['tenant'], $f['admin'], 'get', '/pickup-persons?document_type=dni&document_number='.Fam::dni(20))->assertOk();
+    Fam::call($f['tenant'], $f['admin'], 'get', "/pickup-persons/{$third['person']}")->assertOk();
+
+    $new = array_slice($reads(), $before);
+    expect($new)->toHaveCount(2);
+
+    foreach ($new as $read) {
+        expect($read->auditable_public_id)->toBe($third['person'])
+            ->and($read->changes)->toBeNull()
+            ->and($read->context)->toEqual(['purpose' => 'gestion', 'entries' => 1, 'photos' => 0])
+            ->and(json_encode($read->toArray()))->not->toContain(Fam::dni(20))->not->toContain('Abuelo')->not->toContain('600000000');
+    }
+});
+
+test('RN-FAM-UNIT-92 enmendada: la búsqueda por documento y el alta con reutilización tienen cada una su cubo de frecuencia (429 con Retry-After), distintos entre sí y del de la lista', function (): void {
+    Fam::freeze('2026-11-02 09:00:00');
+    config(['fam_unit.pickup.person_rate_limit.lookup.attempts' => 2, 'fam_unit.pickup.person_rate_limit.register.attempts' => 2]);
+    $f = Fam::pickupFamily('pp-cubos');
+    $other = Fam::userWith($f['tenant'], $f['admin'], 'otro', ['autorizado_recogida.actualizar' => 'todos', 'autorizado_recogida.crear' => 'todos']);
+    $search = fn ($user) => Fam::call($f['tenant'], $user, 'get', '/pickup-persons?document_type=dni&document_number='.Fam::dni(30));
+    $register = fn ($user) => Fam::registerPerson($f['tenant'], $user, ['document_type' => 'dni', 'document_number' => Fam::dni(31)]);
+
+    $search($f['admin'])->assertOk();
+    $search($f['admin'])->assertOk();
+    $limited = $search($f['admin'])->assertStatus(429);
+    expect((int) $limited->headers->get('Retry-After'))->toBeGreaterThan(0)
+        ->and(Fam::errorCode($limited, 'x'))->toBeNull();
+
+    // El alta tiene su propio cubo: sigue disponible tras agotar la búsqueda (2 intentos, incluida la reutilización).
+    $register($f['admin'])->assertCreated();
+    $register($f['admin'])->assertOk();
+    $register($f['admin'])->assertStatus(429);
+
+    // Otro usuario no se ve afectado, y la lista (otro cubo) tampoco.
+    $search($other)->assertOk();
+    Fam::call($f['tenant'], $f['admin'], 'get', "/pickup-lists/{$f['student']->public_id}")->assertOk();
+});

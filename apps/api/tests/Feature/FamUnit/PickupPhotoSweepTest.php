@@ -1,7 +1,9 @@
 <?php
 
 use App\Models\Person;
+use App\Modules\FamUnit\Application\PickupListService;
 use App\Modules\FamUnit\Infrastructure\Jobs\PurgeOrphanPickupPhotos;
+use App\Support\Files\PrivateObjectStore;
 use App\Support\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
@@ -129,4 +131,12 @@ test('operacion.md §12.3: fam_unit:purge-orphan-photos despacha el barrido de c
     test()->artisan('fam_unit:purge-orphan-photos')->assertSuccessful();
 
     expect(Storage::disk('local')->exists($keyA))->toBeFalse()->and(Storage::disk('local')->exists($keyB))->toBeFalse();
+});
+
+test('INV-001: el trabajo de barrido se niega a correr si el contexto de centro no es el que debía barrer', function (): void {
+    [$tenant] = provisionCoreTenant('sw-ctx');
+    [$other] = provisionCoreTenant('sw-ctx-b');
+
+    expect(fn () => app(TenantContext::class)->runFor($other->id, fn () => (new PurgeOrphanPickupPhotos($tenant->id))->handle(app(PickupListService::class), app(PrivateObjectStore::class), app(TenantContext::class))))
+        ->toThrow(LogicException::class);
 });

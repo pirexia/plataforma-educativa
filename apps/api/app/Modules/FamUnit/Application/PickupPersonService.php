@@ -9,6 +9,7 @@ use App\Modules\Core\Domain\PersonRef;
 use App\Modules\Core\Domain\PersonRegistrar;
 use App\Modules\Core\Domain\PersonRegistration;
 use App\Support\Api\ApiException;
+use App\Support\Audit\AuditRecorder;
 
 /**
  * REQ-FAM-UNIT/api.md §8.2, funcional.md §21.6 `RN-FAM-UNIT-89` (1.14b-a, `ADR-068 §5.2`): las personas de recogida (un
@@ -28,6 +29,7 @@ final class PickupPersonService
         private readonly PersonDirectory $people,
         private readonly GuardianService $guardians,
         private readonly PickupListService $list,
+        private readonly AuditRecorder $audit,
     ) {}
 
     /**
@@ -88,6 +90,18 @@ final class PickupPersonService
     public function isReachable(int $personId): bool
     {
         return $this->guardians->guardianIdForPerson($personId) !== null || $this->list->personHasLiveAuthorization($personId);
+    }
+
+    /**
+     * La ficha de una persona con su documento **completo** (`GET /pickup-persons` con coincidencia y `GET /pickup-persons/{p}`):
+     * es una lectura de datos de un tercero, así que escribe **antes** una fila `read` sobre la persona, sin valores
+     * (`RN-FAM-UNIT-92` enmendada, `ADR-035`, `ADR-068 §5.4`); si la fila falla, no se devuelve nada.
+     */
+    public function auditedView(PersonRef $person): PickupPersonView
+    {
+        $this->audit->recordRead('person', $person->id, $person->publicId, ['purpose' => 'gestion', 'entries' => 1, 'photos' => 0]);
+
+        return $this->view($person);
     }
 
     /** Teléfono, documento completo y fotografía de una persona, para `PickupPerson` (`api.md §8.1`). */

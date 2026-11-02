@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\DB;
  * ULID, nunca el nombre de la persona. Sustituir la foto es baja lógica de la anterior más alta de la nueva; el objeto
  * anterior lo purga el barrido de huérfanos (`datos.md §8.8`). El único parcial `(tenant_id, person_id) WHERE deleted_at IS
  * NULL` hace cumplir «una viva por persona» por índice y no por comprobación (dos subidas simultáneas romperían una
- * comprobación) y cubre además la clave foránea a `people` (`AR-16`).
+ * comprobación) y hace cumplir «una viva por persona» por índice; la clave foránea a `people` tiene además su índice completo (`AR-16`).
  *
  * Tabla nueva y vacía: `ADD CONSTRAINT` sin `NOT VALID` e índices sin `CONCURRENTLY` son inocuos. Sin `academic_year_id`
  * (`OPEN-FAM-UNIT-39`: hechos fechados), así que no aplica `AR-13`.
@@ -26,8 +26,9 @@ return new class extends Migration
     {
         TenantMigration::tenantTable('pickup_photos', function (Blueprint $table): void {
             $table->ulid('public_id')->unique();
-            // Sin índice propio: el único parcial de abajo ya empieza por (tenant_id, person_id).
-            TenantMigration::tenantForeignId($table, 'person_id', 'people', withIndex: false);
+            // Índice completo (tenant_id, person_id) de la FK (`db-reviewer`): un índice parcial no lo usa el motor para comprobar
+            // la clave foránea; el único parcial de abajo hace cumplir «una viva por persona».
+            TenantMigration::tenantForeignId($table, 'person_id', 'people');
             $table->text('object_key');
             $table->text('mime_type');
             $table->integer('byte_size');

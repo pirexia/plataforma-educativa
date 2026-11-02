@@ -6,11 +6,13 @@ use App\Modules\FamUnit\Application\PickupListService;
 use App\Modules\FamUnit\Application\PickupPhotoService;
 use App\Support\Audit\AuditActor;
 use App\Support\Files\PrivateObjectStore;
+use App\Support\Tenancy\TenantContext;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use LogicException;
 
 /**
  * REQ-FAM-UNIT/datos.md §8.8, operacion.md §12.3 (1.14b-a, `ADR-068 §5.3`, `OPEN-FAM-UNIT-37`): barrido de las fotografías de
@@ -24,8 +26,9 @@ use Illuminate\Queue\SerializesModels;
  *    datos falló) con más de `orphan_grace_days` días: se borran del almacenamiento. Un objeto referenciado por una
  *    fotografía viva no se toca nunca.
  *
- * Todo el acceso a las tablas va por `PickupListService` (`AR-10`). El tenant viaja en el payload y el listener de
- * `TenancyServiceProvider` lo fija antes de `handle()`. Hoy se lanza a mano con `php artisan fam_unit:purge-orphan-photos`
+ * Todo el acceso a las tablas va por `PickupListService` (`AR-10`). El contexto del centro lo fija antes de `handle()` el listener
+ * de `TenancyServiceProvider` a partir del payload (el centro en curso al despachar); `$tenantId` es el centro previsto y `handle()`
+ * **comprueba que coincide** con el contexto, de modo que un trabajo nunca barre otro centro (`INV-001`). Hoy se lanza a mano con `php artisan fam_unit:purge-orphan-photos`
  * (el planificador aún no tiene servicio desplegado, issue #453; `RUNBOOK.md`).
  */
 class PurgeOrphanPickupPhotos implements ShouldQueue
@@ -41,8 +44,12 @@ class PurgeOrphanPickupPhotos implements ShouldQueue
         $this->onQueue('default');
     }
 
-    public function handle(PickupListService $list, PrivateObjectStore $objects): void
+    public function handle(PickupListService $list, PrivateObjectStore $objects, TenantContext $tenant): void
     {
+        if (! $tenant->hasTenant() || $tenant->tenantId() !== $this->tenantId) {
+            throw new LogicException('El contexto de centro del trabajo no coincide con el centro que debía barrer.');
+        }
+
         $grace = max(1, (int) config('fam_unit.pickup.photo.orphan_grace_days', 30));
 
         AuditActor::actingAs('system', function () use ($list, $objects, $grace): void {
