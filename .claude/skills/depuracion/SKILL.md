@@ -49,6 +49,9 @@ Estado compartido entre tests: base de datos sin limpiar, caché, o el tenant de
 ### Lentitud repentina en producción
 Ve directo a `postgres-rendimiento`. Suele ser un índice que dejó de usarse, un N+1 recién introducido o una exportación ejecutándose contra el primario.
 
+### Ya te ha pasado antes
+El proyecto documenta fallos reales con su causa y arreglo en `docs/proceso/casos-reales.md`. Búscalo ahí (`grep -n` por síntoma) antes de invertir tiempo en un diagnóstico nuevo, y añade el caso si descubres uno que no está.
+
 ## Qué NO hacer
 
 - Añadir `sleep` para "arreglar" una condición de carrera.

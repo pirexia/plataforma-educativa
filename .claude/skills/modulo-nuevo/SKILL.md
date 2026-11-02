@@ -5,7 +5,7 @@ description: Estructura y pasos para crear un módulo (bounded context) nuevo en
 
 # Crear un módulo nuevo
 
-Esta skill describe la forma **real** de los módulos que existen (`Auth`, `Backoffice`, `Core` —`ADR-056 §1.2`—, `Curso` desde `1.10` y `Acad` desde `1.11-b`, el primer módulo de negocio con tablas por curso) y qué regla de CI vigila cada pieza. Desde el paso `1.11b` el esqueleto **se genera**: `php artisan make:module` (sección siguiente). Lo que el generador no escribe —HTTP, permisos, columnas de negocio, la parte web, la documentación— sigue siendo del implementador, y las reglas `AR-*` fallan si se omite algo.
+Esta skill describe la forma **real** de los módulos y qué regla de CI vigila cada pieza. La lista de módulos existentes crece en cada paso: no te fíes de una enumeración escrita aquí, mira `apps/api/app/Modules/` (hoy `Acad`, `Auth`, `Backoffice`, `Core`, `Curso`, `FamUnit`, `Prl`; `Core` es especial, `ADR-056 §1.2`) y `apps/web/src/modules/`, y toma como referencia el módulo de negocio más reciente. Desde el paso `1.11b` el esqueleto **se genera**: `php artisan make:module` (sección siguiente). Lo que el generador no escribe —HTTP, permisos, columnas de negocio, la parte web, la documentación— sigue siendo del implementador, y las reglas `AR-*` fallan si se omite algo.
 
 ## Generar el esqueleto: `php artisan make:module` (`ADR-056 §3.5`)
 

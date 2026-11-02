@@ -6,6 +6,12 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-02 · `chore(proceso)`: `CLAUDE.md` 2.10.2, especificación de UI de `1.14b-c` y revisión de skills
+
+- `CLAUDE.md` 2.10.2: `OPEN-069-01` confirmada por el usuario, régimen de `ADR-069` activo.
+- `REQ-FAM-UNIT/funcional.md §23`: especificación de interfaz de `1.14b-c` **aprobada** (crítico), partida en `1.14b-c1` (`fam-unit`) y `1.14b-c2` (`prl`).
+- Skills: nuevas `frontend-spa`, `auditoria` y `colas-y-workers`; corregidas `i18n-cuatro-idiomas`, `modulo-nuevo`, `cierre-de-sesion`, `migracion-segura` y `depuracion`.
+
 ## 2026-11-02 · `chore`: estado de `1.14b-c` y seguimientos en `memory.md`
 
 - `memory.md`: la especificación de `1.14b-c` no está cerrada (primero `spec-writer`), tramos propuestos, PR de Renovate para después de `1.14` y seguimiento de seguridad `php2shell`/`node2shell`. Sin cambios de código.
