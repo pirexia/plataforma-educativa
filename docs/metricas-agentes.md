@@ -23,6 +23,8 @@ Registro del gasto de cada subagente, para calibrar el tamaño de los tramos de 
 | 1.14b-a | db-reviewer | ronda 2 | 61726 | 4 | 0.6 | 15432 | |
 | 1.14b-a | security-reviewer | ronda 2 | 101950 | 15 | 2.3 | 6797 | |
 | 1.14b-a | doc-reviewer | ronda 2 | 108809 | 20 | 2.6 | 5440 | |
+| proceso | architect (Opus) | ADR-069 Codex | 137258 | 27 | 5.1 | 5084 | lee ADR-049/050, skill y agentes |
+| proceso | implementer | recorte CLAUDE.md y memory.md | 140117 | 22 | 4.8 | 6369 | 3 commits, solo documentación |
 | 1.14b-b | implementer | agente único (en curso) | | | | | sin tramos; referencia de agente largo |
 
 ## Resumen (se recalcula al cerrar cada paso)
