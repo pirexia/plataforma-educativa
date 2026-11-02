@@ -22,9 +22,16 @@
       "Bash(podman compose ps:*)",
       "Bash(podman compose logs:*)",
       "Bash(podman logs:*)",
-      "Bash(systemctl status:*)"
+      "Bash(systemctl status:*)",
+      "Bash(node /home/amatias/.claude/plugins/cache/openai-codex/codex/*/scripts/codex-companion.mjs review:*)",
+      "Bash(node /home/amatias/.claude/plugins/cache/openai-codex/codex/*/scripts/codex-companion.mjs adversarial-review:*)",
+      "Bash(node /home/amatias/.claude/plugins/cache/openai-codex/codex/*/scripts/codex-companion.mjs status:*)",
+      "Bash(node /home/amatias/.claude/plugins/cache/openai-codex/codex/*/scripts/codex-companion.mjs result:*)"
     ],
     "deny": [
+      "Bash(node /home/amatias/.claude/plugins/cache/openai-codex/codex/*/scripts/codex-companion.mjs task:*)",
+      "Bash(node /home/amatias/.claude/plugins/cache/openai-codex/codex/*/scripts/codex-companion.mjs transfer:*)",
+      "Bash(node /home/amatias/.claude/plugins/cache/openai-codex/codex/*/scripts/codex-companion.mjs task-worker:*)",
       "Bash(git push --force:*)",
       "Bash(git reset --hard:*)",
       "Bash(php artisan migrate:fresh:*)",
