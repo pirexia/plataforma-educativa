@@ -9,7 +9,7 @@ description: Reglas de auditoría de INV-003 y de lectura de datos sensibles. Ú
 
 ## Cómo se audita de verdad
 
-Infraestructura transversal en `apps/api/app/Support/Audit/` (`AuditServiceProvider`, `ADR-035`). No es un módulo de negocio: se usa desde cualquier módulo (`INV-007`).
+Infraestructura transversal en `apps/api/app/Support/Audit/` y `apps/api/app/Providers/AuditServiceProvider.php` (`ADR-035`). No es un módulo de negocio: se usa desde cualquier módulo (`INV-007`).
 
 - **Escritura automática**: el modelo implementa `Auditable` (`auditValuePolicy()`, `auditRecordedAttributes()`, `auditSecretAttributes()`, `auditExcludedEvents()`) y usa `RecordsAuditTrail` + `HasAuditableAttributes`. `auditValuePolicy()` **no tiene valor por defecto a propósito**: un modelo que no declara qué valores se registran no se registra en el *morph map* y rompe el test de arquitectura (`CoreModelsTest`).
 - **Escritura explícita**: `AuditRecorder::record($model, $event, $changes, $context)`.

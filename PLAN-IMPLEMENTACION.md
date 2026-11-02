@@ -322,7 +322,7 @@ El transporte va inmediatamente después de `FIN` porque comparte la línea de f
 | `verificador` | Haiku | Ejecuta suite y linters y devuelve el resultado literal, sin corregir |
 | `traductor` | Haiku | Completa en/de/fr a partir de es-ES (nunca textos legales ni de consentimiento) |
 | `doc-precheck` | Haiku | Pasada mecánica previa a `doc-reviewer` (no lo sustituye) |
-| Codex (`openai/codex-plugin-cc`) | OpenAI (no Claude) | Primer revisor de todo paso con código, lanzado por la sesión (`ADR-069`); solo cuando el usuario confirme `OPEN-069-01`, antes rige `ADR-050` (opcional). No implementa. Protocolo: skill `revision-con-codex` |
+| Codex (`openai/codex-plugin-cc`) | OpenAI (no Claude) | Primer revisor de todo paso con código, lanzado por la sesión (`ADR-069`); `OPEN-069-01` confirmada por el usuario (2026-11-02), régimen activo; si dejara de estarlo, rige `ADR-050` (opcional). No implementa. Protocolo: skill `revision-con-codex` |
 | `janitor` | Haiku | `.gitignore`, formateo, limpieza de ramas, commits rutinarios, issues ya clasificados, PR, entrada de `CHANGELOG.md` |
 
 Los subagentes de revisión (`security-reviewer`, `doc-reviewer`, `db-reviewer`) se ejecutan **antes de cada merge a `develop`**, no al final de la fase. Modelos y reparto de tareas: `CLAUDE.md §2` (redistribución del 2026-10-08; copia de la configuración anterior en la etiqueta `config-claude-2026-10-08`).
