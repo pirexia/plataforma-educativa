@@ -149,6 +149,8 @@ Solo SPA (pantallas de personal de `funcional.md §10`): ninguna migración, var
 
 > **Estado**: **APROBADA** (2026-10-29), con `ADR-068` ACEPTADA (`funcional.md §21.2`). **`1.14b-a` implementada (2026-11-02)**: lo de `fam_unit` y del núcleo (§12.1 a §12.4, salvo `prl`). **Verificado** (`funcional.md §22.1`): la subida `PUT` multipart en FrankenPHP, `gd` y `exif` en el contenedor reconstruido, el reprocesado de 12 MP en 0,38 s y la suite completa dentro del contenedor. **Sin probar**: un MinIO/S3 real (la imagen de MinIO no se puede descargar), la reversión en servidor y el planificador (issue #453). Lo de `prl` (protocolo, `student_movements`, `pickup_alerts`) sigue sin implementar.
 
+> **Referencia cruzada**: lo operativo del módulo `prl` (protocolo ante persona no autorizada, métricas de alertas) está también en `docs/modulos/REQ-PRL/operacion.md` (traslado de `1.14b-b`, `ADR-068 §5.1`).
+
 ### 12.1 Variables de entorno y configuración
 
 **Variables de entorno**: ninguna propia de `fam_unit`, pero el almacenamiento privado exige S3 compatible fuera de los tests (`funcional.md §22` D-67): `FILESYSTEM_DISK=s3`, `AWS_ENDPOINT`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_DEFAULT_REGION`, `AWS_BUCKET` y `AWS_USE_PATH_STYLE_ENDPOINT=true` (`files.disk` toma por defecto `filesystems.default`). La imagen fija `upload_max_filesize = 6M`, `post_max_size = 8M` y `memory_limit = 256M`. Claves de configuración con valor por defecto (en `config/fam_unit.php` y, con `prl`, `config/prl.php`), revisables:
