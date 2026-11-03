@@ -99,3 +99,34 @@ export interface StudentMovement {
   correction_reason: string | null
   occurred_at: string
 }
+
+export type OffScheduleReason = 'medico' | 'familiar' | 'actividad' | 'retraso' | 'otro'
+
+export type VerificationMethod = 'foto' | 'documento' | 'foto_y_documento'
+
+/** Cuerpo de `POST /student-movements` (`api.md §8.4`). El servidor resuelve `basis` y la referencia (`RN-PRL-02`). */
+export interface StudentMovementCreate {
+  student_person: PublicId
+  direction: MovementDirection
+  /** Solo en una salida (`DP-3`). */
+  picked_up_by?: PublicId
+  /** Solo en una salida (`DP-3`). */
+  verification_method?: VerificationMethod
+  /** `null` = quien registra (`OPEN-FAM-UNIT-57`): la interfaz no lo ofrece. */
+  delivered_by: null
+  off_schedule: boolean
+  off_schedule_reason: OffScheduleReason | null
+  notes: string | null
+}
+
+export interface PickupAlertCreate {
+  student_person: PublicId
+  presenter_description: string
+}
+
+/** Cuerpo de `PATCH /pickup-alerts/{id}`: la llamada, o el cierre; nunca ambos a la vez desde la interfaz. */
+export interface PickupAlertUpdate {
+  principal_contacted_at?: string
+  resolution?: PickupAlertResolution
+  resolution_notes?: string
+}

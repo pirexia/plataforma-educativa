@@ -15,9 +15,12 @@ import type {
   DoorStudentList,
   Paginated,
   PickupAlert,
+  PickupAlertCreate,
   PickupAlertStatus,
+  PickupAlertUpdate,
   PublicId,
   StudentMovement,
+  StudentMovementCreate,
 } from '../types'
 import { buildQuery, encode } from './query'
 
@@ -83,4 +86,46 @@ export function listPickupAlerts(
 /** `GET /pickup-alerts/{publicId}` (`alerta_entrega.leer`): abierta ⇒ protocolo y teléfonos, **auditada** y con cupo. */
 export function getPickupAlert(publicId: PublicId): Promise<PickupAlert> {
   return apiFetch<PickupAlert>(`/pickup-alerts/${encode(publicId)}`, NO_STORE)
+}
+
+/**
+ * `POST /student-movements` (`entrega_menor.crear`, `RN-PRL-09`, `DP-4`). `idempotencyKey`: una por intento de envío,
+ * reutilizada en los reintentos del mismo cuerpo (`funcional.md §23.5.3`). Un `201` con `Idempotency-Replayed: true`
+ * es el mismo resultado original y se trata como éxito normal.
+ */
+export function createStudentMovement(
+  body: StudentMovementCreate,
+  idempotencyKey: string,
+): Promise<StudentMovement> {
+  return apiFetch<StudentMovement>('/student-movements', {
+    method: 'POST',
+    headers: { 'Idempotency-Key': idempotencyKey },
+    body: JSON.stringify(body),
+  })
+}
+
+/** `POST /pickup-alerts` (`alerta_entrega.crear`): **escribe `read`** y gasta cupo (`DP-11`); devuelve protocolo y teléfonos. */
+export function createPickupAlert(
+  body: PickupAlertCreate,
+  idempotencyKey: string,
+): Promise<PickupAlert> {
+  return apiFetch<PickupAlert>('/pickup-alerts', {
+    method: 'POST',
+    headers: { 'Idempotency-Key': idempotencyKey },
+    body: JSON.stringify(body),
+  })
+}
+
+/**
+ * `PATCH /pickup-alerts/{publicId}` (`alerta_entrega.actualizar`, `DP-6`): `principal_contacted_at` y/o cierre con
+ * `resolution`. **Sobre una alerta abierta escribe `read` y gasta cupo** (`DP-11`): un `PATCH` por acción del usuario.
+ */
+export function updatePickupAlert(
+  publicId: PublicId,
+  body: PickupAlertUpdate,
+): Promise<PickupAlert> {
+  return apiFetch<PickupAlert>(`/pickup-alerts/${encode(publicId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  })
 }

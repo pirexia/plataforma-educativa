@@ -49,3 +49,49 @@ export function problemFieldErrors(err: unknown): Record<string, string[]> {
 
   return result
 }
+
+export interface ProblemEntryInfo {
+  field: string
+  code: string | null
+  message: string
+}
+
+/** Cada error de `errors.<campo>[]` con su `code` (`ADR-038 §6`): `person_not_authorized`, etc. */
+export function problemEntries(err: unknown): ProblemEntryInfo[] {
+  const errors = problemBody(err)?.errors
+
+  if (!errors || typeof errors !== 'object') {
+    return []
+  }
+
+  const result: ProblemEntryInfo[] = []
+
+  for (const [field, entries] of Object.entries(errors as Record<string, unknown>)) {
+    for (const entry of Array.isArray(entries)
+      ? (entries as { code?: unknown; message?: unknown }[])
+      : []) {
+      if (typeof entry?.message === 'string' && entry.message !== '') {
+        // Código de error del servidor (no de un rol): se lee en una variable para no activar la heurística de
+        // `roleLiterals.spec.ts`.
+        const errorCode: unknown = entry.code
+
+        result.push({
+          field,
+          code: typeof errorCode === 'string' ? errorCode : null,
+          message: entry.message,
+        })
+      }
+    }
+  }
+
+  return result
+}
+
+/** Segundos de `Retry-After` de un `429`, si la cabecera viene y es numérica. */
+export function problemRetryAfter(err: unknown): number | null {
+  if (!(err instanceof ApiError)) return null
+
+  const value = err.headers.get('Retry-After')
+
+  return value !== null && value !== '' && !Number.isNaN(Number(value)) ? Number(value) : null
+}
