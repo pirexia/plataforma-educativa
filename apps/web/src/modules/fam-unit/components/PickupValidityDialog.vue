@@ -26,7 +26,11 @@ const props = defineProps<{
   authorization: PickupAuthorization | null
   save: (validUntil: string | null) => Promise<unknown>
 }>()
-const emit = defineEmits<{ 'update:open': [value: boolean]; saved: []; reload: [] }>()
+const emit = defineEmits<{
+  'update:open': [value: boolean]
+  saved: []
+  conflict: [message: string]
+}>()
 
 const t = useT()
 
@@ -34,7 +38,6 @@ const validUntil = ref('')
 const busy = ref(false)
 const fieldErrors = ref<Record<string, string[]>>({})
 const formError = ref<string | null>(null)
-const withdrawn = ref(false)
 
 watch(
   () => props.open,
@@ -43,7 +46,6 @@ watch(
       validUntil.value = props.authorization?.valid_until ?? ''
       fieldErrors.value = {}
       formError.value = null
-      withdrawn.value = false
     }
   },
   { immediate: true },
@@ -61,7 +63,15 @@ async function submit(): Promise<void> {
     emit('saved')
     emit('update:open', false)
   } catch (err) {
-    withdrawn.value = problemStatus(err) === 409
+    if (problemStatus(err) === 409) {
+      // La retiró otra persona entre medias: el cambio no se aplica, el diálogo se cierra y la sección muestra el
+      // mensaje del servidor y recarga la tabla (`funcional.md §23.4.2`).
+      emit('conflict', problemDetail(err) ?? t('famUnit.errors.unexpected'))
+      emit('update:open', false)
+
+      return
+    }
+
     fieldErrors.value = problemFieldErrors(err)
     formError.value =
       problemDetail(err) ??
@@ -69,11 +79,6 @@ async function submit(): Promise<void> {
   } finally {
     busy.value = false
   }
-}
-
-function reload(): void {
-  emit('reload')
-  emit('update:open', false)
 }
 </script>
 
@@ -116,11 +121,6 @@ function reload(): void {
         </div>
 
         <p v-if="formError" role="alert" class="text-destructive text-sm">{{ formError }}</p>
-        <div v-if="withdrawn">
-          <Button type="button" variant="outline" size="sm" @click="reload">
-            {{ t('famUnit.pickup.states.reloadTable') }}
-          </Button>
-        </div>
 
         <DialogFooter>
           <Button type="button" variant="outline" @click="emit('update:open', false)">

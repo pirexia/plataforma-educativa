@@ -492,7 +492,7 @@ describe('CA-FAM-UNIT-139: retirada y fecha de fin', () => {
     ).toBeNull()
   })
 
-  it('un 409 pickup.withdrawn al guardar muestra el mensaje, no aplica el cambio y ofrece recargar sin hacerlo solo', async () => {
+  it('un 409 pickup.withdrawn al guardar no aplica el cambio: cierra el diálogo, avisa en la sección y recarga la tabla', async () => {
     vi.mocked(famApi.updatePickupAuthorizationValidity).mockRejectedValue(
       problem(409, 'La autorización fue retirada por otra persona.'),
     )
@@ -506,11 +506,10 @@ describe('CA-FAM-UNIT-139: retirada y fecha de fin', () => {
     ).dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }))
     await flushPromises()
 
-    expect(text()).toContain('La autorización fue retirada por otra persona.')
-    expect(famApi.listPickupAuthorizations).toHaveBeenCalledTimes(1)
-
-    await click('Recargar la tabla')
-
+    expect(document.body.querySelector('[data-slot="fam-unit-pickup-validity"]')).toBeNull()
+    expect(document.body.querySelector('[role="alert"]')?.textContent).toContain(
+      'La autorización fue retirada por otra persona.',
+    )
     expect(famApi.listPickupAuthorizations).toHaveBeenCalledTimes(2)
   })
 })

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Ejecuta los tests e2e que necesitan la API real (CA-PERM-133, CA-CURSO-086, CA-CURSO-147, CA-ACAD-053, CA-ACAD-101 y CA-ACAD-135, E2E_REAL_API=1):
+# Ejecuta los tests e2e que necesitan la API real (CA-PERM-133, CA-CURSO-086, CA-CURSO-147, CA-ACAD-053, CA-ACAD-101, CA-ACAD-135 y CA-FAM-UNIT-142, E2E_REAL_API=1):
 # prepara un centro de pruebas sintético en el contenedor de la API, lanza
 # Playwright con sus credenciales y lo retira por completo al terminar, también
 # si falla.
@@ -78,45 +78,80 @@ trap cleanup EXIT
 # Prepara un centro limpio y exporta sus credenciales. Cada suite recibe el
 # suyo: los tests de curso y de estructura académica crean cursos académicos
 # con el mismo código y se estorbarían en un centro compartido.
+# `E2E_ONLY=<suite>` ejecuta una sola suite (`core`, `acad-structure`, `acad-periods`, `acad-scales`, `acad-timetable`,
+# `curso-rollover`, `fam-unit`); sin ella, todas, como siempre.
+only() { [[ -z "${E2E_ONLY:-}" || "$E2E_ONLY" == "$1" ]]; }
+
 prepare_tenant() {
+  local mode="${1:-}"
+
   # Un «demo» anterior de este script (ejecución interrumpida o suite previa) se
   # retira; si no lo creó el script, teardown se niega y la ejecución aborta en setup.
   cleanup
 
   local json
-  json="$(support setup "$SLUG")"
+  json="$(support setup "$SLUG" $mode)"
 
   export E2E_REAL_API=1
   E2E_ADMIN_EMAIL="$(printf '%s' "$json" | field admin_email)"
   E2E_ADMIN_PASSWORD="$(printf '%s' "$json" | field admin_password)"
   E2E_TARGET_EMAIL="$(printf '%s' "$json" | field target_email)"
   export E2E_ADMIN_EMAIL E2E_ADMIN_PASSWORD E2E_TARGET_EMAIL
+
+  # Con `door` (`fam_unit` y `prl` contratados, secretaría y conserjería, dos alumnos ficticios).
+  if [[ "$mode" == "door" ]]; then
+    E2E_SECRETARIA_EMAIL="$(printf '%s' "$json" | field secretaria_email)"
+    E2E_STAFF_PASSWORD="$(printf '%s' "$json" | field staff_password)"
+    E2E_STUDENT_1="$(printf '%s' "$json" | field student_1)"
+    export E2E_SECRETARIA_EMAIL E2E_STAFF_PASSWORD E2E_STUDENT_1
+  fi
 }
 
-prepare_tenant
-npx playwright test e2e/core-roles.spec.ts e2e/curso-academic-years.spec.ts -g "CA-PERM-133|CA-CURSO-086" --workers=1 "$@"
+if only core; then
+  prepare_tenant
+  npx playwright test e2e/core-roles.spec.ts e2e/curso-academic-years.spec.ts -g "CA-PERM-133|CA-CURSO-086" --workers=1 "$@"
+fi
 
 # REQ-ACAD (1.11-b), CA-ACAD-053: centro propio, con `acad` contratado por el setup.
-prepare_tenant
-npx playwright test e2e/acad-structure.spec.ts -g "CA-ACAD-053" --workers=1 "$@"
+if only acad-structure; then
+  prepare_tenant
+  npx playwright test e2e/acad-structure.spec.ts -g "CA-ACAD-053" --workers=1 "$@"
+fi
 
 # REQ-ACAD (1.11d-a), CA-ACAD-101: períodos lectivos de la ficha de etapa. El test crea su propio curso y su etapa
 # y necesita `acad` contratado, que el setup ya deja hecho.
-prepare_tenant
-npx playwright test e2e/acad-periods.spec.ts -g "CA-ACAD-101" --workers=1 "$@"
+if only acad-periods; then
+  prepare_tenant
+  npx playwright test e2e/acad-periods.spec.ts -g "CA-ACAD-101" --workers=1 "$@"
+fi
 
 # REQ-ACAD (1.11d-b), CA-ACAD-101 (parte de escalas): escala cualitativa reordenada, mixta 0-10 y 320 px. Crea su propio
 # curso, igual que el de períodos.
-prepare_tenant
-npx playwright test e2e/acad-scales.spec.ts -g "CA-ACAD-101" --workers=1 "$@"
+if only acad-scales; then
+  prepare_tenant
+  npx playwright test e2e/acad-scales.spec.ts -g "CA-ACAD-101" --workers=1 "$@"
+fi
 
 # REQ-ACAD (1.12-b), CA-ACAD-135: aula, marco ordinario con franjas, asignaciones docentes, sesiones, conflicto de
 # profesor y vista del profesor. Crea su propio curso, etapa, grupo y asignaturas; usa los dos profesores sintéticos
 # (Daniel y Marta Docente) que deja el setup.
-prepare_tenant
-npx playwright test e2e/acad-timetable.spec.ts -g "CA-ACAD-135" --workers=1 "$@"
+if only acad-timetable; then
+  prepare_tenant
+  npx playwright test e2e/acad-timetable.spec.ts -g "CA-ACAD-135" --workers=1 "$@"
+fi
 
 # REQ-CURSO (1.12b), CA-CURSO-147: apertura del curso siguiente. Crea sus propios cursos y su etapa, y ejecuta la cola `long`
 # dentro del contenedor de la API (`queue:work database_long --queue=long --stop-when-empty`); `acad` lo contrata el setup.
-prepare_tenant
-npx playwright test e2e/curso-rollover.spec.ts -g "CA-CURSO-147" --workers=1 "$@"
+if only curso-rollover; then
+  prepare_tenant
+  npx playwright test e2e/curso-rollover.spec.ts -g "CA-CURSO-147" --workers=1 "$@"
+fi
+
+# REQ-FAM-UNIT (1.14b-c1 T3), CA-FAM-UNIT-142: sección «Personas autorizadas» en navegador real contra la API real
+# (persona → autorización → fotografía → lista vigente → retirada). Centro propio con `fam_unit` y `prl` (modo `door`).
+# Requiere un almacén S3 en `minio:9000` con el bucket `plataforma` (MinIO o el servidor falso de
+# apps/api/tests/Support/e2e-fake-s3.php; `docs/modulos/REQ-PRL/operacion.md §12.7`) y publicado en 127.0.0.1:9000.
+if only fam-unit; then
+  prepare_tenant door
+  npx playwright test e2e/fam-unit-pickup-real.spec.ts --workers=1 "$@"
+fi

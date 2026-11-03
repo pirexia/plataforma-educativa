@@ -95,6 +95,12 @@ function flash(key: string): void {
   actions.message.value = t(key)
 }
 
+async function onValidityConflict(message: string): Promise<void> {
+  actions.clear()
+  actions.actionError.value = message
+  await reloadTable()
+}
+
 async function withdraw(row: PickupAuthorization): Promise<void> {
   const person = row.person.display_name
   const student = studentName(row.student_person)
@@ -239,7 +245,7 @@ async function afterWizard(changed: boolean): Promise<void> {
           void reloadTable()
         }
       "
-      @reload="reloadTable"
+      @conflict="onValidityConflict"
     />
     <PickupPhotoDialog
       v-if="canUpdate && photoTarget"
