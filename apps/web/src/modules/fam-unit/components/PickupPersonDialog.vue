@@ -45,21 +45,33 @@ const phone = ref('')
 const fieldErrors = ref<Record<string, string[]>>({})
 const formError = ref<string | null>(null)
 
+/** Número de la última carga: la respuesta de una ficha anterior (otra persona o diálogo cerrado) se descarta. */
+let loadSeq = 0
+
 async function load(): Promise<void> {
+  const seq = ++loadSeq
+  const id = props.personPublicId
+
   loading.value = true
   loadError.value = null
   person.value = null
 
   try {
-    person.value = await getPickupPerson(props.personPublicId)
-    phone.value = person.value.contact_phone ?? ''
+    const loaded = await getPickupPerson(id)
+
+    if (seq !== loadSeq) return
+
+    person.value = loaded
+    phone.value = loaded.contact_phone ?? ''
   } catch (err) {
+    if (seq !== loadSeq) return
+
     loadError.value =
       problemStatus(err) === 404
         ? t('famUnit.pickup.person.unavailable')
         : (problemDetail(err) ?? t('famUnit.errors.unexpected'))
   } finally {
-    loading.value = false
+    if (seq === loadSeq) loading.value = false
   }
 }
 
@@ -75,6 +87,7 @@ watch(
       formError.value = null
       void load()
     } else {
+      loadSeq++
       person.value = null
       phone.value = ''
     }

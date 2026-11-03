@@ -332,6 +332,99 @@ describe('CA-FAM-UNIT-136 (regresión de revisión): una búsqueda resuelta no s
   })
 })
 
+describe('CA-FAM-UNIT-136 (regresión de revisión): una respuesta de búsqueda tardía no pisa un documento más reciente', () => {
+  it('buscar A, editar a B antes de que responda y resolver A: A no aparece ni permite avanzar y busy se restablece', async () => {
+    let resolveA!: (value: unknown) => void
+
+    vi.mocked(famApi.findPickupPerson).mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveA = resolve
+      }) as never,
+    )
+    await open()
+    await pickStudent()
+    await click('Nueva autorización')
+    await fill('#fam-unit-pickup-doc-number', 'AAA')
+    await click('Buscar')
+    await fill('#fam-unit-pickup-doc-number', 'BBB')
+
+    resolveA({
+      data: [
+        {
+          person: 'PPA',
+          display_name: 'Persona Ejemplo A',
+          document: { type: 'dni', number: 'AAA' },
+        },
+      ],
+    })
+    await flushPromises()
+
+    expect(text()).not.toContain('Persona Ejemplo A')
+    expect(buttonByText('Usar esta persona')).toBeUndefined()
+    expect(famApi.createPickupAuthorization).not.toHaveBeenCalled()
+
+    // `busy` se restableció: «Buscar» y «Siguiente» responden de nuevo (B no figura: pasa al alta).
+    vi.mocked(famApi.findPickupPerson).mockResolvedValueOnce({ data: [] })
+    await click('Buscar')
+
+    expect(famApi.findPickupPerson).toHaveBeenLastCalledWith('dni', 'BBB')
+    expect(text()).toContain('No hay ninguna persona con ese documento.')
+  })
+})
+
+describe('Regresión de revisión: la ficha de una persona descarta la respuesta de otra anterior', () => {
+  it('abrir la ficha de A, cerrarla y abrir la de B: al resolver A tarde no se pinta', async () => {
+    let resolveA!: (value: unknown) => void
+
+    vi.mocked(famApi.getPickupPerson)
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveA = resolve
+        }) as never,
+      )
+      .mockResolvedValueOnce({
+        person: 'PP2',
+        display_name: 'Persona Ejemplo B',
+        document: { type: 'dni', number: 'BBB' },
+        contact_phone: null,
+        has_photo: true,
+      } as never)
+    vi.mocked(famApi.listPickupAuthorizations).mockResolvedValue(
+      page([
+        pickupAuthorization({
+          public_id: 'A1',
+          person: { public_id: 'PP1', display_name: 'Persona Ejemplo A' },
+        }),
+        pickupAuthorization({
+          public_id: 'A2',
+          person: { public_id: 'PP2', display_name: 'Persona Ejemplo B' },
+        }),
+      ]) as never,
+    )
+    await open()
+    await pickStudent()
+    buttonByLabel('Ver los datos de Persona Ejemplo A')!.click()
+    await flushPromises()
+    await click('Cerrar')
+    buttonByLabel('Ver los datos de Persona Ejemplo B')!.click()
+    await flushPromises()
+
+    resolveA({
+      person: 'PP1',
+      display_name: 'Persona Ejemplo A',
+      document: { type: 'dni', number: 'AAA' },
+      contact_phone: '600000001',
+      has_photo: true,
+    })
+    await flushPromises()
+
+    const input = document.body.querySelector<HTMLInputElement>('#fam-unit-pickup-person-document')!
+
+    expect(input.value).toContain('BBB')
+    expect(input.value).not.toContain('AAA')
+  })
+})
+
 describe('CA-FAM-UNIT-137: fotografía', () => {
   async function toPhotoStep(): Promise<void> {
     await open()

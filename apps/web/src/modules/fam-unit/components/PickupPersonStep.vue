@@ -51,7 +51,13 @@ const formError = ref<string | null>(null)
 const key = computed(() => `${documentType.value}|${documentNumber.value.trim()}`)
 
 // Cambiar el tipo o el número invalida la búsqueda y los avisos de la persona anterior: hay que buscar de nuevo.
+/** Cada petición lleva su número: una respuesta que ya no es la última (o de otra clave) se descarta. */
+let requestSeq = 0
+
 watch(key, () => {
+  // Lo que esté en vuelo era para otra clave: se descarta al llegar y el paso deja de estar ocupado.
+  requestSeq++
+  busy.value = false
   found.value = null
   foundKey.value = null
   reused.value = false
@@ -92,18 +98,25 @@ async function search(): Promise<void> {
     return
   }
 
+  const seq = ++requestSeq
+  const searchedKey = key.value
+  const type = documentType.value
+  const number = documentNumber.value.trim()
+
   busy.value = true
 
   try {
-    const result = await findPickupPerson(documentType.value, documentNumber.value.trim())
+    const result = await findPickupPerson(type, number)
+
+    if (seq !== requestSeq || searchedKey !== key.value) return
 
     found.value = result.data[0] ?? null
-    foundKey.value = key.value
+    foundKey.value = searchedKey
     mode.value = found.value ? 'found' : 'create'
   } catch (err) {
-    fail(err)
+    if (seq === requestSeq && searchedKey === key.value) fail(err)
   } finally {
-    busy.value = false
+    if (seq === requestSeq) busy.value = false
   }
 }
 
@@ -140,6 +153,9 @@ async function submit(): Promise<PickupPerson | null> {
     return null
   }
 
+  const seq = ++requestSeq
+  const createdKey = key.value
+
   busy.value = true
 
   try {
@@ -152,17 +168,28 @@ async function submit(): Promise<PickupPerson | null> {
       contact_phone: phone.value.trim() === '' ? null : phone.value.trim(),
     })
 
+    // La persona ya existe en el servidor para la clave con la que se envió; solo se usa si el formulario sigue en ella.
+    resolved.value = { key: createdKey, person }
+
+    if (seq !== requestSeq || createdKey !== key.value) return null
+
     reused.value = person.reused === true
     mismatch.value = person.data_mismatch === true
-    resolved.value = { key: key.value, person }
 
     return person
   } catch (err) {
-    fail(err)
+    if (seq === requestSeq && createdKey === key.value) fail(err)
 
     return null
   } finally {
-    busy.value = false
+    if (seq === requestSeq) busy.value = false
+  }
+}
+
+/** «Usar esta persona»: solo vale si la coincidencia es de la clave que muestra el formulario. */
+function use(person: PickupPerson): void {
+  if (foundKey.value === key.value) {
+    emit('use', person)
   }
 }
 
@@ -224,7 +251,7 @@ defineExpose({ submit })
       <p v-if="found.document" class="text-muted-foreground text-xs">
         {{ typeLabel(found.document.type) }} {{ found.document.number }}
       </p>
-      <Button type="button" size="sm" class="mt-2" @click="emit('use', found)">
+      <Button type="button" size="sm" class="mt-2" @click="use(found)">
         {{ t('famUnit.pickup.person.useExisting') }}
       </Button>
     </div>
