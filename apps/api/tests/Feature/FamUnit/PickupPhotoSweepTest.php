@@ -22,10 +22,15 @@ afterEach(function (): void {
     DB::connection('pgsql_platform')->table('tenants')->delete();
 });
 
-/** Adelanta el reloj `$days` días desde el momento en que se creó la familia. */
+/**
+ * Adelanta el reloj `$days` días desde el momento real en que se escribieron los objetos.
+ *
+ * El barrido compara `lastModified()` (fecha real del fichero en el disco falso) con `now()`; anclar el reloj a una
+ * fecha fija del pasado hacía fallar el test en cuanto el reloj real superaba esa fecha (CI del 2026-11-03, #515).
+ */
 function sweepAfter(int $days, object $tenant): void
 {
-    test()->travelTo(CarbonImmutable::parse('2026-11-02 09:00:00')->addDays($days));
+    test()->travelTo(CarbonImmutable::createFromTimestamp(time())->addDays($days));
     app(TenantContext::class)->runFor($tenant->id, function () use ($tenant): void {
         PurgeOrphanPickupPhotos::dispatch($tenant->id);
     });
