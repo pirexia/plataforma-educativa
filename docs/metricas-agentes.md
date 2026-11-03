@@ -41,6 +41,7 @@ Registro del gasto de cada subagente, para calibrar el tamaño de los tramos de 
 | 1.14b-c (spec) | doc-precheck | pasada 1 | 86340 | 11 | 0.9 | 7849 | 4 hallazgos |
 | 1.14b-c (spec) | doc-reviewer | ronda única | 194526 | 41 | 4.0 | 4744 | 0 C/A, 7 Medios, 12 Bajos |
 | 1.14b-c (spec) | doc-precheck | pasada 2 (sobre enmiendas) | 110265 | 15 | 1.6 | 7351 | 2 menores |
+| 1.14b-c1 | implementer | T1 lectura | 174266 | 40 | 6.2 | 4357 | 16 ficheros, 1634 líneas; sin incidencias |
 | proceso | implementer | aplicar ADR-069 (skill, docs) | 106801 | 16 | 2.4 | 6675 | |
 
 ## Resumen (se recalcula al cerrar cada paso)
