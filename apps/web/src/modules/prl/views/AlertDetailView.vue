@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * `/conserjeria/alertas/:publicId` (`docs/modulos/REQ-FAM-UNIT/funcional.md §23.5.4`, `§23.5.3`, `§23.6`;
- * `1.14b-c2` T1, **lectura**: sin registrar la llamada ni cerrar). `GET /pickup-alerts/{publicId}` bajo demanda: al
+ * `1.14b-c2` T1, **lectura**; los nombres los da la API, T1b: sin registrar la llamada ni cerrar). `GET /pickup-alerts/{publicId}` bajo demanda: al
  * abrir el detalle (UI-2). Abierta: protocolo (texto del servidor, tal cual, en una región con título) y teléfonos del
  * tutor principal y del contacto de emergencia como enlaces `tel:` (`null` ⇒ «No disponible», sin explicar por qué:
  * puede ser una revocación, `DP-5`); esa lectura escribe `read` y gasta cupo (`DP-11`), así que lleva el aviso de
@@ -87,7 +87,17 @@ const isOpen = computed(() => alert.value?.status === 'abierta')
 const studentName = computed(() =>
   alert.value === null
     ? ''
-    : (door.find(alert.value.student_person)?.displayName ?? t('prl.alerts.studentUnknown')),
+    : alert.value.student_display_name ||
+      door.find(alert.value.student_person)?.displayName ||
+      t('prl.alerts.studentUnknown'),
+)
+
+const raisedByName = computed(
+  () => alert.value?.raised_by_display_name || t('prl.alerts.userUnknown'),
+)
+
+const resolvedByName = computed(
+  () => alert.value?.resolved_by_display_name || t('prl.alerts.userUnknown'),
 )
 
 const resolutionText = computed(() => {
@@ -183,7 +193,7 @@ const phones = computed(() => [
         </div>
         <div class="flex flex-wrap gap-x-2">
           <dt class="text-muted-foreground">{{ t('prl.alerts.columns.raisedBy') }}</dt>
-          <dd class="font-mono text-xs">{{ alert.raised_by }}</dd>
+          <dd>{{ raisedByName }}</dd>
         </div>
         <div class="flex flex-wrap gap-x-2">
           <dt class="text-muted-foreground">{{ t('prl.alerts.columns.raisedAt') }}</dt>
@@ -204,7 +214,7 @@ const phones = computed(() => [
           </div>
           <div v-if="alert.resolved_by" class="flex flex-wrap gap-x-2">
             <dt class="text-muted-foreground">{{ t('prl.alert.resolvedBy') }}</dt>
-            <dd class="font-mono text-xs">{{ alert.resolved_by }}</dd>
+            <dd>{{ resolvedByName }}</dd>
           </div>
           <div v-if="alert.resolved_at" class="flex flex-wrap gap-x-2">
             <dt class="text-muted-foreground">{{ t('prl.alert.resolvedAt') }}</dt>

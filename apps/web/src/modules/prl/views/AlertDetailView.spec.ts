@@ -131,4 +131,36 @@ describe('CA-PRL-023: detalle de una alerta (WCAG 1.4.1)', () => {
     expect(document.body.querySelector('button')).toBeNull()
     await flushPromises()
   })
+
+  it('muestra los nombres de la API (alumno, quien abrió y quien cerró) en lugar de los public_id, con fallback', async () => {
+    vi.mocked(prlApi.getPickupAlert).mockResolvedValue(
+      pickupAlert({
+        status: 'cerrada',
+        resolution: 'no_entregado',
+        student_display_name: 'Marta Ejemplo Soler',
+        raised_by_display_name: 'Conserje Ejemplo',
+        resolved_by: 'USR9',
+        resolved_by_display_name: 'Dirección Ejemplo',
+        resolved_at: '2026-11-03T10:00:00Z',
+        protocol: undefined,
+        contacts: undefined,
+      }) as never,
+    )
+    await open()
+
+    expect(text()).toContain('Marta Ejemplo Soler')
+    expect(text()).toContain('Conserje Ejemplo')
+    expect(text()).toContain('Dirección Ejemplo')
+    expect(text()).not.toContain('USR1')
+    expect(text()).not.toContain('USR9')
+
+    // Sin nombres (API antigua o usuario borrado): marcador neutro.
+    vi.mocked(prlApi.getPickupAlert).mockResolvedValue(pickupAlert() as never)
+    wrappers.pop()!.unmount()
+    document.body.innerHTML = ''
+    await open()
+
+    expect(text()).toContain('Usuario')
+    expect(text()).not.toContain('USR1')
+  })
 })

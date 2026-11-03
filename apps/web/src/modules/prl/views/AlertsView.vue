@@ -5,10 +5,12 @@
  * `raised_at` descendente, orden fijo del servidor), estado en la URL (solo el filtro y la página: nada de personas) y
  * filtro por estado. «Abierta» (icono `TriangleAlert`) / «Cerrada» (icono `CircleCheck`): texto siempre (WCAG 1.4.1).
  * El listado no lleva teléfonos ni protocolo (`DP-5`) y no escribe `read` ni gasta cupo (`DP-11`): se carga al entrar,
- * sin sondeo. El alumno se muestra por nombre solo si se conoce en la memoria del módulo (la API da su `public_id`).
+ * sin sondeo. Los nombres (alumno y quien abrió la alerta) los da la API (`*_display_name`, 1.14b-c2); si faltan, el
+ * alumno se busca en la memoria del módulo y, si no, «Alumno». Filtro por fecha de apertura (`date`, fecha civil del
+ * centro) con un campo de fecha fuera de la tabla: al cambiarlo se reinicia la página y se recarga.
  */
-import { computed } from 'vue'
-import { RouterLink } from 'vue-router'
+import { computed, ref } from 'vue'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { CircleCheck, TriangleAlert } from '@lucide/vue'
 import { useT } from '@/i18n'
 import {
@@ -18,6 +20,9 @@ import {
   type DataTableFetcher,
   type DataTableFilter,
 } from '@/data-table'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import StatusBadge from '../components/StatusBadge.vue'
 import { listPickupAlerts } from '../api'
 import { useDoorContext } from '../composables/useDoorContext'
@@ -28,9 +33,33 @@ const STATUSES = ['abierta', 'cerrada']
 const t = useT()
 const door = useDoorContext()
 const { formatDateTime } = useDataTableFormatters()
+const route = useRoute()
+const router = useRouter()
+
+/** `AAAA-MM-DD` o vacío (sin filtro). */
+const date = ref('')
+const tableKey = ref(0)
 
 function studentName(row: PickupAlert): string {
-  return door.find(row.student_person)?.displayName ?? t('prl.alerts.studentUnknown')
+  return (
+    row.student_display_name ||
+    door.find(row.student_person)?.displayName ||
+    t('prl.alerts.studentUnknown')
+  )
+}
+
+function raisedByName(row: PickupAlert): string {
+  return row.raised_by_display_name || t('prl.alerts.userUnknown')
+}
+
+async function applyDate(value: string): Promise<void> {
+  date.value = value
+  tableKey.value += 1
+
+  // Otro filtro, otra página 1: se quita `page` de la URL (el resto del estado se conserva).
+  if (route.query.page !== undefined) {
+    await router.replace({ query: { ...route.query, page: undefined } })
+  }
 }
 
 function resolutionLabel(row: PickupAlert): string | null {
@@ -76,14 +105,36 @@ const columns = computed<DataTableColumn<PickupAlert>[]>(() => [
 ])
 
 const fetchAlerts: DataTableFetcher<PickupAlert> = (query) =>
-  listPickupAlerts({ status: query.filters.status, page: query.page, per_page: query.per_page })
+  listPickupAlerts({
+    status: query.filters.status,
+    date: date.value || undefined,
+    page: query.page,
+    per_page: query.per_page,
+  })
 </script>
 
 <template>
   <div class="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-6">
     <h1 class="text-lg font-semibold">{{ t('prl.nav.alerts') }}</h1>
 
+    <div class="flex flex-wrap items-end gap-3">
+      <div class="flex flex-col gap-1">
+        <Label for="prl-alerts-date">{{ t('prl.alerts.dateFilter') }}</Label>
+        <Input
+          id="prl-alerts-date"
+          type="date"
+          class="w-48"
+          :model-value="date"
+          @update:model-value="applyDate(String($event ?? ''))"
+        />
+      </div>
+      <Button v-if="date" type="button" variant="outline" @click="applyDate('')">
+        {{ t('prl.alerts.dateClear') }}
+      </Button>
+    </div>
+
     <DataTable
+      :key="tableKey"
       table-id="prl.pickup_alerts"
       :caption="t('prl.alerts.caption')"
       :columns="columns"
@@ -111,7 +162,7 @@ const fetchAlerts: DataTableFetcher<PickupAlert> = (query) =>
         />
       </template>
       <template #cell-raised_by="{ row }">
-        <span class="font-mono text-xs">{{ row.raised_by }}</span>
+        <span>{{ raisedByName(row) }}</span>
       </template>
     </DataTable>
   </div>

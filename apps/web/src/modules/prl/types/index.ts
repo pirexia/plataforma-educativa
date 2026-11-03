@@ -62,15 +62,19 @@ export type PickupAlertResolution =
 export interface PickupAlert {
   public_id: PublicId
   student_person: PublicId
+  /** Nombre visible (1.14b-c2); vacío si la persona está borrada. Opcional por compatibilidad hacia atrás. */
+  student_display_name?: string
   kind: string
   presenter_description: string
   status: PickupAlertStatus | string
   raised_by: PublicId
+  raised_by_display_name?: string
   raised_at: string
   principal_contacted_at: string | null
   resolution: PickupAlertResolution | string | null
   resolution_notes: string | null
   resolved_by: PublicId | null
+  resolved_by_display_name?: string | null
   resolved_at: string | null
   protocol?: string
   contacts?: { principal_phone: string | null; emergency_phone: string | null }

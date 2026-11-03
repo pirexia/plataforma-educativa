@@ -71,7 +71,10 @@
         "raisedBy": "Abierta por",
         "raisedAt": "Fecha",
         "resolution": "Resolución"
-      }
+      },
+      "dateFilter": "Date d'ouverture",
+      "dateClear": "Effacer la date",
+      "userUnknown": "Utilisateur"
     },
     "states": {
       "notFound": "No se encuentra esta información.",
