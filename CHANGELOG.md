@@ -10,7 +10,7 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 - SPA `fam-unit`: lectura (tabla y lista de recogida), asistente de alta (persona → autorización → fotografía), diálogos de vigencia, foto y persona, retirada; permisos desde `/me`; claves en es/en/de/fr (las [NT] solo en es-ES, `OPEN-FAM-UNIT-59` B).
 - E2E real contra la API `CA-FAM-UNIT-142` (`E2E_ONLY=fam-unit`, validado en `e2e-real-api.sh`); no se probó S3/MinIO real.
-- Revisión: Codex en tres rondas (1 Alto de búsqueda obsoleta y 1 de carrera en la respuesta tardía, 2 Medios) y `security-reviewer` (2 Bajos y 1 observación, issues #510, #511 y #512). Manual de secretaría actualizado.
+- Revisión: Codex en tres rondas (1 Alto de búsqueda obsoleta y 1 de carrera en la respuesta tardía, 2 Medios) y `security-reviewer` (2 Bajos y 1 observación, issues #510, #511 y #512). Manual de secretaría, SYSADMIN, operaciones y excepción de `CA-CORE-192` documentados; `list.empty` queda en es-ES en en/de/fr hasta la revisión humana (§24).
 
 ## 2026-11-02 · `chore(proceso)`: `CLAUDE.md` 2.10.2, especificación de UI de `1.14b-c` y revisión de skills
 

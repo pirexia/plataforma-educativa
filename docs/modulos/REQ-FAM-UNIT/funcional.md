@@ -1431,7 +1431,7 @@ Prefijos: `famUnit.pickup.*` en `apps/web/src/modules/fam-unit/locales/*.json` y
 | `list.show` | Ver lista de recogida | Show pickup list | Abholliste anzeigen | Afficher la liste de récupération |
 | `list.reload` | Volver a cargar la lista | Reload the list | Liste neu laden | Recharger la liste |
 | `list.initial` | Elige un alumno y pulsa «Ver lista de recogida». | Choose a student and press "Show pickup list". | Wählen Sie eine/n Schüler/in und klicken Sie auf „Abholliste anzeigen“. | Choisissez un élève et cliquez sur « Afficher la liste de récupération ». |
-| `list.empty` | Nadie puede recoger a este alumno en este momento. | Nobody can collect this student at the moment. | Derzeit darf niemand diese/n Schüler/in abholen. | Personne ne peut récupérer cet élève pour le moment. |
+| `list.empty` **[NT]** | Nadie puede recoger a este alumno en este momento. | Nobody can collect this student at the moment. | Derzeit darf niemand diese/n Schüler/in abholen. | Personne ne peut récupérer cet élève pour le moment. |
 | `list.asOf` | Lista calculada el {date} | List calculated on {date} | Liste berechnet am {date} | Liste calculée le {date} |
 | `list.auditNotice` **[NT]** | Esta consulta queda registrada con tu usuario, la fecha y la hora. | This lookup is recorded with your user, the date and the time. | Diese Abfrage wird mit Ihrem Benutzer, Datum und Uhrzeit protokolliert. | Cette consultation est enregistrée avec votre utilisateur, la date et l'heure. |
 | `photo.alt` | Fotografía de {person} | Photograph of {person} | Foto von {person} | Photo de {person} |
@@ -1580,6 +1580,8 @@ Vitest salvo los marcados **[E2E real]** (Playwright contra la API real en ejecu
 
 ### 23.10 Partición en tramos y entregas
 
+> `1.14b-c1` ya está implementada (tramos T1 a T3 hechos); el estado y las decisiones de detalle están en §24. Los tramos de `1.14b-c2` siguen siendo los previstos.
+
 **Dimensionado.** Con la referencia de `CLAUDE.md §2` («≤ 3 tramos de ~60-100 llamadas por entrega») y la estimación de esta especificación, los cuatro tramos previstos **no caben bien**: T1 de la propuesta original (sección completa con asistente de tres pasos, cuatro diálogos, cliente, tipos, ~60 claves en cuatro idiomas y sus tests) se estima en 120-150 llamadas, y las dos mitades (`fam-unit` y `prl`) necesitan **cada una** su E2E real (`CLAUDE.md §3`). `1.14b-c` se parte en dos entregas de tres tramos, `1.14b-c1` y `1.14b-c2` (`OPEN-FAM-UNIT-61` A, resuelta 2026-11-02). Cada criterio está en el tramo que construye lo que prueba. **Traducciones**: en el T2 de cada entrega, `traductor` completa en/de/fr **solo de las claves no [NT]**; las **[NT]** se escriben con el texto es-ES en los cuatro ficheros (`OPEN-FAM-UNIT-59` B) y su traducción la incorpora el revisor humano en un commit aparte, fuera de estos tramos.
 
 | Entrega · tramo | Contenido | Lee (y nada más) | Cierra con |
@@ -1624,3 +1626,18 @@ Todas **resueltas por el usuario el 2026-11-02** salvo `-40`, que sigue abierta 
 - No hace falta **ADR** para `1.14b-c` (`OPEN-FAM-UNIT-56` A).
 - `OPEN-FAM-UNIT-54` opción C y `OPEN-FAM-UNIT-58` opción B serían cambios de API: no caben en una entrega «solo frontend».
 - La traducción humana de los textos **[NT]** necesita un responsable (usuario o centro piloto) y un commit aparte; sin él queda abierta la última parte de `CA-FAM-UNIT-143`.
+
+---
+
+## 24. Decisiones de implementación de `1.14b-c1` (2026-11-03)
+
+Implementada y revisada (`feature/REQ-FAM-UNIT-1-14bc1-pantallas-autorizados`): sección «Personas autorizadas» de `fam-unit` (§23.4), tramos T1 a T3 de §23.10 (lectura; escritura y traducciones; E2E real). `1.14b-c2` (conserjería de `prl`) sin empezar.
+
+- **Verificado**: suite web completa 139 ficheros / 1910 tests, `lint`, `lint:i18n`, `vue-tsc` y *build* en verde; E2E real `CA-FAM-UNIT-142` 1/1 contra la API real con el servidor S3 falso (`apps/api/tests/Support/e2e-fake-s3.php`). **No probado**: S3/MinIO real (firma y caducidad de la URL), el flujo sin `autorizado_recogida.actualizar` en navegador real (solo Vitest) y los textos [NT] en otros idiomas.
+- **Revisión**: Codex en tres rondas (alto de búsqueda obsoleta tras editar el documento; alto de respuesta tardía de una búsqueda anterior, introducido por la primera corrección; medios de reinicio de la fotografía y de `E2E_ONLY`) y `security-reviewer` (0 críticos ni altos; #510, #511 y #512). Corregidos: búsqueda ligada a la clave tipo+número con número de petición y descarte de respuestas obsoletas (también en `PickupPersonDialog`), `imageFailed` reiniciado al cambiar `photo_url`, `E2E_ONLY` validado contra lista cerrada (`exit 2`) y `cache: 'no-store'` en las cuatro lecturas.
+- **`409 pickup.withdrawn`** en el `PATCH` de vigencia: el diálogo se cierra y la tabla se recarga con el mensaje del servidor en el aviso de la sección (§23.4.2).
+- **Excepción a `CA-CORE-192`** (aprobada por el usuario): `URL.createObjectURL` para la vista previa de la fotografía en `PickupPhotoUpload.vue` (nominal, en `apps/web/src/data-table/architecture.spec.ts`); la URL de objeto se revoca al cambiar de fichero, al reiniciar, al subir y al desmontar. Registrada también en `REQ-CORE/funcional.md`.
+- **`Card` y `Alert`** de `src/components/ui` escritos a mano (`shadcn-vue add` falló sin red, sin tocar `package.json`); regenerarlos con red y comparar.
+- **Nombre dividido**: `GET /pickup-persons/{p}` solo devuelve `display_name`; en `PickupPersonDialog` los campos de nombre empiezan vacíos y solo se envía lo que se rellena. Issue #509.
+- **Traducciones** (`OPEN-FAM-UNIT-59` B): 120 claves traducidas a en/de/fr; las 7 [NT] **y `list.empty`** (texto de seguridad parecido a `prl.door.empty`) quedan en es-ES en los cuatro ficheros hasta la revisión humana. `CA-FAM-UNIT-143` se cierra con esa revisión.
+- **Pendientes registrados**: #510 (`Cache-Control: no-store` en el servidor), #511 (documento de un tercero en la query de `GET /pickup-persons`), #512 (lista de recogida obsoleta tras retirar).
