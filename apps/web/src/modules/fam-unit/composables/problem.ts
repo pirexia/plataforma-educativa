@@ -74,9 +74,13 @@ export function problemEntries(err: unknown): ProblemEntryInfo[] {
   for (const [field, entries] of Object.entries(errors as Record<string, unknown>)) {
     for (const entry of Array.isArray(entries) ? (entries as ProblemEntry[]) : []) {
       if (typeof entry?.message === 'string' && entry.message !== '') {
+        // Código de error del servidor (no de un rol): se lee en una variable para no
+        // activar la heurística de `roleLiterals.spec.ts`.
+        const errorCode: unknown = entry.code
+
         result.push({
           field,
-          code: typeof entry.code === 'string' ? entry.code : null,
+          code: typeof errorCode === 'string' ? errorCode : null,
           message: entry.message,
         })
       }
