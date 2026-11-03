@@ -310,175 +310,175 @@
     },
     "pickup": {
       "section": {
-        "title": "Personas autorizadas a recoger",
-        "chooseStudent": "Alumno"
+        "title": "Personnes autorisées à récupérer l'élève",
+        "chooseStudent": "Élève"
       },
       "list": {
-        "title": "Lista de recogida vigente",
-        "show": "Ver lista de recogida",
-        "reload": "Volver a cargar la lista",
-        "initial": "Elige un alumno y pulsa «Ver lista de recogida».",
+        "title": "Liste de récupération en vigueur",
+        "show": "Afficher la liste de récupération",
+        "reload": "Recharger la liste",
+        "initial": "Choisissez un élève et cliquez sur « Afficher la liste de récupération ».",
         "empty": "Nadie puede recoger a este alumno en este momento.",
-        "asOf": "Lista calculada el {date}",
+        "asOf": "Liste calculée le {date}",
         "auditNotice": "Esta consulta queda registrada con tu usuario, la fecha y la hora."
       },
       "photo": {
-        "alt": "Fotografía de {person}",
-        "none": "Sin fotografía",
+        "alt": "Photo de {person}",
+        "none": "Pas de photo",
         "verifyDocument": "Verifica con el documento.",
-        "unavailable": "Fotografía no disponible",
+        "unavailable": "Photo indisponible",
         "noUpdatePermission": "No tienes permiso para subir la fotografía: la autorización quedará no vigente hasta que alguien con permiso la suba.",
         "pendingByOther": "Autorización registrada sin fotografía. No es vigente: pide a secretaría que suba la fotografía.",
         "stepNotice": "Hasta que subas la fotografía, esta autorización no es vigente.",
-        "file": "Fotografía",
-        "hint": "JPEG, PNG o WebP; hasta 5 MB.",
-        "tooLarge": "El fichero supera 5 MB.",
-        "wrongType": "Solo se admiten JPEG, PNG o WebP.",
-        "keep": "Conservar la actual",
-        "replace": "Sustituir",
-        "upload": "Subir fotografía"
+        "file": "Photo",
+        "hint": "JPEG, PNG ou WebP ; 5 Mo maximum.",
+        "tooLarge": "Le fichier dépasse 5 Mo.",
+        "wrongType": "Seuls JPEG, PNG ou WebP sont acceptés.",
+        "keep": "Conserver l'actuelle",
+        "replace": "Remplacer",
+        "upload": "Téléverser la photo"
       },
       "basis": {
-        "tutor": "Tutor/a ({relationship})",
-        "tercero": "Autorizado/a",
-        "puntual": "Solo hoy",
-        "until": "Hasta el {date}",
-        "noEnd": "Sin fecha de fin"
+        "tutor": "Tuteur/trice ({relationship})",
+        "tercero": "Personne autorisée",
+        "puntual": "Aujourd'hui seulement",
+        "until": "Jusqu'au {date}",
+        "noEnd": "Sans date de fin"
       },
       "relationship": {
-        "abuelo": "Abuelo/a",
-        "personal_apoyo": "Personal de apoyo",
-        "otra_familia": "Otra familia",
-        "otro": "Otro"
+        "abuelo": "Grand-parent",
+        "personal_apoyo": "Personnel d'accompagnement",
+        "otra_familia": "Autre famille",
+        "otro": "Autre"
       },
       "kind": {
         "permanente": "Permanente",
-        "puntual": "Puntual (un día)"
+        "puntual": "Ponctuelle (un jour)"
       },
       "channel": {
-        "presencial": "En persona (papel firmado)",
-        "telefono": "Por teléfono (con devolución de llamada)"
+        "presencial": "En personne (formulaire signé)",
+        "telefono": "Par téléphone (avec rappel)"
       },
       "status": {
-        "effective": "Vigente",
-        "ineffective": "No vigente: {reason}"
+        "effective": "En vigueur",
+        "ineffective": "Pas en vigueur : {reason}"
       },
       "ineffective": {
-        "sin_foto": "falta la fotografía",
-        "fuera_de_vigencia": "fuera de las fechas",
-        "retirada": "retirada",
-        "persona_excluida": "persona excluida",
-        "no_vigente": "no vigente"
+        "sin_foto": "photo manquante",
+        "fuera_de_vigencia": "hors période",
+        "retirada": "retirée",
+        "persona_excluida": "personne exclue",
+        "no_vigente": "pas en vigueur"
       },
       "table": {
-        "title": "Autorizaciones de recogida",
-        "caption": "Autorizaciones de recogida del alumno",
-        "empty": "Este alumno no tiene autorizaciones de terceros.",
+        "title": "Autorisations de récupération",
+        "caption": "Autorisations de récupération de l'élève",
+        "empty": "Cet élève n'a aucune autorisation de tiers.",
         "columns": {
-          "person": "Persona",
-          "relationship": "Relación",
-          "kind": "Tipo",
-          "validity": "Vigencia",
-          "status": "Estado",
+          "person": "Personne",
+          "relationship": "Lien",
+          "kind": "Type",
+          "validity": "Validité",
+          "status": "Statut",
           "channel": "Canal",
-          "authorizedAt": "Autorizada el",
-          "withdrawnAt": "Retirada el",
-          "reason": "Motivo",
-          "actions": "Acciones"
+          "authorizedAt": "Autorisée le",
+          "withdrawnAt": "Retirée le",
+          "reason": "Motif",
+          "actions": "Actions"
         }
       },
       "person": {
-        "documentNumber": "Número de documento",
-        "phone": "Teléfono",
-        "documentType": "Tipo de documento",
-        "search": "Buscar",
-        "useExisting": "Usar esta persona",
-        "givenName": "Nombre",
-        "familyName1": "Primer apellido",
-        "familyName2": "Segundo apellido",
-        "notFound": "No hay ninguna persona con ese documento. Completa sus datos.",
-        "reused": "Ya existía una persona con ese documento; se usará la existente sin cambiar sus datos.",
-        "dataMismatch": "Los datos que has escrito no coinciden con los registrados; revísalos después en la ficha de la persona.",
-        "documentReadOnly": "El documento no se puede cambiar.",
-        "notCorrectable": "Esta persona no se puede corregir desde aquí; si tiene cuenta de usuario, se corrige en Usuarios.",
-        "unavailable": "Esta persona no está disponible.",
-        "title": "Datos de {person}",
-        "correctHint": "Rellena solo lo que quieras corregir; lo que dejes vacío no cambia.",
-        "nothingToSave": "No has cambiado ningún dato.",
-        "documentRequired": "Escribe el número de documento.",
-        "nameRequired": "Este dato es obligatorio."
+        "documentNumber": "Numéro de pièce",
+        "phone": "Téléphone",
+        "documentType": "Type de pièce",
+        "search": "Rechercher",
+        "useExisting": "Utiliser cette personne",
+        "givenName": "Prénom",
+        "familyName1": "Premier nom",
+        "familyName2": "Second nom",
+        "notFound": "Aucune personne avec cette pièce. Complétez ses données.",
+        "reused": "Une personne avec cette pièce existait déjà ; elle sera utilisée sans modifier ses données.",
+        "dataMismatch": "Les données saisies ne correspondent pas à celles enregistrées ; vérifiez-les ensuite dans la fiche de la personne.",
+        "documentReadOnly": "La pièce d'identité ne peut pas être modifiée.",
+        "notCorrectable": "Cette personne ne peut pas être corrigée ici ; si elle a un compte utilisateur, corrigez-la dans Utilisateurs.",
+        "unavailable": "Cette personne n'est pas disponible.",
+        "title": "Données de {person}",
+        "correctHint": "Ne complétez que ce que vous voulez corriger ; ce qui reste vide ne change pas.",
+        "nothingToSave": "Vous n'avez modifié aucune donnée.",
+        "documentRequired": "Saisissez le numéro de pièce.",
+        "nameRequired": "Ce champ est obligatoire."
       },
       "states": {
-        "notFound": "No se encuentra esta información.",
-        "forbidden": "No tienes permiso para ver esta información.",
-        "reloadTable": "Recargar la tabla",
-        "retry": "Reintentar"
+        "notFound": "Information introuvable.",
+        "forbidden": "Vous n'avez pas l'autorisation de consulter cette information.",
+        "reloadTable": "Recharger le tableau",
+        "retry": "Réessayer"
       },
       "actions": {
-        "new": "Nueva autorización",
-        "newDisabledNoPrincipal": "Para autorizar a terceros, la unidad necesita un tutor principal.",
-        "newDisabledNoTermsRead": "Para registrar autorizaciones necesitas además permiso para consultar los textos legales (la versión firmada).",
-        "withdraw": "Retirar la autorización de {person} para {student}",
-        "withdrawShort": "Retirar",
-        "editValidity": "Cambiar la fecha de fin de {person}",
-        "editValidityShort": "Cambiar fecha de fin",
-        "uploadPhoto": "Subir fotografía de {person}",
-        "uploadPhotoShort": "Subir fotografía",
-        "removePhoto": "Quitar la fotografía de {person}",
-        "removePhotoShort": "Quitar fotografía",
-        "viewPerson": "Ver los datos de {person}",
-        "viewPersonShort": "Ver datos"
+        "new": "Nouvelle autorisation",
+        "newDisabledNoPrincipal": "Pour autoriser des tiers, l'unité familiale doit avoir un tuteur principal.",
+        "newDisabledNoTermsRead": "Pour enregistrer des autorisations, vous devez aussi pouvoir consulter les textes juridiques (la version signée).",
+        "withdraw": "Retirer l'autorisation de {person} pour {student}",
+        "withdrawShort": "Retirer",
+        "editValidity": "Modifier la date de fin de {person}",
+        "editValidityShort": "Modifier la date de fin",
+        "uploadPhoto": "Téléverser la photo de {person}",
+        "uploadPhotoShort": "Téléverser la photo",
+        "removePhoto": "Supprimer la photo de {person}",
+        "removePhotoShort": "Supprimer la photo",
+        "viewPerson": "Voir les données de {person}",
+        "viewPersonShort": "Voir les données"
       },
       "confirmWithdraw": {
-        "title": "¿Retirar la autorización de {person}?",
+        "title": "Retirer l'autorisation de {person} ?",
         "description": "Desde ahora no podrá recoger a {student}. La retirada no se puede deshacer: para volver a autorizarle, crea una autorización nueva."
       },
       "confirmRemovePhoto": {
         "description": "Sin fotografía, las autorizaciones de un tercero dejan de ser vigentes."
       },
       "wizard": {
-        "title": "Nueva persona autorizada",
+        "title": "Nouvelle personne autorisée",
         "steps": {
-          "person": "1. Persona",
-          "authorization": "2. Autorización",
-          "photo": "3. Fotografía"
+          "person": "1. Personne",
+          "authorization": "2. Autorisation",
+          "photo": "3. Photo"
         },
-        "next": "Siguiente",
-        "back": "Atrás",
-        "finish": "Terminar",
-        "skipPhoto": "Cerrar sin fotografía"
+        "next": "Suivant",
+        "back": "Retour",
+        "finish": "Terminer",
+        "skipPhoto": "Fermer sans photo"
       },
       "authorization": {
-        "student": "Alumno",
-        "relationship": "Relación",
-        "kind": "Tipo",
-        "validFrom": "Desde",
-        "validUntil": "Hasta (opcional)",
-        "reason": "Motivo",
+        "student": "Élève",
+        "relationship": "Lien",
+        "kind": "Type",
+        "validFrom": "Du",
+        "validUntil": "Au (facultatif)",
+        "reason": "Motif",
         "channel": "Canal",
-        "termsVersion": "Texto firmado (versión)",
-        "authorizedAt": "Fecha y hora de la firma o la llamada",
-        "authorizedBy": "Autoriza",
-        "termsVersionLabel": "Versión {number} ({state})",
-        "noPublishedText": "No hay ningún texto de autorización de recogida publicado. Pide a administración que lo publique.",
-        "telefonoOnlyPuntual": "Por teléfono solo se registran autorizaciones de un día.",
-        "reasonRequired": "El motivo es obligatorio en una autorización puntual."
+        "termsVersion": "Texte signé (version)",
+        "authorizedAt": "Date et heure de la signature ou de l'appel",
+        "authorizedBy": "Autorisé par",
+        "termsVersionLabel": "Version {number} ({state})",
+        "noPublishedText": "Aucun texte d'autorisation de récupération n'est publié. Demandez à l'administration de le publier.",
+        "telefonoOnlyPuntual": "Par téléphone, seules les autorisations d'un jour sont possibles.",
+        "reasonRequired": "Le motif est obligatoire pour une autorisation ponctuelle."
       },
       "photoDialog": {
-        "title": "Fotografía de {person}",
-        "description": "Sube una fotografía nueva; sustituye a la actual."
+        "title": "Photo de {person}",
+        "description": "Téléversez une nouvelle photo ; elle remplace l'actuelle."
       },
       "validityDialog": {
-        "title": "Fecha de fin de {person}",
-        "description": "Déjala vacía para que la autorización no tenga fecha de fin."
+        "title": "Date de fin de {person}",
+        "description": "Laissez-la vide pour que l'autorisation n'ait pas de date de fin."
       },
       "flash": {
-        "created": "Autorización registrada.",
-        "withdrawn": "Autorización retirada.",
-        "photoRemoved": "Fotografía eliminada.",
-        "photoSaved": "Fotografía guardada.",
-        "validitySaved": "Fecha de fin guardada.",
-        "personSaved": "Datos de la persona guardados."
+        "created": "Autorisation enregistrée.",
+        "withdrawn": "Autorisation retirée.",
+        "photoRemoved": "Photo supprimée.",
+        "photoSaved": "Photo enregistrée.",
+        "validitySaved": "Date de fin enregistrée.",
+        "personSaved": "Données de la personne enregistrées."
       }
     }
   }
