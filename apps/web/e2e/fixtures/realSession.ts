@@ -53,6 +53,34 @@ export class RealSession {
     return (text === '' ? {} : JSON.parse(text)) as T
   }
 
+  /** Subida multipart (p. ej. `PUT …/photo`); devuelve el cuerpo JSON. */
+  async upload<T = Record<string, any>>(
+    method: string,
+    path: string,
+    expected: number,
+    multipart: Record<string, unknown>,
+  ): Promise<T> {
+    const response = await this.ctx.fetch(path, {
+      method,
+      headers: { 'X-XSRF-TOKEN': await this.xsrf() },
+      multipart: multipart as never,
+    })
+    const text = await response.text()
+
+    expect(response.status(), `${method} ${path} → ${response.status()}: ${text}`).toBe(expected)
+
+    return (text === '' ? {} : JSON.parse(text)) as T
+  }
+
+  /** Petición sin comprobar el estado (para los casos de rechazo del servidor). */
+  async send(method: string, path: string, data?: unknown) {
+    return this.ctx.fetch(path, {
+      method,
+      headers: method === 'GET' ? {} : { 'X-XSRF-TOKEN': await this.xsrf() },
+      data: data as never,
+    })
+  }
+
   async dispose(): Promise<void> {
     await this.ctx.dispose()
   }
