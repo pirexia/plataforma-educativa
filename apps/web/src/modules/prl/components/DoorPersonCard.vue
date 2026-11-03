@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * `docs/modulos/REQ-FAM-UNIT/funcional.md §23.5.2` (tarjeta de la lista de puerta), `§23.6`, `§23.7`. Una persona de la
- * lista de puerta de un alumno, **solo lectura** (`1.14b-c2` T1): fotografía grande (lado de 160 px CSS, la verificación
+ * lista de puerta de un alumno, con el botón «Entregar a {persona}» si `canDeliver` (`1.14b-c2` T2; el diálogo es del padre): fotografía grande (lado de 160 px CSS, la verificación
  * visual es el fin del requisito) o «Sin fotografía» + «Verifica con el documento»; nombre; una etiqueta de texto por
  * base; documento **enmascarado tal como llega** con su tipo traducido; teléfono (enlace `tel:`).
  *
@@ -20,8 +20,12 @@ import { Card } from '@/components/ui/card'
 import { useNtLang } from '../composables/useNtLang'
 import type { DoorPickupBasis, PickupListEntry } from '../types'
 
-const props = defineProps<{ entry: PickupListEntry }>()
-const emit = defineEmits<{ reload: [] }>()
+const props = defineProps<{ entry: PickupListEntry; canDeliver?: boolean }>()
+const emit = defineEmits<{
+  reload: []
+  deliver: [entry: PickupListEntry]
+  photoError: [person: string]
+}>()
 
 const t = useT()
 const ntLang = useNtLang()
@@ -36,6 +40,11 @@ watch(
     imageFailed.value = false
   },
 )
+
+function onImageError(): void {
+  imageFailed.value = true
+  emit('photoError', props.entry.person)
+}
 
 function translated(prefix: string, code: string): string {
   const key = `${prefix}.${code}`
@@ -64,7 +73,7 @@ function documentTypeLabel(type: string): string {
           referrerpolicy="no-referrer"
           draggable="false"
           class="size-40 rounded-md object-cover"
-          @error="imageFailed = true"
+          @error="onImageError"
         />
         <div
           v-else-if="props.entry.has_photo"
@@ -124,6 +133,12 @@ function documentTypeLabel(type: string): string {
             </dd>
           </div>
         </dl>
+
+        <div v-if="props.canDeliver" class="pt-1">
+          <Button type="button" class="min-h-11" @click="emit('deliver', props.entry)">
+            {{ t('prl.door.deliver', { person: props.entry.display_name }) }}
+          </Button>
+        </div>
       </div>
     </Card>
   </li>

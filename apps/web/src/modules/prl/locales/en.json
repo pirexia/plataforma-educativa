@@ -11,7 +11,10 @@
       "reload": "Volver a cargar la lista",
       "empty": "Nadie puede recoger a este alumno en este momento. No lo entregues y avisa a dirección.",
       "onlyListed": "No entregues al alumno a nadie que no esté en esta lista.",
-      "auditNotice": "Esta consulta queda registrada con tu usuario, la fecha y la hora."
+      "auditNotice": "Esta consulta queda registrada con tu usuario, la fecha y la hora.",
+      "notListed": "Quien se presenta no está en la lista",
+      "deliver": "Entregar a {person}",
+      "entryOffSchedule": "Registrar entrada fuera de horario"
     },
     "search": {
       "label": "Buscar alumno por nombre o apellidos",
@@ -53,7 +56,21 @@
       "resolution": "Resolución",
       "resolutionNotes": "Notas de la resolución",
       "resolvedBy": "Cerrada por",
-      "resolvedAt": "Cerrada el"
+      "resolvedAt": "Cerrada el",
+      "open": "Abrir alerta",
+      "raised": "Alerta abierta.",
+      "openDescription": "Describe a la persona que se presenta. Se mostrará el protocolo y los teléfonos de contacto.",
+      "presenterCount": "{count} de 500 caracteres",
+      "presenterRequired": "Describe a quien se presenta.",
+      "openFromList": "Abrir la alerta desde «Alertas de entrega»",
+      "actions": "Registrar la llamada y cerrar",
+      "saveCall": "Guardar la llamada",
+      "close": "Cerrar la alerta",
+      "confirmClose": "Una alerta cerrada no se puede reabrir.",
+      "contactRequired": "Indica la fecha y la hora de la llamada.",
+      "resolutionRequired": "Elige la resolución.",
+      "notesCount": "{count} de 1000 caracteres",
+      "reload": "Recargar la alerta"
     },
     "resolution": {
       "no_entregado": "No entregado",
@@ -80,6 +97,50 @@
       "notFound": "No se encuentra esta información.",
       "forbidden": "No tienes permiso para ver esta información.",
       "studentNotFound": "No se encuentra este alumno."
+    },
+    "form": {
+      "close": "Cerrar"
+    },
+    "errors": {
+      "retryAfter": "Vuelve a intentarlo en {seconds} segundos.",
+      "unexpected": "No se ha podido completar la acción."
+    },
+    "verification": {
+      "legend": "Cómo has comprobado su identidad",
+      "foto": "Por la fotografía",
+      "documento": "Por el documento",
+      "foto_y_documento": "Por la fotografía y el documento",
+      "documentOnly": "Esta persona no tiene fotografía: solo puedes verificar con el documento.",
+      "photoUnavailable": "No se puede mostrar la fotografía: verifica solo con el documento."
+    },
+    "movement": {
+      "offSchedule": "Fuera de horario",
+      "reason": "Motivo",
+      "notes": "Nota",
+      "notesCount": "{count} de 500 caracteres",
+      "recorded": "Salida registrada: {student} con {person} a las {time}.",
+      "recordedNoStudent": "Salida registrada con {person} a las {time}.",
+      "entryRecorded": "Entrada registrada a las {time}.",
+      "submit": "Registrar",
+      "cancel": "Cancelar",
+      "openAlert": "Abrir una alerta",
+      "deliverTitle": "Entregar a {person}",
+      "deliverDescription": "Comprueba la identidad de la persona y registra la salida del alumno.",
+      "entryDescription": "Registra la entrada del alumno fuera de horario. Indica el motivo.",
+      "verificationRequired": "Elige cómo has comprobado su identidad.",
+      "reasonRequired": "Elige el motivo.",
+      "notesRequired": "Escribe una nota cuando el motivo es «Otro»."
+    },
+    "reason": {
+      "medico": "Médico",
+      "familiar": "Familiar",
+      "actividad": "Actividad",
+      "retraso": "Retraso",
+      "otro": "Otro"
+    },
+    "direction": {
+      "salida": "Salida",
+      "entrada": "Entrada"
     }
   }
 }
