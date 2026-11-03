@@ -2700,14 +2700,16 @@ components:
         abierta**, calculados al leer y nunca guardados: el protocolo de actuación (texto mínimo del producto en el idioma
         de la petición) y los teléfonos del tutor principal y del contacto de emergencia para la llamada manual
         (`null` si no hay o no se pueden mostrar). **No envía nada** automáticamente (OPEN-FAM-UNIT-33).
-      required: [public_id, student_person, kind, presenter_description, status, raised_by, raised_at, principal_contacted_at, resolution, resolution_notes, resolved_by, resolved_at]
+      required: [public_id, student_person, student_display_name, kind, presenter_description, status, raised_by, raised_by_display_name, raised_at, principal_contacted_at, resolution, resolution_notes, resolved_by, resolved_by_display_name, resolved_at]
       properties:
         public_id: { $ref: '#/components/schemas/PublicId' }
         student_person: { $ref: '#/components/schemas/PublicId' }
+        student_display_name: { type: string, description: 'Nombre visible del alumno; vacío si la persona está borrada.' }
         kind: { $ref: '#/components/schemas/PickupAlertKind' }
         presenter_description: { type: string, maxLength: 500 }
         status: { $ref: '#/components/schemas/PickupAlertStatus' }
         raised_by: { $ref: '#/components/schemas/PublicId' }
+        raised_by_display_name: { type: string, description: 'Nombre visible de quien abrió la alerta; vacío si el usuario está borrado.' }
         raised_at: { type: string, format: date-time }
         principal_contacted_at:
           oneOf:
@@ -2724,6 +2726,11 @@ components:
         resolved_by:
           oneOf:
             - { $ref: '#/components/schemas/PublicId' }
+            - { type: 'null' }
+        resolved_by_display_name:
+          description: Nombre visible de quien cerró la alerta (vacío si el usuario está borrado); `null` mientras está abierta.
+          oneOf:
+            - { type: string }
             - { type: 'null' }
         resolved_at:
           oneOf:

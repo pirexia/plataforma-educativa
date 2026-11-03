@@ -19,6 +19,9 @@ final class PrlRefs
     /** @var array<int, string> id interno de usuario => `public_id` */
     private array $users = [];
 
+    /** @var array<int, string> id interno de usuario => nombre visible (vacío si el usuario está borrado) */
+    private array $userNames = [];
+
     /** @var array<int, string> id interno de movimiento => `public_id`, de los movimientos que algún otro corrige */
     private array $corrected = [];
 
@@ -44,6 +47,7 @@ final class PrlRefs
 
         foreach ($this->userDirectory->refsByIds($missing) as $id => $ref) {
             $this->users[$id] = $ref->publicId;
+            $this->userNames[$id] = $ref->displayName;
         }
     }
 
@@ -74,5 +78,17 @@ final class PrlRefs
         $this->preloadUsers([$userId]);
 
         return $this->users[$userId] ?? null;
+    }
+
+    /** Nombre visible del usuario (REQ-PRL-004, 1.14b-c2): vacío si el usuario está borrado o no existe; `null` si no hay usuario. */
+    public function userDisplayName(?int $userId): ?string
+    {
+        if ($userId === null) {
+            return null;
+        }
+
+        $this->preloadUsers([$userId]);
+
+        return $this->userNames[$userId] ?? '';
     }
 }
