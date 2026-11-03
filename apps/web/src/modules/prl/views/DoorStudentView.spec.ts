@@ -106,14 +106,44 @@ describe('CA-PRL-016: una sola lectura auditada al entrar en la lista de puerta 
     expect(window.localStorage.length + window.sessionStorage.length).toBe(0)
   })
 
-  it('es de solo lectura: ninguna acción de entrega ni de alerta aunque haya permisos de escritura', async () => {
+  it('CA-PRL-014: sin permisos de escritura solo hay «Volver a cargar la lista» (ni entregar, ni entrada, ni alerta)', async () => {
+    session.__setPermissions(['entrega_menor.leer'])
     await open()
 
     const buttons = [...document.body.querySelectorAll('button')].map((b) => b.textContent?.trim())
 
     expect(buttons).toEqual(['Volver a cargar la lista'])
     expect(text()).not.toContain('Entregar a')
+    expect(text()).not.toContain('Registrar entrada fuera de horario')
     expect(text()).not.toContain('Quien se presenta no está en la lista')
+    // El texto fijo de RN-PRL-03 se ve siempre con la lista cargada, con o sin permisos.
+    expect(text()).toContain('No entregues al alumno a nadie que no esté en esta lista')
+  })
+
+  it('CA-PRL-014: con entrega_menor.crear y alerta_entrega.crear aparecen los tres botones', async () => {
+    await open()
+
+    expect(text()).toContain('Entregar a Rosa Ejemplo Vidal')
+    expect(text()).toContain('Registrar entrada fuera de horario')
+    expect(text()).toContain('Quien se presenta no está en la lista')
+  })
+
+  it('CA-PRL-014: con solo entrega_menor.crear no hay botón de alerta, y con solo alerta_entrega.crear no hay de entrega', async () => {
+    session.__setPermissions(['entrega_menor.leer', 'entrega_menor.crear'])
+    const first = await open()
+
+    expect(text()).toContain('Entregar a Rosa Ejemplo Vidal')
+    expect(text()).not.toContain('Quien se presenta no está en la lista')
+
+    first.wrapper.unmount()
+    wrappers.pop()
+    document.body.innerHTML = ''
+    session.__setPermissions(['entrega_menor.leer', 'alerta_entrega.crear'])
+    await open()
+
+    expect(text()).not.toContain('Entregar a')
+    expect(text()).not.toContain('Registrar entrada fuera de horario')
+    expect(text()).toContain('Quien se presenta no está en la lista')
   })
 
   it('mientras carga no se puede pedir otra lectura (botón deshabilitado)', async () => {
@@ -210,6 +240,7 @@ describe('CA-PRL-023: estados por texto e icono, y alt de toda fotografía (WCAG
   })
 
   it('una imagen que falla se sustituye por «Fotografía no disponible» y «Volver a cargar la lista»', async () => {
+    session.__setPermissions(['entrega_menor.leer'])
     await open()
     document.body.querySelector('img')!.dispatchEvent(new Event('error'))
     await flushPromises()

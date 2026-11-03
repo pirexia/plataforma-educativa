@@ -76,7 +76,7 @@ describe('CA-PRL-023: detalle de una alerta (WCAG 1.4.1)', () => {
     expect(text()).toContain('Esta consulta queda registrada con tu usuario, la fecha y la hora.')
   })
 
-  it('sin alerta_entrega.actualizar se pide avisar a dirección; con él no, y nunca hay acciones de escritura', async () => {
+  it('sin alerta_entrega.actualizar se pide avisar a dirección; con él no, y con él hay acciones de llamada y cierre', async () => {
     await open()
     expect(text()).toContain('Avisa a dirección para que registre la llamada y cierre la alerta.')
 
@@ -86,7 +86,9 @@ describe('CA-PRL-023: detalle de una alerta (WCAG 1.4.1)', () => {
     await open()
 
     expect(text()).not.toContain('Avisa a dirección')
-    expect(document.body.querySelectorAll('button')).toHaveLength(0)
+    // T2: con alerta_entrega.actualizar aparecen las acciones de la llamada y del cierre (`CA-PRL-022`).
+    expect(text()).toContain('Guardar la llamada')
+    expect(text()).toContain('Cerrar la alerta')
   })
 
   it('cerrada: resolución y notas, sin teléfonos ni protocolo', async () => {

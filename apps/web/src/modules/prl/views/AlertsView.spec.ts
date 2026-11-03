@@ -130,7 +130,7 @@ describe('CA-PRL-023: listado de alertas (WCAG 1.4.1)', () => {
     clear.click()
     await flushPromises()
 
-    expect(vi.mocked(prlApi.listPickupAlerts).mock.calls.at(-1)?.[0].date).toBeUndefined()
+    expect(vi.mocked(prlApi.listPickupAlerts).mock.calls.at(-1)?.[0]?.date).toBeUndefined()
     expect(buttonByText('Quitar fecha')).toBeUndefined()
   })
 })
