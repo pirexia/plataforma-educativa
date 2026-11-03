@@ -1,0 +1,82 @@
+{
+  "prl": {
+    "nav": {
+      "door": "Conserjería",
+      "alerts": "Alertas de entrega"
+    },
+    "door": {
+      "title": "Conserjería",
+      "studentTitle": "Lista de recogida",
+      "asOf": "Lista calculada a las {time}",
+      "reload": "Volver a cargar la lista",
+      "empty": "Nadie puede recoger a este alumno en este momento. No lo entregues y avisa a dirección.",
+      "onlyListed": "No entregues al alumno a nadie que no esté en esta lista.",
+      "auditNotice": "Esta consulta queda registrada con tu usuario, la fecha y la hora."
+    },
+    "search": {
+      "label": "Buscar alumno por nombre o apellidos",
+      "minChars": "Escribe al menos 2 letras.",
+      "results": "{count} alumno | {count} alumnos",
+      "empty": "No hay ningún alumno con ese nombre.",
+      "unitCode": "Unidad {code}"
+    },
+    "basis": {
+      "tutor": "Tutor/a",
+      "tercero": "Autorizado/a",
+      "puntual": "Solo hoy"
+    },
+    "person": {
+      "documentNumber": "Documento",
+      "phone": "Teléfono"
+    },
+    "photo": {
+      "alt": "Fotografía de {person}",
+      "none": "Sin fotografía",
+      "unavailable": "Fotografía no disponible",
+      "verifyDocument": "Verifica con el documento."
+    },
+    "alert": {
+      "title": "Alerta",
+      "protocolTitle": "Qué hacer ahora",
+      "phones": {
+        "principal": "Tutor principal",
+        "emergency": "Contacto de emergencia",
+        "unavailable": "No disponible"
+      },
+      "callManagement": "Avisa a dirección para que registre la llamada y cierre la alerta.",
+      "status": {
+        "abierta": "Abierta",
+        "cerrada": "Cerrada"
+      },
+      "presenterLabel": "Nombre que dice tener y, si lo enseña, su documento",
+      "principalContactedAt": "Hora de la llamada al tutor principal",
+      "resolution": "Resolución",
+      "resolutionNotes": "Notas de la resolución",
+      "resolvedBy": "Cerrada por",
+      "resolvedAt": "Cerrada el"
+    },
+    "resolution": {
+      "no_entregado": "No entregado",
+      "recogido_por_autorizado": "Recogido por una persona autorizada",
+      "autorizacion_puntual_registrada": "Autorización puntual registrada",
+      "otro": "Otro"
+    },
+    "alerts": {
+      "empty": "No hay alertas.",
+      "caption": "Alertas de entrega",
+      "studentUnknown": "Alumno",
+      "columns": {
+        "student": "Alumno",
+        "status": "Estado",
+        "raisedBy": "Abierta por",
+        "raisedAt": "Fecha",
+        "resolution": "Resolución"
+      }
+    },
+    "states": {
+      "notFound": "No se encuentra esta información.",
+      "forbidden": "No tienes permiso para ver esta información.",
+      "studentNotFound": "No se encuentra este alumno."
+    }
+  }
+}
