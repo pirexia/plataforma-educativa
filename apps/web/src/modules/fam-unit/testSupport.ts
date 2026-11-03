@@ -109,6 +109,48 @@ export function termsVersion(over: Record<string, unknown> = {}) {
   }
 }
 
+/** `api.md §8.1`: una persona de la lista de recogida; documento enmascarado, datos ficticios (`REQ-SEED-005`). */
+export function pickupEntry(over: Record<string, unknown> = {}) {
+  return {
+    person: 'PP1',
+    display_name: 'Rosa Ejemplo Vidal',
+    bases: [{ basis: 'tercero', authorization: 'PA1', relationship: 'abuelo', valid_until: null }],
+    has_photo: true,
+    photo_url: 'https://almacen.example.com/firmada/pp1.jpg?firma=abc',
+    photo_url_expires_at: '2026-11-02T10:05:00Z',
+    contact_phone: '600000001',
+    document: { type: 'dni', masked: '•••••123X' },
+    ...over,
+  }
+}
+
+export function pickupList(rows: unknown[] = [pickupEntry()]) {
+  return { data: rows, meta: { as_of: '2026-11-02T10:00:00Z' } }
+}
+
+/** `api.md §8.1`: una autorización de recogida (sin `reason`, como con ámbito distinto de `todos`). */
+export function pickupAuthorization(over: Record<string, unknown> = {}) {
+  return {
+    public_id: 'PA1',
+    student_person: 'P1',
+    person: { public_id: 'PP1', display_name: 'Rosa Ejemplo Vidal' },
+    relationship: 'abuelo',
+    kind: 'permanente',
+    valid_from: '2026-09-01',
+    valid_until: null,
+    authorized_by: 'G1',
+    terms_version: { public_id: 'V9', kind: 'autorizacion_recogida', version_number: 1 },
+    channel: 'presencial',
+    authorized_at: '2026-09-01T09:00:00Z',
+    recorded_by: 'USR1',
+    is_effective: true,
+    ineffective_reason: null,
+    withdrawn_at: null,
+    created_at: '2026-09-01T09:00:00Z',
+    ...over,
+  }
+}
+
 export function page<T>(rows: T[]) {
   return { data: rows, meta: { current_page: 1, per_page: 25, total: rows.length, last_page: 1 } }
 }

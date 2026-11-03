@@ -307,6 +307,179 @@
       "loadError": "Die Nutzungsbedingungen konnten nicht geladen werden. Bitte versuchen Sie es in einigen Minuten erneut.",
       "acceptError": "Ihre Zustimmung konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.",
       "outdated": "Die Schule hat während Ihres Lesens eine neue Version veröffentlicht. Bitte prüfen Sie den aktualisierten Text, bevor Sie akzeptieren."
+    },
+    "pickup": {
+      "section": {
+        "title": "Abholberechtigte Personen",
+        "chooseStudent": "Schüler/in"
+      },
+      "list": {
+        "title": "Aktuelle Abholliste",
+        "show": "Abholliste anzeigen",
+        "reload": "Liste neu laden",
+        "initial": "Wählen Sie eine/n Schüler/in und klicken Sie auf „Abholliste anzeigen“.",
+        "empty": "Nadie puede recoger a este alumno en este momento.",
+        "asOf": "Liste berechnet am {date}",
+        "auditNotice": "Esta consulta queda registrada con tu usuario, la fecha y la hora."
+      },
+      "photo": {
+        "alt": "Foto von {person}",
+        "none": "Kein Foto",
+        "verifyDocument": "Verifica con el documento.",
+        "unavailable": "Foto nicht verfügbar",
+        "noUpdatePermission": "No tienes permiso para subir la fotografía: la autorización quedará no vigente hasta que alguien con permiso la suba.",
+        "pendingByOther": "Autorización registrada sin fotografía. No es vigente: pide a secretaría que suba la fotografía.",
+        "stepNotice": "Hasta que subas la fotografía, esta autorización no es vigente.",
+        "file": "Foto",
+        "hint": "JPEG, PNG oder WebP; bis 5 MB.",
+        "tooLarge": "Die Datei überschreitet 5 MB.",
+        "wrongType": "Nur JPEG, PNG oder WebP sind zulässig.",
+        "keep": "Aktuelles behalten",
+        "replace": "Ersetzen",
+        "upload": "Foto hochladen"
+      },
+      "basis": {
+        "tutor": "Erziehungsberechtigte/r ({relationship})",
+        "tercero": "Bevollmächtigte Person",
+        "puntual": "Nur heute",
+        "until": "Bis {date}",
+        "noEnd": "Ohne Enddatum"
+      },
+      "relationship": {
+        "abuelo": "Großelternteil",
+        "personal_apoyo": "Betreuungsperson",
+        "otra_familia": "Andere Familie",
+        "otro": "Andere"
+      },
+      "kind": {
+        "permanente": "Dauerhaft",
+        "puntual": "Einmalig (ein Tag)"
+      },
+      "channel": {
+        "presencial": "Persönlich (unterschriebenes Formular)",
+        "telefono": "Telefonisch (mit Rückruf)"
+      },
+      "status": {
+        "effective": "Gültig",
+        "ineffective": "Nicht gültig: {reason}"
+      },
+      "ineffective": {
+        "sin_foto": "Foto fehlt",
+        "fuera_de_vigencia": "außerhalb des Zeitraums",
+        "retirada": "widerrufen",
+        "persona_excluida": "Person ausgeschlossen",
+        "no_vigente": "nicht gültig"
+      },
+      "table": {
+        "title": "Abholvollmachten",
+        "caption": "Abholvollmachten der/des Schüler/in",
+        "empty": "Für diese/n Schüler/in gibt es keine Vollmachten für Dritte.",
+        "columns": {
+          "person": "Person",
+          "relationship": "Beziehung",
+          "kind": "Art",
+          "validity": "Gültigkeit",
+          "status": "Status",
+          "channel": "Kanal",
+          "authorizedAt": "Bevollmächtigt am",
+          "withdrawnAt": "Widerrufen am",
+          "reason": "Grund",
+          "actions": "Aktionen"
+        }
+      },
+      "person": {
+        "documentNumber": "Ausweisnummer",
+        "phone": "Telefon",
+        "documentType": "Ausweisart",
+        "search": "Suchen",
+        "useExisting": "Diese Person verwenden",
+        "givenName": "Vorname",
+        "familyName1": "Erster Nachname",
+        "familyName2": "Zweiter Nachname",
+        "notFound": "Keine Person mit diesem Ausweis. Bitte ergänzen Sie die Daten.",
+        "reused": "Eine Person mit diesem Ausweis existierte bereits; sie wird ohne Änderung ihrer Daten verwendet.",
+        "dataMismatch": "Die eingegebenen Daten stimmen nicht mit den gespeicherten überein; prüfen Sie sie später in den Personendaten.",
+        "documentReadOnly": "Der Ausweis kann nicht geändert werden.",
+        "notCorrectable": "Diese Person kann hier nicht korrigiert werden; hat sie ein Benutzerkonto, korrigieren Sie sie unter Benutzer.",
+        "unavailable": "Diese Person ist nicht verfügbar.",
+        "title": "Daten von {person}",
+        "correctHint": "Füllen Sie nur die Felder aus, die Sie korrigieren möchten; leer gelassene Felder bleiben unverändert.",
+        "nothingToSave": "Sie haben keine Daten geändert.",
+        "documentRequired": "Geben Sie die Ausweisnummer ein.",
+        "nameRequired": "Dieses Feld ist erforderlich."
+      },
+      "states": {
+        "notFound": "Diese Information wurde nicht gefunden.",
+        "forbidden": "Sie haben keine Berechtigung, diese Information anzuzeigen.",
+        "reloadTable": "Tabelle neu laden",
+        "retry": "Erneut versuchen"
+      },
+      "actions": {
+        "new": "Neue Vollmacht",
+        "newDisabledNoPrincipal": "Um Dritte zu bevollmächtigen, braucht die Familieneinheit eine/n Haupterziehungsberechtigte/n.",
+        "newDisabledNoTermsRead": "Um Vollmachten zu erfassen, benötigen Sie zusätzlich die Berechtigung, die Rechtstexte (unterzeichnete Version) einzusehen.",
+        "withdraw": "Vollmacht von {person} für {student} widerrufen",
+        "withdrawShort": "Widerrufen",
+        "editValidity": "Enddatum von {person} ändern",
+        "editValidityShort": "Enddatum ändern",
+        "uploadPhoto": "Foto von {person} hochladen",
+        "uploadPhotoShort": "Foto hochladen",
+        "removePhoto": "Foto von {person} entfernen",
+        "removePhotoShort": "Foto entfernen",
+        "viewPerson": "Daten von {person} anzeigen",
+        "viewPersonShort": "Daten anzeigen"
+      },
+      "confirmWithdraw": {
+        "title": "Vollmacht von {person} widerrufen?",
+        "description": "Desde ahora no podrá recoger a {student}. La retirada no se puede deshacer: para volver a autorizarle, crea una autorización nueva."
+      },
+      "confirmRemovePhoto": {
+        "description": "Sin fotografía, las autorizaciones de un tercero dejan de ser vigentes."
+      },
+      "wizard": {
+        "title": "Neue bevollmächtigte Person",
+        "steps": {
+          "person": "1. Person",
+          "authorization": "2. Vollmacht",
+          "photo": "3. Foto"
+        },
+        "next": "Weiter",
+        "back": "Zurück",
+        "finish": "Fertig",
+        "skipPhoto": "Ohne Foto schließen"
+      },
+      "authorization": {
+        "student": "Schüler/in",
+        "relationship": "Beziehung",
+        "kind": "Art",
+        "validFrom": "Ab",
+        "validUntil": "Bis (optional)",
+        "reason": "Grund",
+        "channel": "Kanal",
+        "termsVersion": "Unterzeichneter Text (Version)",
+        "authorizedAt": "Datum und Uhrzeit der Unterschrift oder des Anrufs",
+        "authorizedBy": "Bevollmächtigt durch",
+        "termsVersionLabel": "Version {number} ({state})",
+        "noPublishedText": "Es ist kein Text für Abholvollmachten veröffentlicht. Bitten Sie die Verwaltung, ihn zu veröffentlichen.",
+        "telefonoOnlyPuntual": "Telefonisch sind nur eintägige Vollmachten möglich.",
+        "reasonRequired": "Der Grund ist bei einer einmaligen Vollmacht erforderlich."
+      },
+      "photoDialog": {
+        "title": "Foto von {person}",
+        "description": "Laden Sie ein neues Foto hoch; es ersetzt das aktuelle."
+      },
+      "validityDialog": {
+        "title": "Enddatum von {person}",
+        "description": "Lassen Sie es leer, damit die Vollmacht kein Enddatum hat."
+      },
+      "flash": {
+        "created": "Vollmacht erfasst.",
+        "withdrawn": "Vollmacht widerrufen.",
+        "photoRemoved": "Foto entfernt.",
+        "photoSaved": "Foto gespeichert.",
+        "validitySaved": "Enddatum gespeichert.",
+        "personSaved": "Daten der Person gespeichert."
+      }
     }
   }
 }

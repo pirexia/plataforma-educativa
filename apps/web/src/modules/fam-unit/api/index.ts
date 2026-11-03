@@ -5,3 +5,4 @@
 export * from './consent'
 export * from './family'
 export * from './terms'
+export * from './pickup'

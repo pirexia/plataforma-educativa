@@ -13,7 +13,10 @@ export type Translations = Partial<Record<TranslationLocale, string>>
 
 /** `api.md §1.7`. */
 export type TermsKind =
-  'condiciones_uso' | 'consentimiento_imagen_web' | 'consentimiento_imagen_redes'
+  | 'condiciones_uso'
+  | 'consentimiento_imagen_web'
+  | 'consentimiento_imagen_redes'
+  | 'autorizacion_recogida'
 
 export type TermsStatus = 'borrador' | 'publicada' | 'retirada'
 
@@ -143,4 +146,128 @@ export interface ImageConsentDecision {
 export interface CursorPage<T> {
   data: T[]
   meta: { next_cursor: string | null; has_more: boolean }
+}
+
+// --- Personas autorizadas a recoger (`1.14b-a`, `api.md §8.1`-`§8.3`; interfaz de `1.14b-c1`) -------------------------
+
+/** `api.md §8.1`. Enumerados extensibles en la lectura (`ADR-038 §7.3`): un código nuevo llega y se muestra en crudo. */
+export type PickupRelationship = 'abuelo' | 'personal_apoyo' | 'otra_familia' | 'otro'
+
+export type PickupAuthorizationKind = 'permanente' | 'puntual'
+
+export type PickupChannel = 'presencial' | 'telefono'
+
+export type PickupBasisKind = 'tutor' | 'tercero' | 'puntual'
+
+/** `D-68`: sin `revocacion_tutor.leer`, toda causa llega como `no_vigente`. */
+export type PickupIneffectiveReason =
+  'sin_foto' | 'fuera_de_vigencia' | 'retirada' | 'persona_excluida' | 'no_vigente'
+
+/** Documento enmascarado de la lista (`RN-FAM-UNIT-90`, `D-63`): solo los cuatro últimos caracteres a la vista. */
+export interface PickupMaskedDocument {
+  type: string
+  masked: string
+}
+
+/** Documento completo: solo en la ficha de la persona, con `autorizado_recogida.actualizar`. */
+export interface PickupFullDocument {
+  type: string
+  number: string
+}
+
+export interface PickupListBasis {
+  basis: PickupBasisKind | string
+  relationship: string
+  guardian_link?: PublicId
+  authorization?: PublicId
+  valid_from?: string | null
+  valid_until?: string | null
+}
+
+/** `api.md §8.1`: una persona de la lista calculada de un alumno; sin `public_id` propio. */
+export interface PickupListEntry {
+  person: PublicId
+  display_name: string
+  bases: PickupListBasis[]
+  has_photo: boolean
+  /** URL firmada de 5 minutos: solo en memoria del componente (UI-3). */
+  photo_url: string | null
+  photo_url_expires_at: string | null
+  contact_phone: string | null
+  document: PickupMaskedDocument | null
+}
+
+export interface PickupList {
+  data: PickupListEntry[]
+  meta: { as_of: string }
+}
+
+/** `api.md §8.1`. Nunca `ip_address` ni `user_agent`. */
+export interface PickupAuthorization {
+  public_id: PublicId
+  student_person: PublicId
+  person: { public_id: PublicId; display_name: string }
+  relationship: PickupRelationship | string
+  kind: PickupAuthorizationKind | string
+  valid_from: string
+  valid_until: string | null
+  /** Solo con ámbito `todos` (`D-53`): si no, se omite. */
+  reason?: string | null
+  authorized_by: PublicId
+  terms_version: { public_id: PublicId; kind: string; version_number: number }
+  channel: PickupChannel | string
+  authorized_at: string
+  recorded_by: PublicId
+  is_effective: boolean
+  ineffective_reason: PickupIneffectiveReason | string | null
+  withdrawn_at: string | null
+  created_at: string
+}
+
+/** `api.md §8.1`: `reused` y `data_mismatch` solo en la respuesta de `POST /pickup-persons`. */
+export interface PickupPerson {
+  person: PublicId
+  display_name?: string
+  document?: PickupFullDocument | null
+  contact_phone?: string | null
+  has_photo?: boolean
+  photo_updated_at?: string | null
+  reused?: boolean
+  data_mismatch?: boolean
+}
+
+export interface PickupPhotoUrl {
+  url: string
+  expires_at: string
+}
+
+export interface CreatePickupPersonBody {
+  given_name: string
+  family_name_1: string
+  family_name_2?: string | null
+  document_type?: string | null
+  document_number?: string | null
+  contact_phone?: string | null
+}
+
+/** `PATCH /pickup-persons/{id}`: al menos un campo; el documento no se edita (`422`). */
+export interface UpdatePickupPersonBody {
+  given_name?: string
+  family_name_1?: string
+  family_name_2?: string | null
+  contact_phone?: string | null
+}
+
+export interface CreatePickupAuthorizationBody {
+  student_person: PublicId
+  person: PublicId
+  relationship: PickupRelationship | string
+  kind: PickupAuthorizationKind | string
+  valid_from: string
+  valid_until?: string | null
+  reason?: string | null
+  authorized_by: PublicId
+  terms_version: PublicId
+  channel: PickupChannel | string
+  authorized_at?: string
 }

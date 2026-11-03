@@ -401,9 +401,11 @@ Síntomas: `403` en todas las pantallas de estructura = módulo sin contratar (o
 
 **`1.14b-b` (puerta y entrega de menores, `REQ-PRL-004`, módulo `prl`)**: ninguna variable de entorno, servicio, cola ni tarea programada nuevos (`REQ-PRL/operacion.md §12`); el cupo de lectura (`config/prl.php`, 300 por hora) tiene valor por defecto. **Dos migraciones aditivas** del módulo (`student_movements`, de solo anexar, y `pickup_alerts`; `php artisan migrate --database=pgsql_owner`). **Cinco permisos nuevos** (`entrega_menor.{leer,crear}`, `alerta_entrega.{leer,crear,actualizar}`): `platform:sync-registry` y, para los centros que ya existían, `php artisan fam_unit:grant-permissions` **después** del registro (siembra también `conserjeria_pas`). **`prl` exige `fam_unit` contratado** (`depends_on`; se contrata con `PUT /api/platform/v1/tenants/{public_id}/modules/prl`). El **almacén S3 con el *bucket* `plataforma`** sigue siendo necesario para la fotografía de recogida y para el E2E (`npm run test:e2e:real:prl`); en desarrollo, si MinIO no se puede descargar, `apps/api/tests/Support/e2e-fake-s3.php` hace de S3 falso **solo en desarrollo** (sin validar firmas; choca con el servicio `minio` del perfil `full`). Reversión: imagen anterior sin `migrate:rollback` (`RUNBOOK.md`).
 
+**`1.14b-c1` (pantallas de `fam-unit`)**: solo `apps/web`; ninguna variable de entorno, servicio, cola ni tarea programada nuevos.
+
 **Reversión**: desplegar la imagen anterior. Las migraciones **no se revierten** (aditivas, la versión anterior no usa las tablas y su `down()` borraría datos de estructura); el siguiente `sync-registry` de la versión anterior marca `acad` y sus permisos con `retired_at` (concesiones inertes). Procedimiento a probar antes de producción (`CLAUDE.md §9`): `RUNBOOK.md`.
 
-**E2E contra la API real** (`CA-ACAD-053`): `npm run test:e2e:real` (en `apps/web`) prepara un centro `demo` sintético por suite, con `acad` contratado, y lo retira al terminar; requiere `npx playwright install chromium` la primera vez.
+**E2E contra la API real** (`CA-ACAD-053`; desde `1.14b-c1` también `CA-FAM-UNIT-142`, con `fam_unit` y `prl` contratados y un almacén S3: MinIO o el servidor falso de `docs/modulos/REQ-PRL/operacion.md §12.7`; `E2E_ONLY=<suite>` limita la ejecución y rechaza valores desconocidos): `npm run test:e2e:real` (en `apps/web`) prepara un centro `demo` sintético por suite, con `acad` contratado, y lo retira al terminar; requiere `npx playwright install chromium` la primera vez.
 
 ## 3. Comprobación rápida
 

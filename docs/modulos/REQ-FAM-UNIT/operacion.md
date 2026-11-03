@@ -209,3 +209,5 @@ Señales a vigilar cuando haya observabilidad: lecturas de lista por usuario y h
 ### 12.6 Copias de seguridad
 
 Las tablas nuevas entran en la copia por centro; los objetos de fotografía, en la copia del almacenamiento con versionado (`REQ-BKP-001`). **Restaurar a un punto anterior a una retirada o a una revocación devolvería a alguien a la lista de un menor**: se suma a `OPEN-FAM-UNIT-21` para `1.26` (reaplicación tras restaurar). No se resuelve aquí.
+
+**`1.14b-c1` (pantallas de autorizados de recogida)**: solo `apps/web`; ninguna variable de entorno, servicio, cola ni tarea programada nuevos. E2E real: `docs/modulos/REQ-PRL/operacion.md §12.7`. Cabecera `Cache-Control: no-store` del servidor pendiente (#510).

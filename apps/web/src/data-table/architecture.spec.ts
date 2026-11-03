@@ -702,6 +702,11 @@ const CLIENT_FILE_EXCEPTIONS: Record<string, { tokens: readonly string[]; reason
     reason:
       'Guarda en un .txt los códigos de recuperación recién generados, mostrados una sola vez (REQ-AUTH-003 1.3); no es una exportación de listado.',
   },
+  'modules/fam-unit/components/PickupPhotoUpload.vue': {
+    tokens: ['URL.createObjectURL('],
+    reason:
+      'Vista previa local de la fotografía que el usuario va a subir (REQ-FAM-UNIT-005, funcional.md §23.4.2); la URL de objeto se libera al cambiar de fichero y al desmontar; no es una exportación de listado.',
+  },
 }
 
 function clientFileHits(path: string, cleaned: string): string[] {

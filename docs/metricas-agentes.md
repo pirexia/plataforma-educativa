@@ -41,6 +41,14 @@ Registro del gasto de cada subagente, para calibrar el tamaño de los tramos de 
 | 1.14b-c (spec) | doc-precheck | pasada 1 | 86340 | 11 | 0.9 | 7849 | 4 hallazgos |
 | 1.14b-c (spec) | doc-reviewer | ronda única | 194526 | 41 | 4.0 | 4744 | 0 C/A, 7 Medios, 12 Bajos |
 | 1.14b-c (spec) | doc-precheck | pasada 2 (sobre enmiendas) | 110265 | 15 | 1.6 | 7351 | 2 menores |
+| 1.14b-c1 | implementer | T1 lectura | 174266 | 40 | 6.2 | 4357 | 16 ficheros, 1634 líneas; sin incidencias |
+| 1.14b-c1 | implementer | T2 escritura | 87130 | 32 | 4.2 | 2723 | reanudación; delta de 261396 acumulado; 21 tests nuevos |
+| 1.14b-c1 | traductor | 120 claves × 3 idiomas | 82128 | 14 | 1.9 | 5866 | 7 [NT] dejadas; list.empty revertida a es-ES |
+| 1.14b-c1 | implementer | T3 E2E real | 46821 | 24 | 6.6 | 1951 | reanudación; delta |
+| 1.14b-c1 | verificador | suite web tras T3 | 27642 | 10 | 2.3 | 2764 | 1 rojo (falso positivo roleLiterals), corregido por la sesión |
+| 1.14b-c1 | security-reviewer | ronda única, columna acotada | 130561 | 21 | 2.3 | 6217 | 0 C/A; 2 Bajos + 1 observación |
+| 1.14b-c1 | implementer | correcciones de revisión (ronda 1) | 11000 | 7 | 2.1 | n/d | reanudación; delta aprox. |
+| 1.14b-c1 | implementer | corrección de carrera (ronda 2) | 9200 | 7 | 2.3 | n/d | reanudación; delta aprox. |
 | proceso | implementer | aplicar ADR-069 (skill, docs) | 106801 | 16 | 2.4 | 6675 | |
 
 ## Resumen (se recalcula al cerrar cada paso)
@@ -58,3 +66,6 @@ Solo cuota de OpenAI; no se mide en tokens de Claude. Registrar por revisión: p
 | Paso | Subcomando | Hallazgos | Válidos | Falsos positivos | Notas |
 |------|------------|-----------|--------:|-----------------:|-------|
 | 1.14b-b | adversarial-review --base develop | 1 Medio | 1 | 0 | carrera `PickupAlertService::raise()` (alumno borrado entre validación e `INSERT`); misma clase que `OPEN-FAM-UNIT-51`; llegó tras la revisión de Claude, que no lo vio; revisión de calibración sin ahorro |
+| 1.14b-c1 | adversarial-review --base develop (ronda 1) | 1 Alto, 2 Medios | 3 | 0 | seguridad no vio nada de su columna que Codex no señalase; Codex no ejecutó Vitest (solo lectura) |
+| 1.14b-c1 | adversarial-review --base 0902515 (ronda 2) | 1 Alto | 1 | 0 | carrera introducida por la propia corrección de la ronda 1; Claude no la habría visto |
+| 1.14b-c1 | adversarial-review --base 76fe7c3 (ronda 3) | 0 | 0 | 0 | approve |
