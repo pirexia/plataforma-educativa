@@ -1,6 +1,6 @@
 ---
 name: aislamiento-tenant
-description: Reglas y verificaciones para el aislamiento multi-tenant. Úsala siempre que se escriba una consulta, un endpoint, un job, un comando de consola o un test que toque datos de negocio. También al revisar código antes de mezclar.
+description: Usa esta skill cuando el usuario escriba, modifique o revise código de backend que lea o escriba datos de negocio de un colegio/centro (alumnos, matrículas, notas, grupos, asistencia, movimientos), sobre todo si es multi-tenant. Aplica a endpoints y rutas de API, consultas (Eloquent, DB::table, SQL nativo, vistas), jobs en cola, comandos artisan, tareas programadas, listeners, seeders y tests. Úsala también cuando pregunte si hay que fijar el tenant, si puede filtrarse algún dato de otro colegio o centro, o al pedir revisar código antes de mezclar. Garantiza que el tenant_id se resuelva y se aplique siempre (INV-001), incluso fuera de peticiones HTTP. No la uses para tareas de frontend, estilos, changelog ni preguntas conceptuales generales sobre herramientas o bases de datos.
 ---
 
 # Aislamiento multi-tenant

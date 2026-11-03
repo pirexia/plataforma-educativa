@@ -6,6 +6,11 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-03 · `chore(proceso)`: descripción de la skill `aislamiento-tenant` y estado de `1.14b-c1`
+
+- `aislamiento-tenant`: descripción optimizada con el bucle de `skill-creator` (validación 6/6 frente a 3/6 de la original, muestra pequeña de 16 consultas). `permisos-y-roles` e `i18n-cuatro-idiomas` se dejan como estaban: el bucle no mejoró su descripción original (5/6 y 3/6 en validación).
+- `1.14b-c1` consta como mezclada (PR #513) en README, PLAN y `memory.md`.
+
 ## 2026-11-03 · `feat(fam-unit)`: `1.14b-c1`, sección «Personas autorizadas» en la ficha de familia
 
 - SPA `fam-unit`: lectura (tabla y lista de recogida), asistente de alta (persona → autorización → fotografía), diálogos de vigencia, foto y persona, retirada; permisos desde `/me`; claves en es/en/de/fr (las [NT] solo en es-ES, `OPEN-FAM-UNIT-59` B).
