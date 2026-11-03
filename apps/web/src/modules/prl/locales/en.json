@@ -1,146 +1,146 @@
 {
   "prl": {
     "nav": {
-      "door": "Conserjería",
-      "alerts": "Alertas de entrega"
+      "door": "Front desk",
+      "alerts": "Release alerts"
     },
     "door": {
-      "title": "Conserjería",
-      "studentTitle": "Lista de recogida",
-      "asOf": "Lista calculada a las {time}",
-      "reload": "Volver a cargar la lista",
+      "title": "Front desk",
+      "studentTitle": "Pickup list",
+      "asOf": "List calculated at {time}",
+      "reload": "Reload the list",
       "empty": "Nadie puede recoger a este alumno en este momento. No lo entregues y avisa a dirección.",
       "onlyListed": "No entregues al alumno a nadie que no esté en esta lista.",
       "auditNotice": "Esta consulta queda registrada con tu usuario, la fecha y la hora.",
-      "notListed": "Quien se presenta no está en la lista",
-      "deliver": "Entregar a {person}",
-      "entryOffSchedule": "Registrar entrada fuera de horario"
+      "notListed": "The person is not on the list",
+      "deliver": "Release to {person}",
+      "entryOffSchedule": "Record off-schedule entry"
     },
     "search": {
-      "label": "Buscar alumno por nombre o apellidos",
-      "minChars": "Escribe al menos 2 letras.",
-      "results": "{count} alumno | {count} alumnos",
-      "empty": "No hay ningún alumno con ese nombre.",
-      "unitCode": "Unidad {code}"
+      "label": "Search student by name or surname",
+      "minChars": "Type at least 2 letters.",
+      "results": "{count} student | {count} students",
+      "empty": "No student with that name.",
+      "unitCode": "Unit {code}"
     },
     "basis": {
-      "tutor": "Tutor/a",
-      "tercero": "Autorizado/a",
-      "puntual": "Solo hoy"
+      "tutor": "Guardian",
+      "tercero": "Authorised person",
+      "puntual": "Today only"
     },
     "person": {
-      "documentNumber": "Documento",
-      "phone": "Teléfono"
+      "documentNumber": "Document number",
+      "phone": "Phone"
     },
     "photo": {
-      "alt": "Fotografía de {person}",
-      "none": "Sin fotografía",
-      "unavailable": "Fotografía no disponible",
+      "alt": "Photograph of {person}",
+      "none": "No photograph",
+      "unavailable": "Photograph not available",
       "verifyDocument": "Verifica con el documento."
     },
     "alert": {
-      "title": "Alerta",
+      "title": "Alert",
       "protocolTitle": "Qué hacer ahora",
       "phones": {
-        "principal": "Tutor principal",
-        "emergency": "Contacto de emergencia",
-        "unavailable": "No disponible"
+        "principal": "Main guardian",
+        "emergency": "Emergency contact",
+        "unavailable": "Not available"
       },
       "callManagement": "Avisa a dirección para que registre la llamada y cierre la alerta.",
       "status": {
-        "abierta": "Abierta",
-        "cerrada": "Cerrada"
+        "abierta": "Open",
+        "cerrada": "Closed"
       },
-      "presenterLabel": "Nombre que dice tener y, si lo enseña, su documento",
-      "principalContactedAt": "Hora de la llamada al tutor principal",
-      "resolution": "Resolución",
-      "resolutionNotes": "Notas de la resolución",
-      "resolvedBy": "Cerrada por",
-      "resolvedAt": "Cerrada el",
-      "open": "Abrir alerta",
-      "raised": "Alerta abierta.",
-      "openDescription": "Describe a la persona que se presenta. Se mostrará el protocolo y los teléfonos de contacto.",
-      "presenterCount": "{count} de 500 caracteres",
-      "presenterRequired": "Describe a quien se presenta.",
-      "openFromList": "Abrir la alerta desde «Alertas de entrega»",
-      "actions": "Registrar la llamada y cerrar",
-      "saveCall": "Guardar la llamada",
-      "close": "Cerrar la alerta",
-      "confirmClose": "Una alerta cerrada no se puede reabrir.",
-      "contactRequired": "Indica la fecha y la hora de la llamada.",
-      "resolutionRequired": "Elige la resolución.",
-      "notesCount": "{count} de 1000 caracteres",
-      "reload": "Recargar la alerta"
+      "presenterLabel": "Name they give and, if shown, their document",
+      "principalContactedAt": "Time of call to main guardian",
+      "resolution": "Resolution",
+      "resolutionNotes": "Resolution notes",
+      "resolvedBy": "Closed by",
+      "resolvedAt": "Closed on",
+      "open": "Open alert",
+      "raised": "Alert opened.",
+      "openDescription": "Describe the person who presents themselves. The protocol and the contact phone numbers will be shown.",
+      "presenterCount": "{count} of 500 characters",
+      "presenterRequired": "Describe the person who presents themselves.",
+      "openFromList": "Open the alert from “Release alerts”",
+      "actions": "Record the call and close",
+      "saveCall": "Save call",
+      "close": "Close alert",
+      "confirmClose": "A closed alert cannot be reopened.",
+      "contactRequired": "Enter the date and time of the call.",
+      "resolutionRequired": "Choose the resolution.",
+      "notesCount": "{count} of 1000 characters",
+      "reload": "Reload the alert"
     },
     "resolution": {
-      "no_entregado": "No entregado",
-      "recogido_por_autorizado": "Recogido por una persona autorizada",
-      "autorizacion_puntual_registrada": "Autorización puntual registrada",
-      "otro": "Otro"
+      "no_entregado": "Not released",
+      "recogido_por_autorizado": "Collected by an authorised person",
+      "autorizacion_puntual_registrada": "One-off authorisation recorded",
+      "otro": "Other"
     },
     "alerts": {
-      "empty": "No hay alertas.",
-      "caption": "Alertas de entrega",
-      "studentUnknown": "Alumno",
+      "empty": "There are no alerts.",
+      "caption": "Release alerts",
+      "studentUnknown": "Student",
       "columns": {
-        "student": "Alumno",
-        "status": "Estado",
-        "raisedBy": "Abierta por",
-        "raisedAt": "Fecha",
-        "resolution": "Resolución"
+        "student": "Student",
+        "status": "Status",
+        "raisedBy": "Opened by",
+        "raisedAt": "Date",
+        "resolution": "Resolution"
       },
       "dateFilter": "Opening date",
       "dateClear": "Clear date",
       "userUnknown": "User"
     },
     "states": {
-      "notFound": "No se encuentra esta información.",
-      "forbidden": "No tienes permiso para ver esta información.",
-      "studentNotFound": "No se encuentra este alumno."
+      "notFound": "This information cannot be found.",
+      "forbidden": "You do not have permission to view this information.",
+      "studentNotFound": "This student cannot be found."
     },
     "form": {
-      "close": "Cerrar"
+      "close": "Close"
     },
     "errors": {
-      "retryAfter": "Vuelve a intentarlo en {seconds} segundos.",
-      "unexpected": "No se ha podido completar la acción."
+      "retryAfter": "Try again in {seconds} seconds.",
+      "unexpected": "The action could not be completed."
     },
     "verification": {
-      "legend": "Cómo has comprobado su identidad",
-      "foto": "Por la fotografía",
-      "documento": "Por el documento",
-      "foto_y_documento": "Por la fotografía y el documento",
+      "legend": "How you verified their identity",
+      "foto": "By photograph",
+      "documento": "By identity document",
+      "foto_y_documento": "By photograph and document",
       "documentOnly": "Esta persona no tiene fotografía: solo puedes verificar con el documento.",
       "photoUnavailable": "No se puede mostrar la fotografía: verifica solo con el documento."
     },
     "movement": {
-      "offSchedule": "Fuera de horario",
-      "reason": "Motivo",
-      "notes": "Nota",
-      "notesCount": "{count} de 500 caracteres",
-      "recorded": "Salida registrada: {student} con {person} a las {time}.",
-      "recordedNoStudent": "Salida registrada con {person} a las {time}.",
-      "entryRecorded": "Entrada registrada a las {time}.",
-      "submit": "Registrar",
-      "cancel": "Cancelar",
-      "openAlert": "Abrir una alerta",
-      "deliverTitle": "Entregar a {person}",
-      "deliverDescription": "Comprueba la identidad de la persona y registra la salida del alumno.",
-      "entryDescription": "Registra la entrada del alumno fuera de horario. Indica el motivo.",
-      "verificationRequired": "Elige cómo has comprobado su identidad.",
-      "reasonRequired": "Elige el motivo.",
-      "notesRequired": "Escribe una nota cuando el motivo es «Otro»."
+      "offSchedule": "Off schedule",
+      "reason": "Reason",
+      "notes": "Note",
+      "notesCount": "{count} of 500 characters",
+      "recorded": "Exit recorded: {student} with {person} at {time}.",
+      "recordedNoStudent": "Exit recorded with {person} at {time}.",
+      "entryRecorded": "Entry recorded at {time}.",
+      "submit": "Record",
+      "cancel": "Cancel",
+      "openAlert": "Open an alert",
+      "deliverTitle": "Release to {person}",
+      "deliverDescription": "Check the identity of the person and record the student's exit.",
+      "entryDescription": "Record the student's off-schedule entry. Enter the reason.",
+      "verificationRequired": "Choose how you verified their identity.",
+      "reasonRequired": "Choose the reason.",
+      "notesRequired": "Write a note when the reason is “Other”."
     },
     "reason": {
-      "medico": "Médico",
-      "familiar": "Familiar",
-      "actividad": "Actividad",
-      "retraso": "Retraso",
-      "otro": "Otro"
+      "medico": "Medical",
+      "familiar": "Family",
+      "actividad": "Activity",
+      "retraso": "Late arrival",
+      "otro": "Other"
     },
     "direction": {
-      "salida": "Salida",
-      "entrada": "Entrada"
+      "salida": "Exit",
+      "entrada": "Entry"
     }
   }
 }

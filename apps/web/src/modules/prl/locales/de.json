@@ -1,146 +1,146 @@
 {
   "prl": {
     "nav": {
-      "door": "Conserjería",
-      "alerts": "Alertas de entrega"
+      "door": "Empfang",
+      "alerts": "Übergabe-Warnungen"
     },
     "door": {
-      "title": "Conserjería",
-      "studentTitle": "Lista de recogida",
-      "asOf": "Lista calculada a las {time}",
-      "reload": "Volver a cargar la lista",
+      "title": "Empfang",
+      "studentTitle": "Abholliste",
+      "asOf": "Liste berechnet um {time}",
+      "reload": "Liste neu laden",
       "empty": "Nadie puede recoger a este alumno en este momento. No lo entregues y avisa a dirección.",
       "onlyListed": "No entregues al alumno a nadie que no esté en esta lista.",
       "auditNotice": "Esta consulta queda registrada con tu usuario, la fecha y la hora.",
-      "notListed": "Quien se presenta no está en la lista",
-      "deliver": "Entregar a {person}",
-      "entryOffSchedule": "Registrar entrada fuera de horario"
+      "notListed": "Die Person steht nicht auf der Liste",
+      "deliver": "An {person} übergeben",
+      "entryOffSchedule": "Eintritt außerhalb der Zeiten erfassen"
     },
     "search": {
-      "label": "Buscar alumno por nombre o apellidos",
-      "minChars": "Escribe al menos 2 letras.",
-      "results": "{count} alumno | {count} alumnos",
-      "empty": "No hay ningún alumno con ese nombre.",
-      "unitCode": "Unidad {code}"
+      "label": "Schüler/in nach Vor- oder Nachname suchen",
+      "minChars": "Geben Sie mindestens 2 Buchstaben ein.",
+      "results": "{count} Schüler/in | {count} Schüler/innen",
+      "empty": "Kein/e Schüler/in mit diesem Namen.",
+      "unitCode": "Einheit {code}"
     },
     "basis": {
-      "tutor": "Tutor/a",
-      "tercero": "Autorizado/a",
-      "puntual": "Solo hoy"
+      "tutor": "Erziehungsberechtigte/r",
+      "tercero": "Bevollmächtigte Person",
+      "puntual": "Nur heute"
     },
     "person": {
-      "documentNumber": "Documento",
-      "phone": "Teléfono"
+      "documentNumber": "Ausweisnummer",
+      "phone": "Telefon"
     },
     "photo": {
-      "alt": "Fotografía de {person}",
-      "none": "Sin fotografía",
-      "unavailable": "Fotografía no disponible",
+      "alt": "Foto von {person}",
+      "none": "Kein Foto",
+      "unavailable": "Foto nicht verfügbar",
       "verifyDocument": "Verifica con el documento."
     },
     "alert": {
-      "title": "Alerta",
+      "title": "Warnung",
       "protocolTitle": "Qué hacer ahora",
       "phones": {
-        "principal": "Tutor principal",
-        "emergency": "Contacto de emergencia",
-        "unavailable": "No disponible"
+        "principal": "Haupterziehungsberechtigte/r",
+        "emergency": "Notfallkontakt",
+        "unavailable": "Nicht verfügbar"
       },
       "callManagement": "Avisa a dirección para que registre la llamada y cierre la alerta.",
       "status": {
-        "abierta": "Abierta",
-        "cerrada": "Cerrada"
+        "abierta": "Offen",
+        "cerrada": "Geschlossen"
       },
-      "presenterLabel": "Nombre que dice tener y, si lo enseña, su documento",
-      "principalContactedAt": "Hora de la llamada al tutor principal",
-      "resolution": "Resolución",
-      "resolutionNotes": "Notas de la resolución",
-      "resolvedBy": "Cerrada por",
-      "resolvedAt": "Cerrada el",
-      "open": "Abrir alerta",
-      "raised": "Alerta abierta.",
-      "openDescription": "Describe a la persona que se presenta. Se mostrará el protocolo y los teléfonos de contacto.",
-      "presenterCount": "{count} de 500 caracteres",
-      "presenterRequired": "Describe a quien se presenta.",
-      "openFromList": "Abrir la alerta desde «Alertas de entrega»",
-      "actions": "Registrar la llamada y cerrar",
-      "saveCall": "Guardar la llamada",
-      "close": "Cerrar la alerta",
-      "confirmClose": "Una alerta cerrada no se puede reabrir.",
-      "contactRequired": "Indica la fecha y la hora de la llamada.",
-      "resolutionRequired": "Elige la resolución.",
-      "notesCount": "{count} de 1000 caracteres",
-      "reload": "Recargar la alerta"
+      "presenterLabel": "Angegebener Name und, falls vorgezeigt, Ausweis",
+      "principalContactedAt": "Uhrzeit des Anrufs bei der/dem Haupterziehungsberechtigten",
+      "resolution": "Lösung",
+      "resolutionNotes": "Notizen zur Lösung",
+      "resolvedBy": "Geschlossen von",
+      "resolvedAt": "Geschlossen am",
+      "open": "Warnung öffnen",
+      "raised": "Warnung geöffnet.",
+      "openDescription": "Beschreiben Sie die Person, die erscheint. Das Protokoll und die Kontakttelefonnummern werden angezeigt.",
+      "presenterCount": "{count} von 500 Zeichen",
+      "presenterRequired": "Beschreiben Sie die Person, die erscheint.",
+      "openFromList": "Warnung aus „Übergabe-Warnungen“ öffnen",
+      "actions": "Anruf erfassen und schließen",
+      "saveCall": "Anruf speichern",
+      "close": "Warnung schließen",
+      "confirmClose": "Eine geschlossene Warnung kann nicht wieder geöffnet werden.",
+      "contactRequired": "Geben Sie Datum und Uhrzeit des Anrufs an.",
+      "resolutionRequired": "Wählen Sie die Lösung aus.",
+      "notesCount": "{count} von 1000 Zeichen",
+      "reload": "Warnung neu laden"
     },
     "resolution": {
-      "no_entregado": "No entregado",
-      "recogido_por_autorizado": "Recogido por una persona autorizada",
-      "autorizacion_puntual_registrada": "Autorización puntual registrada",
-      "otro": "Otro"
+      "no_entregado": "Nicht übergeben",
+      "recogido_por_autorizado": "Von bevollmächtigter Person abgeholt",
+      "autorizacion_puntual_registrada": "Einmalige Vollmacht erfasst",
+      "otro": "Sonstiges"
     },
     "alerts": {
-      "empty": "No hay alertas.",
-      "caption": "Alertas de entrega",
-      "studentUnknown": "Alumno",
+      "empty": "Keine Warnungen.",
+      "caption": "Übergabe-Warnungen",
+      "studentUnknown": "Schüler/in",
       "columns": {
-        "student": "Alumno",
-        "status": "Estado",
-        "raisedBy": "Abierta por",
-        "raisedAt": "Fecha",
-        "resolution": "Resolución"
+        "student": "Schüler/in",
+        "status": "Status",
+        "raisedBy": "Geöffnet von",
+        "raisedAt": "Datum",
+        "resolution": "Lösung"
       },
       "dateFilter": "Datum der Eröffnung",
       "dateClear": "Datum entfernen",
       "userUnknown": "Benutzer"
     },
     "states": {
-      "notFound": "No se encuentra esta información.",
-      "forbidden": "No tienes permiso para ver esta información.",
-      "studentNotFound": "No se encuentra este alumno."
+      "notFound": "Diese Information wurde nicht gefunden.",
+      "forbidden": "Sie haben keine Berechtigung, diese Information anzuzeigen.",
+      "studentNotFound": "Diese/r Schüler/in wurde nicht gefunden."
     },
     "form": {
-      "close": "Cerrar"
+      "close": "Schließen"
     },
     "errors": {
-      "retryAfter": "Vuelve a intentarlo en {seconds} segundos.",
-      "unexpected": "No se ha podido completar la acción."
+      "retryAfter": "Versuchen Sie es in {seconds} Sekunden erneut.",
+      "unexpected": "Die Aktion konnte nicht abgeschlossen werden."
     },
     "verification": {
-      "legend": "Cómo has comprobado su identidad",
-      "foto": "Por la fotografía",
-      "documento": "Por el documento",
-      "foto_y_documento": "Por la fotografía y el documento",
+      "legend": "Wie Sie die Identität geprüft haben",
+      "foto": "Anhand des Fotos",
+      "documento": "Anhand des Ausweises",
+      "foto_y_documento": "Anhand von Foto und Ausweis",
       "documentOnly": "Esta persona no tiene fotografía: solo puedes verificar con el documento.",
       "photoUnavailable": "No se puede mostrar la fotografía: verifica solo con el documento."
     },
     "movement": {
-      "offSchedule": "Fuera de horario",
-      "reason": "Motivo",
-      "notes": "Nota",
-      "notesCount": "{count} de 500 caracteres",
-      "recorded": "Salida registrada: {student} con {person} a las {time}.",
-      "recordedNoStudent": "Salida registrada con {person} a las {time}.",
-      "entryRecorded": "Entrada registrada a las {time}.",
-      "submit": "Registrar",
-      "cancel": "Cancelar",
-      "openAlert": "Abrir una alerta",
-      "deliverTitle": "Entregar a {person}",
-      "deliverDescription": "Comprueba la identidad de la persona y registra la salida del alumno.",
-      "entryDescription": "Registra la entrada del alumno fuera de horario. Indica el motivo.",
-      "verificationRequired": "Elige cómo has comprobado su identidad.",
-      "reasonRequired": "Elige el motivo.",
-      "notesRequired": "Escribe una nota cuando el motivo es «Otro»."
+      "offSchedule": "Außerhalb der Zeiten",
+      "reason": "Grund",
+      "notes": "Notiz",
+      "notesCount": "{count} von 500 Zeichen",
+      "recorded": "Ausgang erfasst: {student} mit {person} um {time}.",
+      "recordedNoStudent": "Ausgang mit {person} um {time} erfasst.",
+      "entryRecorded": "Eingang erfasst um {time}.",
+      "submit": "Erfassen",
+      "cancel": "Abbrechen",
+      "openAlert": "Warnung öffnen",
+      "deliverTitle": "An {person} übergeben",
+      "deliverDescription": "Prüfen Sie die Identität der Person und erfassen Sie den Ausgang des/der Schüler/in.",
+      "entryDescription": "Erfassen Sie den Eintritt des/der Schüler/in außerhalb der Zeiten. Geben Sie den Grund an.",
+      "verificationRequired": "Wählen Sie, wie Sie die Identität geprüft haben.",
+      "reasonRequired": "Wählen Sie den Grund aus.",
+      "notesRequired": "Schreiben Sie eine Notiz, wenn der Grund „Sonstiges“ ist."
     },
     "reason": {
-      "medico": "Médico",
-      "familiar": "Familiar",
-      "actividad": "Actividad",
-      "retraso": "Retraso",
-      "otro": "Otro"
+      "medico": "Arzt",
+      "familiar": "Familie",
+      "actividad": "Aktivität",
+      "retraso": "Verspätung",
+      "otro": "Sonstiges"
     },
     "direction": {
-      "salida": "Salida",
-      "entrada": "Entrada"
+      "salida": "Ausgang",
+      "entrada": "Eingang"
     }
   }
 }
