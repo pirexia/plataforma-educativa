@@ -51,3 +51,37 @@ export function problemFieldErrors(err: unknown): Record<string, string[]> {
 
   return result
 }
+
+export interface ProblemEntryInfo {
+  field: string
+  code: string | null
+  message: string
+}
+
+/**
+ * Cada error de `errors.<campo>[]` con su `code` (`ADR-038 §6`): permite situar un error de dominio (p. ej.
+ * `pickup.text_version_invalid`) junto al campo que lo causa aunque el servidor lo cuelgue de otra clave.
+ */
+export function problemEntries(err: unknown): ProblemEntryInfo[] {
+  const errors = problemBody(err)?.errors
+
+  if (!errors || typeof errors !== 'object') {
+    return []
+  }
+
+  const result: ProblemEntryInfo[] = []
+
+  for (const [field, entries] of Object.entries(errors as Record<string, unknown>)) {
+    for (const entry of Array.isArray(entries) ? (entries as ProblemEntry[]) : []) {
+      if (typeof entry?.message === 'string' && entry.message !== '') {
+        result.push({
+          field,
+          code: typeof entry.code === 'string' ? entry.code : null,
+          message: entry.message,
+        })
+      }
+    }
+  }
+
+  return result
+}

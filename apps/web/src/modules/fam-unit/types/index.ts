@@ -13,7 +13,10 @@ export type Translations = Partial<Record<TranslationLocale, string>>
 
 /** `api.md §1.7`. */
 export type TermsKind =
-  'condiciones_uso' | 'consentimiento_imagen_web' | 'consentimiento_imagen_redes'
+  | 'condiciones_uso'
+  | 'consentimiento_imagen_web'
+  | 'consentimiento_imagen_redes'
+  | 'autorizacion_recogida'
 
 export type TermsStatus = 'borrador' | 'publicada' | 'retirada'
 

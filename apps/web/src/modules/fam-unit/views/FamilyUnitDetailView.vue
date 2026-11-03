@@ -657,7 +657,12 @@ function consentIcon(state: string) {
         </DataTable>
       </section>
 
-      <PickupPersonsSection v-if="canReadPickup" :unit="data.unit" :students="data.students" />
+      <PickupPersonsSection
+        v-if="canReadPickup"
+        :unit="data.unit"
+        :students="data.students"
+        :guardians="data.guardians"
+      />
 
       <GuardianFormDialog
         v-model:open="guardianFormOpen"

@@ -10,6 +10,7 @@
  */
 import { computed, ref } from 'vue'
 import { CircleCheck, CircleX } from '@lucide/vue'
+import { Button } from '@/components/ui/button'
 import { useT } from '@/i18n'
 import {
   DataTable,
@@ -21,7 +22,20 @@ import { listPickupAuthorizations } from '../api'
 import { useLabels } from '../composables/useLabels'
 import type { PickupAuthorization } from '../types'
 
-const props = defineProps<{ studentPerson: string }>()
+const props = defineProps<{
+  studentPerson: string
+  studentName: string
+  /** `autorizado_recogida.actualizar` / `.eliminar` de `/me`: la interfaz oculta, el servidor decide (`INV-002`). */
+  canUpdate: boolean
+  canDelete: boolean
+}>()
+const emit = defineEmits<{
+  withdraw: [row: PickupAuthorization]
+  editValidity: [row: PickupAuthorization]
+  uploadPhoto: [row: PickupAuthorization]
+  removePhoto: [row: PickupAuthorization]
+  viewPerson: [row: PickupAuthorization]
+}>()
 
 const t = useT()
 const labels = useLabels()
@@ -48,6 +62,8 @@ function validity(row: PickupAuthorization): string {
 function causeLabel(row: PickupAuthorization): string {
   return labels.pickupLabel('ineffective', row.ineffective_reason ?? 'no_vigente')
 }
+
+const showActions = computed(() => props.canUpdate || props.canDelete)
 
 const columns = computed<DataTableColumn<PickupAuthorization>[]>(() => [
   {
@@ -110,6 +126,16 @@ const columns = computed<DataTableColumn<PickupAuthorization>[]>(() => [
         } satisfies DataTableColumn<PickupAuthorization>,
       ]
     : []),
+  ...(showActions.value
+    ? [
+        {
+          id: 'actions',
+          headerKey: 'famUnit.pickup.table.columns.actions',
+          hideable: false,
+          card: 'actions',
+        } satisfies DataTableColumn<PickupAuthorization>,
+      ]
+    : []),
 ])
 
 const fetchAuthorizations: DataTableFetcher<PickupAuthorization> = async (query) => {
@@ -123,6 +149,11 @@ const fetchAuthorizations: DataTableFetcher<PickupAuthorization> = async (query)
   hasReason.value = result.data.some((row) => row.reason !== undefined && row.reason !== null)
 
   return result
+}
+
+/** Una autorización retirada no admite acciones de escritura (`RN-FAM-UNIT-87`). */
+function isActive(row: PickupAuthorization): boolean {
+  return row.withdrawn_at === null
 }
 
 const table = ref<{ refresh: () => Promise<void> } | null>(null)
@@ -155,6 +186,73 @@ defineExpose({ refresh: () => table.value?.refresh() })
             <span>{{ t('famUnit.pickup.status.ineffective', { reason: causeLabel(row) }) }}</span>
           </template>
         </span>
+      </template>
+      <template #cell-actions="{ row }">
+        <div class="flex flex-wrap gap-2">
+          <Button
+            v-if="canUpdate && isActive(row) && row.kind === 'permanente'"
+            type="button"
+            variant="outline"
+            size="sm"
+            :aria-label="
+              t('famUnit.pickup.actions.editValidity', { person: row.person.display_name })
+            "
+            @click="emit('editValidity', row)"
+          >
+            {{ t('famUnit.pickup.actions.editValidityShort') }}
+          </Button>
+          <Button
+            v-if="canUpdate && isActive(row)"
+            type="button"
+            variant="outline"
+            size="sm"
+            :aria-label="
+              t('famUnit.pickup.actions.uploadPhoto', { person: row.person.display_name })
+            "
+            @click="emit('uploadPhoto', row)"
+          >
+            {{ t('famUnit.pickup.actions.uploadPhotoShort') }}
+          </Button>
+          <Button
+            v-if="canUpdate && isActive(row) && row.is_effective"
+            type="button"
+            variant="outline"
+            size="sm"
+            :aria-label="
+              t('famUnit.pickup.actions.removePhoto', { person: row.person.display_name })
+            "
+            @click="emit('removePhoto', row)"
+          >
+            {{ t('famUnit.pickup.actions.removePhotoShort') }}
+          </Button>
+          <Button
+            v-if="canUpdate"
+            type="button"
+            variant="outline"
+            size="sm"
+            :aria-label="
+              t('famUnit.pickup.actions.viewPerson', { person: row.person.display_name })
+            "
+            @click="emit('viewPerson', row)"
+          >
+            {{ t('famUnit.pickup.actions.viewPersonShort') }}
+          </Button>
+          <Button
+            v-if="canDelete && isActive(row)"
+            type="button"
+            variant="outline"
+            size="sm"
+            :aria-label="
+              t('famUnit.pickup.actions.withdraw', {
+                person: row.person.display_name,
+                student: studentName,
+              })
+            "
+            @click="emit('withdraw', row)"
+          >
+            {{ t('famUnit.pickup.actions.withdrawShort') }}
+          </Button>
+        </div>
       </template>
     </DataTable>
   </div>
