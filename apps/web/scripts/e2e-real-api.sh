@@ -29,6 +29,16 @@ if [[ ! "$SLUG" =~ ^[a-z0-9][a-z0-9-]{0,39}$ ]]; then
   exit 2
 fi
 
+# `E2E_ONLY` no vacío y fuera de la lista cerrada: se rechaza antes de tocar nada (un typo no puede salir en verde sin
+# haber ejecutado ninguna suite).
+case "${E2E_ONLY:-}" in
+  ''|core|acad-structure|acad-periods|acad-scales|acad-timetable|curso-rollover|fam-unit) ;;
+  *)
+    echo "E2E_ONLY no válido: «${E2E_ONLY}». Valores: core, acad-structure, acad-periods, acad-scales, acad-timetable, curso-rollover, fam-unit." >&2
+    exit 2
+    ;;
+esac
+
 support() { podman exec -e E2E_ALLOW_DESTRUCTIVE=1 "$API_CONTAINER" php tests/Support/e2e-real-tenant.php "$@"; }
 
 # Lee un campo de una línea JSON recibida por stdin (no por argumentos, que

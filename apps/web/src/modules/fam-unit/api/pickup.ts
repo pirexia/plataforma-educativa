@@ -22,6 +22,9 @@ import type {
 } from '../types'
 import { buildQuery, encode } from './query'
 
+/** Lecturas con datos personales o URL firmadas: el navegador no las guarda en su caché HTTP (UI-3). */
+const NO_STORE: RequestInit = { cache: 'no-store' }
+
 export interface ListPickupAuthorizationsParams {
   /** Uno o varios `public_id` de persona de alumno separados por coma. */
   student_person?: string
@@ -37,7 +40,7 @@ export interface ListPickupAuthorizationsParams {
 
 /** `GET /pickup-lists/{studentPersonPublicId}` (`autorizado_recogida.leer`, ámbito): **auditada** y con cupo (`429`). */
 export function getPickupList(studentPersonPublicId: PublicId): Promise<PickupList> {
-  return apiFetch<PickupList>(`/pickup-lists/${encode(studentPersonPublicId)}`)
+  return apiFetch<PickupList>(`/pickup-lists/${encode(studentPersonPublicId)}`, NO_STORE)
 }
 
 /** `GET /pickup-authorizations` (`autorizado_recogida.leer`, ámbito). No escribe `read`. */
@@ -92,6 +95,7 @@ export function findPickupPerson(
 ): Promise<{ data: PickupPerson[] }> {
   return apiFetch<{ data: PickupPerson[] }>(
     `/pickup-persons${buildQuery({ document_type: documentType, document_number: documentNumber })}`,
+    NO_STORE,
   )
 }
 
@@ -102,7 +106,7 @@ export function createPickupPerson(body: CreatePickupPersonBody): Promise<Pickup
 
 /** `GET /pickup-persons/{personPublicId}` (`autorizado_recogida.actualizar`): documento completo, **auditada**. */
 export function getPickupPerson(personPublicId: PublicId): Promise<PickupPerson> {
-  return apiFetch<PickupPerson>(`/pickup-persons/${encode(personPublicId)}`)
+  return apiFetch<PickupPerson>(`/pickup-persons/${encode(personPublicId)}`, NO_STORE)
 }
 
 /** `PATCH /pickup-persons/{personPublicId}` (`autorizado_recogida.actualizar`): el documento no es editable (`422`). */
@@ -133,7 +137,7 @@ export function putPickupPersonPhoto(personPublicId: PublicId, file: File): Prom
 
 /** `GET /pickup-persons/{personPublicId}/photo` (`autorizado_recogida.leer`, ámbito): URL firmada de 5 minutos, **auditada**. */
 export function getPickupPhotoUrl(personPublicId: PublicId): Promise<PickupPhotoUrl> {
-  return apiFetch<PickupPhotoUrl>(`/pickup-persons/${encode(personPublicId)}/photo`)
+  return apiFetch<PickupPhotoUrl>(`/pickup-persons/${encode(personPublicId)}/photo`, NO_STORE)
 }
 
 /** `DELETE /pickup-persons/{personPublicId}/photo` (`autorizado_recogida.actualizar`): `204`. */

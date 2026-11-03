@@ -301,6 +301,33 @@ describe('CA-FAM-UNIT-134: tarjetas de la lista vigente', () => {
     expect(famApi.getPickupList).toHaveBeenCalledTimes(2)
   })
 
+  it('tras un error de imagen, una recarga con otra URL firmada vuelve a pintar la foto', async () => {
+    vi.mocked(famApi.getPickupList)
+      .mockResolvedValueOnce(pickupList([third]) as never)
+      .mockResolvedValueOnce(
+        pickupList([
+          { ...third, photo_url: 'https://almacen.example.com/firmada/pp1-nueva.jpg' },
+        ]) as never,
+      )
+    await open()
+    await pickStudent('Lucas Ejemplo Ruiz')
+    await showList()
+    document.body
+      .querySelector('img[alt="Fotografía de Rosa Ejemplo Vidal"]')!
+      .dispatchEvent(new Event('error'))
+    await flushPromises()
+    expect(document.body.querySelector('img[alt="Fotografía de Rosa Ejemplo Vidal"]')).toBeNull()
+
+    buttonByText('Volver a cargar la lista')!.click()
+    await flushPromises()
+
+    expect(
+      document.body
+        .querySelector('img[alt="Fotografía de Rosa Ejemplo Vidal"]')
+        ?.getAttribute('src'),
+    ).toBe('https://almacen.example.com/firmada/pp1-nueva.jpg')
+  })
+
   it('una lista vacía dice que nadie puede recoger al alumno', async () => {
     vi.mocked(famApi.getPickupList).mockResolvedValue(pickupList([]) as never)
     await open()

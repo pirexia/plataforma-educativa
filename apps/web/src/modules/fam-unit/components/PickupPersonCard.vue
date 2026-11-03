@@ -9,7 +9,7 @@
  * por «Fotografía no disponible» con icono y el botón «Volver a cargar la lista» (acción explícita: la URL firmada se
  * recarga con la lista, UI-2). UI-5: no pinta ni deduce nada judicial. WCAG 1.4.1: cada base se distingue por texto.
  */
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { ImageOff, UserRound } from '@lucide/vue'
 import { useT } from '@/i18n'
 import { Badge } from '@/components/ui/badge'
@@ -30,6 +30,14 @@ const { formatDate } = useDataTableFormatters()
 
 /** La imagen emitió `error`: se trata como no disponible, sin ninguna petición automática. */
 const imageFailed = ref(false)
+
+// Una recarga trae una URL firmada nueva: la imagen se vuelve a intentar.
+watch(
+  () => props.entry.photo_url,
+  () => {
+    imageFailed.value = false
+  },
+)
 
 function translated(prefix: string, code: string): string {
   const key = `${prefix}.${code}`

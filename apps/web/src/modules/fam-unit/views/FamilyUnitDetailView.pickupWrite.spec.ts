@@ -294,6 +294,44 @@ describe('CA-FAM-UNIT-136: asistente persona → autorización → fotografía',
   })
 })
 
+describe('CA-FAM-UNIT-136 (regresión de revisión): una búsqueda resuelta no sobrevive a editar el documento', () => {
+  it('buscar A, editar a B y pulsar «Siguiente» no avanza con A: exige buscar de nuevo', async () => {
+    vi.mocked(famApi.findPickupPerson)
+      .mockResolvedValueOnce({
+        data: [
+          {
+            person: 'PPA',
+            display_name: 'Persona Ejemplo A',
+            document: { type: 'dni', number: 'AAA' },
+          },
+        ],
+      } as never)
+      .mockResolvedValueOnce({ data: [] })
+    await open()
+    await pickStudent()
+    await click('Nueva autorización')
+    await fill('#fam-unit-pickup-doc-number', 'AAA')
+    await click('Buscar')
+
+    expect(text()).toContain('Persona Ejemplo A')
+
+    await fill('#fam-unit-pickup-doc-number', 'BBB')
+
+    expect(text()).not.toContain('Persona Ejemplo A')
+    expect(buttonByText('Usar esta persona')).toBeUndefined()
+
+    await click('Siguiente')
+
+    // No avanzó con A: la clave nueva obliga a buscar (la pulsación hace la búsqueda) y sigue en el paso 1.
+    expect(famApi.findPickupPerson).toHaveBeenLastCalledWith('dni', 'BBB')
+    expect(famApi.createPickupAuthorization).not.toHaveBeenCalled()
+    expect(
+      document.body.querySelector('[data-slot="fam-unit-pickup-wizard"]')?.textContent,
+    ).toContain('1. Persona')
+    expect(text()).not.toContain('Persona Ejemplo A')
+  })
+})
+
 describe('CA-FAM-UNIT-137: fotografía', () => {
   async function toPhotoStep(): Promise<void> {
     await open()

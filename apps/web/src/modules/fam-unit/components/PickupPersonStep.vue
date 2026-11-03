@@ -7,7 +7,7 @@
  * reused`) avisa y no cambia sus datos; con `data_mismatch`, aviso adicional. Lo escrito se conserva entre pasos
  * (WCAG 3.3.7) y volver atrás no repite el alta.
  */
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useT } from '@/i18n'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -39,6 +39,8 @@ const phone = ref('')
 
 const mode = ref<'lookup' | 'found' | 'create'>(props.canUpdate ? 'lookup' : 'create')
 const found = ref<PickupPerson | null>(null)
+/** Clave (tipo + número) con la que se buscó `found`: una coincidencia solo vale para esa clave. */
+const foundKey = ref<string | null>(null)
 const resolved = ref<{ key: string; person: PickupPerson } | null>(null)
 const reused = ref(false)
 const mismatch = ref(false)
@@ -47,6 +49,20 @@ const fieldErrors = ref<Record<string, string[]>>({})
 const formError = ref<string | null>(null)
 
 const key = computed(() => `${documentType.value}|${documentNumber.value.trim()}`)
+
+// Cambiar el tipo o el número invalida la búsqueda y los avisos de la persona anterior: hay que buscar de nuevo.
+watch(key, () => {
+  found.value = null
+  foundKey.value = null
+  reused.value = false
+  mismatch.value = false
+  fieldErrors.value = {}
+  formError.value = null
+
+  if (props.canUpdate) {
+    mode.value = 'lookup'
+  }
+})
 
 function typeLabel(code: string): string {
   const k = `core.person.documentType.${code}`
@@ -82,6 +98,7 @@ async function search(): Promise<void> {
     const result = await findPickupPerson(documentType.value, documentNumber.value.trim())
 
     found.value = result.data[0] ?? null
+    foundKey.value = key.value
     mode.value = found.value ? 'found' : 'create'
   } catch (err) {
     fail(err)
@@ -106,7 +123,7 @@ async function submit(): Promise<PickupPerson | null> {
   }
 
   if (mode.value === 'found') {
-    return found.value
+    return foundKey.value === key.value ? found.value : null
   }
 
   const missing: Record<string, string[]> = {}

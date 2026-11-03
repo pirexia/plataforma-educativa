@@ -110,3 +110,19 @@ describe('REQ-FAM-UNIT-005 (api.md §8.3): autorizaciones y lista vigente', () =
     expect(last()[0]).toBe(`/pickup-lists/${ENCODED}`)
   })
 })
+
+describe('REQ-FAM-UNIT-005 (UI-3): lecturas con datos personales sin caché HTTP del navegador', () => {
+  it('lista vigente, ficha, búsqueda por documento y URL firmada llevan cache: no-store', async () => {
+    await api.getPickupList('P1')
+    expect(last()[1]).toMatchObject({ cache: 'no-store' })
+
+    await api.getPickupPerson('PP1')
+    expect(last()[1]).toMatchObject({ cache: 'no-store' })
+
+    await api.findPickupPerson('dni', '00000000T')
+    expect(last()[1]).toMatchObject({ cache: 'no-store' })
+
+    await api.getPickupPhotoUrl('PP1')
+    expect(last()[1]).toMatchObject({ cache: 'no-store' })
+  })
+})
