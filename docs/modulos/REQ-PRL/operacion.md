@@ -9,6 +9,7 @@ El texto del protocolo ante persona no autorizada será **configuración del cen
 | Clave (`apps/api/config/prl.php`) | Defecto [DERIVADA] | Regla |
 |--------------------------|--------------------|-------|
 | `prl.read_rate_limit` | 300 por hora (`attempts`, `decay_seconds` 3600), por centro y usuario | Cupo de **lecturas con datos de personas** (`funcional.md DP-11`): `POST /pickup-alerts`, `GET /pickup-alerts` (listado: nombres de alumno y de quien abre o cierra; enmienda de `DP-11`, 2026-11-04), `GET`/`PATCH /pickup-alerts/{id}` con la alerta abierta (teléfonos) y `GET /student-movements[/{id}]` (nombre de quien recogió). Un solo cubo para todas, distinto del de la lista de puerta de `fam_unit` (`fam_unit.pickup.read_rate_limit`); cuenta todos los intentos; superado, `429` con `Retry-After` y sin fila de auditoría ni datos. Sin variable de entorno |
+| `prl.lock_timeout_ms` (**propuesta `1.14b-d1`**) | 3000 [DERIVADA] | Tiempo máximo de espera de bloqueo en la transacción de `POST /student-movements` y `POST /pickup-alerts` (`SET LOCAL lock_timeout`, `funcional.md RN-PRL-16`); superado, la respuesta de `OPEN-PRL-04`. Reintentos ante interbloqueo: 3 intentos en total, fijo en código. Sin variable de entorno |
 
 ## 12.4 Despliegue: orden, siembra y reversión
 
@@ -21,6 +22,16 @@ Señales de `prl`: alertas `persona_no_autorizada` por día y errores `422 perso
 ## 12.6 Despliegue de `1.14b-b`: orden, siembra y reversión
 
 Orden: **migrar → `platform:sync-registry` → contratar `prl` (que exige `fam_unit` contratado) → `php artisan fam_unit:grant-permissions`** (centros existentes; los nuevos los siembra `tenant:provision-defaults`). **Contratar `prl`**: `PUT /api/platform/v1/tenants/{public_id}/modules/prl` del *backoffice* (capacidad `modulo.contratar`, con reautenticación; `GET …/modules` y `POST …/modules/preview` muestran antes las dependencias): rechaza contratarlo sin `fam_unit`. Dos migraciones aditivas: `student_movements` y `pickup_alerts` (`php artisan migrate --database=pgsql_owner`). **Reversión**: desplegar la imagen anterior; **no** ejecutar `migrate:rollback` sobre estas tablas (evidencia: sus `down()` fallan si hay filas). Efecto de volver atrás: desaparecen la puerta y los movimientos de la API; el centro usa su procedimiento de contingencia. Los trabajos y la cola no cambian: `prl` no tiene tareas en cola ni programadas (`INV-012`: no hay trabajo pesado; la lista y la firma de fotografías son consultas acotadas).
+
+## 12.6b Despliegue de `1.14b-d1` — PROPUESTA (2026-11-04)
+
+- **Orden**: desplegar la imagen nueva y migrar (`php artisan migrate --database=pgsql_owner`). La migración es aditiva y compatible con la versión anterior: el código antiguo nunca borra alertas, nunca modifica una cerrada y ya valida las dos coherencias, así que no choca con el `REVOKE`, el disparador ni los `CHECK`. Sin `platform:sync-registry` ni siembra (no hay permisos nuevos).
+- **Bloqueos**: `ADD CONSTRAINT … NOT VALID` y `CREATE TRIGGER` toman bloqueos breves sobre las dos tablas; `VALIDATE CONSTRAINT` solo `SHARE UPDATE EXCLUSIVE` (no bloquea escrituras). El `UNIQUE (tenant_id, student_person_id, id)` sobre `student_movements` se crea con el procedimiento que `db-reviewer` indique para el volumen real (`CONCURRENTLY` fuera de transacción si la tabla ya es grande); en el piloto, con datos sintéticos, es inmediato.
+- **Efecto observable**: una revocación, retirada o baja lanzada desde `fam_unit` o `Core` mientras conserjería registra una salida de esa persona espera hasta que la salida termina (milisegundos). Si una transacción ajena retiene un bloqueo más de `prl.lock_timeout_ms`, la puerta responde `503` (si se aprueba `OPEN-PRL-04` A) y el conserje reintenta.
+- **Señal nueva** (`§12.5`): número de respuestas `503 prl.errors.busy` y de reintentos por interbloqueo; si no es casi cero, hay una transacción larga en `fam_unit` o `Core` que investigar.
+- **Colas y tareas programadas**: ninguna nueva (`INV-012`: el bloqueo es parte de una escritura corta).
+- **Reversión**: desplegar la imagen anterior; la migración **puede** revertirse (`down()` no destruye datos y devuelve `GRANT DELETE`), pero no hace falta: el código anterior funciona con el esquema nuevo. Probar la reversión en local (`CA-PRL-034`).
+- **Verificación**: suite completa; `tests/Concurrency/PrlConcurrencyTest.php` en serie; E2E contra la API real (`§12.7`, sin cambios en los *scripts*).
 
 ## 12.7 Verificación contra la API real (E2E sin navegador)
 

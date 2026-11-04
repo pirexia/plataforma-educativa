@@ -44,3 +44,17 @@ Conserjería **no** recibe `autorizado_recogida.crear`: una recogida no prevista
 > **Estado**: **IMPLEMENTADA** (2026-11-02). Los cinco permisos los declara `PrlServiceProvider::declaredPermissions()` (ámbito `todos`, ninguno de categoría especial, ni `exportar` ni `importar`; `AR-09`). La siembra de `§8.4` es `ProvisionTenantDefaults::FAMILY_PERMISSION_GRANTS` (centros nuevos) y `fam_unit:grant-permissions` (centros existentes): `administrador_centro` los cinco; `secretaria` `entrega_menor.leer` y `alerta_entrega.leer`; `direccion` `entrega_menor.leer` y `alerta_entrega.{leer,crear,actualizar}`; `conserjeria_pas` `entrega_menor.{leer,crear}` y `alerta_entrega.{leer,crear}` (sin `autorizado_recogida.*`, sin cerrar alertas). Sin siembra para docentes ni `tutor_legal` (`OPEN-FAM-UNIT-42`). Tests: `apps/api/tests/Feature/Prl/PrlPermissionsTest.php` y `DoorApiTest.php` (`CA-PRL-009`: sin permiso, también un tutor con ámbito `unidad_familiar`, `403`; `deny` en uno de los roles, `403`).
 
 Un rol con estos permisos en un ámbito distinto de `todos` (p. ej. insertado a mano) **no concede nada**: `entrega_menor.*` y `alerta_entrega.*` no tienen resolutor de ámbito y las nueve rutas responden `403` (`PrlReadAuditTest`, seguridad M2).
+
+### 8.6 Entrega `1.14b-d1` — PROPUESTA (2026-11-04)
+
+> **Estado**: **PROPUESTA**, pendiente de aprobación. **Sin permisos, recursos, ámbitos ni siembra nuevos**: la matriz de `§8.3` y la siembra de `§8.4` no cambian.
+
+| Recurso | Acción | Ámbito | Cambio en `1.14b-d1` |
+|---------|--------|--------|----------------------|
+| `entrega_menor` | `crear` | `todos` | La comprobación de **negocio** que acompaña al permiso (la persona figura en la lista) pasa a hacerse con bloqueo (`funcional.md RN-PRL-12`); el permiso y su comprobación en la ruta no cambian |
+| `alerta_entrega` | `crear` | `todos` | Ídem para la existencia del alumno |
+| `alerta_entrega` | `eliminar` | — | Sigue sin existir; ahora además el motor niega `DELETE` al rol de la aplicación (`RN-PRL-18`) |
+
+- **Defensa en profundidad de privilegios del motor**: `REVOKE DELETE` en `pickup_alerts` (`datos.md §8.9`). Es un cambio de `GRANT`: uno de los motivos de la clasificación **crítica**.
+- **`delivered_by`** (`OPEN-PRL-03`): si se aprueba A, `prl` comprobará que el usuario indicado como «quién entrega» tiene `entrega_menor.crear` (permiso, nunca rol, `AR-08`), por una interfaz de `Core\Domain` existente; si no existe esa interfaz, no se amplía `Core` para esto y se queda como está.
+- **Tests de denegación** que siguen exigidos: `CA-PRL-009` (sin permiso, `deny`) y `CA-PRL-011` (aislamiento entre centros) se repiten sobre los dos `POST` tras el cambio (`CA-PRL-035`).

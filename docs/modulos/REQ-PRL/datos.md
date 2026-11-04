@@ -68,3 +68,23 @@ Tabla ordinaria (con `deleted_at` por `INV-005`, pero sin *endpoint* de borrado:
 - **Índices**: los de `§8.6`, el único parcial de idempotencia de cada tabla (`(tenant_id, recorded_by | raised_by, idempotency_key) WHERE idempotency_key IS NOT NULL`) y, por `AR-16`, un índice **completo** (`indpred IS NULL`) con prefijo `(tenant_id, columna)` para cada clave foránea compuesta (comprobado en `PrlSchemaTest`).
 - **`down()`**: se niega (`RuntimeException`) si hay filas en cualquier centro (evidencia ante un incidente con un menor; `apps/api/tests/Concurrency/PrlConcurrencyTest.php`).
 - **Longitud de la clave de idempotencia**: `CHECK (idempotency_key IS NULL OR length(idempotency_key) <= 255)` en ambas tablas (`..._idempotency_key_length_check`); la petición ya la limita a 128 (`funcional.md DP-13`).
+
+### 8.9 Entrega `1.14b-d1` — PROPUESTA (2026-11-04)
+
+> **Estado**: **PROPUESTA**, pendiente de aprobación (`funcional.md`, «Entrega `1.14b-d`»). **Ninguna tabla nueva**; ninguna columna nueva; sin `academic_year_id` (`OPEN-FAM-UNIT-39`). Una migración aditiva de `prl` (*expand*), reversible. `db-reviewer` obligatorio. Las tablas de `fam_unit` y `people` **no cambian**: el bloqueo de `RN-PRL-14`/`-15` es una cláusula `FOR SHARE` en consultas de sus propios módulos.
+
+**Migración de endurecimiento** (`OPEN-FAM-UNIT-53` puntos 2 a 4):
+
+| Cambio | Tabla | Detalle | Regla |
+|--------|-------|---------|-------|
+| `REVOKE DELETE` | `pickup_alerts` | A `plataforma_app` y `plataforma_platform` (como `student_movements`, `§8.8`) | `RN-PRL-18` |
+| Disparador `pickup_alerts_closed_immutable` | `pickup_alerts` | `BEFORE UPDATE FOR EACH ROW`: si `OLD.status = 'cerrada'`, excepción. No actúa sobre `DELETE` (lo impide el `REVOKE`; la purga de `1.23b` borra con otro rol). Función con `search_path` fijado. SQLSTATE: el implementador sigue el patrón de `ADR-058` si la aplicación tiene que distinguirlo; como el servicio responde `409` antes (`DP-6`), basta uno genérico y `db-reviewer` lo confirma | `RN-PRL-17`, `OPEN-PRL-05` |
+| `CHECK student_movements_reason_requires_off_schedule_check` | `student_movements` | `(off_schedule OR off_schedule_reason IS NULL)`; con el `CHECK` existente queda `off_schedule ⇔ off_schedule_reason IS NOT NULL`. `ADD … NOT VALID` y `VALIDATE` en la misma migración | `RN-PRL-19` |
+| `UNIQUE (tenant_id, student_person_id, id)` | `student_movements` | Destino de la FK siguiente | `RN-PRL-19` |
+| FK compuesta de corrección del mismo alumno | `student_movements` | `(tenant_id, student_person_id, corrects_movement_id) → student_movements (tenant_id, student_person_id, id)`, `NO ACTION`, `MATCH SIMPLE` (con `corrects_movement_id` nulo no se comprueba), `NOT VALID` + `VALIDATE`. **Se mantiene** la FK existente de `§8.8` (quitarla sería *contract*, dos versiones después y solo si se decide). Índice completo con el prefijo que exija `AR-16` | `RN-PRL-19` |
+
+- **Datos existentes**: la aplicación ya impide ambas incoherencias (`DP-3`), así que `VALIDATE` debe pasar; si fallara en algún entorno, la migración aborta y **no** se corrigen filas a mano (son evidencia): se para y se reporta.
+- **Tablas de solo anexar**: añadir restricciones a `student_movements` no modifica filas; el disparador de `tenantTableAppendOnly()` y el `REVOKE UPDATE, DELETE` siguen intactos.
+- **`down()`**: quita la FK, el `UNIQUE`, el `CHECK` y el disparador (con su función) y **devuelve `GRANT DELETE`** a los dos roles, sin tocar filas. A diferencia de las migraciones de `§8.8`, no se niega con datos: no destruye evidencia.
+- **Privilegios del bloqueo**: `SELECT … FOR SHARE` exige privilegio `UPDATE` sobre la tabla bloqueada y aplica las políticas RLS de `UPDATE`. El implementador comprueba que `plataforma_app` los tiene sobre `people` y sobre cada tabla de `fam_unit` que bloquee `grantForLocked`; **si falta alguno, para y lo reporta** (conceder un `GRANT` no está en esta especificación).
+- **Índices**: ninguno nuevo salvo el que exija `AR-16` para la FK compuesta; el bloqueo usa las mismas consultas que `grantFor` y `findByPublicId`.

@@ -7,7 +7,7 @@
 | Fase | 1 (`1.14b-b`) |
 | Depende de | `fam_unit` (`depends_on ['fam_unit']`, `ADR-068 §5.1`, `RMOD-006`) |
 | Esencial | No |
-| Estado | **Implementado en `1.14b-b`** y pantallas de conserjería en `1.14b-c2` (sin mezclar aún); salida autónoma, alerta de no recogido y avisos automáticos: `1.14b-d`, diferidos |
+| Estado | **Implementado en `1.14b-b`** y pantallas de conserjería en `1.14b-c2` (mezclada, PR #519). **`1.14b-d`: especificación APROBADA por el usuario (2026-11-04) con todas las recomendaciones de `OPEN-PRL-01` a `-05`** (sección «Entrega `1.14b-d`»): solo es implementable ya la parte `1.14b-d1` (cierre de `OPEN-FAM-UNIT-51` y `-53`); salida autónoma, avisos automáticos y alerta de no recogido siguen **bloqueados** por `1.15`, `1.19`, `1.13` e issue #453, sin implementar |
 
 > **Origen del contenido.** Traslado **sin cambios de contenido** (salvo las secciones de implementación de `1.14b-b`, que son nuevas) de lo marcado `prl` en `docs/modulos/REQ-FAM-UNIT/` (especificación del paso `1.14b`, aprobada el 2026-10-29), tal como exige `ADR-068 §5.1`. La numeración de IDs (`RN-PRL-*`, `CA-PRL-*`, `OPEN-*`, secciones `§21.x`/`§8.x`) se conserva tal cual para que las referencias cruzadas existentes sigan siendo válidas. Las referencias a `§N` sin más indican la sección de `REQ-FAM-UNIT/funcional.md`, `datos.md`, `api.md`, `permisos.md` u `operacion.md` del fichero homónimo de ese módulo.
 
@@ -92,6 +92,90 @@ Sobre lo anterior (aprobado), `ADR-068` y `REQ-FAM-UNIT/funcional.md §21` y `§
 | DP-13 | La clave `Idempotency-Key` se limita a 128 caracteres en la petición y a 255 en un `CHECK` de cada tabla (`idempotency_key_length_check`, defensa en profundidad) | `datos.md §8.8` |
 
 
+
+## Entrega `1.14b-d` — APROBADA (2026-11-04)
+
+| Campo | Valor |
+|-------|-------|
+| Estado | **APROBADA** por el usuario el 2026-11-04 (`OPEN-PRL-01` A, `-02` A, `-03` A si `Core` permite comprobar el permiso de otro usuario y si no C, `-04` A, `-05` A). `OPEN-PRL-02`: verificar en `ADR-068 §5.5` la frase «sin efectos» antes de T2 |
+| Requisitos | `REQ-PRL-004`, `REQ-FAM-UNIT-005`; `ADR-032`, `ADR-068` |
+| Origen | Fila `1.14b-d` de `REQ-FAM-UNIT/funcional.md §21.12` («Salida autónoma, alerta de no recogido con escalado y avisos automáticos: tras `1.15`, `1.13` y `1.19`»), más `DP-9` (riesgo TOCTOU aceptado y diferido aquí) y las abiertas `OPEN-FAM-UNIT-51`, `-52`, `-53` (`REQ-FAM-UNIT/funcional.md §21.13.2`) |
+| **Clasificación del paso: crítico** (`ADR-069 §4.2`) | La parte implementable (`1.14b-d1`) crea una migración que **cambia `GRANT`** (`REVOKE DELETE`), añade un disparador y `CHECK`s; **modifica la comprobación de autorización** de la puerta (recomprobación con bloqueo) y amplía dos interfaces públicas que la sostienen (`Core\Domain\PersonDirectory`, `FamUnit\Domain\AuthorizedPickupList`); y toca *endpoints* que escriben **datos de menores y de terceros**. Cualquiera basta. Codex no disponible hasta 2026-12-02: rige `ADR-050`; `security-reviewer` y `db-reviewer` obligatorios |
+| Régimen de revisión | `db-reviewer` (migración), `security-reviewer` (paso crítico), `doc-precheck` + `doc-reviewer` |
+
+### 1. Dependencias no implementadas: lo que **no** se puede especificar todavía
+
+La especificación aprobada difiere las tres funciones de esta entrega **a después de** pasos que no existen. Comprobado en `PLAN-IMPLEMENTACION.md` (2026-11-04): `1.15` (`REQ-ALUM`), `1.13` (asistencia) y `1.19` (`REQ-COM`) están **sin empezar** (`[ ]`), y el planificador sigue sin desplegar (issue #453, `REQ-FAM-UNIT/funcional.md D-58`). Especificarlas ahora obligaría a inventar el modelo de etapa, edad, presencia y notificación, que es de esos módulos (`CLAUDE.md §0`, `§11`). **Me detengo en ellas** y dejo dicho qué falta:
+
+| Función | Bloqueada por | Qué falta en concreto | Preguntas abiertas que siguen abiertas |
+|---------|---------------|-----------------------|----------------------------------------|
+| **Salida autónoma** (`REQ-FAM-UNIT-005`) | `1.15` | Etapa y grupo del alumno (`H2`); fecha de nacimiento, que `PersonDirectory` no expone a propósito (`D-4`, `ADR-048`: no se construye sin consumidor); la excepción del primer ciclo de Infantil (`1.18`); validación jurídica; y la contradicción con `REQ-TRAN-005` (`H7`), que puede exigir un ADR que sustituya un punto de `ADR-032` (`ADR-068 §10`). Hasta entonces sigue rigiendo el fallo en cerrado: **ningún alumno sale solo** (el `CHECK` `salida ⇒ picked_up_by_person_id` de `datos.md §8.4` lo impide) | `OPEN-FAM-UNIT-31`, `-45`; y `-52` (exigir que `student_person` sea alumno), que solo se puede cerrar con `1.15` |
+| **Avisos automáticos** al tutor principal (`RN-PRL-08`) | `1.19` | No hay motor de notificaciones ni canal; la recomendación de `-33` es un evento de `prl` consumido por `COM`, cuyo contrato define `1.19`. Hasta entonces sigue vigente el teléfono a la vista y el registro manual de la llamada (`DP-5`) | `OPEN-FAM-UNIT-33` |
+| **Alerta de alumno no recogido** al cierre y su escalado | `1.13`, issue #453, `1.19` | Saber quién está hoy en el centro (asistencia), un planificador desplegado que dispare la comprobación al cierre, el horario de cierre por alumno o grupo (`1.15`) y el canal de escalado (`1.19`). `-32` recomienda no construir configuración sin consumidor (`ADR-048`) | `OPEN-FAM-UNIT-32` |
+
+Por eso propongo **partir** la entrega (`OPEN-PRL-01`): `1.14b-d1` (lo que no depende de nada pendiente: cierre de `OPEN-FAM-UNIT-51` y `-53`), especificada abajo, y `1.14b-d2` (salida autónoma, tras `1.15`, cerrando también `-52`), `1.14b-d3` (avisos, tras `1.19`) y `1.14b-d4` (no recogido, tras `1.13`, #453 y `1.19`), que se especificarán cuando existan sus dependencias.
+
+### 2. Alcance de `1.14b-d1`
+
+**Entra**
+
+| Pieza | Cierra |
+|-------|--------|
+| Recomprobación **con bloqueo compartido** en `POST /student-movements` (persona que recoge, alumno) y `POST /pickup-alerts` (alumno), por dos ampliaciones aditivas de interfaces públicas | `OPEN-FAM-UNIT-51` (`DP-9` y el hallazgo de Codex sobre `PickupAlertService::raise()`) y la misma clase de carrera en la comprobación del alumno de `StudentMovementService::write()` (hallada al especificar: se valida dentro de la transacción, pero sin bloqueo, a `READ COMMITTED`) |
+| Migración *expand* de endurecimiento de `pickup_alerts` y `student_movements` | `OPEN-FAM-UNIT-53` puntos 2, 3 y 4 |
+
+**No entra**: lo bloqueado del apartado 1; `OPEN-FAM-UNIT-53` punto 1 (`delivered_by`), que necesita decisión (`OPEN-PRL-03`); `OPEN-FAM-UNIT-52` (a `1.14b-d2`); pantallas (ningún cambio en `apps/web`, salvo, si se aprueba `OPEN-PRL-04`, mostrar el error nuevo, que ya cubre el tratamiento genérico de errores: el implementador lo comprueba y, si exige código de interfaz, para y lo reporta).
+
+**Nota sobre la propuesta de Codex** («mover la comprobación dentro de la transacción»): **no basta por sí sola**. A `READ COMMITTED` cada sentencia ve lo confirmado en su momento; un borrado lógico confirmado entre la lectura y el `INSERT` sigue sin verse aunque las dos vayan en la misma transacción. Lo demuestra `write()`, que ya valida al alumno dentro de la transacción y tiene la misma carrera. Hace falta un **bloqueo de fila** que obligue al escritor concurrente a esperar.
+
+### 3. Reglas de negocio nuevas
+
+| ID | Regla |
+|----|-------|
+| `RN-PRL-12` | **Recomprobación con bloqueo** (cierra `DP-9`): en la transacción de escritura de `POST /student-movements` y `POST /pickup-alerts`, **antes** del `INSERT`, `prl` bloquea con `FOR SHARE` las filas que sostienen la decisión, y la decisión se toma sobre lo bloqueado: (a) las filas de `people` del alumno y, en una salida, de la persona que recoge, por `PersonDirectory` (`RN-PRL-14`); (b) en una salida, las filas de `fam_unit` que hacen que la persona figure, por `AuthorizedPickupList` (`RN-PRL-15`). Orden fijo: primero (a), por id ascendente; después (b). Una revocación, retirada, baja o borrado lógico concurrente **confirmado antes** del bloqueo se ve (la fila bloqueada se relee); uno **posterior** espera a que `prl` confirme, de modo que el hecho registrado nunca es posterior a la pérdida de la autorización. Ya no queda ventana entre comprobación e `INSERT` (sustituye la aceptación de `DP-9`) |
+| `RN-PRL-13` | **Mismo camino y mismo cuerpo** (`DP-2`, `DP-12`, `OPEN-FAM-UNIT-34`): la persona inexistente, borrada o de otro centro sigue pasando por la misma llamada bloqueante (con un id que no existe) y recibe el mismo `422 prl.movement.person_not_authorized`. El alumno borrado concurrentemente es `404` en `POST /pickup-alerts` y `422 prl.validation.student_not_found` en `POST /student-movements`, como hoy |
+| `RN-PRL-14` | **Ampliación de `Core\Domain\PersonDirectory`** (aditiva, `OPEN-PRL-02`): un método que, dados `public_id`s, devuelve las personas **vivas** del centro y deja sus filas bloqueadas con `FOR SHARE` hasta el final de la transacción en curso, en orden de id ascendente, en una consulta. Fuera de una transacción abierta lanza `LogicException` (fallo en cerrado: un bloqueo sin transacción no protege nada). Nombre orientativo: `lockLiveByPublicIds(list<string>): array<string, PersonRef>` |
+| `RN-PRL-15` | **Ampliación de `FamUnit\Domain\AuthorizedPickupList`** (aditiva, `OPEN-PRL-02`; precedente `DP-1`): `grantFor` con bloqueo (nombre orientativo `grantForLocked(personId, studentPersonId): ?PickupGrant`), **mismo predicado** que `grantFor`/`isAuthorized` (comprobado por test de equivalencia para toda persona de los datos de prueba), que bloquea con `FOR SHARE` toda fila de `fam_unit` cuya **modificación o borrado lógico** podría hacer que la persona deje de figurar: como mínimo, los vínculos vivos persona ↔ alumno (en cualquier estado), la faceta de tutor de la persona, las autorizaciones vivas persona ↔ alumno y la fotografía viva de la persona. Fuera de una transacción abierta lanza `LogicException`. Sin auditoría de lectura ni cupo, como `grantFor` (no devuelve datos personales). La lista exacta de filas la fija el implementador **a partir de la consulta real que compone la lista** y la deja escrita en el *docblock* y en el PR. **Si alguna transición que saca a una persona de la lista se produce por un `INSERT`** (por ejemplo, crear un vínculo directamente en estado `revocado`), un bloqueo de fila no la cubre: el implementador **para y lo reporta** |
+| `RN-PRL-16` | **Espera acotada** [DERIVADA: la puerta no puede quedarse colgada esperando a otra transacción]: la transacción de `prl` fija un `lock_timeout` local (`prl.lock_timeout_ms`, 3000 por defecto) y reintenta la transacción completa ante interbloqueo o fallo de serialización (hasta 3 intentos en total, sin efectos entre intentos porque todo se deshace). Agotados, o superado el tiempo de espera, responde el error de `OPEN-PRL-04` sin escribir nada |
+| `RN-PRL-17` | **Alerta cerrada inmutable en el motor** (`OPEN-FAM-UNIT-53` punto 3): un disparador rechaza todo `UPDATE` de una fila de `pickup_alerts` cuyo estado **anterior** es `cerrada`, con cualquier rol (`OPEN-PRL-05`). El servicio ya responde `409 prl.alert.closed` antes de llegar ahí (`DP-6`); el disparador es defensa en profundidad frente a SQL directo |
+| `RN-PRL-18` | **Alerta no borrable por la aplicación** (`OPEN-FAM-UNIT-53` punto 2): `REVOKE DELETE` sobre `pickup_alerts` a `plataforma_app` y `plataforma_platform`, como ya tiene `student_movements` |
+| `RN-PRL-19` | **Coherencias de movimientos en el motor** (`OPEN-FAM-UNIT-53` punto 4): `off_schedule = false` no admite motivo (`CHECK`), y una corrección solo puede referenciar un movimiento **del mismo alumno** (clave foránea compuesta que incluye `student_person_id`). La aplicación sigue validándolas antes (`DP-3`, mismos códigos de error); el motor lo garantiza ante SQL directo |
+
+### 4. Criterios de aceptación (`1.14b-d1`)
+
+- **CA-PRL-026** *(concurrencia, dos conexiones)* — *Dado* una conexión B que revoca el vínculo (P, A) sin confirmar, *cuando* la conexión A registra una salida de A con P, *entonces* A espera; *y* al confirmar B, A responde `422 prl.movement.person_not_authorized` y no hay fila en `student_movements` (`RN-PRL-12`).
+- **CA-PRL-027** *(concurrencia)* — *Dado* que A ha bloqueado dentro de su transacción de salida con el tercero T (base `tercero`), *cuando* B retira la autorización de T, *entonces* B queda en espera de bloqueo (visible en `pg_locks`) hasta que A confirma; el resultado es la salida registrada **y después** la retirada; repetido con la baja lógica del vínculo, la baja de la fotografía de T y el borrado lógico de la persona T, el mismo orden.
+- **CA-PRL-028** *(concurrencia; `OPEN-FAM-UNIT-51`, Codex)* — *Dado* B que borra lógicamente la persona del alumno sin confirmar, *cuando* A envía `POST /pickup-alerts` para ese alumno, *entonces* A espera y, al confirmar B, responde `404` sin fila en `pickup_alerts`; *y* lo mismo en `POST /student-movements` responde `422 prl.validation.student_not_found` sin fila.
+- **CA-PRL-029** — *Dado* `grantForLocked` y el método bloqueante de `PersonDirectory`, *cuando* se llaman fuera de una transacción, *entonces* `LogicException`; *y* para **toda** persona X y todo alumno A de los datos de prueba, `grantForLocked(X, A)` devuelve lo mismo que `grantFor(X, A)` (`RN-PRL-15`).
+- **CA-PRL-030** *(concurrencia)* — *Dado* B que mantiene sin confirmar la revocación de (P, A) más allá de `prl.lock_timeout_ms`, *cuando* A registra la salida con P, *entonces* responde el error de `OPEN-PRL-04` en menos de `lock_timeout_ms` + 1 s, sin escribir nada; *y* con la misma `Idempotency-Key` y el mismo cuerpo, una vez liberado el bloqueo, el reintento se procesa como una petición nueva (no hubo resultado original).
+- **CA-PRL-031** — *Dado* el rol `plataforma_app` (y `plataforma_platform`), *cuando* ejecuta `DELETE` sobre `pickup_alerts`, *entonces* `permission denied` (`RN-PRL-18`).
+- **CA-PRL-032** — *Dado* una alerta cerrada, *cuando* cualquier rol, incluido el propietario, ejecuta un `UPDATE` sobre ella (cualquier columna, también `deleted_at`), *entonces* el motor lo rechaza; *y* sobre una alerta abierta, el `UPDATE` que la cierra se acepta (`RN-PRL-17`).
+- **CA-PRL-033** — *Dado* SQL directo con el rol de aplicación, *cuando* inserta un movimiento con `off_schedule = false` y motivo, o una corrección que referencia un movimiento de otro alumno, *entonces* el motor lo rechaza (`RN-PRL-19`); *y* por la API los dos casos siguen dando los `422` de `DP-3`.
+- **CA-PRL-034** — *Dado* la migración, *cuando* se aplica y se revierte sobre una base con movimientos y alertas válidos, *entonces* ningún dato se pierde ni cambia, y `down()` deja el esquema como antes (incluido el `GRANT DELETE`).
+- **CA-PRL-035** *(regresión y E2E)* — *Dado* lo anterior, *entonces* `CA-PRL-001` a `-013` siguen en verde y `apps/web/e2e/prl-door-api.spec.ts` y `prl-door-real.spec.ts` pasan contra la **API real** (`CLAUDE.md §3`); `prl` no lee tablas de `fam_unit` ni de `Core` (`AR-01`, `AR-02`) y ninguna regla compara roles (`AR-08`).
+
+### 5. Preguntas abiertas (no las resuelvo; recomendación en cada una)
+
+| ID | Pregunta | Opciones | Recomendación | Bloquea |
+|----|----------|----------|---------------|---------|
+| `OPEN-PRL-01` | **Partición de `1.14b-d`** y cierre del paso `1.14b` en el plan | A `1.14b-d1` ahora (este apartado) y `-d2`/`-d3`/`-d4` tras sus dependencias; B esperar a `1.15`/`1.13`/`1.19` y hacerlo todo junto (el riesgo TOCTOU aceptado sigue abierto meses); C solo `-d1` y llevar lo bloqueado a obligaciones de `1.15`, `1.13` y `1.19` | **A**, y cerrar el paso `1.14b` del plan con `-d1`, dejando `-d2`, `-d3`, `-d4` anotados como **obligación heredada** en las entradas de `1.15`, `1.19` y `1.13` (como ya se hace con #382). La edición del plan es de la sesión, no de esta especificación | Todo |
+| `OPEN-PRL-02` | **Ampliar dos interfaces públicas** con métodos que bloquean (`RN-PRL-14`, `-15`) | A ampliación aditiva aprobada por el usuario, como `DP-1`; B bloqueo consultivo (`pg_advisory_xact_lock`) por alumno, que exige que **todo** escritor de `fam_unit` y `Core` lo tome (más invasivo y fácil de olvidar en un escritor futuro); C `SERIALIZABLE` solo en `prl` (no detecta el conflicto si los escritores de `fam_unit` no son también serializables); D mantener el riesgo aceptado | **A**. **Salvedad**: el punto 5 del contrato de `AuthorizedPickupList` («sin efectos salvo la auditoría de lectura») se refiere a efectos observables; un bloqueo de fila es un efecto nuevo. Si ese punto está fijado literalmente en `ADR-068 §5.5`, cambiarlo exige que `architect` escriba la enmienda (ADR nuevo, `CLAUDE.md §11`) antes de implementar. No he podido abrir `docs/adr/ADR-068*` en esta sesión (sin herramienta de listado): **lo dejo sin verificar** | `1.14b-d1` T2 |
+| `OPEN-PRL-03` | **`delivered_by`** (`OPEN-FAM-UNIT-53` punto 1): hoy basta con un usuario vivo y activo del centro | A exigir que tenga `entrega_menor.crear`; B además alguna confirmación del usuario indicado; C dejarlo | **A**, si `Core\Domain` ya ofrece comprobar un permiso de **otro** usuario por interfaz; si no existe, **C** hasta que exista, sin ampliar `Core` solo para esto. B no está en ningún requisito y no la recomiendo. Error propuesto si A: `422 prl.validation.delivered_by_not_permitted` [DERIVADA]. Riesgo residual que acepto señalar: una baja del usuario entre la comprobación y el `INSERT` no se bloquea (dato de personal, no de autorización del menor) | Nada de `-d1` si se elige C |
+| `OPEN-PRL-04` | **Respuesta cuando no se obtiene el bloqueo** (`RN-PRL-16`) | A `503` con `Retry-After: 1` y código `prl.errors.busy`; B `409 prl.movement.concurrent_change`; C sin límite de espera | **A** [DERIVADA]: es una condición transitoria, no un conflicto del cuerpo; el conserje reintenta. 3000 ms de `lock_timeout` y 3 intentos ante interbloqueo. Claves nuevas en `lang/*/prl.php` (≤ 15, las traduce la sesión; no es texto legal) | `1.14b-d1` T2 |
+| `OPEN-PRL-05` | **¿El disparador de alerta cerrada afecta también al propietario?** | A todos los roles; B solo `plataforma_app`/`plataforma_platform` | **A**: la alerta cerrada es evidencia de un incidente con un menor. Consecuencia que hay que aceptar: la retención de `1.23b` deberá **borrar** (no anonimizar por `UPDATE`) las alertas cerradas, o desactivar el disparador en su propia migración con ADR | `1.14b-d1` T1 |
+
+Siguen abiertas y **no** las toca `1.14b-d1`: `OPEN-FAM-UNIT-31`, `-32`, `-33`, `-45` y `-52` (apartado 1), y `-40` (protocolo propio del centro).
+
+### 6. Dimensionado (`CLAUDE.md §2` «Ahorro de cuota», puntos 1 y 7)
+
+`1.14b-d1` cabe en **2 tramos** secuenciales de `implementer` (estimación sin calibrar contra `docs/metricas-agentes.md`, que no he leído; la sesión la ajusta):
+
+| Tramo | Costura | Contenido | CA | Estimación |
+|-------|---------|-----------|----|-----------|
+| **T1 · Datos** | Migración y esquema | Una migración aditiva de `prl` (`datos.md §8.9`): `REVOKE DELETE`, disparador de alerta cerrada, `CHECK` de motivo, `UNIQUE` y clave foránea compuesta de corrección (`NOT VALID` + `VALIDATE`), índice de `AR-16`; `down()` reversible; tests de esquema en `PrlSchemaTest` | `CA-PRL-031` a `-034` | ~40-60 llamadas |
+| **T2 · Bloqueo** | Interfaces y servicios | Método bloqueante de `PersonDirectory` (implementación en `Core`), `grantForLocked` (implementación en `fam_unit`), uso en `StudentMovementService` y `PickupAlertService`, `lock_timeout` y reintentos, error de `OPEN-PRL-04` (OpenAPI y `lang`), tests de `tests/Concurrency/PrlConcurrencyTest.php` (en serie) y de equivalencia; suite completa y E2E contra la API real | `CA-PRL-026` a `-030`, `-035` | ~80-100 llamadas |
+
+Si T2 se alarga, la costura de reserva es «interfaces y equivalencia» / «servicios, concurrencia y E2E» (tercer tramo). Las entregas bloqueadas (`-d2` a `-d4`) se dimensionan al especificarlas.
 
 ### Verificado (1.14b-b)
 
