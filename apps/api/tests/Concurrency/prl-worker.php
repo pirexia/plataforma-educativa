@@ -10,9 +10,15 @@
  *   raise-alert <userPublicId> <studentPersonPublicId> <idempotencyKey|->                    (PickupAlertService::raise)
  *   record-exit-hold <userPublicId> <studentPersonPublicId> <personPublicId> <signalFile> <seconds>
  *       registra la salida y, **sin confirmar**, escribe el fichero de señal y espera: retiene los bloqueos de `RN-PRL-12` (`CA-PRL-027`)
+ *   delete-link-hold <userPublicId> <linkPublicId> <signalFile>      (GuardianLinkService::delete)
+ *   delete-guardian-hold <userPublicId> <guardianPublicId> <signalFile>   (GuardianService::delete)
+ *       dan de baja el vínculo o el tutor **sin confirmar**, escriben el fichero de señal y esperan a que exista `<signalFile>.release`
+ *       (máximo 30 s): retienen los bloqueos de la baja mientras la puerta intenta una salida (`CA-PRL-036`, `CA-PRL-037`)
  */
 
 use App\Models\User;
+use App\Modules\FamUnit\Application\GuardianLinkService;
+use App\Modules\FamUnit\Application\GuardianService;
 use App\Modules\Prl\Application\PickupAlertService;
 use App\Modules\Prl\Application\StudentMovementService;
 use App\Support\Api\ApiException;
@@ -71,6 +77,23 @@ $result = app(TenantContext::class)->runFor((int) $tenantId, function () use ($o
                     });
 
                     return ['outcome' => 'ok', 'public_id' => $public, 'replayed' => false];
+
+                case 'delete-link-hold':
+                case 'delete-guardian-hold':
+                    DB::transaction(function () use ($operation, $args): void {
+                        $operation === 'delete-link-hold'
+                            ? app(GuardianLinkService::class)->delete($args[1])
+                            : app(GuardianService::class)->delete($args[1]);
+
+                        file_put_contents($args[2], '1');
+                        $deadline = microtime(true) + 30;
+
+                        while (! file_exists($args[2].'.release') && microtime(true) < $deadline) {
+                            usleep(20_000);
+                        }
+                    });
+
+                    return ['outcome' => 'ok'];
 
                 case 'raise-alert':
                     $raised = app(PickupAlertService::class)->raise([

@@ -227,6 +227,54 @@ test('CA-PRL-034 datos.md §8.9: aplicar y revertir la migración sobre datos v�
     expect($schema())->toBe($hardened)->and($snapshot())->toBe($before);
 });
 
+test('CA-PRL-034 datos.md §8.9 (db-reviewer B2): up() reintentado desde un estado intermedio — restricciones NOT VALID e índices INVALID de una ejecución interrumpida — converge al esquema endurecido sin perder datos', function (): void {
+    $f = Prl::doorFamily('prlh-retry');
+    Prl::exit($f)->assertCreated();
+
+    $owner = DB::connection('pgsql_owner');
+    $migration = require app_path('Modules/Prl/Database/migrations/2026_11_04_100100_harden_pickup_alerts_and_student_movements.php');
+    $state = fn (): array => [
+        'check' => $owner->selectOne("SELECT convalidated AS v FROM pg_constraint WHERE conname = 'student_movements_reason_requires_off_schedule_check'")?->v,
+        'foreign' => $owner->selectOne("SELECT convalidated AS v FROM pg_constraint WHERE conname = 'student_movements_corrects_same_student_foreign'")?->v,
+        'unique' => $owner->selectOne("SELECT i.indisvalid AS v FROM pg_index i JOIN pg_class c ON c.oid = i.indexrelid WHERE c.relname = 'student_movements_tenant_student_id_unique'")?->v,
+        'fk_index' => $owner->selectOne("SELECT i.indisvalid AS v FROM pg_index i JOIN pg_class c ON c.oid = i.indexrelid WHERE c.relname = 'student_movements_tenant_student_corrects_idx'")?->v,
+    ];
+    $hash = fn (): string => DB::connection('pgsql_platform')->selectOne('SELECT md5(string_agg(m::text, \',\' ORDER BY id)) AS h FROM student_movements m')->h;
+    $rows = $hash();
+    $converged = ['check' => true, 'foreign' => true, 'unique' => true, 'fk_index' => true];
+
+    expect($state())->toBe($converged);
+
+    try {
+        // Estado intermedio: CHECK y FK `NOT VALID` (VALIDATE no llegó a ejecutarse) e índices `INVALID` (CONCURRENTLY interrumpido).
+        $owner->statement('ALTER TABLE student_movements DROP CONSTRAINT student_movements_corrects_same_student_foreign');
+        $owner->statement('ALTER TABLE student_movements DROP CONSTRAINT student_movements_reason_requires_off_schedule_check');
+        $owner->statement('ALTER TABLE student_movements ADD CONSTRAINT student_movements_reason_requires_off_schedule_check CHECK (off_schedule OR off_schedule_reason IS NULL) NOT VALID');
+        $owner->statement('ALTER TABLE student_movements ADD CONSTRAINT student_movements_corrects_same_student_foreign FOREIGN KEY (tenant_id, student_person_id, corrects_movement_id) REFERENCES student_movements (tenant_id, student_person_id, id) NOT VALID');
+        $owner->statement('DROP INDEX CONCURRENTLY student_movements_tenant_student_corrects_idx');
+
+        try {
+            // Una construcción que falla a mitad (división por cero con filas) deja el índice `INVALID`, como un CONCURRENTLY interrumpido.
+            $owner->statement('CREATE INDEX CONCURRENTLY student_movements_tenant_student_corrects_idx ON student_movements ((1 / (id - id)))');
+        } catch (QueryException) {
+            // Esperado: lo que importa es el índice no válido que queda.
+        }
+
+        expect($state())->toBe(['check' => false, 'foreign' => false, 'unique' => true, 'fk_index' => false]);
+
+        $migration->up();
+
+        expect($state())->toBe($converged)->and($hash())->toBe($rows);
+
+        // Segundo reintento: ya converge, sin efecto.
+        $migration->up();
+
+        expect($state())->toBe($converged);
+    } finally {
+        $migration->up();
+    }
+});
+
 test('CA-PRL-032 RN-PRL-17 OPEN-PRL-05: con datos confirmados, ningún rol — aplicación, plataforma ni propietario — hace UPDATE de una alerta cerrada (cualquier columna, también deleted_at), y una abierta se cierra', function (): void {
     $f = Prl::doorFamily('prl-conc-closed');
     $tenantId = $f['tenant']->id;
@@ -461,6 +509,48 @@ test('CA-PRL-027 RN-PRL-12 RN-PRL-15: con la salida de T registrada y sin confir
         pg_close($b);
     }
 });
+
+// RN-PRL-12, M-1 (security-reviewer): la baja lógica del vínculo y la del tutor, por sus servicios reales, frente a una salida en curso.
+dataset('prl baja de tutor', [
+    'CA-PRL-036 baja lógica del vínculo (GuardianLinkService::delete)' => ['delete-link-hold', 'lo'],
+    'CA-PRL-037 baja del tutor (GuardianService::delete)' => ['delete-guardian-hold', 'go'],
+]);
+
+test('CA-PRL-036 CA-PRL-037 RN-PRL-12: con la baja sin confirmar, la salida del alumno con ese tutor espera; tras la baja confirmada responde 422 person_not_authorized y no hay fila en student_movements', function (string $operation, string $key): void {
+    $f = Prl::doorFamily('prl-conc-'.$operation);
+    $signal = tempnam(sys_get_temp_dir(), 'prl-sig-');
+    @unlink($signal);
+    $padre = app(TenantContext::class)->runFor($f['tenant']->id, fn () => Person::query()->findOrFail($f['other']->person_id)->public_id);
+
+    $hold = prlSpawn($f['tenant']->id, $operation, $f['admin']->public_id, $f[$key], $signal);
+    $deadline = microtime(true) + 60;
+
+    while (! file_exists($signal)) {
+        if (microtime(true) > $deadline || ! proc_get_status($hold['process'])['running']) {
+            throw new RuntimeException('La baja no llegó a bloquear: '.file_get_contents($hold['output']));
+        }
+
+        usleep(20_000);
+    }
+
+    $exit = prlSpawn($f['tenant']->id, 'record-exit', $f['conserje']->public_id, $f['student']->public_id, $padre, '-');
+
+    try {
+        prlWaitLockWaiter([$exit]);
+        // Mientras la baja no confirma, la salida sigue esperando: no ha respondido.
+        expect(proc_get_status($exit['process'])['running'])->toBeTrue();
+    } finally {
+        file_put_contents($signal.'.release', '1');
+    }
+
+    $result = prlCollect($exit);
+    $held = prlCollect($hold);
+    @unlink($signal.'.release');
+
+    expect($held['outcome'])->toBe('ok')
+        ->and($result)->toMatchArray(['outcome' => 'api_error', 'status' => 422, 'code' => 'prl.movement.person_not_authorized'])
+        ->and(prlCounts($f['tenant'])['movements'])->toBe(0);
+})->with('prl baja de tutor');
 
 test('CA-PRL-029 RN-PRL-14 RN-PRL-15: fuera de una transacción abierta, lockLiveByPublicIds y grantForLocked lanzan LogicException (fallo en cerrado)', function (): void {
     $f = Prl::doorFamily('prl-conc-029');

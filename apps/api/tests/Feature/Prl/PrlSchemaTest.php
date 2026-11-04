@@ -377,19 +377,17 @@ test('CA-PRL-032 RN-PRL-17: el rol de la aplicación no puede hacer UPDATE de un
 
     // Solo la conexión de aplicación: la fila vive en la transacción del test y las otras sesiones no la ven. Plataforma y propietario,
     // con datos confirmados, en `tests/Concurrency/PrlConcurrencyTest.php`.
-    foreach (['pgsql'] as $connection) {
-        foreach ([['resolution_notes' => 'cambio'], ['deleted_at' => now()], ['status' => 'cerrada']] as $change) {
-            expect(prlHardeningAttempt($connection, $tenantId, fn ($c) => $c->table('pickup_alerts')->where('id', $closedId)->update($change)))->toBe('23001', "{$connection} actualizó una alerta cerrada");
-        }
+    $connection = 'pgsql';
+
+    foreach ([['resolution_notes' => 'cambio'], ['deleted_at' => now()], ['status' => 'cerrada']] as $change) {
+        expect(prlHardeningAttempt($connection, $tenantId, fn ($c) => $c->table('pickup_alerts')->where('id', $closedId)->update($change)))->toBe('23001', "{$connection} actualizó una alerta cerrada");
     }
 
     $close = ['status' => 'cerrada', 'resolution' => 'no_entregado', 'resolved_at' => now(), 'resolved_by' => $f['direccion']->id];
 
-    foreach (['pgsql'] as $connection) {
-        expect(prlHardeningAttempt($connection, $tenantId, function ($c) use ($openId, $close): void {
-            expect($c->table('pickup_alerts')->where('id', $openId)->update($close))->toBe(1);
-        }))->toBeNull();
-    }
+    expect(prlHardeningAttempt($connection, $tenantId, function ($c) use ($openId, $close): void {
+        expect($c->table('pickup_alerts')->where('id', $openId)->update($close))->toBe(1);
+    }))->toBeNull();
 
     // La alerta cerrada sigue intacta.
     expect(DB::connection('pgsql_platform')->table('pickup_alerts')->where('id', $closedId)->value('resolution_notes'))->toBeNull();
