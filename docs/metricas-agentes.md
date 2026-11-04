@@ -63,6 +63,19 @@ Registro del gasto de cada subagente, para calibrar el tamaño de los tramos de 
 | 1.14b-c2 | verificador | suite backend completa | 31284 | 13 | 9.8 | n/d | cifras intermedias; web no ejecutable (sin contenedor) |
 | 1.14b-c2 | implementer | correcciones doc-reviewer y suite web | 79899 | 12 | 2.8 | n/d | |
 | 1.14b-c2 | doc-precheck | ronda 2 | 110949 | 15 | 1.7 | n/d | 1 residuo, corregido por la sesión |
+| 1.14b-d1 | spec-writer | especificación (Opus) | 196072 | 32 | 6.0 | n/d | propone partición `-d1`..`-d4`; 5 OPEN-PRL |
+| 1.14b-d1 | implementer | T1 datos (migración) | 146377 | 48 | 23.9 | n/d | 576 Pest afectados |
+| 1.14b-d1 | implementer | T2 bloqueo | 173499 | 54 | 13.1 | n/d | `Verificado` con cifra inflada (solapamiento) |
+| 1.14b-d1 | db-reviewer | migración | 96199 | 10 | 1.6 | n/d | 0 C/A/M; 3 Bajos |
+| 1.14b-d1 | security-reviewer | lista completa (sin Codex) | 107794 | 15 | 2.5 | n/d | 0 C/A; 1 Medio (tests de baja de vínculo/tutor); 4 Bajos |
+| 1.14b-d1 | verificador | suite completa (1.ª) | 29655 | 6 | 12.4 | n/d | 1 fallo real de T2 (`grantFor()` compartida) |
+| 1.14b-d1 | implementer | correcciones únicas | 112934 | 27 | 6.0 | n/d | 313 Pest afectados |
+| 1.14b-d1 | verificador | suite completa (2.ª) | 33452 | 13 | 9.7 | n/d | 2161 + 65 Pest |
+| 1.14b-d1 | doc-precheck | ronda 1 | 95212 | 10 | 1.1 | n/d | CHANGELOG y estados |
+| 1.14b-d1 | verificador | E2E real (x2) | 81085 | 20 | 5.3 | n/d | fallo de entorno: `VITE_API_URL`; 3/3 al exportarla |
+| 1.14b-d1 | doc-reviewer | ronda 1 | 131955 | 23 | 1.8 | n/d | 0 C/A; 5 Medios; 6 Bajos |
+| 1.14b-d1 | implementer | correcciones doc-reviewer | 97122 | 15 | 1.9 | n/d | |
+| 1.14b-d1 | doc-precheck | ronda 2 | 98539 | 13 | 1.2 | n/d | 3 residuos, corregidos por la sesión |
 | proceso | implementer | aplicar ADR-069 (skill, docs) | 106801 | 16 | 2.4 | 6675 | |
 
 ## Resumen (se recalcula al cerrar cada paso)
@@ -84,3 +97,4 @@ Solo cuota de OpenAI; no se mide en tokens de Claude. Registrar por revisión: p
 | 1.14b-c1 | adversarial-review --base 0902515 (ronda 2) | 1 Alto | 1 | 0 | carrera introducida por la propia corrección de la ronda 1; Claude no la habría visto |
 | 1.14b-c1 | adversarial-review --base 76fe7c3 (ronda 3) | 0 | 0 | 0 | approve |
 | 1.14b-c2 | adversarial-review --base develop | no disponible | 0 | 0 | cuota de OpenAI agotada (hasta 2026-12-02): el turno falló y su «approve» no cuenta; régimen de respaldo con security-reviewer completo |
+| 1.14b-d1 | adversarial-review | no disponible | 0 | 0 | cuota de OpenAI agotada (hasta 2026-12-02): régimen de respaldo `ADR-050` con `security-reviewer` completo |
