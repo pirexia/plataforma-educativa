@@ -29,9 +29,9 @@
       "Bash(node /home/amatias/.claude/plugins/cache/openai-codex/codex/*/scripts/codex-companion.mjs result:*)"
     ],
     "deny": [
-      "Bash(node /home/amatias/.claude/plugins/cache/openai-codex/codex/*/scripts/codex-companion.mjs task:*)",
-      "Bash(node /home/amatias/.claude/plugins/cache/openai-codex/codex/*/scripts/codex-companion.mjs transfer:*)",
-      "Bash(node /home/amatias/.claude/plugins/cache/openai-codex/codex/*/scripts/codex-companion.mjs task-worker:*)",
+      "Bash(node /home/amatias/.claude/plugins/cache/openai-codex/codex/*/scripts/codex-companion.mjs task*)",
+      "Bash(node /home/amatias/.claude/plugins/cache/openai-codex/codex/*/scripts/codex-companion.mjs transfer*)",
+      "Bash(node /home/amatias/.claude/plugins/cache/openai-codex/codex/*/scripts/codex-companion.mjs task-worker*)",
       "Bash(git push --force:*)",
       "Bash(git reset --hard:*)",
       "Bash(php artisan migrate:fresh:*)",
