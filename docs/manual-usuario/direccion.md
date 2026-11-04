@@ -24,3 +24,21 @@
 
 **Cómo funciona.** Una sesión es una asignación docente en una franja del marco horario de la etapa, con un aula opcional. No puede coincidir con otra del mismo profesor, aula o grupo (los desdobles por subgrupo sí conviven); si choca, el aviso nombra la sesión con la que choca y no se guarda. Asignar profesorado no concede permisos. Una jornada especial sustituye al marco ordinario de su etapa mientras dura su vigencia y convive con los marcos de las demás etapas; una reserva no puede coincidir con otra del mismo espacio ni, en un aula, con una sesión del horario de ese día. El horario y las reservas de un curso cerrado son de solo lectura. El detalle paso a paso está en el manual del Administrador de Centro («Horarios y profesorado»). Si una persona del profesorado ya no existe en el centro (se ha dado de baja), en las asignaciones, tutorías, sesiones y reservas aparece como **«Usuario eliminado»**: el historial se conserva, pero su nombre ya no se muestra.
 
+
+## Conserjería: entrega de alumnos en la puerta
+
+**Quién la usa.** Conserjería (y el personal con permisos de entrega de menores) en **Conserjería** (`/conserjeria`, en el menú lateral). Dirección ve además las **Alertas de entrega** (`/conserjeria/alertas`) y es quien registra la llamada y cierra la alerta. No existe un manual propio de conserjería: esta sección lo recoge.
+
+**Buscar al alumno.** Escribe al menos 2 letras del nombre o de los apellidos. Cada resultado muestra la unidad familiar; elige al alumno.
+
+**Lista de puerta.** Muestra, a la hora de la consulta, a quienes pueden recoger a ese alumno **ahora**, con fotografía, documento enmascarado y teléfono. No entregues al alumno a nadie que no figure; si la lista está vacía, no lo entregues y avisa a dirección. Consultar la lista queda registrado con tu usuario, la fecha y la hora, y tiene un cupo de consultas por hora; **«Volver a cargar la lista»** la recalcula.
+
+**Salida.** Con **«Entregar a …»** eliges cómo has comprobado la identidad (fotografía, documento o ambos; si la persona no tiene fotografía solo vale el documento). Si es fuera de horario, indica el motivo y, si es «Otro», una nota. Al confirmar, la salida queda registrada con la hora.
+
+**Entrada fuera de horario.** **«Registrar entrada fuera de horario»**: motivo obligatorio y, si es «Otro», una nota.
+
+**Alerta.** Si quien se presenta **no está en la lista**, pulsa **«Quien se presenta no está en la lista»**: describe a la persona (nombre que dice tener y, si lo enseña, su documento). Se muestra el protocolo y los teléfonos del tutor principal y del contacto de emergencia. El sistema **no envía ningún aviso**: llamas tú. Abrir y consultar una alerta abierta queda registrado y gasta cupo de consultas.
+
+**Llamada y cierre.** Dirección registra en la alerta la hora de la llamada al tutor principal con **«Guardar la llamada»** y la cierra con **«Cerrar la alerta»**, eligiendo la resolución (no entregado, recogido por una persona autorizada, autorización puntual registrada u otra). Una alerta cerrada **no se puede reabrir** ni borrar. En **Alertas de entrega** filtras por estado y por fecha de apertura; el listado muestra nombres, no teléfonos, y su consulta también queda registrada.
+
+**Si algo falla.** Un aviso de «vuelve a intentarlo en N segundos» significa que has agotado el cupo de consultas: espera o pide a administración que lo restablezca. Algunos textos de seguridad están todavía solo en castellano hasta que una persona los traduzca.

@@ -6,7 +6,7 @@
 
 El texto del protocolo ante persona no autorizada será **configuración del centro** (`settings` del módulo `prl`, `modulo.actualizar`, `ADR-045`), no del despliegue (`OPEN-FAM-UNIT-40`). **En `1.14b-b` solo existe el texto mínimo fijo del producto** (`prl.protocol.minimal`, ver `funcional.md DP-5`); `OPEN-FAM-UNIT-40` sigue abierta.
 
-| Clave (`config/prl.php`) | Defecto [DERIVADA] | Regla |
+| Clave (`apps/api/config/prl.php`) | Defecto [DERIVADA] | Regla |
 |--------------------------|--------------------|-------|
 | `prl.read_rate_limit` | 300 por hora (`attempts`, `decay_seconds` 3600), por centro y usuario | Cupo de **lecturas con datos de personas** (`funcional.md DP-11`): `POST /pickup-alerts`, `GET`/`PATCH /pickup-alerts/{id}` con la alerta abierta (teléfonos) y `GET /student-movements[/{id}]` (nombre de quien recogió). Un solo cubo para todas, distinto del de la lista de puerta de `fam_unit` (`fam_unit.pickup.read_rate_limit`); cuenta todos los intentos; superado, `429` con `Retry-After` y sin fila de auditoría ni datos. Sin variable de entorno |
 

@@ -4,8 +4,8 @@
  * Listado de alertas por persona no autorizada con el componente de tablas de `ADR-054`: modo `page` (25 por página,
  * `raised_at` descendente, orden fijo del servidor), estado en la URL (solo el filtro y la página: nada de personas) y
  * filtro por estado. «Abierta» (icono `TriangleAlert`) / «Cerrada» (icono `CircleCheck`): texto siempre (WCAG 1.4.1).
- * El listado no lleva teléfonos ni protocolo (`DP-5`) y no escribe `read` ni gasta cupo (`DP-11`): se carga al entrar,
- * sin sondeo. Los nombres (alumno y quien abrió la alerta) los da la API (`*_display_name`, 1.14b-c2); si faltan, el
+ * El listado no lleva teléfonos ni protocolo (`DP-5`) y sí escribe `read` y gasta cupo (`DP-11`, enmienda 2026-11-04): se carga al entrar,
+ * sin sondeo; un `429` lo pinta el `ErrorState` de la tabla. Los nombres (alumno y quien abrió la alerta) los da la API (`*_display_name`, 1.14b-c2); si faltan, el
  * alumno se busca en la memoria del módulo y, si no, «Alumno». Filtro por fecha de apertura (`date`, fecha civil del
  * centro) con un campo de fecha fuera de la tabla: al cambiarlo se reinicia la página y se recarga.
  */
