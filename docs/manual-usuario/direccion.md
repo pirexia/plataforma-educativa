@@ -27,7 +27,7 @@
 
 ## Conserjería: entrega de alumnos en la puerta
 
-**Quién la usa.** Conserjería (y el personal con permisos de entrega de menores) en **Conserjería** (`/conserjeria`, en el menú lateral). Conserjería, secretaría y dirección ven el listado y el detalle de **Alertas de entrega** (`/conserjeria/alertas`, `alerta_entrega.leer`); solo dirección registra la llamada y cierra la alerta. No existe un manual propio de conserjería: esta sección lo recoge.
+**Quién la usa.** Conserjería (y el personal con permisos de entrega de menores) en **Conserjería** (`/conserjeria`, en el menú lateral). Conserjería, secretaría y dirección ven el listado y el detalle de **Alertas de entrega** (`/conserjeria/alertas`, `alerta_entrega.leer`); registran la llamada y cierran la alerta dirección y la administración del centro. No existe un manual propio de conserjería: esta sección lo recoge.
 
 **Buscar al alumno.** Escribe al menos 2 letras del nombre o de los apellidos. Cada resultado muestra la unidad familiar; elige al alumno.
 
@@ -39,6 +39,6 @@
 
 **Alerta.** Si quien se presenta **no está en la lista**, pulsa **«Quien se presenta no está en la lista»**: describe a la persona (nombre que dice tener y, si lo enseña, su documento). Se muestra el protocolo y los teléfonos del tutor principal y del contacto de emergencia. El sistema **no envía ningún aviso**: llamas tú. Abrir y consultar una alerta abierta queda registrado y gasta cupo de consultas.
 
-**Llamada y cierre.** (`alerta_entrega.actualizar`: dirección sí; conserjería no, y a quien no lo tiene se le muestra «avisa a dirección».) Dirección registra en la alerta la hora de la llamada al tutor principal con **«Guardar la llamada»** y la cierra con **«Cerrar la alerta»**, eligiendo la resolución (no entregado, recogido por una persona autorizada, autorización puntual registrada u otra). Una alerta cerrada **no se puede reabrir** ni borrar. En **Alertas de entrega** filtras por estado y por fecha de apertura; el listado muestra nombres, no teléfonos, y su consulta también queda registrada.
+**Llamada y cierre.** (`alerta_entrega.actualizar`: dirección y administración del centro sí; conserjería no, y a quien no lo tiene se le muestra «avisa a dirección».) Dirección registra en la alerta la hora de la llamada al tutor principal con **«Guardar la llamada»** y la cierra con **«Cerrar la alerta»**, eligiendo la resolución (no entregado, recogido por una persona autorizada, autorización puntual registrada u otra). Una alerta cerrada **no se puede reabrir** ni borrar. En **Alertas de entrega** filtras por estado y por fecha de apertura; el listado muestra nombres, no teléfonos, y su consulta también queda registrada.
 
 **Si algo falla.** Un aviso de «vuelve a intentarlo en N segundos» significa que has agotado el cupo de consultas: espera o pide a administración que lo restablezca. Algunos textos de seguridad están todavía solo en castellano hasta que una persona los traduzca.

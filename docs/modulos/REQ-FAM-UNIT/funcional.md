@@ -1631,7 +1631,7 @@ Todas **resueltas por el usuario el 2026-11-02** salvo `-40`, que sigue abierta 
 
 ## 24. Decisiones de implementación de `1.14b-c1` (2026-11-03)
 
-Implementada y revisada (`feature/REQ-FAM-UNIT-1-14bc1-pantallas-autorizados`): sección «Personas autorizadas» de `fam-unit` (§23.4), tramos T1 a T3 de §23.10 (lectura; escritura y traducciones; E2E real). `1.14b-c2` (conserjería de `prl`) sin empezar.
+Implementada y revisada (`feature/REQ-FAM-UNIT-1-14bc1-pantallas-autorizados`): sección «Personas autorizadas» de `fam-unit` (§23.4), tramos T1 a T3 de §23.10 (lectura; escritura y traducciones; E2E real). `1.14b-c2` (conserjería de `prl`) implementada y revisada (2026-11-04), pendiente de mezclar.
 
 - **Verificado**: suite web completa 139 ficheros / 1910 tests, `lint`, `lint:i18n`, `vue-tsc` y *build* en verde; E2E real `CA-FAM-UNIT-142` 1/1 contra la API real con el servidor S3 falso (`apps/api/tests/Support/e2e-fake-s3.php`). **No probado**: S3/MinIO real (firma y caducidad de la URL), el flujo sin `autorizado_recogida.actualizar` en navegador real (solo Vitest) y los textos [NT] en otros idiomas.
 - **Revisión**: Codex en tres rondas (alto de búsqueda obsoleta tras editar el documento; alto de respuesta tardía de una búsqueda anterior, introducido por la primera corrección; medios de reinicio de la fotografía y de `E2E_ONLY`) y `security-reviewer` (0 críticos ni altos; #510, #511 y #512). Corregidos: búsqueda ligada a la clave tipo+número con número de petición y descarte de respuestas obsoletas (también en `PickupPersonDialog`), `imageFailed` reiniciado al cambiar `photo_url`, `E2E_ONLY` validado contra lista cerrada (`exit 2`) y `cache: 'no-store'` en las cuatro lecturas.
