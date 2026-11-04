@@ -414,7 +414,7 @@ test.describe
   test('el administrador ve la alerta con nombres, filtra por fecha, registra la llamada y la cierra', async ({
     page,
   }) => {
-    test.setTimeout(120_000) // incluye la espera al siguiente minuto (ver más abajo)
+    test.setTimeout(120_000)
 
     await signIn(page, process.env.E2E_A_ADMIN_EMAIL ?? '', process.env.E2E_A_ADMIN_PASSWORD ?? '')
 
@@ -463,15 +463,6 @@ test.describe
 
     await page.getByRole('button', { name: 'Quitar fecha' }).click()
     await expect(row).toHaveCount(1)
-
-    // El campo propone «ahora» truncado al minuto y el servidor rechaza una hora anterior a la apertura: si seguimos en el
-    // mismo minuto que `raised_at`, se espera al siguiente para que la propuesta por defecto sea válida (determinista). La propuesta se calcula al montar el formulario, así que la espera va antes de entrar en el detalle.
-    const untilNextMinute =
-      (Math.floor(new Date(raisedAt).getTime() / 60_000) + 1) * 60_000 - Date.now()
-
-    if (untilNextMinute > 0) {
-      await page.waitForTimeout(untilNextMinute + 500)
-    }
 
     // ── Detalle: protocolo, teléfonos y acciones de dirección ──
     await row.getByRole('link', { name: studentName }).click()

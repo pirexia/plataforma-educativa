@@ -33,12 +33,19 @@ const RESOLUTIONS: PickupAlertResolution[] = [
   'otro',
 ]
 
-/** Valor para `<input type="datetime-local">` en hora local, por defecto «ahora» (minutos). */
+/**
+ * Valor para `<input type="datetime-local">` en hora local: `max(ahora, raised_at)` con precisión de milisegundos.
+ * El servidor rechaza una hora anterior a la apertura (o futura), así que la propuesta nunca precede a `raised_at`
+ * ni se trunca por debajo de él (#518).
+ */
 function nowLocal(): string {
   const now = new Date()
-  const shifted = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
+  const raised = new Date(props.alert.raised_at)
+  const candidate =
+    !Number.isNaN(raised.getTime()) && raised.getTime() > now.getTime() ? raised : now
+  const shifted = new Date(candidate.getTime() - candidate.getTimezoneOffset() * 60000)
 
-  return shifted.toISOString().slice(0, 16)
+  return shifted.toISOString().slice(0, 23)
 }
 
 const contactedAt = ref(nowLocal())
@@ -152,6 +159,7 @@ async function closeAlert(): Promise<void> {
         id="prl-alert-contacted-at"
         v-model="contactedAt"
         type="datetime-local"
+        step="any"
         :aria-invalid="contactMessages.length > 0 ? 'true' : undefined"
         :aria-describedby="contactMessages.length > 0 ? 'prl-alert-contacted-errors' : undefined"
       />

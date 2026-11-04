@@ -82,6 +82,50 @@ afterEach(() => {
   document.body.innerHTML = ''
 })
 
+describe('#518 (REQ-PRL-004): la hora de llamada propuesta no precede a la apertura', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('en el mismo minuto que raised_at, la propuesta y el PATCH son >= raised_at', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-11-03T09:00:30.500Z'))
+    vi.mocked(prlApi.getPickupAlert).mockResolvedValue(
+      pickupAlert({ raised_at: '2026-11-03T09:00:20.250Z' }) as never,
+    )
+    vi.mocked(prlApi.updatePickupAlert).mockResolvedValue(pickupAlert() as never)
+    await open()
+
+    await click(buttonByText('Guardar la llamada'))
+
+    const [, body] = vi.mocked(prlApi.updatePickupAlert).mock.calls[0]!
+    const sent = new Date(
+      (body as { principal_contacted_at: string }).principal_contacted_at,
+    ).getTime()
+
+    expect(sent).toBeGreaterThanOrEqual(new Date('2026-11-03T09:00:20.250Z').getTime())
+    expect(sent).toBeLessThanOrEqual(new Date('2026-11-03T09:00:30.500Z').getTime())
+  })
+
+  it('si el reloj local va por detrás de raised_at, se propone raised_at', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-11-03T09:00:00.000Z'))
+    vi.mocked(prlApi.getPickupAlert).mockResolvedValue(
+      pickupAlert({ raised_at: '2026-11-03T09:00:05.125Z' }) as never,
+    )
+    vi.mocked(prlApi.updatePickupAlert).mockResolvedValue(pickupAlert() as never)
+    await open()
+
+    await click(buttonByText('Guardar la llamada'))
+
+    const [, body] = vi.mocked(prlApi.updatePickupAlert).mock.calls[0]!
+
+    expect((body as { principal_contacted_at: string }).principal_contacted_at).toBe(
+      '2026-11-03T09:00:05.125Z',
+    )
+  })
+})
+
 describe('CA-PRL-022: registrar la llamada y cerrar la alerta (CA-PRL-008, DP-6, DP-11)', () => {
   it('guardar la llamada envía un PATCH con solo principal_contacted_at, y ninguno por cambio de campo', async () => {
     vi.mocked(prlApi.updatePickupAlert).mockResolvedValue(
