@@ -77,4 +77,18 @@ interface PersonDirectory
      * @return array<int, PersonContact>
      */
     public function contactDetailsByIds(array $personIds): array;
+
+    /**
+     * `REQ-PRL/funcional.md RN-PRL-14` (`1.14b-d1`, `OPEN-PRL-02` A, ampliación aditiva aprobada por el usuario el 2026-11-04): las
+     * personas **vivas** del centro con esos `public_id`, dejando sus filas bloqueadas con `FOR SHARE` hasta el final de la
+     * transacción en curso, en orden de id ascendente y en **una** consulta. Un escritor concurrente (borrado lógico, cambio de
+     * la persona) espera a que la transacción del llamador termine; uno confirmado antes se ve. Las personas que no existen,
+     * están borradas o son de otro centro no aparecen. Es el único método de esta interfaz con un efecto (el bloqueo).
+     *
+     * @param  list<string>  $publicIds
+     * @return array<string, PersonRef> por `public_id`
+     *
+     * @throws \LogicException si no hay una transacción abierta: un bloqueo sin transacción no protege nada (falla en cerrado)
+     */
+    public function lockLiveByPublicIds(array $publicIds): array;
 }

@@ -30,6 +30,7 @@ return [
     ],
 
     'errors' => [
+        'busy' => 'La puerta está ocupada registrando otro cambio de esta persona o de este alumno. Inténtalo de nuevo en un segundo.',
         'read_rate_limited' => 'Has alcanzado el límite de consultas de alertas y movimientos de la puerta. Inténtalo de nuevo en unos :minutes minutos.',
     ],
 

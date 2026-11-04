@@ -12,6 +12,8 @@ use App\Modules\FamUnit\Domain\PickupBasis;
 use App\Modules\FamUnit\Domain\PickupGrant;
 use App\Modules\FamUnit\Domain\StudentMatch;
 use App\Support\Modules\ModuleAvailability;
+use Illuminate\Support\Facades\DB;
+use LogicException;
 
 /**
  * REQ-FAM-UNIT/funcional.md §21.8, `ADR-068 §5.5` (1.14b-a). La interfaz pública de la lista maestra: cada llamada compone
@@ -62,6 +64,22 @@ final class EloquentAuthorizedPickupList implements AuthorizedPickupList
         }
 
         return new PickupGrant($personId, $bases, isset($this->list->photosAmong([$personId])[$personId]));
+    }
+
+    public function grantForLocked(int $personId, int $studentPersonId): ?PickupGrant
+    {
+        if (DB::transactionLevel() < 1) {
+            throw new LogicException('grantForLocked() exige una transacción abierta: un bloqueo sin transacción no protege nada.');
+        }
+
+        // Los bloqueos van en sentencias aparte y **antes** de componer: en `READ COMMITTED` cada sentencia ve lo confirmado en su
+        // momento, así que la composición de `grantFor()` ve ya el efecto de todo escritor confirmado mientras se esperaba, y
+        // ninguno nuevo puede confirmar hasta que acabe la transacción. Mismo predicado que `grantFor()` por construcción.
+        if ($this->modules->isEnabled('fam_unit')) {
+            $this->list->lockGrantRows($personId, $studentPersonId);
+        }
+
+        return $this->grantFor($personId, $studentPersonId);
     }
 
     public function entriesFor(int $studentPersonId, string $purpose): array

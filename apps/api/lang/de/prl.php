@@ -30,6 +30,7 @@ return [
     ],
 
     'errors' => [
+        'busy' => 'Die Pforte ist gerade mit einer anderen Änderung dieser Person oder dieses Schülers beschäftigt. Bitte versuchen Sie es in einer Sekunde erneut.',
         'read_rate_limited' => 'Sie haben das Limit für Abfragen von Türalarmen und Bewegungen erreicht. Versuchen Sie es in etwa :minutes Minuten erneut.',
     ],
 
