@@ -207,8 +207,8 @@ final class ApiException extends RuntimeException
         return new self(429, 'too-many-requests', $detailKey, $detailParams, [], ['Retry-After' => (string) $retryAfterSeconds]);
     }
 
-    public static function unavailable(int $retryAfterSeconds = 30): self
+    public static function unavailable(int $retryAfterSeconds = 30, ?string $detailKey = null): self
     {
-        return new self(503, 'unavailable', null, [], [], ['Retry-After' => (string) $retryAfterSeconds]);
+        return new self(503, 'unavailable', $detailKey, [], [], ['Retry-After' => (string) $retryAfterSeconds]);
     }
 }

@@ -4,6 +4,7 @@ namespace App\Modules\Prl\Application;
 
 use App\Models\User;
 use App\Modules\Core\Domain\PersonDirectory;
+use App\Modules\Core\Domain\PersonRef;
 use App\Modules\Core\Domain\TenantSettingsReader;
 use App\Modules\Core\Domain\UserDirectory;
 use App\Modules\FamUnit\Domain\AuthorizedPickupList;
@@ -13,7 +14,6 @@ use App\Support\Tenancy\TenantContext;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\DB;
 
 /**
  * REQ-PRL/funcional.md §21.5.5, §21.5.6, §21.7 (`RN-PRL-01` a `-11`), api.md §8.4 (1.14b-b, `REQ-PRL-004`, `ADR-068`): registro
@@ -45,6 +45,7 @@ final class StudentMovementService
         private readonly TenantSettingsReader $settings,
         private readonly TenantContext $tenant,
         private readonly MovementCursor $cursor,
+        private readonly LockedTransaction $transaction,
     ) {}
 
     /**
@@ -60,7 +61,7 @@ final class StudentMovementService
         }
 
         try {
-            $movement = DB::transaction(fn (): StudentMovement => $this->write($input, $actor, $key));
+            $movement = $this->transaction->run(fn (): StudentMovement => $this->write($input, $actor, $key));
         } catch (QueryException $e) {
             // Dos peticiones simultáneas con la misma clave: pierde la que insertó segunda y relee la ganadora.
             if ($key !== null && ($e->errorInfo[0] ?? null) === '23505' && str_contains($e->getMessage(), self::IDEMPOTENCY_INDEX)) {
@@ -82,9 +83,12 @@ final class StudentMovementService
      */
     private function write(array $input, User $actor, ?IdempotencyKey $key): StudentMovement
     {
-        $student = $this->people->findByPublicId($input['student_person']);
+        // `RN-PRL-12`: bloqueo compartido de las personas (alumno y, en una salida, quien recoge) en una consulta y por id ascendente,
+        // antes de decidir nada; después, en `attachPickup`, las filas de `fam_unit`. Un borrado lógico concurrente espera o se ve.
+        $locked = $this->people->lockLiveByPublicIds(array_values(array_filter([$input['student_person'], $input['picked_up_by']])));
+        $student = $locked[$input['student_person']] ?? null;
 
-        if ($student === null || $student->removed) {
+        if ($student === null) {
             throw PrlErrors::invalid('student_person', 'prl.validation.student_not_found');
         }
 
@@ -122,7 +126,7 @@ final class StudentMovementService
         $movement->occurred_at = now();
 
         if ($input['picked_up_by'] !== null) {
-            $this->attachPickup($movement, $input['picked_up_by'], $input['verification_method'], $student->id);
+            $this->attachPickup($movement, $locked[$input['picked_up_by']] ?? null, $input['verification_method'], $student->id);
         }
 
         $movement->save();
@@ -131,20 +135,17 @@ final class StudentMovementService
     }
 
     /**
-     * `RN-PRL-02`, `RN-PRL-05`, `RN-PRL-06`: recomprueba en esta transacción que la persona figura y fija la base, la referencia
-     * y el método de verificación.
+     * `RN-PRL-02`, `RN-PRL-05`, `RN-PRL-06`, `RN-PRL-12`: recomprueba en esta transacción, con bloqueo, que la persona figura y fija
+     * la base, la referencia y el método de verificación. `$person` es la persona **viva ya bloqueada**, o `null` si no existe.
      */
-    private function attachPickup(StudentMovement $movement, string $personPublicId, ?string $method, int $studentId): void
+    private function attachPickup(StudentMovement $movement, ?PersonRef $person, ?string $method, int $studentId): void
     {
-        $person = $this->people->findByPublicId($personPublicId);
-
         // Una persona que no existe, de otro centro o borrada: el mismo cuerpo que «no figura» (`OPEN-FAM-UNIT-34`) y el mismo
-        // camino (las dos consultas de la interfaz, con el id `0` que nunca existe) para no distinguirla por el tiempo de respuesta.
-        $personId = ($person === null || $person->removed) ? 0 : $person->id;
-        $authorized = $this->pickupList->isAuthorized($personId, $studentId);
-        $grant = $this->pickupList->grantFor($personId, $studentId);
+        // camino (la misma llamada bloqueante de la interfaz, con el id `0` que nunca existe) para no distinguirla por el tiempo
+        // de respuesta (`RN-PRL-13`). `grantForLocked` bloquea las filas de `fam_unit` que sostienen la decisión (`RN-PRL-12`, `-15`).
+        $grant = $this->pickupList->grantForLocked($person === null ? 0 : $person->id, $studentId);
 
-        if ($person === null || $person->removed || ! $authorized || $grant === null) {
+        if ($person === null || $grant === null) {
             throw PrlErrors::personNotAuthorized();
         }
 

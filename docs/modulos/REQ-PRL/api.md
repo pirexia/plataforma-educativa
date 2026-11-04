@@ -63,3 +63,18 @@ El servidor resuelve `basis` y la referencia (vínculo o autorización) con `Aut
 - **Protocolo**: en `1.14b-b` solo existe el **texto mínimo fijo** del producto (`funcional.md DP-5`); el texto propio del centro (`OPEN-FAM-UNIT-40`) sigue abierto.
 - **Lecturas con datos de personas** (`funcional.md DP-11`, decisión del usuario del 2026-11-02): `POST /pickup-alerts`, `GET /pickup-alerts` (**enmienda 2026-11-04**: el listado devuelve nombres; una fila `puerta_alerta` si hay resultados, `entries` = alertas de la página), `GET` y `PATCH /pickup-alerts/{id}` (alerta abierta), `GET /student-movements` y `GET /student-movements/{id}` escriben una fila `read` sin valores y consumen el cupo de lectura de `prl` (`429` con `Retry-After`).
 - **Parámetros de ruta**: en código y en OpenAPI `{studentPersonPublicId}` (`ADR-051 §5.2`); el texto de `§8.4` escribe `{student_person}` por herencia de la especificación.
+
+### 8.8 Entrega `1.14b-d1` — APROBADA (2026-11-04); bloqueo implementado en el tramo T2
+
+> **Estado**: **APROBADA** (`OPEN-PRL-04` A) e **implementada** en el tramo T2: `StudentMovementService` y `PickupAlertService` bloquean con `FOR SHARE` antes de decidir y responden `503 prl.errors.busy` (`apps/api/app/Modules/Prl/Application/LockedTransaction.php`; el código viaja en `detail`, sin campo, como `prl.errors.read_rate_limited`; `ApiException::unavailable()` admite ahora una clave de `detail` opcional). `OPEN-PRL-03`: **no implementado** (se deja `C`: `Core\Domain` no ofrece comprobar el permiso de otro usuario por interfaz). **Ningún *endpoint* nuevo** ni cambio de cuerpo o representación. Cambia el comportamiento interno de dos *endpoints* de escritura (`funcional.md RN-PRL-12` a `-16`) y aparece una respuesta nueva (`OPEN-PRL-04`).
+
+| *Endpoint* | Cambio |
+|------------|--------|
+| `POST /student-movements` | Recomprobación con bloqueo del alumno y, en una salida, de la persona que recoge y de las filas de `fam_unit` que la sostienen (`RN-PRL-12`). Respuestas sin cambio (`201`, `422 person_not_authorized`, `422 student_not_found`, `409 idempotency_mismatch`) más la de `OPEN-PRL-04` |
+| `POST /pickup-alerts` | Bloqueo del alumno antes del `INSERT` (`OPEN-FAM-UNIT-51`): `404` también si se borra concurrentemente. Más la respuesta de `OPEN-PRL-04` |
+| `PATCH /pickup-alerts/{id}` | Sin cambio de contrato; ya bloquea con `FOR UPDATE` (`DP-6`). El disparador de `RN-PRL-17` no es alcanzable por la API |
+| `DELETE /pickup-alerts/{id}` | Sigue sin existir (`405`); además, el motor lo impide (`RN-PRL-18`) |
+
+**Respuesta nueva (`OPEN-PRL-04` A, aprobada)** [DERIVADA]: `503` con `Retry-After: 1` y error `prl.errors.busy` (sin campo) cuando no se obtiene el bloqueo en `prl.lock_timeout_ms` o se agotan los reintentos por interbloqueo. No se escribe nada; una repetición con la misma `Idempotency-Key` se trata como petición nueva. Se documenta en `apps/api/openapi/paths/prl.yaml` para los dos `POST`, y la clave en `lang/{es,en,de,fr}/prl.php`.
+
+**`delivered_by`** (`OPEN-PRL-03`): **no implementado** (`OPEN-PRL-03` quedó en C); la alternativa A habría sido `422 prl.validation.delivered_by_not_permitted` (campo `delivered_by`) cuando el usuario indicado no tiene `entrega_menor.crear`.

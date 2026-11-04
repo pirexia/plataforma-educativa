@@ -169,7 +169,7 @@ test.describe('REQ-PRL-004 (1.14b-b): puerta y entrega de menores contra la API 
     await Promise.all([admin, secretaria, conserje, adminB, conserjeB].map((s) => s?.dispose()))
   })
 
-  test('recorrido completo de la puerta: familia, tercero con foto, salida verificada, persona que no figura, alerta, idempotencia', async () => {
+  test('CA-PRL-035 (REQ-PRL-004): recorrido completo de la puerta: familia, tercero con foto, salida verificada, persona que no figura, alerta, idempotencia', async () => {
     // ── 1. Familia: alumno, dos tutores (la madre es la principal), texto legal publicado ──
     const unit = (await admin.json('POST', 'family-units', 201, { data: {} })).public_id as string
     await admin.json('POST', `family-units/${unit}/students`, 201, {

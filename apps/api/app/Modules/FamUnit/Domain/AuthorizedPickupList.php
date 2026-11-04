@@ -19,7 +19,8 @@ namespace App\Modules\FamUnit\Domain;
  *    levantar una revocación surten efecto en la petición siguiente.
  * 4. **Fallo en cerrado**: alumno o persona desconocidos, borrados, de otro centro, o módulo `fam_unit` no contratado ⇒ lista
  *    vacía y `isAuthorized = false`.
- * 5. Sin efectos salvo la auditoría de lectura de `entriesFor()` (`ADR-068 §5.4`). No emite eventos.
+ * 5. Sin efectos observables salvo la auditoría de lectura de `entriesFor()` (`ADR-068 §5.4`) y los bloqueos de fila de
+ *    `grantForLocked()` (`1.14b-d1`, `OPEN-PRL-02` A): no escribe ni cambia ningún dato. No emite eventos.
  * 6. Ningún módulo (tampoco `REQ-AUT`) ofrece plantillas, tipos ni respuestas de «autorización de recogida» (`H8`).
  *
  * La exclusión por revocación (`RN-FAM-UNIT-80`) va en la misma consulta que compone la lista, con el predicado de
@@ -48,6 +49,23 @@ interface AuthorizedPickupList
      * salida (`RN-PRL-05`) y exija el documento al tutor sin fotografía (`RN-PRL-06`) sin leer tablas de `fam_unit`.
      */
     public function grantFor(int $personId, int $studentPersonId): ?PickupGrant;
+
+    /**
+     * `REQ-PRL/funcional.md RN-PRL-15` (`1.14b-d1`, `OPEN-PRL-02` A: ampliación aditiva aprobada por el usuario el 2026-11-04;
+     * precedente `grantFor`, `DP-1`): lo mismo que `grantFor()` —**el mismo predicado**, comprobado por test de equivalencia— pero
+     * antes de decidir **bloquea con `FOR SHARE`, hasta el final de la transacción en curso**, las filas de `fam_unit` cuya
+     * modificación o borrado lógico haría que la persona dejase de figurar (lista exacta en `PickupListService::lockGrantRows()`):
+     * la faceta de tutor de la persona, sus vínculos vivos con el alumno (en cualquier estado), sus autorizaciones vivas para el
+     * alumno y su fotografía viva. Un escritor concurrente espera a que la transacción del llamador termine, de modo que lo
+     * registrado nunca es posterior a la pérdida de la autorización. Sin auditoría de lectura ni cupo (no devuelve datos personales).
+     *
+     * Precondición del llamador: haber llamado antes, en la misma transacción, a `PersonDirectory::lockLiveByPublicIds()` para las
+     * personas implicadas (persona primero, filas de `fam_unit` después: orden de bloqueo único). Sin ello los bloqueos de
+     * `fam_unit` no protegen la fila de persona y el orden de bloqueo deja de ser el acordado.
+     *
+     * @throws \LogicException si no hay una transacción abierta: un bloqueo sin transacción no protege nada (falla en cerrado)
+     */
+    public function grantForLocked(int $personId, int $studentPersonId): ?PickupGrant;
 
     /**
      * Las entradas de la lista del alumno, tutores primero y después terceros y puntuales, por nombre. **Auditada**

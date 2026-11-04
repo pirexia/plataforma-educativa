@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Storage;
 use Tests\Support\PrlTestHelpers as Prl;
 
 // REQ-PRL-004 (1.14b-b), docs/modulos/REQ-PRL/datos.md §8.4 a §8.7, ADR-029, ADR-033, ADR-034 §6, ADR-068 §5.1, CA-068-07, CA-PRL-004,
-// INV-001, INV-004, INV-005, INV-015: esquema real de `student_movements` y `pickup_alerts`, con base de datos real (ADR-033 §10).
+// CA-PRL-031 a CA-PRL-034 (1.14b-d1, datos.md §8.9), INV-001, INV-004, INV-005, INV-015: esquema real de `student_movements` y `pickup_alerts`, con base de datos real (ADR-033 §10).
 
 const PRL_TABLES = ['student_movements', 'pickup_alerts'];
 
@@ -315,4 +315,109 @@ test('datos.md §8.4 INV-001 ADR-033 §6: la RLS oculta los movimientos de otro 
     // Una salida del centro A con el alumno y la autorización del centro B: la clave foránea compuesta la rechaza (23503).
     $crossed = prlMovementRow($b, ['tenant_id' => $a['tenant']->id, 'delivered_by' => $a['conserje']->id, 'recorded_by' => $a['conserje']->id]);
     expect(prlTryInsert('student_movements', $crossed))->toContain('23503');
+});
+
+// REQ-PRL-004 (1.14b-d1), datos.md §8.9, RN-PRL-17 a RN-PRL-19, OPEN-PRL-05, CA-PRL-031 a CA-PRL-033 (CA-PRL-034, en `tests/Concurrency/PrlConcurrencyTest.php`): endurecimiento en el motor (migración *expand* reversible).
+
+/**
+ * Ejecuta `$work($connection)` con la conexión `$name` dentro del centro `$tenantId` y **siempre deshace**. Devuelve el SQLSTATE del
+ * primer error de base de datos, o `null` si no hubo ninguno.
+ */
+function prlHardeningAttempt(string $name, int $tenantId, Closure $work): ?string
+{
+    $connection = DB::connection($name);
+
+    try {
+        $connection->transaction(function () use ($connection, $tenantId, $work): void {
+            $connection->selectOne("SELECT set_config('app.tenant_id', ?, true)", [(string) $tenantId]);
+            $work($connection);
+
+            throw new RuntimeException('deshacer');
+        });
+    } catch (QueryException $e) {
+        return $e->errorInfo[0] ?? 'sin-sqlstate';
+    } catch (RuntimeException) {
+        return null;
+    }
+
+    return null;
+}
+
+/** Inserta una alerta cerrada válida y devuelve su `id`, con la conexión de aplicación y dentro del centro. */
+function prlInsertClosedAlert(array $f): int
+{
+    return app(TenantContext::class)->runFor($f['tenant']->id, fn (): int => (int) DB::connection('pgsql')->table('pickup_alerts')->insertGetId(
+        prlAlertRow($f, ['status' => 'cerrada', 'resolution' => 'no_entregado', 'resolved_at' => now(), 'resolved_by' => $f['direccion']->id]),
+    ));
+}
+
+test('CA-PRL-031 RN-PRL-18: el rol de la aplicación y el de plataforma no tienen DELETE sobre pickup_alerts, y el motor lo rechaza con permission denied; el UPDATE sigue permitido', function (): void {
+    $f = Prl::doorFamily('prlh-delete');
+    $id = prlInsertClosedAlert($f);
+
+    foreach (['plataforma_app', 'plataforma_platform'] as $role) {
+        $has = fn (string $privilege): bool => (bool) DB::connection('pgsql_owner')->selectOne('SELECT has_table_privilege(?, ?, ?) AS ok', [$role, 'pickup_alerts', $privilege])->ok;
+
+        expect($has('DELETE'))->toBeFalse("{$role} puede DELETE pickup_alerts")
+            ->and($has('UPDATE'))->toBeTrue()
+            ->and($has('INSERT'))->toBeTrue()
+            ->and($has('SELECT'))->toBeTrue();
+    }
+
+    foreach (['pgsql', 'pgsql_platform'] as $connection) {
+        expect(prlHardeningAttempt($connection, $f['tenant']->id, fn ($c) => $c->table('pickup_alerts')->where('id', $id)->delete()))->toBe('42501');
+    }
+});
+
+test('CA-PRL-032 RN-PRL-17: el rol de la aplicación no puede hacer UPDATE de una alerta cerrada (cualquier columna, también deleted_at); una abierta se cierra', function (): void {
+    $f = Prl::doorFamily('prlh-closed');
+    $closedId = prlInsertClosedAlert($f);
+    $openId = app(TenantContext::class)->runFor($f['tenant']->id, fn (): int => (int) DB::connection('pgsql')->table('pickup_alerts')->insertGetId(prlAlertRow($f)));
+    $tenantId = $f['tenant']->id;
+
+    // Solo la conexión de aplicación: la fila vive en la transacción del test y las otras sesiones no la ven. Plataforma y propietario,
+    // con datos confirmados, en `tests/Concurrency/PrlConcurrencyTest.php`.
+    $connection = 'pgsql';
+
+    foreach ([['resolution_notes' => 'cambio'], ['deleted_at' => now()], ['status' => 'cerrada']] as $change) {
+        expect(prlHardeningAttempt($connection, $tenantId, fn ($c) => $c->table('pickup_alerts')->where('id', $closedId)->update($change)))->toBe('23001', "{$connection} actualizó una alerta cerrada");
+    }
+
+    $close = ['status' => 'cerrada', 'resolution' => 'no_entregado', 'resolved_at' => now(), 'resolved_by' => $f['direccion']->id];
+
+    expect(prlHardeningAttempt($connection, $tenantId, function ($c) use ($openId, $close): void {
+        expect($c->table('pickup_alerts')->where('id', $openId)->update($close))->toBe(1);
+    }))->toBeNull();
+
+    // La alerta cerrada sigue intacta.
+    expect(DB::connection('pgsql_platform')->table('pickup_alerts')->where('id', $closedId)->value('resolution_notes'))->toBeNull();
+});
+
+test('CA-PRL-033 RN-PRL-19: el motor rechaza un motivo con off_schedule = false y una corrección que referencia un movimiento de otro alumno; la corrección del mismo alumno se acepta', function (): void {
+    $f = Prl::doorFamily('prlh-checks');
+    Prl::exit($f)->assertCreated();
+    $tenantId = $f['tenant']->id;
+    $originalId = app(TenantContext::class)->runFor($tenantId, fn () => (int) DB::table('student_movements')->value('id'));
+    $abueloId = app(TenantContext::class)->runFor($tenantId, fn () => (int) DB::table('people')->where('public_id', $f['abuelo']['person'])->value('id'));
+
+    // La fila se compone **fuera** de la transacción: `prlMovementRow()` abre su propio contexto de centro y lo cerraría.
+    $insert = function (array $overrides) use ($f, $tenantId): ?string {
+        $row = prlMovementRow($f, $overrides);
+
+        return prlHardeningAttempt('pgsql', $tenantId, fn ($c) => $c->table('student_movements')->insert($row));
+    };
+
+    expect($insert(['off_schedule' => false, 'off_schedule_reason' => 'medico']))->toBe('23514')
+        ->and($insert(['off_schedule' => true, 'off_schedule_reason' => 'medico']))->toBeNull()
+        ->and($insert(['corrects_movement_id' => $originalId, 'correction_reason' => 'error de registro']))->toBeNull()
+        // Otro alumno (aquí, otra persona del centro) corrigiendo un movimiento del alumno: la FK compuesta lo impide (23503).
+        ->and($insert(['student_person_id' => $abueloId, 'corrects_movement_id' => $originalId, 'correction_reason' => 'error de registro']))->toBe('23503');
+
+    $constraints = DB::connection('pgsql_owner')->select("SELECT conname, convalidated FROM pg_constraint WHERE conrelid = 'student_movements'::regclass AND conname IN ('student_movements_reason_requires_off_schedule_check', 'student_movements_corrects_same_student_foreign', 'student_movements_tenant_corrects_movement_id_foreign')");
+
+    expect(collect($constraints)->pluck('convalidated', 'conname')->sortKeys()->all())->toBe([
+        'student_movements_corrects_same_student_foreign' => true,
+        'student_movements_reason_requires_off_schedule_check' => true,
+        'student_movements_tenant_corrects_movement_id_foreign' => true,
+    ]);
 });

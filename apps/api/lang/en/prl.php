@@ -30,6 +30,7 @@ return [
     ],
 
     'errors' => [
+        'busy' => 'The door is busy recording another change for this person or student. Please try again in a second.',
         'read_rate_limited' => 'You have reached the limit of door alert and movement lookups. Try again in about :minutes minutes.',
     ],
 

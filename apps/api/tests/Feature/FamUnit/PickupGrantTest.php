@@ -21,19 +21,13 @@ afterEach(function (): void {
     DB::connection('pgsql_platform')->table('tenants')->delete();
 });
 
-/** @return mixed */
-function grantFor(object $tenant, Closure $callback)
-{
-    return app(TenantContext::class)->runFor($tenant->id, fn () => $callback(app(AuthorizedPickupList::class)));
-}
-
 test('RN-PRL-05 ADR-068 §5.5: grantFor devuelve las bases con el id interno de la referencia — vínculo del tutor o autorización del tercero — y si la persona tiene fotografía', function (): void {
     Fam::freeze('2026-11-02 09:00:00');
     $f = Fam::pickupFamily('pg-bases');
     $abuelo = Fam::thirdParty($f, 1);
     $personId = fn (string $public) => app(TenantContext::class)->runFor($f['tenant']->id, fn () => (int) DB::table('people')->where('public_id', $public)->value('id'));
 
-    $grant = grantFor($f['tenant'], fn (AuthorizedPickupList $list) => $list->grantFor($personId($abuelo['person']), $f['student']->id));
+    $grant = Fam::withPickupList($f['tenant'], fn (AuthorizedPickupList $list) => $list->grantFor($personId($abuelo['person']), $f['student']->id));
     $authorizationId = Fam::row($f['tenant'], 'pickup_authorizations', $abuelo['authorization'])->id;
 
     expect($grant)->toBeInstanceOf(PickupGrant::class)
@@ -45,7 +39,7 @@ test('RN-PRL-05 ADR-068 §5.5: grantFor devuelve las bases con el id interno de 
 
     // Un tutor sin fotografía figura (para que la puerta exija documento), con el vínculo como referencia.
     $tutorPerson = app(TenantContext::class)->runFor($f['tenant']->id, fn () => (int) DB::table('people')->where('id', $f['other']->person_id)->value('id'));
-    $tutor = grantFor($f['tenant'], fn (AuthorizedPickupList $list) => $list->grantFor($tutorPerson, $f['student']->id));
+    $tutor = Fam::withPickupList($f['tenant'], fn (AuthorizedPickupList $list) => $list->grantFor($tutorPerson, $f['student']->id));
 
     expect($tutor->hasPhoto)->toBeFalse()
         ->and($tutor->primaryBasis()->basis)->toBe(PickupBasis::TUTOR)
@@ -60,7 +54,7 @@ test('RN-PRL-02 CA-PRL-002 ADR-068 §5.5: grantFor es null exactamente cuando is
     $ids = app(TenantContext::class)->runFor($f['tenant']->id, fn () => DB::table('people')->pluck('id', 'public_id')->all());
     $everyone = array_values($ids);
     $consistent = function () use ($f, $everyone): array {
-        return grantFor($f['tenant'], function (AuthorizedPickupList $list) use ($f, $everyone): array {
+        return Fam::withPickupList($f['tenant'], function (AuthorizedPickupList $list) use ($f, $everyone): array {
             $result = [];
 
             foreach ($everyone as $personId) {
@@ -84,7 +78,7 @@ test('RN-PRL-02 CA-PRL-002 ADR-068 §5.5: grantFor es null exactamente cuando is
         ->and($after[$ids[$stranger]])->toBeNull();
 
     // Desconocidos y alumno inexistente.
-    grantFor($f['tenant'], function (AuthorizedPickupList $list) use ($f): void {
+    Fam::withPickupList($f['tenant'], function (AuthorizedPickupList $list) use ($f): void {
         expect($list->grantFor(999999999, $f['student']->id))->toBeNull()
             ->and($list->grantFor($f['student']->id, 999999999))->toBeNull();
     });
@@ -92,11 +86,11 @@ test('RN-PRL-02 CA-PRL-002 ADR-068 §5.5: grantFor es null exactamente cuando is
     // Otro centro: nada, ni con ids válidos de este.
     [$tenantB] = Fam::setup('pg-null-b');
     $first = array_values($ids)[0];
-    grantFor($tenantB, fn (AuthorizedPickupList $list) => expect($list->grantFor($first, $f['student']->id))->toBeNull());
+    Fam::withPickupList($tenantB, fn (AuthorizedPickupList $list) => expect($list->grantFor($first, $f['student']->id))->toBeNull());
 
     // fam_unit descontratado: fallo en cerrado aunque la persona siga figurando.
     Fam::disableModule($f['tenant']);
-    grantFor($f['tenant'], fn (AuthorizedPickupList $list) => expect($list->grantFor($ids[$f['principal']->public_id] ?? 0, $f['student']->id))->toBeNull());
+    Fam::withPickupList($f['tenant'], fn (AuthorizedPickupList $list) => expect($list->grantFor($ids[$f['principal']->public_id] ?? 0, $f['student']->id))->toBeNull());
 });
 
 test('ADR-068 §5.4 ADR-068 §5.5: grantFor no se audita (no devuelve datos personales) y no gasta el límite de lecturas de la lista', function (): void {
@@ -109,7 +103,7 @@ test('ADR-068 §5.4 ADR-068 §5.5: grantFor no se audita (no devuelve datos pers
     $before = count(Fam::audit($f['tenant'], 'person', 'read'));
 
     foreach (range(1, 5) as $i) {
-        expect(grantFor($f['tenant'], fn (AuthorizedPickupList $list) => $list->grantFor($personId, $f['student']->id)))->not->toBeNull();
+        expect(Fam::withPickupList($f['tenant'], fn (AuthorizedPickupList $list) => $list->grantFor($personId, $f['student']->id)))->not->toBeNull();
     }
 
     expect(count(Fam::audit($f['tenant'], 'person', 'read')))->toBe($before);

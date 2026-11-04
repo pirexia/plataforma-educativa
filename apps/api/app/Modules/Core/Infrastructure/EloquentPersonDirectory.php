@@ -9,6 +9,8 @@ use App\Modules\Core\Domain\PersonContact;
 use App\Modules\Core\Domain\PersonDirectory;
 use App\Modules\Core\Domain\PersonRef;
 use App\Modules\Core\Domain\UserPersonRef;
+use Illuminate\Support\Facades\DB;
+use LogicException;
 
 /**
  * `OPEN-FAM-UNIT-03` (1.14-a) y `ADR-068 §5.2` (1.14b-a: búsqueda por nombre y por documento y datos de contacto). Una consulta por llamada, sin memoización. `Person::query()` y `User::query()`
@@ -139,6 +141,29 @@ final class EloquentPersonDirectory implements PersonDirectory
         }
 
         return $contacts;
+    }
+
+    public function lockLiveByPublicIds(array $publicIds): array
+    {
+        if (DB::transactionLevel() < 1) {
+            throw new LogicException('lockLiveByPublicIds() exige una transacción abierta: un bloqueo sin transacción no protege nada.');
+        }
+
+        $publicIds = array_values(array_unique($publicIds));
+
+        if ($publicIds === []) {
+            return [];
+        }
+
+        // `FOR SHARE` sobre las vivas, en orden de id (orden fijo de bloqueo, `RN-PRL-12`). Si la fila la modifica otra
+        // transacción, la consulta espera y, en `READ COMMITTED`, relee la fila confirmada: una borrada ya no aparece.
+        $refs = [];
+
+        foreach (Person::query()->whereIn('public_id', $publicIds)->orderBy('id')->sharedLock()->get() as $person) {
+            $refs[(string) $person->public_id] = self::ref($person);
+        }
+
+        return $refs;
     }
 
     private static function ref(Person $person): PersonRef

@@ -134,6 +134,40 @@ final class PickupListService
         ], $rows);
     }
 
+    /**
+     * `RN-PRL-15` (`1.14b-d1`): bloquea con `FOR SHARE`, hasta el final de la transacción en curso, las filas **vivas** de
+     * `fam_unit` de las que depende que la persona figure en la lista del alumno, es decir, las que lee `compose()` (tutor,
+     * autorización, fotografía y exclusión por revocación), en este orden fijo y por id ascendente dentro de cada tabla:
+     *
+     * 1. `guardians` de la persona (la faceta de tutor: si se da de baja, deja de ser tutora y deja de aplicar su revocación);
+     * 2. `guardian_student_links` entre esa faceta y el alumno, **en cualquier estado** (`activo` la hace figurar como tutor;
+     *    `revocado` la excluye de toda base; su baja o cambio de estado cambia el resultado);
+     * 3. `pickup_authorizations` vivas de la persona para el alumno, retiradas o no (retirar o dar de baja la saca);
+     * 4. `pickup_photos` vivas de la persona (sin fotografía, ni terceros ni puntuales figuran).
+     *
+     * Toda transición que saca a la persona de la lista es un `UPDATE` de una de esas filas (retirada, baja lógica, revocación):
+     * ninguna se produce por un `INSERT` (los vínculos solo se crean `activo`; `GuardianLinkService::create()`). Las filas
+     * **no vivas** no se bloquean: no hay ninguna ruta que restaure una baja (comprobado en `1.14b-d1`). El efecto de un bloqueo
+     * no es observable por los datos: solo hace esperar a un escritor concurrente. Necesita transacción abierta.
+     */
+    public function lockGrantRows(int $personId, int $studentPersonId): void
+    {
+        $tenantId = $this->tenant->tenantId();
+
+        DB::select('SELECT g.id FROM guardians g WHERE g.tenant_id = ? AND g.person_id = ? AND g.deleted_at IS NULL ORDER BY g.id FOR SHARE', [$tenantId, $personId]);
+
+        DB::select(<<<'SQL'
+            SELECT l.id FROM guardian_student_links l
+            WHERE l.tenant_id = ? AND l.student_person_id = ? AND l.deleted_at IS NULL
+              AND l.guardian_id IN (SELECT g.id FROM guardians g WHERE g.tenant_id = ? AND g.person_id = ? AND g.deleted_at IS NULL)
+            ORDER BY l.id FOR SHARE
+            SQL, [$tenantId, $studentPersonId, $tenantId, $personId]);
+
+        DB::select('SELECT a.id FROM pickup_authorizations a WHERE a.tenant_id = ? AND a.student_person_id = ? AND a.person_id = ? AND a.deleted_at IS NULL ORDER BY a.id FOR SHARE', [$tenantId, $studentPersonId, $personId]);
+
+        DB::select('SELECT ph.id FROM pickup_photos ph WHERE ph.tenant_id = ? AND ph.person_id = ? AND ph.deleted_at IS NULL ORDER BY ph.id FOR SHARE', [$tenantId, $personId]);
+    }
+
     // ─── Autorizaciones ───
 
     /** Detalle sin acotar por ámbito (escrituras): `404` si no existe o es de otro centro. */

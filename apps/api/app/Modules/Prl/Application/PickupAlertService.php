@@ -32,6 +32,7 @@ final class PickupAlertService
     public function __construct(
         private readonly PersonDirectory $people,
         private readonly TenantSettingsReader $settings,
+        private readonly LockedTransaction $transaction,
     ) {}
 
     /**
@@ -46,15 +47,16 @@ final class PickupAlertService
             return ['alert' => $existing, 'replayed' => true];
         }
 
-        // El alumno de la alerta: `404` si no existe, es de otro centro o está borrado (`api.md §8.4`).
-        $student = $this->people->findByPublicId($input['student_person']);
-
-        if ($student === null || $student->removed) {
-            throw ApiException::notFound();
-        }
-
         try {
-            $alert = DB::transaction(function () use ($input, $actor, $student, $key): PickupAlert {
+            $alert = $this->transaction->run(function () use ($input, $actor, $key): PickupAlert {
+                // El alumno de la alerta, con bloqueo compartido (`RN-PRL-12`, `OPEN-FAM-UNIT-51`): `404` si no existe, es de otro
+                // centro o está borrado, también si lo borran concurrentemente (`api.md §8.4`).
+                $student = $this->people->lockLiveByPublicIds([$input['student_person']])[$input['student_person']] ?? null;
+
+                if ($student === null) {
+                    throw ApiException::notFound();
+                }
+
                 $alert = new PickupAlert;
                 $alert->student_person_id = $student->id;
                 $alert->kind = $input['kind'];

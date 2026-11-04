@@ -220,10 +220,10 @@ Este plan recorta la fase 1 a **17 módulos**: el núcleo académico y de comuni
 
 - [ ] **1.14b · `REQ-FAM-UNIT-005` + `REQ-PRL-004`: autorizados y entrega de menores** [OPUS + SONNET] ⚠️ *paso crítico*
   **Lista maestra única** de personas autorizadas a recoger, con foto y documento, más el proceso de entrega en conserjería (`ADR-032`). La exclusión por restricción judicial debe propagarse a todos los servicios de forma automática. Adelantado de fase 3 porque es una operación diaria de todo el alumnado. Transporte, comedor y extraescolares consumirán esta lista; **ninguno mantiene la suya**. **Actualización 2026-10-30: especificación APROBADA y `ADR-068` ACEPTADA; implementación en cuatro entregas `1.14b-a` (`fam_unit` y ampliaciones de `Core`), `-b` (módulo `prl`), `-c` (pantallas), `-d` (diferido).** **`1.14b-a` implementada, revisada y mezclada (2026-11-02; PR #497): 13 *endpoints*, 2145 Pest en verde en el contenedor.** **`1.14b-b` implementada, revisada y mezclada (2026-11-02; PR #504): módulo `prl`, 9 *endpoints*, 2154 + 55 Pest en verde y E2E real en verde.** **`1.14b-c`: especificación de UI APROBADA (2026-11-02, §23 de `REQ-FAM-UNIT/funcional.md`; crítico), partida en `1.14b-c1` (`fam-unit`) y `1.14b-c2` (`prl`), tres tramos cada una.** **`1.14b-c2` implementada y revisada (2026-11-04; T1-T3, E2E real `CA-PRL-012`/`-013`, `security-reviewer`; sin Codex por cuota; auditoría del listado de alertas con cupo, enmienda de `DP-11`); mezclada (2026-11-04, PR #519).** **`1.14b-c1` implementada, revisada y mezclada (2026-11-03; PR #513): Codex en tres rondas y `security-reviewer`; E2E real `CA-FAM-UNIT-142` en verde (S3 real no probado).**
-- [ ] **1.15 · `REQ-ALUM`: expediente y matrícula** [SONNET]
+- [ ] **1.15 · `REQ-ALUM`: expediente y matrícula** [SONNET] **Obligación heredada de `1.14b-d2` (2026-11-04):** salida autónoma (etapa, edad y grupo; cierra `OPEN-FAM-UNIT-52` y `-45`).
   ⚠️ **Obligación heredada de `1.10` (issue [#382](https://github.com/pirexia/plataforma-educativa/issues/382))**: la importación masiva de alumnado es la primera carga masiva real sobre una tabla de curso; repetir `AcademicYearWriteGuardOverheadTest` con la tabla de matrícula/alumnado real (si no se hizo ya en `1.11`) y anotar la cifra en `CHANGELOG.md`. Si el coste molesta, las salidas están en el issue (disparador por sentencia con tabla de transición, o importar en un curso en `planificacion`); no se toca la garantía.
 
-- [ ] **1.13 · `REQ-ACAD`: asistencia** [SONNET] · *movido tras `1.15` el 2026-10-10 (`OPEN-ACAD-22`): necesita alumnado y matrícula*
+- [ ] **1.13 · `REQ-ACAD`: asistencia** [SONNET] · *movido tras `1.15` el 2026-10-10 (`OPEN-ACAD-22`): necesita alumnado y matrícula* **Obligación heredada de `1.14b-d4`:** alerta de alumno no recogido (necesita también #453 y `1.19`).
   El paso de lista es la operación más frecuente del sistema: optimizar para pocos toques y funcionamiento offline.
   ⚠️ **Plazo de `ADR-063 §5.4`**: no se aprueba su especificación sin la asignación docente ya especificada; ningún módulo de alumnado da `todos` a `docente` como sustituto.
 
@@ -246,7 +246,7 @@ Este plan recorta la fase 1 a **17 módulos**: el núcleo académico y de comuni
 
 ### Bloque F · Comunicación y portales
 
-- [ ] **1.19 · `REQ-COM`: mensajería, circulares y notificaciones** [SONNET]
+- [ ] **1.19 · `REQ-COM`: mensajería, circulares y notificaciones** [SONNET] **Obligación heredada de `1.14b-d3`/`-d4`:** avisos automáticos de la puerta de entrega de menores.
 - [ ] **1.20 · `REQ-AGENDA`: calendario escolar y agenda** [SONNET]
 - [ ] **1.21 · `REQ-PROF`: portal del docente** [SONNET]
 - [ ] **1.22 · `REQ-FAM-PORTAL`: portal de familias** [SONNET]

@@ -35,4 +35,14 @@ final class PrlErrors
     {
         return self::invalid('picked_up_by', 'prl.movement.person_not_authorized');
     }
+
+    /**
+     * `RN-PRL-16`, `OPEN-PRL-04` A (`1.14b-d1`): no se obtuvo el bloqueo en `prl.lock_timeout_ms` o se agotaron los reintentos
+     * por interbloqueo. Condición transitoria, no un conflicto del cuerpo: `503` con `Retry-After: 1` y el código `prl.errors.busy`
+     * como `detail` (sin campo). No se escribió nada.
+     */
+    public static function busy(): ApiException
+    {
+        return ApiException::unavailable(1, 'prl.errors.busy');
+    }
 }
