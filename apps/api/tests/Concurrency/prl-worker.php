@@ -15,6 +15,7 @@
  *   delete-guardian-hold <userPublicId> <guardianPublicId> <signalFile>   (GuardianService::delete)
  *       dan de baja el vínculo o el tutor **sin confirmar**, escriben el fichero de señal y esperan a que exista `<signalFile>.release`
  *       (máximo 30 s): retienen los bloqueos de la baja mientras la puerta intenta una salida (`CA-PRL-036`, `CA-PRL-037`)
+ *   delete-guardian <userPublicId> <guardianPublicId>   (GuardianService::delete, confirma al terminar; `CA-PRL-038`, issue #527)
  */
 
 use App\Models\User;
@@ -97,6 +98,11 @@ $result = app(TenantContext::class)->runFor((int) $tenantId, function () use ($o
                             usleep(20_000);
                         }
                     });
+
+                    return ['outcome' => 'ok'];
+
+                case 'delete-guardian':
+                    app(GuardianService::class)->delete($args[1]);
 
                     return ['outcome' => 'ok'];
 

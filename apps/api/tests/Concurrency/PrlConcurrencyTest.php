@@ -556,6 +556,39 @@ test('CA-PRL-036 CA-PRL-037 RN-PRL-12: con la baja sin confirmar, la salida del 
         ->and(prlCounts($f['tenant'])['movements'])->toBe(0);
 })->with('prl baja de tutor');
 
+test('CA-PRL-038 RN-PRL-12 RN-PRL-15 (issue #527): la baja del tutor bloquea sus filas en el mismo orden que la puerta (guardians antes que guardian_student_links); con la puerta ya sobre el tutor no hay interbloqueo (40P01) y la baja se completa tras la salida', function (): void {
+    $f = Prl::doorFamily('prl-conc-038');
+
+    // La puerta (`lockGrantRows`): paso 1, `guardians` FOR SHARE; paso 2, `guardian_student_links` FOR SHARE. Se separan para
+    // intercalar la baja real entre los dos pasos, que es exactamente la ventana del interbloqueo.
+    $gate = prlHolder($f['tenant']->id);
+    $gate->prepare('select id from guardians where public_id = ? and deleted_at is null for share')->execute([$f['go']]);
+
+    $delete = prlSpawn($f['tenant']->id, 'delete-guardian', $f['admin']->public_id, $f['go']);
+    $gateError = null;
+
+    try {
+        prlWaitLockWaiter([$delete]);
+
+        try {
+            $gate->prepare('select l.id from guardian_student_links l where l.deleted_at is null and l.guardian_id = (select id from guardians where public_id = ?) order by l.id for share')->execute([$f['go']]);
+            $gate->commit();
+        } catch (PDOException $e) {
+            $gateError = $e->errorInfo[0] ?? 'error';
+            $gate->rollBack();
+        }
+    } finally {
+        if ($gate->inTransaction()) {
+            $gate->rollBack();
+        }
+    }
+
+    $result = prlCollect($delete);
+
+    expect($gateError)->toBeNull('la puerta no debe ser la víctima del interbloqueo')
+        ->and($result)->toBe(['outcome' => 'ok'], 'la baja del tutor no debe terminar en 40P01 ni en otro error');
+});
+
 test('CA-PRL-029 RN-PRL-14 RN-PRL-15: fuera de una transacción abierta, lockLiveByPublicIds y grantForLocked lanzan LogicException (fallo en cerrado)', function (): void {
     $f = Prl::doorFamily('prl-conc-029');
 
