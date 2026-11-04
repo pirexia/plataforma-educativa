@@ -15,6 +15,7 @@ import { computed, ref, watch } from 'vue'
 import { ImageOff, UserRound } from '@lucide/vue'
 import { useT } from '@/i18n'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
@@ -290,10 +291,16 @@ const rejectedMessage = computed(
           </ul>
         </fieldset>
 
-        <label v-if="isExit" class="flex min-h-11 items-center gap-2 text-sm">
-          <input v-model="offSchedule" type="checkbox" class="size-5" />
-          {{ t('prl.movement.offSchedule') }}
-        </label>
+        <div v-if="isExit" class="flex min-h-11 items-center gap-2">
+          <Checkbox
+            id="prl-movement-off-schedule"
+            :model-value="offSchedule"
+            @update:model-value="offSchedule = $event === true"
+          />
+          <Label for="prl-movement-off-schedule" class="min-h-11 flex-1 text-sm">
+            {{ t('prl.movement.offSchedule') }}
+          </Label>
+        </div>
 
         <template v-if="offSchedule">
           <fieldset class="flex flex-col gap-2">
