@@ -8,6 +8,7 @@ import { flushPromises, type VueWrapper } from '@vue/test-utils'
 import { ApiError } from '@/api/client'
 import { setLocale } from '@/i18n'
 import * as prlApi from '../api'
+import { useDoorContext } from '../composables/useDoorContext'
 import { mountView, pickupAlert, stubMatchMedia } from '../testSupport'
 
 vi.mock('../api')
@@ -53,6 +54,19 @@ beforeEach(() => {
 afterEach(() => {
   while (wrappers.length > 0) wrappers.pop()!.unmount()
   document.body.innerHTML = ''
+})
+
+describe('REQ-PRL-004: nombre suprimido por el servidor', () => {
+  it("con student_display_name '' no se recupera el nombre recordado", async () => {
+    useDoorContext().remember('P1', { displayName: 'Lucas Ejemplo Ruiz', familyUnitCode: null })
+    vi.mocked(prlApi.getPickupAlert).mockResolvedValue(
+      pickupAlert({ student_display_name: '' }) as never,
+    )
+    await open()
+
+    expect(text()).not.toContain('Lucas Ejemplo Ruiz')
+    expect(text()).toContain('Alumno')
+  })
 })
 
 describe('CA-PRL-023: detalle de una alerta (WCAG 1.4.1)', () => {

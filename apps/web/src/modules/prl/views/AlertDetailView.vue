@@ -88,9 +88,9 @@ const isOpen = computed(() => alert.value?.status === 'abierta')
 const studentName = computed(() =>
   alert.value === null
     ? ''
-    : alert.value.student_display_name ||
-      door.find(alert.value.student_person)?.displayName ||
-      t('prl.alerts.studentUnknown'),
+    : (alert.value.student_display_name === undefined
+        ? door.find(alert.value.student_person)?.displayName
+        : alert.value.student_display_name) || t('prl.alerts.studentUnknown'),
 )
 
 const raisedByName = computed(

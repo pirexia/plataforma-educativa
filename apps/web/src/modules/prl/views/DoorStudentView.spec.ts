@@ -260,6 +260,15 @@ describe('CA-PRL-023: estados por texto e icono, y alt de toda fotografía (WCAG
 })
 
 describe('§23.5.2: estados de la lista de puerta', () => {
+  it('REQ-PRL-004: con 403 o 404 la cabecera no pinta el nombre recordado', async () => {
+    useDoorContext().remember('P1', { displayName: 'Lucas Ejemplo Ruiz', familyUnitCode: null })
+    vi.mocked(prlApi.getDoorPickupList).mockRejectedValueOnce(new ApiError('x', 403, {}))
+    await open()
+
+    expect(text()).toContain('No tienes permiso para ver esta información.')
+    expect(text()).not.toContain('Lucas Ejemplo Ruiz')
+  })
+
   it('lista vacía: texto de seguridad', async () => {
     vi.mocked(prlApi.getDoorPickupList).mockResolvedValue(doorList([]) as never)
     await open()

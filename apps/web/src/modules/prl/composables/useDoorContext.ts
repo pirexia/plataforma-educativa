@@ -4,7 +4,9 @@
  * indexado por `public_id`: nunca por la URL, `history.state`, `document.title` ni el almacenamiento del navegador. Se
  * pierde al recargar. Acotado a unos pocos alumnos para que no crezca sin límite en un dispositivo compartido.
  */
-import { reactive } from 'vue'
+import { reactive, watch } from 'vue'
+
+import { useSession } from '@/session/useSession'
 
 export interface KnownStudent {
   displayName: string
@@ -14,6 +16,11 @@ export interface KnownStudent {
 const MAX_KNOWN = 20
 
 const known = reactive<Map<string, KnownStudent>>(new Map())
+
+/** Al cerrar la sesión (usuario a `null`) la memoria de nombres se vacía: no sobrevive a la persona que la llenó. */
+watch(useSession().user, (current) => {
+  if (current === null) known.clear()
+})
 
 export function useDoorContext() {
   function remember(studentPerson: string, student: KnownStudent): void {

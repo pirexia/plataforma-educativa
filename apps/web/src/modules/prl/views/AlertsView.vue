@@ -42,9 +42,9 @@ const tableKey = ref(0)
 
 function studentName(row: PickupAlert): string {
   return (
-    row.student_display_name ||
-    door.find(row.student_person)?.displayName ||
-    t('prl.alerts.studentUnknown')
+    (row.student_display_name === undefined
+      ? door.find(row.student_person)?.displayName
+      : row.student_display_name) || t('prl.alerts.studentUnknown')
   )
 }
 

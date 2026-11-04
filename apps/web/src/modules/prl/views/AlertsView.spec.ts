@@ -43,6 +43,22 @@ afterEach(() => {
   document.body.innerHTML = ''
 })
 
+describe('REQ-PRL-004: nombre suprimido por el servidor', () => {
+  it("con student_display_name '' no se recupera el nombre recordado; ausente, sí", async () => {
+    useDoorContext().remember('P1', { displayName: 'Lucas Ejemplo Ruiz', familyUnitCode: null })
+    vi.mocked(prlApi.listPickupAlerts).mockResolvedValue(
+      page([pickupAlert({ student_display_name: '' })]) as never,
+    )
+
+    const mounted = await mountView('prl-alerts', AlertsView, '/conserjeria/alertas')
+
+    wrappers.push(mounted.wrapper)
+
+    expect(text()).not.toContain('Lucas Ejemplo Ruiz')
+    expect(text()).toContain('Alumno')
+  })
+})
+
 describe('CA-PRL-023: listado de alertas (WCAG 1.4.1)', () => {
   it('«Abierta» y «Cerrada» llevan texto e icono (aria-hidden), y la resolución su etiqueta', async () => {
     useDoorContext().remember('P1', { displayName: 'Lucas Ejemplo Ruiz', familyUnitCode: null })

@@ -40,7 +40,11 @@ const door = useDoorContext()
 const { can } = usePermissions()
 
 const studentPerson = computed(() => String(route.params.studentPersonPublicId ?? ''))
-const known = computed(() => door.find(studentPerson.value))
+const known = computed(() =>
+  error.value?.kind === 'not-found' || error.value?.kind === 'forbidden'
+    ? null
+    : door.find(studentPerson.value),
+)
 
 const list = ref<DoorPickupList | null>(null)
 const loading = ref(false)
