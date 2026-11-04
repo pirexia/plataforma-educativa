@@ -220,6 +220,10 @@ test('REQ-PRL-004 api.md §8.4 INV-007: la alerta (listado y detalle) devuelve e
         return $n;
     };
 
+    // Calentamiento: la primera lectura crea la clave del cupo (con el almacén de caché de la CI son consultas extra que
+    // las siguientes ya no hacen); lo que se mide es solo el coste por fila.
+    Prl::call($f['tenant'], $f['direccion'], 'get', '/pickup-alerts')->assertOk();
+
     $with3 = $count(3);
     openAlert($f, ['presenter_description' => 'Cuarta'])->assertCreated();
     openAlert($f, ['presenter_description' => 'Quinta'])->assertCreated();
