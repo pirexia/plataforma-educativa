@@ -474,7 +474,7 @@ test('CA-PRL-027 RN-PRL-12 RN-PRL-15: con la salida de T registrada y sin confir
         $f = Prl::doorFamily("prl-conc-027-{$i}");
         $signal = tempnam(sys_get_temp_dir(), 'prl-sig-');
         @unlink($signal);
-        $a = prlSpawn($f['tenant']->id, 'record-exit-hold', $f['conserje']->public_id, $f['student']->public_id, $f['abuelo']['person'], $signal, '6');
+        $a = prlSpawn($f['tenant']->id, 'record-exit-hold', $f['conserje']->public_id, $f['student']->public_id, $f['abuelo']['person'], $signal);
         $deadline = microtime(true) + 60;
 
         while (! file_exists($signal)) {
@@ -497,8 +497,12 @@ test('CA-PRL-027 RN-PRL-12 RN-PRL-15: con la salida de T registrada y sin confir
         expect(pg_connection_busy($b))->toBeTrue("{$name}: B no esperó");
         $before = prlCounts($f['tenant']);
 
+        // A confirma al recibir la señal de liberación (sin retención temporizada, como CA-PRL-036/-037).
+        file_put_contents($signal.'.release', '1');
         $resultA = prlCollect($a);
         $resultB = pg_get_result($b);
+        @unlink($signal.'.release');
+        @unlink($signal);
 
         expect($resultA['outcome'])->toBe('ok')
             ->and(pg_result_error($resultB))->toBe('', "{$name}: B falló")
