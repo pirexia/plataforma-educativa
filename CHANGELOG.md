@@ -6,6 +6,12 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-04 · `feat(prl)`: `1.14b-d1`, bloqueos de la puerta y alertas cerradas inmutables
+
+- La puerta de entrega de menores recomprueba la lista de autorizados con bloqueo de fila `FOR SHARE` (`PersonDirectory::lockLiveByPublicIds`, `AuthorizedPickupList::grantForLocked`) en `StudentMovementService` y `PickupAlertService::raise()`: cierra `OPEN-FAM-UNIT-51` (carrera TOCTOU). Espera acotada (`prl.lock_timeout_ms`, 3000 ms), hasta 3 intentos ante interbloqueo y `503 prl.errors.busy` con `Retry-After: 1`.
+- Migración *expand* reversible: `REVOKE DELETE` y disparador que impide modificar una alerta cerrada (todos los roles), `CHECK` de motivo y `off_schedule` y FK compuesta de corrección del mismo alumno (`OPEN-FAM-UNIT-53`, puntos 2-4). `delivered_by` queda como estaba (`OPEN-PRL-03`, C).
+- `1.14b-d2`..`-d4` (salida autónoma, avisos, alumno no recogido) siguen bloqueadas por `1.15`, `1.19`, `1.13` y #453.
+
 ## 2026-11-04 · `feat(prl)`: `1.14b-c2`, pantallas de conserjería
 
 - SPA `prl` (módulo web nuevo): buscador de alumno, lista de recogida (T1), entrega de salida y registro de entrada fuera de horario, apertura de alerta, registro de la llamada y cierre (T2), con `Idempotency-Key` por intento y claves `prl.*` en es/en/de/fr (las [NT] y los textos de seguridad solo en es-ES, `OPEN-FAM-UNIT-59` B).

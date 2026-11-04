@@ -45,9 +45,9 @@ Conserjería **no** recibe `autorizado_recogida.crear`: una recogida no prevista
 
 Un rol con estos permisos en un ámbito distinto de `todos` (p. ej. insertado a mano) **no concede nada**: `entrega_menor.*` y `alerta_entrega.*` no tienen resolutor de ámbito y las nueve rutas responden `403` (`PrlReadAuditTest`, seguridad M2).
 
-### 8.6 Entrega `1.14b-d1` — PROPUESTA (2026-11-04)
+### 8.6 Entrega `1.14b-d1` — APROBADA e implementada (2026-11-04)
 
-> **Estado**: **PROPUESTA**, pendiente de aprobación. **Sin permisos, recursos, ámbitos ni siembra nuevos**: la matriz de `§8.3` y la siembra de `§8.4` no cambian.
+> **Estado**: **APROBADA** por el usuario (2026-11-04) e implementada en `1.14b-d1` T1-T2. **Sin permisos, recursos, ámbitos ni siembra nuevos**: la matriz de `§8.3` y la siembra de `§8.4` no cambian.
 
 | Recurso | Acción | Ámbito | Cambio en `1.14b-d1` |
 |---------|--------|--------|----------------------|
