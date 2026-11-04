@@ -206,27 +206,37 @@ test('REQ-PRL-004 api.md §8.4 INV-007: la alerta (listado y detalle) devuelve e
         ->and($detail->json('resolved_by'))->toBeNull()
         ->and($detail->json('resolved_by_display_name'))->toBeNull();
 
-    $count = static function (int $expectedRows) use ($f): int {
+    $count = static function (int $expectedRows) use ($f): array {
         DB::connection()->flushQueryLog();
         DB::connection()->enableQueryLog();
         $rows = Prl::call($f['tenant'], $f['direccion'], 'get', '/pickup-alerts')->assertOk()->json('data');
-        $n = count(DB::connection()->getQueryLog());
+        $queries = array_column(DB::connection()->getQueryLog(), 'query');
         DB::connection()->disableQueryLog();
         expect($rows)->toHaveCount($expectedRows);
         foreach ($rows as $row) {
             expect($row['student_display_name'])->not->toBe('')->and($row['raised_by_display_name'])->not->toBe('');
         }
 
-        return $n;
+        return $queries;
     };
 
-    // Calentamiento: la primera lectura crea la clave del cupo (con el almacén de caché de la CI son consultas extra que
-    // las siguientes ya no hacen); lo que se mide es solo el coste por fila.
+    // #535: una consulta de una sola vez por proceso o por caducidad de una clave de caché (resolución del centro, módulos,
+    // ajustes) puede caer en una medición y no en la otra. Un N+1 suma consultas en **todas** las lecturas, así que se compara
+    // el mínimo de dos lecturas por tamaño; si aun así difiere, el fallo lleva las consultas que sobran.
+    $measure = static function (int $expectedRows) use ($count): array {
+        $first = $count($expectedRows);
+        $second = $count($expectedRows);
+
+        return count($second) < count($first) ? $second : $first;
+    };
+
+    // Calentamiento: la primera lectura crea la clave del cupo y las cachés de la petición.
     Prl::call($f['tenant'], $f['direccion'], 'get', '/pickup-alerts')->assertOk();
 
-    $with3 = $count(3);
+    $with3 = $measure(3);
     openAlert($f, ['presenter_description' => 'Cuarta'])->assertCreated();
     openAlert($f, ['presenter_description' => 'Quinta'])->assertCreated();
+    $with5 = $measure(5);
 
-    expect($count(5))->toBe($with3);
+    expect(count($with5))->toBe(count($with3), 'Consultas que sobran con 5 filas: '.json_encode(array_values(array_diff($with5, $with3)), JSON_UNESCAPED_UNICODE));
 });
