@@ -56,9 +56,8 @@ return new class extends Migration
             SQL);
 
         $this->withLockTimeout(function () use ($owner): void {
-            $owner->statement('DROP TRIGGER IF EXISTS pickup_alerts_closed_immutable ON pickup_alerts');
             $owner->statement(<<<'SQL'
-                CREATE TRIGGER pickup_alerts_closed_immutable BEFORE UPDATE ON pickup_alerts
+                CREATE OR REPLACE TRIGGER pickup_alerts_closed_immutable BEFORE UPDATE ON pickup_alerts
                     FOR EACH ROW WHEN (OLD.status = 'cerrada')
                     EXECUTE FUNCTION app.assert_pickup_alert_not_closed()
                 SQL);
