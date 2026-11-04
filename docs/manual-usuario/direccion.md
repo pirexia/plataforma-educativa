@@ -1,6 +1,6 @@
 # Manual de dirección
 
-> Estructura académica (`REQ-ACAD-001`, pasos `1.11-b`, `1.11d-a` y `1.11d-b`). El resto de funciones de este perfil se documentan con cada módulo.
+> Estructura académica (`REQ-ACAD-001`, pasos `1.11-b`, `1.11d-a` y `1.11d-b`) y conserjería (`REQ-PRL-004`, paso `1.14b-c2`). El resto de funciones de este perfil se documentan con cada módulo.
 
 ## Estructura académica del centro
 
@@ -27,18 +27,18 @@
 
 ## Conserjería: entrega de alumnos en la puerta
 
-**Quién la usa.** Conserjería (y el personal con permisos de entrega de menores) en **Conserjería** (`/conserjeria`, en el menú lateral). Dirección ve además las **Alertas de entrega** (`/conserjeria/alertas`) y es quien registra la llamada y cierra la alerta. No existe un manual propio de conserjería: esta sección lo recoge.
+**Quién la usa.** Conserjería (y el personal con permisos de entrega de menores) en **Conserjería** (`/conserjeria`, en el menú lateral). Conserjería, secretaría y dirección ven el listado y el detalle de **Alertas de entrega** (`/conserjeria/alertas`, `alerta_entrega.leer`); solo dirección registra la llamada y cierra la alerta. No existe un manual propio de conserjería: esta sección lo recoge.
 
 **Buscar al alumno.** Escribe al menos 2 letras del nombre o de los apellidos. Cada resultado muestra la unidad familiar; elige al alumno.
 
 **Lista de puerta.** Muestra, a la hora de la consulta, a quienes pueden recoger a ese alumno **ahora**, con fotografía, documento enmascarado y teléfono. No entregues al alumno a nadie que no figure; si la lista está vacía, no lo entregues y avisa a dirección. Consultar la lista queda registrado con tu usuario, la fecha y la hora, y tiene un cupo de consultas por hora; **«Volver a cargar la lista»** la recalcula.
 
-**Salida.** Con **«Entregar a …»** eliges cómo has comprobado la identidad (fotografía, documento o ambos; si la persona no tiene fotografía solo vale el documento). Si es fuera de horario, indica el motivo y, si es «Otro», una nota. Al confirmar, la salida queda registrada con la hora.
+**Salida.** (Conserjería y administración, `entrega_menor.crear`; dirección solo consulta.) Con **«Entregar a …»** eliges cómo has comprobado la identidad (fotografía, documento o ambos; si la persona no tiene fotografía solo vale el documento). Si es fuera de horario, indica el motivo y, si es «Otro», una nota. Al confirmar, la salida queda registrada con la hora.
 
-**Entrada fuera de horario.** **«Registrar entrada fuera de horario»**: motivo obligatorio y, si es «Otro», una nota.
+**Entrada fuera de horario.** (Mismo permiso, `entrega_menor.crear`.) **«Registrar entrada fuera de horario»**: motivo obligatorio y, si es «Otro», una nota.
 
 **Alerta.** Si quien se presenta **no está en la lista**, pulsa **«Quien se presenta no está en la lista»**: describe a la persona (nombre que dice tener y, si lo enseña, su documento). Se muestra el protocolo y los teléfonos del tutor principal y del contacto de emergencia. El sistema **no envía ningún aviso**: llamas tú. Abrir y consultar una alerta abierta queda registrado y gasta cupo de consultas.
 
-**Llamada y cierre.** Dirección registra en la alerta la hora de la llamada al tutor principal con **«Guardar la llamada»** y la cierra con **«Cerrar la alerta»**, eligiendo la resolución (no entregado, recogido por una persona autorizada, autorización puntual registrada u otra). Una alerta cerrada **no se puede reabrir** ni borrar. En **Alertas de entrega** filtras por estado y por fecha de apertura; el listado muestra nombres, no teléfonos, y su consulta también queda registrada.
+**Llamada y cierre.** (`alerta_entrega.actualizar`: dirección sí; conserjería no, y a quien no lo tiene se le muestra «avisa a dirección».) Dirección registra en la alerta la hora de la llamada al tutor principal con **«Guardar la llamada»** y la cierra con **«Cerrar la alerta»**, eligiendo la resolución (no entregado, recogido por una persona autorizada, autorización puntual registrada u otra). Una alerta cerrada **no se puede reabrir** ni borrar. En **Alertas de entrega** filtras por estado y por fecha de apertura; el listado muestra nombres, no teléfonos, y su consulta también queda registrada.
 
 **Si algo falla.** Un aviso de «vuelve a intentarlo en N segundos» significa que has agotado el cupo de consultas: espera o pide a administración que lo restablezca. Algunos textos de seguridad están todavía solo en castellano hasta que una persona los traduzca.

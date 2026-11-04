@@ -8,7 +8,7 @@ El texto del protocolo ante persona no autorizada será **configuración del cen
 
 | Clave (`apps/api/config/prl.php`) | Defecto [DERIVADA] | Regla |
 |--------------------------|--------------------|-------|
-| `prl.read_rate_limit` | 300 por hora (`attempts`, `decay_seconds` 3600), por centro y usuario | Cupo de **lecturas con datos de personas** (`funcional.md DP-11`): `POST /pickup-alerts`, `GET`/`PATCH /pickup-alerts/{id}` con la alerta abierta (teléfonos) y `GET /student-movements[/{id}]` (nombre de quien recogió). Un solo cubo para todas, distinto del de la lista de puerta de `fam_unit` (`fam_unit.pickup.read_rate_limit`); cuenta todos los intentos; superado, `429` con `Retry-After` y sin fila de auditoría ni datos. Sin variable de entorno |
+| `prl.read_rate_limit` | 300 por hora (`attempts`, `decay_seconds` 3600), por centro y usuario | Cupo de **lecturas con datos de personas** (`funcional.md DP-11`): `POST /pickup-alerts`, `GET /pickup-alerts` (listado: nombres de alumno y de quien abre o cierra; enmienda de `DP-11`, 2026-11-04), `GET`/`PATCH /pickup-alerts/{id}` con la alerta abierta (teléfonos) y `GET /student-movements[/{id}]` (nombre de quien recogió). Un solo cubo para todas, distinto del de la lista de puerta de `fam_unit` (`fam_unit.pickup.read_rate_limit`); cuenta todos los intentos; superado, `429` con `Retry-After` y sin fila de auditoría ni datos. Sin variable de entorno |
 
 ## 12.4 Despliegue: orden, siembra y reversión
 
