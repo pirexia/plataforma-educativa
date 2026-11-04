@@ -169,7 +169,7 @@ test.describe
     await Promise.all([admin, conserje].map((s) => s?.dispose()))
   })
 
-  test('el conserje busca, abre la lista, verifica por la foto, registra la salida y abre la alerta', async ({
+  test('CA-PRL-035: el conserje busca, abre la lista, verifica por la foto, registra la salida y abre la alerta', async ({
     page,
   }) => {
     await redirectS3(page)
@@ -411,7 +411,7 @@ test.describe
     await expect(page.getByRole('heading', { level: 1, name: studentName })).toHaveCount(0)
   })
 
-  test('el administrador ve la alerta con nombres, filtra por fecha, registra la llamada y la cierra', async ({
+  test('CA-PRL-035: el administrador ve la alerta con nombres, filtra por fecha, registra la llamada y la cierra', async ({
     page,
   }) => {
     test.setTimeout(120_000)
