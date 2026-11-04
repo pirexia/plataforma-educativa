@@ -29,6 +29,11 @@ if [[ ! "$SLUG" =~ ^[a-z0-9][a-z0-9-]{0,39}$ ]]; then
   exit 2
 fi
 
+# La SPA que arranca Playwright usa el subdominio del centro, no el `localhost` de `apps/web/.env` (issue #530).
+# shellcheck source=e2e-vite-api-url.sh
+source "$(dirname "${BASH_SOURCE[0]}")/e2e-vite-api-url.sh"
+prepare_vite_api_url "$SLUG" || exit 2
+
 # `E2E_ONLY` no vacío y fuera de la lista cerrada: se rechaza antes de tocar nada (un typo no puede salir en verde sin
 # haber ejecutado ninguna suite).
 case "${E2E_ONLY:-}" in
