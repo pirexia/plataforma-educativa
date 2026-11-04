@@ -59,6 +59,10 @@ interface AuthorizedPickupList
      * alumno y su fotografía viva. Un escritor concurrente espera a que la transacción del llamador termine, de modo que lo
      * registrado nunca es posterior a la pérdida de la autorización. Sin auditoría de lectura ni cupo (no devuelve datos personales).
      *
+     * Precondición del llamador: haber llamado antes, en la misma transacción, a `PersonDirectory::lockLiveByPublicIds()` para las
+     * personas implicadas (persona primero, filas de `fam_unit` después: orden de bloqueo único). Sin ello los bloqueos de
+     * `fam_unit` no protegen la fila de persona y el orden de bloqueo deja de ser el acordado.
+     *
      * @throws \LogicException si no hay una transacción abierta: un bloqueo sin transacción no protege nada (falla en cerrado)
      */
     public function grantForLocked(int $personId, int $studentPersonId): ?PickupGrant;
