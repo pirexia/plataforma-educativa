@@ -26,7 +26,7 @@ function prlReads(object $tenant, string $type, string $purpose): array
     return array_values(array_filter(Fam::audit($tenant, $type, 'read'), fn (AuditLog $log): bool => ($log->context['purpose'] ?? null) === $purpose));
 }
 
-test('DP-11 RN-PRL-10: abrir, leer y actualizar una alerta ABIERTA (con teléfonos) escribe una fila read puerta_alerta sin valores; el listado y la alerta cerrada no', function (): void {
+test('DP-11 RN-PRL-10: abrir, leer y actualizar una alerta ABIERTA (con teléfonos) escribe una fila read puerta_alerta sin valores; la alerta cerrada no; el listado escribe una fila read con recuento (enmienda 2026-11-04)', function (): void {
     $f = Prl::doorFamily('prlr-alert');
     app(TenantContext::class)->runFor($f['tenant']->id, fn () => DB::table('people')->where('id', $f['principal']->person_id)->update(['contact_phone' => '600777888']));
 
@@ -37,20 +37,42 @@ test('DP-11 RN-PRL-10: abrir, leer y actualizar una alerta ABIERTA (con teléfon
     Prl::call($f['tenant'], $f['direccion'], 'patch', "/pickup-alerts/{$id}", ['principal_contacted_at' => '2026-11-02T09:00:00Z'])->assertOk();
     expect(prlReads($f['tenant'], 'pickup_alert', 'puerta_alerta'))->toHaveCount(3);
 
-    // Listado: sin teléfonos, sin fila.
+    // Listado: sin teléfonos, pero con nombres: una fila read con el recuento (sin valores).
     Prl::call($f['tenant'], $f['direccion'], 'get', '/pickup-alerts')->assertOk();
-    expect(prlReads($f['tenant'], 'pickup_alert', 'puerta_alerta'))->toHaveCount(3);
+    expect(prlReads($f['tenant'], 'pickup_alert', 'puerta_alerta'))->toHaveCount(4);
 
     // Cierre: la respuesta ya no lleva teléfonos ni escribe fila; el detalle cerrado tampoco.
     Prl::call($f['tenant'], $f['direccion'], 'patch', "/pickup-alerts/{$id}", ['resolution' => 'no_entregado'])->assertOk();
     Prl::call($f['tenant'], $f['direccion'], 'get', "/pickup-alerts/{$id}")->assertOk();
     $reads = prlReads($f['tenant'], 'pickup_alert', 'puerta_alerta');
 
-    expect($reads)->toHaveCount(3)
+    expect($reads)->toHaveCount(4)
         ->and($reads[0]->changes)->toBeNull()
         ->and($reads[0]->auditable_public_id)->toBe($id)
         ->and($reads[0]->context)->toEqual(['purpose' => 'puerta_alerta', 'entries' => 1])
+        ->and($reads[3]->context)->toEqual(['purpose' => 'puerta_alerta', 'entries' => 1])
+        ->and($reads[3]->changes)->toBeNull()
         ->and(json_encode(array_map(fn ($l) => [$l->context, $l->changes], $reads)))->not->toContain('600777888')->not->toContain('Desconocido');
+});
+
+test('DP-11 RN-PRL-10: GET /pickup-alerts sin resultados no escribe fila; con resultados, una fila read puerta_alerta sin valores con el recuento', function (): void {
+    $f = Prl::doorFamily('prlr-alist');
+
+    Prl::call($f['tenant'], $f['direccion'], 'get', '/pickup-alerts')->assertOk();
+    expect(prlReads($f['tenant'], 'pickup_alert', 'puerta_alerta'))->toHaveCount(0);
+
+    Prl::call($f['tenant'], $f['conserje'], 'post', '/pickup-alerts', ['student_person' => $f['student']->public_id, 'presenter_description' => 'Reservado'])->assertCreated();
+    Fam::tick();
+    Prl::call($f['tenant'], $f['conserje'], 'post', '/pickup-alerts', ['student_person' => $f['student']->public_id, 'presenter_description' => 'Otro'])->assertCreated();
+    $before = count(prlReads($f['tenant'], 'pickup_alert', 'puerta_alerta'));
+
+    Prl::call($f['tenant'], $f['direccion'], 'get', '/pickup-alerts')->assertOk()->assertJsonCount(2, 'data');
+    $reads = prlReads($f['tenant'], 'pickup_alert', 'puerta_alerta');
+
+    expect($reads)->toHaveCount($before + 1)
+        ->and($reads[$before]->context)->toEqual(['purpose' => 'puerta_alerta', 'entries' => 2])
+        ->and($reads[$before]->changes)->toBeNull()
+        ->and(json_encode($reads[$before]->context))->not->toContain('Reservado');
 });
 
 test('DP-11 RN-PRL-10: GET /student-movements y su detalle escriben una fila read puerta_historial sin valores (solo con resultados) y consumen cupo', function (): void {
@@ -88,6 +110,8 @@ test('DP-11 RN-PRL-10: el cupo de lectura de prl (alertas y movimientos comparte
     Prl::call($f['tenant'], $f['conserje'], 'get', "/pickup-alerts/{$id}")->assertStatus(429);
     Prl::call($f['tenant'], $f['conserje'], 'post', '/pickup-alerts', ['student_person' => $f['student']->public_id, 'presenter_description' => 'y'])->assertStatus(429);
 
+    // El listado de alertas consume el mismo cubo (enmienda 2026-11-04): 429 para quien tiene alerta_entrega.leer.
+    Prl::call($f['tenant'], $f['conserje'], 'get', '/pickup-alerts')->assertStatus(429)->assertHeader('Retry-After');
     // conserjería tiene entrega_menor.leer: el listado sí llega al cupo (429), no al 403.
     Prl::call($f['tenant'], $f['conserje'], 'get', '/student-movements')->assertStatus(429)->assertHeader('Retry-After');
     expect(count(prlReads($f['tenant'], 'pickup_alert', 'puerta_alerta')))->toBe($before)

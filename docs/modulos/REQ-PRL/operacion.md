@@ -6,9 +6,9 @@
 
 El texto del protocolo ante persona no autorizada será **configuración del centro** (`settings` del módulo `prl`, `modulo.actualizar`, `ADR-045`), no del despliegue (`OPEN-FAM-UNIT-40`). **En `1.14b-b` solo existe el texto mínimo fijo del producto** (`prl.protocol.minimal`, ver `funcional.md DP-5`); `OPEN-FAM-UNIT-40` sigue abierta.
 
-| Clave (`config/prl.php`) | Defecto [DERIVADA] | Regla |
+| Clave (`apps/api/config/prl.php`) | Defecto [DERIVADA] | Regla |
 |--------------------------|--------------------|-------|
-| `prl.read_rate_limit` | 300 por hora (`attempts`, `decay_seconds` 3600), por centro y usuario | Cupo de **lecturas con datos de personas** (`funcional.md DP-11`): `POST /pickup-alerts`, `GET`/`PATCH /pickup-alerts/{id}` con la alerta abierta (teléfonos) y `GET /student-movements[/{id}]` (nombre de quien recogió). Un solo cubo para todas, distinto del de la lista de puerta de `fam_unit` (`fam_unit.pickup.read_rate_limit`); cuenta todos los intentos; superado, `429` con `Retry-After` y sin fila de auditoría ni datos. Sin variable de entorno |
+| `prl.read_rate_limit` | 300 por hora (`attempts`, `decay_seconds` 3600), por centro y usuario | Cupo de **lecturas con datos de personas** (`funcional.md DP-11`): `POST /pickup-alerts`, `GET /pickup-alerts` (listado: nombres de alumno y de quien abre o cierra; enmienda de `DP-11`, 2026-11-04), `GET`/`PATCH /pickup-alerts/{id}` con la alerta abierta (teléfonos) y `GET /student-movements[/{id}]` (nombre de quien recogió). Un solo cubo para todas, distinto del de la lista de puerta de `fam_unit` (`fam_unit.pickup.read_rate_limit`); cuenta todos los intentos; superado, `429` con `Retry-After` y sin fila de auditoría ni datos. Sin variable de entorno |
 
 ## 12.4 Despliegue: orden, siembra y reversión
 
@@ -25,6 +25,8 @@ Orden: **migrar → `platform:sync-registry` → contratar `prl` (que exige `fam
 ## 12.7 Verificación contra la API real (E2E sin navegador)
 
 > **E2E de navegador de `fam-unit` (`1.14b-c1`, `CA-FAM-UNIT-142`)**: `npm run test:e2e:real` en `apps/web` incluye la suite `fam-unit` (`e2e/fam-unit-pickup-real.spec.ts`), que reutiliza el centro en modo `door` y necesita el mismo almacén S3 (`minio:9000` o el servidor falso de abajo). Para lanzar solo esa suite: `E2E_ONLY=fam-unit VITE_API_URL=http://demo.plataforma.test:8000/api/v1 npm run test:e2e:real`; un `E2E_ONLY` no vacío que no sea una suite conocida termina con código 2. Si el `.env` de `apps/web` apunta a `localhost:8000`, hay que pasar `VITE_API_URL` a mano.
+
+> **E2E de navegador de `prl` (`1.14b-c2`, `CA-PRL-012`)**: `npm run test:e2e:real:prl` ejecuta además `e2e/prl-door-real.spec.ts` (conserje y administrador del mismo *seed*, centro A). Necesita la SPA en `127.0.0.1:5173` arrancada con `VITE_API_URL=http://<slug>.plataforma.test:8000/api/v1` y el mismo almacén S3 que abajo; los subdominios `*.plataforma.test` se resuelven a loopback con `--host-resolver-rules` del navegador (sin tocar `/etc/hosts`). El test espera hasta el siguiente minuto tras abrir la alerta, porque la hora de llamada propuesta se trunca al minuto.
 
 `apps/web/e2e/prl-door-api.spec.ts`, lanzado con `npm run test:e2e:real:prl` (`apps/web/scripts/e2e-real-prl.sh`): crea **dos centros sintéticos** con `apps/api/tests/Support/e2e-real-tenant.php setup <slug> door` (`fam_unit` y `prl` contratados, conserje y secretaría con los roles predefinidos, dos alumnos de nombre ficticio, `@example.com`), recorre la puerta con **HTTP real**, cookie de sesión y CSRF (`GET /auth/csrf-cookie` → `POST /auth/session`, cabecera `X-XSRF-TOKEN`) y los retira al terminar. Cubre persona → autorización → fotografía (`PUT …/photo` multipart con un JPEG sintético con EXIF que el servidor debe eliminar), búsqueda, lista de puerta con foto firmada descargada del almacén, salida verificada por foto, persona que no figura idéntica a la excluida por revocación, método de verificación del tutor sin fotografía, fuera de horario, alerta y su resolución (`409` al reabrir), idempotencia, auditoría y aislamiento entre los dos centros.
 

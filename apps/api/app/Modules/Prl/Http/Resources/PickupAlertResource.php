@@ -8,7 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
- * REQ-PRL/api.md §8.4, `PickupAlert`. El alumno se nombra por el `public_id` de su persona y los usuarios por el suyo. Con
+ * REQ-PRL/api.md §8.4, `PickupAlert`. El alumno se nombra por el `public_id` de su persona y los usuarios por el suyo, y además se devuelve el **nombre visible** de cada uno (`*_display_name`, 1.14b-c2; vacío si la persona o el usuario está borrado; solo el nombre, sin más datos de persona). Con
  * `$guidance` (alta y detalle) añade el `protocol` de actuación y los teléfonos del tutor principal y del contacto de
  * emergencia, **calculados al leer y nunca guardados** (`RN-PRL-08`, `RN-PRL-01`); en el listado no van. Código técnico sin
  * traducir (`ADR-038 §3.2`).
@@ -40,15 +40,18 @@ class PickupAlertResource extends JsonResource
         $data = [
             'public_id' => $this->public_id,
             'student_person' => $refs->person((int) $this->student_person_id)?->publicId,
+            'student_display_name' => $refs->person((int) $this->student_person_id)->displayName ?? '',
             'kind' => $this->kind,
             'presenter_description' => $this->presenter_description,
             'status' => $this->status,
             'raised_by' => $refs->userPublicId((int) $this->raised_by),
+            'raised_by_display_name' => $refs->userDisplayName((int) $this->raised_by),
             'raised_at' => $this->raised_at,
             'principal_contacted_at' => $this->principal_contacted_at,
             'resolution' => $this->resolution,
             'resolution_notes' => $this->resolution_notes,
             'resolved_by' => $refs->userPublicId($this->resolved_by === null ? null : (int) $this->resolved_by),
+            'resolved_by_display_name' => $refs->userDisplayName($this->resolved_by === null ? null : (int) $this->resolved_by),
             'resolved_at' => $this->resolved_at,
         ];
 

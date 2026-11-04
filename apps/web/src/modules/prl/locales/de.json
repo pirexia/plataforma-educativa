@@ -1,0 +1,146 @@
+{
+  "prl": {
+    "nav": {
+      "door": "Empfang",
+      "alerts": "Übergabe-Warnungen"
+    },
+    "door": {
+      "title": "Empfang",
+      "studentTitle": "Abholliste",
+      "asOf": "Liste berechnet um {time}",
+      "reload": "Liste neu laden",
+      "empty": "Nadie puede recoger a este alumno en este momento. No lo entregues y avisa a dirección.",
+      "onlyListed": "No entregues al alumno a nadie que no esté en esta lista.",
+      "auditNotice": "Esta consulta queda registrada con tu usuario, la fecha y la hora.",
+      "notListed": "Die Person steht nicht auf der Liste",
+      "deliver": "An {person} übergeben",
+      "entryOffSchedule": "Eintritt außerhalb der Zeiten erfassen"
+    },
+    "search": {
+      "label": "Schüler/in nach Vor- oder Nachname suchen",
+      "minChars": "Geben Sie mindestens 2 Buchstaben ein.",
+      "results": "{count} Schüler/in | {count} Schüler/innen",
+      "empty": "Kein/e Schüler/in mit diesem Namen.",
+      "unitCode": "Einheit {code}"
+    },
+    "basis": {
+      "tutor": "Erziehungsberechtigte/r",
+      "tercero": "Bevollmächtigte Person",
+      "puntual": "Nur heute"
+    },
+    "person": {
+      "documentNumber": "Ausweisnummer",
+      "phone": "Telefon"
+    },
+    "photo": {
+      "alt": "Foto von {person}",
+      "none": "Kein Foto",
+      "unavailable": "Foto nicht verfügbar",
+      "verifyDocument": "Verifica con el documento."
+    },
+    "alert": {
+      "title": "Warnung",
+      "protocolTitle": "Qué hacer ahora",
+      "phones": {
+        "principal": "Haupterziehungsberechtigte/r",
+        "emergency": "Notfallkontakt",
+        "unavailable": "Nicht verfügbar"
+      },
+      "callManagement": "Avisa a dirección para que registre la llamada y cierre la alerta.",
+      "status": {
+        "abierta": "Offen",
+        "cerrada": "Geschlossen"
+      },
+      "presenterLabel": "Angegebener Name und, falls vorgezeigt, Ausweis",
+      "principalContactedAt": "Uhrzeit des Anrufs bei der/dem Haupterziehungsberechtigten",
+      "resolution": "Lösung",
+      "resolutionNotes": "Notizen zur Lösung",
+      "resolvedBy": "Geschlossen von",
+      "resolvedAt": "Geschlossen am",
+      "open": "Warnung öffnen",
+      "raised": "Warnung geöffnet.",
+      "openDescription": "Beschreiben Sie die Person, die erscheint. Das Protokoll und die Kontakttelefonnummern werden angezeigt.",
+      "presenterCount": "{count} von 500 Zeichen",
+      "presenterRequired": "Beschreiben Sie die Person, die erscheint.",
+      "openFromList": "Warnung aus „Übergabe-Warnungen“ öffnen",
+      "actions": "Anruf erfassen und schließen",
+      "saveCall": "Anruf speichern",
+      "close": "Warnung schließen",
+      "confirmClose": "Eine geschlossene Warnung kann nicht wieder geöffnet werden.",
+      "contactRequired": "Geben Sie Datum und Uhrzeit des Anrufs an.",
+      "resolutionRequired": "Wählen Sie die Lösung aus.",
+      "notesCount": "{count} von 1000 Zeichen",
+      "reload": "Warnung neu laden"
+    },
+    "resolution": {
+      "no_entregado": "Nicht übergeben",
+      "recogido_por_autorizado": "Von bevollmächtigter Person abgeholt",
+      "autorizacion_puntual_registrada": "Einmalige Vollmacht erfasst",
+      "otro": "Sonstiges"
+    },
+    "alerts": {
+      "empty": "Keine Warnungen.",
+      "caption": "Übergabe-Warnungen",
+      "studentUnknown": "Schüler/in",
+      "columns": {
+        "student": "Schüler/in",
+        "status": "Status",
+        "raisedBy": "Geöffnet von",
+        "raisedAt": "Datum",
+        "resolution": "Lösung"
+      },
+      "dateFilter": "Datum der Eröffnung",
+      "dateClear": "Datum entfernen",
+      "userUnknown": "Benutzer"
+    },
+    "states": {
+      "notFound": "Diese Information wurde nicht gefunden.",
+      "forbidden": "Sie haben keine Berechtigung, diese Information anzuzeigen.",
+      "studentNotFound": "Diese/r Schüler/in wurde nicht gefunden."
+    },
+    "form": {
+      "close": "Schließen"
+    },
+    "errors": {
+      "retryAfter": "Versuchen Sie es in {seconds} Sekunden erneut.",
+      "unexpected": "Die Aktion konnte nicht abgeschlossen werden."
+    },
+    "verification": {
+      "legend": "Wie Sie die Identität geprüft haben",
+      "foto": "Anhand des Fotos",
+      "documento": "Anhand des Ausweises",
+      "foto_y_documento": "Anhand von Foto und Ausweis",
+      "documentOnly": "Esta persona no tiene fotografía: solo puedes verificar con el documento.",
+      "photoUnavailable": "No se puede mostrar la fotografía: verifica solo con el documento."
+    },
+    "movement": {
+      "offSchedule": "Außerhalb der Zeiten",
+      "reason": "Grund",
+      "notes": "Notiz",
+      "notesCount": "{count} von 500 Zeichen",
+      "recorded": "Ausgang erfasst: {student} mit {person} um {time}.",
+      "recordedNoStudent": "Ausgang mit {person} um {time} erfasst.",
+      "entryRecorded": "Eingang erfasst um {time}.",
+      "submit": "Erfassen",
+      "cancel": "Abbrechen",
+      "openAlert": "Warnung öffnen",
+      "deliverTitle": "An {person} übergeben",
+      "deliverDescription": "Prüfen Sie die Identität der Person und erfassen Sie den Ausgang des/der Schüler/in.",
+      "entryDescription": "Erfassen Sie den Eintritt des/der Schüler/in außerhalb der Zeiten. Geben Sie den Grund an.",
+      "verificationRequired": "Wählen Sie, wie Sie die Identität geprüft haben.",
+      "reasonRequired": "Wählen Sie den Grund aus.",
+      "notesRequired": "Schreiben Sie eine Notiz, wenn der Grund „Sonstiges“ ist."
+    },
+    "reason": {
+      "medico": "Arzt",
+      "familiar": "Familie",
+      "actividad": "Aktivität",
+      "retraso": "Verspätung",
+      "otro": "Sonstiges"
+    },
+    "direction": {
+      "salida": "Ausgang",
+      "entrada": "Eingang"
+    }
+  }
+}

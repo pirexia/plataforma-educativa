@@ -19,7 +19,7 @@ use Illuminate\Http\Request;
  * REQ-PRL/api.md §8.4 (1.14b-b, `REQ-PRL-004`, `RN-PRL-08`): alertas por persona no autorizada. Abrir: `alerta_entrega.crear`;
  * consultar: `alerta_entrega.leer`; registrar la llamada al principal y cerrar: `alerta_entrega.actualizar`. Una alerta cerrada
  * no se reabre (`409 prl.alert.closed`) ni se borra (no hay `DELETE`: es evidencia). El alta y el detalle llevan el protocolo
- * y los teléfonos (calculados al leer, nunca guardados); el listado, no. **No envía nada** (`OPEN-FAM-UNIT-33`, hasta `1.19`).
+ * y los teléfonos (calculados al leer, nunca guardados); el listado lleva nombres, no teléfonos, y se audita con cupo (`DP-11`, enmienda 2026-11-04). **No envía nada** (`OPEN-FAM-UNIT-33`, hasta `1.19`).
  */
 class PickupAlertsController extends PrlController
 {
@@ -39,10 +39,18 @@ class PickupAlertsController extends PrlController
         return $result['replayed'] ? $response->header('Idempotency-Replayed', 'true') : $response;
     }
 
-    public function index(IndexPickupAlertsRequest $request, PickupAlertService $service, PrlRefs $refs): JsonResponse
+    public function index(IndexPickupAlertsRequest $request, PickupAlertService $service, PrlRefs $refs, PrlReadGuard $reads): JsonResponse
     {
+        // `DP-11` (enmienda 2026-11-04): el listado devuelve nombres de alumnos y de quien abrió o cerró la alerta; cupo de lectura
+        // y fila `read` sin valores (solo con resultados) antes de devolverlo, como el historial de movimientos.
+        $reads->limit();
         $page = $service->listing($request->filters(), $request->integer('per_page', 25))->withQueryString();
         $this->prepare($page->items(), $refs);
+
+        if ($page->items() !== []) {
+            $first = $page->items()[0];
+            $reads->audit('pickup_alert', (int) $first->id, (string) $first->public_id, PrlReadGuard::PURPOSE_ALERT, count($page->items()));
+        }
 
         return PagePaginatedResponse::make($page, PickupAlertResource::class);
     }

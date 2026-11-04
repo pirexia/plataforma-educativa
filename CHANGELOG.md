@@ -6,6 +6,14 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-04 · `feat(prl)`: `1.14b-c2`, pantallas de conserjería
+
+- SPA `prl` (módulo web nuevo): buscador de alumno, lista de recogida (T1), entrega de salida y registro de entrada fuera de horario, apertura de alerta, registro de la llamada y cierre (T2), con `Idempotency-Key` por intento y claves `prl.*` en es/en/de/fr (las [NT] y los textos de seguridad solo en es-ES, `OPEN-FAM-UNIT-59` B).
+- API (T1b): `PickupAlert` añade `student_display_name`, `raised_by_display_name` y `resolved_by_display_name` (compatible hacia atrás, sin N+1, `INV-007`); la SPA usa el filtro `date` del listado (existía desde `1.14b-b`, `3270007`).
+- Auditoría del listado de alertas (decisión del usuario del 2026-11-04, enmienda de `DP-11`): `GET /pickup-alerts` deja fila `read` sin valores (finalidad `puerta_alerta`, solo con resultados) y consume el cupo de lectura de `prl`, como `GET /student-movements`; documentado en `REQ-PRL` (`funcional`, `api`, `permisos`).
+- T3: E2E real `CA-PRL-012` y `-013` contra la API real (S3/MinIO real no probado). #518 corregido (la hora de llamada propuesta no precede a la apertura). Hallazgos B-1 y B-2 de la revisión: la memoria de nombres se vacía al cerrar sesión y no se reintroducen nombres suprimidos.
+- Revisión: **sin Codex (cuota agotada)**; `security-reviewer` completo. Manuales de secretaría y dirección (sección «Conserjería») y rutas de configuración corregidas en `REQ-PRL/operacion.md` y `RUNBOOK.md`.
+
 ## 2026-11-03 · `chore(proceso)`: descripción de la skill `aislamiento-tenant` y estado de `1.14b-c1`
 
 - `aislamiento-tenant`: descripción optimizada con el bucle de `skill-creator` (validación 6/6 frente a 3/6 de la original, muestra pequeña de 16 consultas). `permisos-y-roles` e `i18n-cuatro-idiomas` se dejan como estaban: el bucle no mejoró su descripción original (5/6 y 3/6 en validación).

@@ -26,7 +26,7 @@
 | `entrega_menor` | `todos` | `todos` | — | — | — |
 | `alerta_entrega` | `todos` | `todos` | `todos` | — | — |
 
-**`prl` no necesita permisos de `fam_unit`**: lee la lista por `AuthorizedPickupList` con su propio permiso (`entrega_menor.leer`), y la interfaz audita la lectura. Así conserjería consulta sin poder gestionar autorizados.
+**`prl` no necesita permisos de `fam_unit`**: lee la lista por `AuthorizedPickupList` con su propio permiso (`entrega_menor.leer`), y la interfaz audita la lectura. Enmienda del 2026-11-04 (`DP-11`): `alerta_entrega.leer` en el listado `GET /pickup-alerts` deja ahora fila `read` sin valores y consume el cupo de lectura de `prl`, como `entrega_menor.leer` en `GET /student-movements`; los permisos no cambian. Así conserjería consulta sin poder gestionar autorizados.
 
 ## 8.4 Siembra en roles predefinidos (`L9`, aprobada 2026-10-29)
 

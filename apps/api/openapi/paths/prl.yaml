@@ -176,7 +176,8 @@ paths:
       description: >
         Permiso `alerta_entrega.leer`. Paginación por página (defecto 25, máximo 100), `raised_at` descendente (orden fijo),
         desempate por `id`. Filtros `status`, `date` (fecha civil del centro en la que se abrió) y `student_person`. El
-        listado no lleva `protocol` ni `contacts`.
+        listado no lleva `protocol` ni `contacts`, pero devuelve nombres de alumno y de quien abre o cierra: si hay
+        resultados escribe una fila de auditoría `read` (`puerta_alerta`) y gasta el cupo de lectura de `prl` (DP-11).
       tags: ['Prl / Alertas']
       security: [{ SessionCookie: [] }]
       parameters:
@@ -208,6 +209,7 @@ paths:
         '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
         '403': { description: 'Sin el permiso (`403`) o módulo `prl` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
         '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+        '429': { $ref: '../components.yaml#/components/responses/TooManyRequests' }
     post:
       operationId: createPickupAlert
       summary: Abre una alerta por persona no autorizada

@@ -34,6 +34,10 @@ test('INV-001 CA-PRL-011: dos centros con datos equivalentes — desde A, ningú
         ->and(array_column(Prl::call($a['tenant'], $a['direccion'], 'get', '/pickup-alerts')->assertOk()->json('data'), 'public_id'))->toBe([$alertA])
         ->and(Prl::call($a['tenant'], $a['direccion'], 'get', '/pickup-alerts')->json('meta.total'))->toBe(1);
 
+    // REQ-PRL-004: los nombres visibles de la alerta son los de A; el de B no aparece en ningún cuerpo de A.
+    $listA = Prl::call($a['tenant'], $a['direccion'], 'get', '/pickup-alerts')->assertOk()->getContent();
+    expect($listA)->toContain($a['student']->public_id)->not->toContain($b['student']->public_id)->not->toContain($b['conserje']->public_id);
+
     // Detalle, modificación y lista de puerta de recursos de B: 404 (nunca 403), sin tocar nada.
     Prl::call($a['tenant'], $a['direccion'], 'get', "/student-movements/{$movementB}")->assertNotFound();
     Prl::call($a['tenant'], $a['direccion'], 'get', "/pickup-alerts/{$alertB}")->assertNotFound();

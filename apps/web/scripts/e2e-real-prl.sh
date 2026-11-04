@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Ejecuta el e2e de la puerta (REQ-PRL-004, 1.14b-b) contra la API real: prepara DOS centros sintéticos con `fam_unit` y `prl`
+# Ejecuta los e2e de la puerta (REQ-PRL-004) contra la API real: `prl-door-api.spec.ts` (1.14b-b, HTTP) y `prl-door-real.spec.ts`
+# (1.14b-c2, CA-PRL-012, navegador; necesita la SPA en :5173 con VITE_API_URL=http://<slug>.plataforma.test:8000/api/v1): prepara DOS centros sintéticos con `fam_unit` y `prl`
 # contratados y personal con los roles predefinidos (apps/api/tests/Support/e2e-real-tenant.php setup <slug> door), lanza
 # Playwright con sus credenciales y los retira al terminar, también si falla (mismo método y mismas garantías que
 # `e2e-real-api.sh`: solo contenedores de desarrollo, solo centros que lleven la marca del script, solo datos sintéticos).
@@ -87,4 +88,4 @@ prepare A "$SLUG_A"
 prepare B "$SLUG_B"
 export E2E_REAL_API=1
 
-npx playwright test e2e/prl-door-api.spec.ts --workers=1 "$@"
+npx playwright test e2e/prl-door-api.spec.ts e2e/prl-door-real.spec.ts --workers=1 "$@"

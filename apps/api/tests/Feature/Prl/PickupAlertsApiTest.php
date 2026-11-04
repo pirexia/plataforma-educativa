@@ -182,3 +182,51 @@ test('api.md §8.4 §8.5: GET /pickup-alerts pagina por raised_at desc con filtr
     Prl::call($f['tenant'], $f['direccion'], 'get', '/pickup-alerts?status=otro')->assertStatus(422);
     Prl::call($f['tenant'], $f['direccion'], 'get', '/pickup-alerts?date=02-11-2026')->assertStatus(422);
 });
+
+test('REQ-PRL-004 api.md §8.4 INV-007: la alerta (listado y detalle) devuelve el nombre visible del alumno, de quien la abrió y de quien la cerró, junto a los public_id, y el listado no hace una consulta por fila', function (): void {
+    $f = Prl::doorFamily('prla-nombres');
+    $ids = [];
+    foreach (['Primera', 'Segunda', 'Tercera'] as $i => $text) {
+        $ids[] = openAlert($f, ['presenter_description' => $text])->assertCreated()->json('public_id');
+        Fam::tick();
+    }
+    $closed = Prl::call($f['tenant'], $f['direccion'], 'patch', "/pickup-alerts/{$ids[0]}", ['resolution' => 'otro'])->assertOk();
+
+    $closed->assertJsonPath('student_person', $f['student']->public_id)
+        ->assertJsonPath('raised_by', $f['conserje']->public_id)
+        ->assertJsonPath('resolved_by', $f['direccion']->public_id);
+    expect($closed->json('student_display_name'))->toContain('Alumno Recogida')
+        ->and($closed->json('raised_by_display_name'))->not->toBe('')
+        ->and($closed->json('resolved_by_display_name'))->not->toBe('')
+        ->and(array_keys($closed->json()))->not->toContain('birth_date', 'document_number', 'phone', 'email');
+
+    $detail = Prl::call($f['tenant'], $f['direccion'], 'get', "/pickup-alerts/{$ids[1]}")->assertOk();
+    expect($detail->json('student_display_name'))->toBe($closed->json('student_display_name'))
+        ->and($detail->json('raised_by_display_name'))->toBe($closed->json('raised_by_display_name'))
+        ->and($detail->json('resolved_by'))->toBeNull()
+        ->and($detail->json('resolved_by_display_name'))->toBeNull();
+
+    $count = static function (int $expectedRows) use ($f): int {
+        DB::connection()->flushQueryLog();
+        DB::connection()->enableQueryLog();
+        $rows = Prl::call($f['tenant'], $f['direccion'], 'get', '/pickup-alerts')->assertOk()->json('data');
+        $n = count(DB::connection()->getQueryLog());
+        DB::connection()->disableQueryLog();
+        expect($rows)->toHaveCount($expectedRows);
+        foreach ($rows as $row) {
+            expect($row['student_display_name'])->not->toBe('')->and($row['raised_by_display_name'])->not->toBe('');
+        }
+
+        return $n;
+    };
+
+    // Calentamiento: la primera lectura crea la clave del cupo (con el almacén de caché de la CI son consultas extra que
+    // las siguientes ya no hacen); lo que se mide es solo el coste por fila.
+    Prl::call($f['tenant'], $f['direccion'], 'get', '/pickup-alerts')->assertOk();
+
+    $with3 = $count(3);
+    openAlert($f, ['presenter_description' => 'Cuarta'])->assertCreated();
+    openAlert($f, ['presenter_description' => 'Quinta'])->assertCreated();
+
+    expect($count(5))->toBe($with3);
+});
