@@ -153,6 +153,8 @@ Por eso propongo **partir** la entrega (`OPEN-PRL-01`): `1.14b-d1` (lo que no de
 - **CA-PRL-033** — *Dado* SQL directo con el rol de aplicación, *cuando* inserta un movimiento con `off_schedule = false` y motivo, o una corrección que referencia un movimiento de otro alumno, *entonces* el motor lo rechaza (`RN-PRL-19`); *y* por la API los dos casos siguen dando los `422` de `DP-3`.
 - **CA-PRL-034** — *Dado* la migración, *cuando* se aplica y se revierte sobre una base con movimientos y alertas válidos, *entonces* ningún dato se pierde ni cambia, y `down()` deja el esquema como antes (incluido el `GRANT DELETE`).
 - **CA-PRL-035** *(regresión y E2E)* — *Dado* lo anterior, *entonces* `CA-PRL-001` a `-013` siguen en verde y `apps/web/e2e/prl-door-api.spec.ts` y `prl-door-real.spec.ts` pasan contra la **API real** (`CLAUDE.md §3`); `prl` no lee tablas de `fam_unit` ni de `Core` (`AR-01`, `AR-02`) y ninguna regla compara roles (`AR-08`).
+- **CA-PRL-036** *(concurrencia; `security-reviewer` M-1)* — *Dado* una conexión B que da de baja lógica el vínculo (P, A) por `GuardianLinkService::delete` sin confirmar, *cuando* la conexión A registra una salida de A con P, *entonces* A espera y, al confirmar B, responde `422 prl.movement.person_not_authorized` y no hay fila en `student_movements` (`RN-PRL-12`).
+- **CA-PRL-037** *(concurrencia; `security-reviewer` M-1)* — Lo mismo con la baja del tutor por `GuardianService::delete` (que da de baja también sus vínculos).
 
 ### 5. Preguntas abiertas (no las resuelvo; recomendación en cada una)
 

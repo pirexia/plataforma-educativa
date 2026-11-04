@@ -31,6 +31,10 @@ Orden: **migrar → `platform:sync-registry` → contratar `prl` (que exige `fam
 - **Señal nueva** (`§12.5`): número de respuestas `503 prl.errors.busy` y de reintentos por interbloqueo; si no es casi cero, hay una transacción larga en `fam_unit` o `Core` que investigar.
 - **Colas y tareas programadas**: ninguna nueva (`INV-012`: el bloqueo es parte de una escritura corta).
 - **Reversión**: desplegar la imagen anterior; la migración **puede** revertirse (`down()` no destruye datos y devuelve `GRANT DELETE`), pero no hace falta: el código anterior funciona con el esquema nuevo. Probar la reversión en local (`CA-PRL-034`).
+- **Limitaciones conocidas del bloqueo (`security-reviewer` B-1, B-2, B-4; documentadas, no corregidas en `1.14b-d1`)**:
+  - **Posible 500 por interbloqueo (B-1)**: el orden de bloqueo entre la puerta (persona, después filas de `fam_unit`) y algunas escrituras de `fam_unit` no es compartido. Una escritura de `fam_unit` puede terminar en `500` por interbloqueo contra la puerta; `fam_unit` no reintenta. Un reintento manual lo resuelve; vigilar los `500` de `fam_unit` junto a la métrica de `§12.5`.
+  - **Retención de workers (B-2)**: una salida que espera un bloqueo retiene su worker hasta `prl.lock_timeout_ms` (3 s por defecto). Con transacciones ajenas largas puede agotar workers; vigilar la métrica de `503 prl.errors.busy` y dimensionar los workers en consecuencia.
+  - **Entradas no bloqueadas (B-4)**: la recomprobación con bloqueo no cubre la disponibilidad del módulo (`ModuleAvailability`), `delivered_by` ni la zona horaria del centro; un cambio concurrente de esas entradas puede no reflejarse en la salida en curso.
 - **Verificación**: suite completa; `tests/Concurrency/PrlConcurrencyTest.php` en serie; E2E contra la API real (`§12.7`, sin cambios en los *scripts*).
 
 ## 12.7 Verificación contra la API real (E2E sin navegador)
