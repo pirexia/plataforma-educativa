@@ -407,7 +407,7 @@ Síntomas: `403` en todas las pantallas de estructura = módulo sin contratar (o
 
 **`1.14b-c2` (pantallas de `prl`)**: solo `apps/web` y un cambio de API aditivo (nombres en `PickupAlert`, filtro `date`, el listado de alertas audita y gasta cupo); ninguna variable de entorno, servicio, cola ni tarea programada nuevos. Precondición del E2E de navegador de `prl`: la SPA en `127.0.0.1:5173` arrancada con `VITE_API_URL` (`docs/modulos/REQ-PRL/operacion.md §12.7`).
 
-**Reversión**: desplegar la imagen anterior. Las migraciones **no se revierten** salvo la de `1.14b-d1`, reversible (aditivas, la versión anterior no usa las tablas y su `down()` borraría datos de estructura); el siguiente `sync-registry` de la versión anterior marca `acad` y sus permisos con `retired_at` (concesiones inertes). Procedimiento a probar antes de producción (`CLAUDE.md §9`): `RUNBOOK.md`.
+**Reversión**: desplegar la imagen anterior. Las migraciones **no se revierten** (aditivas, la versión anterior no usa las tablas y su `down()` borraría datos de estructura); el siguiente `sync-registry` de la versión anterior marca `acad` y sus permisos con `retired_at` (concesiones inertes). Procedimiento a probar antes de producción (`CLAUDE.md §9`): `RUNBOOK.md`.
 
 **E2E contra la API real** (`CA-ACAD-053`; desde `1.14b-c1` también `CA-FAM-UNIT-142`, con `fam_unit` y `prl` contratados y un almacén S3: MinIO o el servidor falso de `docs/modulos/REQ-PRL/operacion.md §12.7`; `E2E_ONLY=<suite>` limita la ejecución y rechaza valores desconocidos): `npm run test:e2e:real` (en `apps/web`) prepara un centro `demo` sintético por suite, con `acad` contratado, y lo retira al terminar; requiere `npx playwright install chromium` la primera vez.
 
