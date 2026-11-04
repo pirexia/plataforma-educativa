@@ -107,6 +107,27 @@ describe('#518 (REQ-PRL-004): la hora de llamada propuesta no precede a la apert
     expect(sent).toBeLessThanOrEqual(new Date('2026-11-03T09:00:30.500Z').getTime())
   })
 
+  it('#521: con el reloj local adelantado hasta un minuto respecto al servidor, la hora propuesta no es futura para el servidor', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    // Servidor: 09:00:30; cliente: 09:01:20 (50 s por delante); la alerta se abrió hace diez minutos.
+    vi.setSystemTime(new Date('2026-11-03T09:01:20.000Z'))
+    vi.mocked(prlApi.getPickupAlert).mockResolvedValue(
+      pickupAlert({ raised_at: '2026-11-03T08:50:30.000Z' }) as never,
+    )
+    vi.mocked(prlApi.updatePickupAlert).mockResolvedValue(pickupAlert() as never)
+    await open()
+
+    await click(buttonByText('Guardar la llamada'))
+
+    const [, body] = vi.mocked(prlApi.updatePickupAlert).mock.calls[0]!
+    const sent = new Date(
+      (body as { principal_contacted_at: string }).principal_contacted_at,
+    ).getTime()
+
+    expect(sent).toBeLessThanOrEqual(new Date('2026-11-03T09:00:30.000Z').getTime())
+    expect(sent).toBeGreaterThanOrEqual(new Date('2026-11-03T08:50:30.000Z').getTime())
+  })
+
   it('si el reloj local va por detrás de raised_at, se propone raised_at', async () => {
     vi.useFakeTimers({ toFake: ['Date'] })
     vi.setSystemTime(new Date('2026-11-03T09:00:00.000Z'))
