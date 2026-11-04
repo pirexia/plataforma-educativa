@@ -527,3 +527,19 @@ test('RN-FAM-UNIT-92 enmendada (security-reviewer N1): las respuestas que devuel
     expect($last->auditable_public_id)->toBe($created->json('person'))->and($last->changes)->toBeNull()
         ->and(json_encode($last->toArray()))->not->toContain(Fam::dni(50))->not->toContain('611000000');
 });
+
+test('RN-FAM-UNIT-81 issue #510: las lecturas de la lista de recogida, de personas y de fotografía llevan Cache-Control: no-store', function (): void {
+    $f = Fam::pickupFamily('pp-nostore');
+    $third = Fam::thirdParty($f, 14);
+    $urls = [
+        "/pickup-lists/{$f['student']->public_id}",
+        '/pickup-persons?document_type=dni&document_number='.Fam::dni(14),
+        "/pickup-persons/{$third['person']}",
+        "/pickup-persons/{$third['person']}/photo",
+    ];
+
+    foreach ($urls as $url) {
+        $response = Fam::call($f['tenant'], $f['admin'], 'get', $url)->assertOk();
+        expect($response->headers->get('Cache-Control'))->toContain('no-store');
+    }
+});

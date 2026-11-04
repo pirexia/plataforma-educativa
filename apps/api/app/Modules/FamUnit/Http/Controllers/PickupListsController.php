@@ -16,7 +16,7 @@ use Illuminate\Http\Request;
  * lista calculada de un alumno, **auditada** (`read`, finalidad `gestion`) y con límite. Sin paginar (decenas como mucho),
  * tutores primero y después terceros y puntuales, por nombre. `404` si el alumno no existe o el sujeto no lo alcanza (con
  * `unidad_familiar`, un tutor revocado no alcanza al alumno). Sin caché: el efecto de una retirada o de una revocación se
- * ve en la petición siguiente (`RN-FAM-UNIT-81`).
+ * ve en la petición siguiente (`RN-FAM-UNIT-81`); la respuesta lo dice con `Cache-Control: no-store`.
  */
 class PickupListsController extends FamUnitController
 {
@@ -31,6 +31,6 @@ class PickupListsController extends FamUnitController
         return response()->json([
             'data' => PickupListEntryResource::collection($entries)->resolve($request),
             'meta' => ['as_of' => now()->toIso8601ZuluString()],
-        ]);
+        ])->header('Cache-Control', 'no-store');
     }
 }
