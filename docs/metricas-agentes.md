@@ -49,6 +49,20 @@ Registro del gasto de cada subagente, para calibrar el tamaño de los tramos de 
 | 1.14b-c1 | security-reviewer | ronda única, columna acotada | 130561 | 21 | 2.3 | 6217 | 0 C/A; 2 Bajos + 1 observación |
 | 1.14b-c1 | implementer | correcciones de revisión (ronda 1) | 11000 | 7 | 2.1 | n/d | reanudación; delta aprox. |
 | 1.14b-c1 | implementer | corrección de carrera (ronda 2) | 9200 | 7 | 2.3 | n/d | reanudación; delta aprox. |
+| 1.14b-c2 | implementer | T1 módulo web y lectura | 196982 | 43 | 9.5 | n/d | 30 ficheros; 50 tests |
+| 1.14b-c2 | implementer | T1b nombres en alertas (API) y filtro fecha | 122350 | 31 | 5.5 | n/d | decisión del usuario |
+| 1.14b-c2 | implementer | T2 salida, entrada y alerta | 205803 | 50 | 12.3 | n/d | 31 tests nuevos |
+| 1.14b-c2 | traductor | 93 claves × 3 idiomas | 77710 | 20 | 2.2 | n/d | 8 [NT] dejadas |
+| 1.14b-c2 | implementer | T3 E2E real | 152085 | 38 | 10.3 | n/d | 3/3; S3 falso |
+| 1.14b-c2 | implementer | #518 y suites completas | 87183 | 27 | 12.2 | n/d | Pest 2210 y Vitest 2000 |
+| 1.14b-c2 | security-reviewer | lista completa (sin Codex) | 115441 | 22 | 2.5 | n/d | 0 C/A; 2 Bajos; 1 duda de auditoría |
+| 1.14b-c2 | implementer | correcciones B-1 y B-2 | 68183 | 9 | 3.2 | n/d | |
+| 1.14b-c2 | doc-precheck | ronda 1 | 111236 | 12 | 1.6 | n/d | |
+| 1.14b-c2 | implementer | auditoría del listado de alertas y docs | 94927 | 23 | 4.6 | n/d | decisión del usuario |
+| 1.14b-c2 | doc-reviewer | ronda 1 | 121728 | 32 | 3.1 | n/d | 0 C/A; 4 Medios; 4 Bajos |
+| 1.14b-c2 | verificador | suite backend completa | 31284 | 13 | 9.8 | n/d | cifras intermedias; web no ejecutable (sin contenedor) |
+| 1.14b-c2 | implementer | correcciones doc-reviewer y suite web | 79899 | 12 | 2.8 | n/d | |
+| 1.14b-c2 | doc-precheck | ronda 2 | 110949 | 15 | 1.7 | n/d | 1 residuo, corregido por la sesión |
 | proceso | implementer | aplicar ADR-069 (skill, docs) | 106801 | 16 | 2.4 | 6675 | |
 
 ## Resumen (se recalcula al cerrar cada paso)
@@ -69,3 +83,4 @@ Solo cuota de OpenAI; no se mide en tokens de Claude. Registrar por revisión: p
 | 1.14b-c1 | adversarial-review --base develop (ronda 1) | 1 Alto, 2 Medios | 3 | 0 | seguridad no vio nada de su columna que Codex no señalase; Codex no ejecutó Vitest (solo lectura) |
 | 1.14b-c1 | adversarial-review --base 0902515 (ronda 2) | 1 Alto | 1 | 0 | carrera introducida por la propia corrección de la ronda 1; Claude no la habría visto |
 | 1.14b-c1 | adversarial-review --base 76fe7c3 (ronda 3) | 0 | 0 | 0 | approve |
+| 1.14b-c2 | adversarial-review --base develop | no disponible | 0 | 0 | cuota de OpenAI agotada (hasta 2026-12-02): el turno falló y su «approve» no cuenta; régimen de respaldo con security-reviewer completo |
