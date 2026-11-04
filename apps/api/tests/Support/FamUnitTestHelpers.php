@@ -6,6 +6,7 @@ use App\Models\AuditLog;
 use App\Models\Person;
 use App\Models\User;
 use App\Models\UserStatus;
+use App\Modules\FamUnit\Domain\AuthorizedPickupList;
 use App\Support\Tenancy\Tenant;
 use App\Support\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
@@ -21,6 +22,16 @@ use Illuminate\Testing\TestResponse;
  */
 final class FamUnitTestHelpers
 {
+    /**
+     * Ejecuta `$callback` con la lista de recogida (`AuthorizedPickupList`) dentro del contexto del centro.
+     *
+     * @return mixed
+     */
+    public static function withPickupList(object $tenant, \Closure $callback)
+    {
+        return app(TenantContext::class)->runFor($tenant->id, fn () => $callback(app(AuthorizedPickupList::class)));
+    }
+
     /**
      * Centro aprovisionado con `fam_unit` contratado y su administrador (que recibe los permisos del módulo por la
      * siembra de `ProvisionTenantDefaults`).
