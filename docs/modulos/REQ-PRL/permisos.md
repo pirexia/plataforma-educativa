@@ -56,5 +56,5 @@ Un rol con estos permisos en un ámbito distinto de `todos` (p. ej. insertado a 
 | `alerta_entrega` | `eliminar` | — | Sigue sin existir; ahora además el motor niega `DELETE` al rol de la aplicación (`RN-PRL-18`) |
 
 - **Defensa en profundidad de privilegios del motor**: `REVOKE DELETE` en `pickup_alerts` (`datos.md §8.9`). Es un cambio de `GRANT`: uno de los motivos de la clasificación **crítica**.
-- **`delivered_by`** (`OPEN-PRL-03`): si se aprueba A, `prl` comprobará que el usuario indicado como «quién entrega» tiene `entrega_menor.crear` (permiso, nunca rol, `AR-08`), por una interfaz de `Core\Domain` existente; si no existe esa interfaz, no se amplía `Core` para esto y se queda como está.
+- **`delivered_by`** (`OPEN-PRL-03`): **no implementado, quedó en C** (`Core\Domain` no ofrece comprobar el permiso de otro usuario). La alternativa A (no aplicada) era que `prl` comprobara que el usuario indicado como «quién entrega» tiene `entrega_menor.crear` (permiso, nunca rol, `AR-08`), por una interfaz de `Core\Domain` existente; si no existe esa interfaz, no se amplía `Core` para esto y se queda como está.
 - **Tests de denegación** que siguen exigidos: `CA-PRL-009` (sin permiso, `deny`) y `CA-PRL-011` (aislamiento entre centros) se repiten sobre los dos `POST` tras el cambio (`CA-PRL-035`).

@@ -75,6 +75,6 @@ El servidor resuelve `basis` y la referencia (vínculo o autorización) con `Aut
 | `PATCH /pickup-alerts/{id}` | Sin cambio de contrato; ya bloquea con `FOR UPDATE` (`DP-6`). El disparador de `RN-PRL-17` no es alcanzable por la API |
 | `DELETE /pickup-alerts/{id}` | Sigue sin existir (`405`); además, el motor lo impide (`RN-PRL-18`) |
 
-**Respuesta nueva (si se aprueba la recomendación A de `OPEN-PRL-04`)** [DERIVADA]: `503` con `Retry-After: 1` y error `prl.errors.busy` (sin campo) cuando no se obtiene el bloqueo en `prl.lock_timeout_ms` o se agotan los reintentos por interbloqueo. No se escribe nada; una repetición con la misma `Idempotency-Key` se trata como petición nueva. Se documenta en `apps/api/openapi/paths/prl.yaml` para los dos `POST`, y la clave en `lang/{es,en,de,fr}/prl.php`.
+**Respuesta nueva (`OPEN-PRL-04` A, aprobada)** [DERIVADA]: `503` con `Retry-After: 1` y error `prl.errors.busy` (sin campo) cuando no se obtiene el bloqueo en `prl.lock_timeout_ms` o se agotan los reintentos por interbloqueo. No se escribe nada; una repetición con la misma `Idempotency-Key` se trata como petición nueva. Se documenta en `apps/api/openapi/paths/prl.yaml` para los dos `POST`, y la clave en `lang/{es,en,de,fr}/prl.php`.
 
-**`delivered_by`** (`OPEN-PRL-03`): solo si se elige A, `422 prl.validation.delivered_by_not_permitted` (campo `delivered_by`) cuando el usuario indicado no tiene `entrega_menor.crear`.
+**`delivered_by`** (`OPEN-PRL-03`): **no implementado** (`OPEN-PRL-03` quedó en C); la alternativa A habría sido `422 prl.validation.delivered_by_not_permitted` (campo `delivered_by`) cuando el usuario indicado no tiene `entrega_menor.crear`.
