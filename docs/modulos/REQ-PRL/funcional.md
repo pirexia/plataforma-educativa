@@ -177,6 +177,15 @@ Siguen abiertas y **no** las toca `1.14b-d1`: `OPEN-FAM-UNIT-31`, `-32`, `-33`, 
 
 Si T2 se alarga, la costura de reserva es «interfaces y equivalencia» / «servicios, concurrencia y E2E» (tercer tramo). Las entregas bloqueadas (`-d2` a `-d4`) se dimensionan al especificarlas.
 
+### Implementación del tramo T2 (bloqueo)
+
+- **Filas de `fam_unit` bloqueadas** por `grantForLocked` (`PickupListService::lockGrantRows()`, derivadas de la consulta real de `compose()`), en este orden y por id ascendente: `guardians` vivos de la persona; `guardian_student_links` vivos entre esa faceta y el alumno (cualquier estado); `pickup_authorizations` vivas de la persona para el alumno (retiradas o no); `pickup_photos` vivas de la persona. Las filas de `people` (alumno y quien recoge) las bloquea antes `PersonDirectory::lockLiveByPublicIds`, en una consulta.
+- **Comprobaciones previas**: `plataforma_app` tiene `UPDATE` sobre `people` y las cuatro tablas de `fam_unit` (exigido por `FOR SHARE`); ninguna transición que saca a una persona de la lista es un `INSERT` (los vínculos solo se crean `activo`, `GuardianLinkService::create()`; no hay ruta que restaure una baja lógica).
+- `grantForLocked` bloquea y después delega en `grantFor` (sentencias aparte, `READ COMMITTED`): el mismo predicado por construcción; `CA-PRL-029` lo comprueba para toda persona y todo alumno de una familia de prueba (`tests/Feature/Prl/PickupGrantLockedTest.php`).
+- `ADR-068 §5.5` no fija «sin efectos» de forma literal (decisión del usuario, 2026-11-04): el punto 5 del *docblock* de `AuthorizedPickupList` se reescribe como «sin efectos observables» y menciona los bloqueos.
+- **`OPEN-PRL-03`**: `Core\Domain` no ofrece comprobar el permiso de **otro** usuario (`PermissionResolver` es de `Support` y exige el modelo `User`): se deja `C` y no se amplía `Core` solo para esto.
+- Cierra `OPEN-FAM-UNIT-51` en lo que a la carrera TOCTOU se refiere.
+
 ### Verificado (1.14b-b)
 
 Suite completa **dentro del contenedor** `plataforma-api` (`podman exec -w /var/www/html plataforma-api composer test`, 2026-11-02): Unit y Feature en paralelo, 2 154 en verde y 6 omitidos (84 488 aserciones, tras las correcciones de revisión); `Concurrency` en serie, 55 en verde y 1 omitido (679 aserciones). Pint `--test` y Larastan (`composer analyse`) sin errores; `npm run lint`, `npm run lint:i18n` y `vue-tsc -b` limpios. **E2E contra la API real** (`apps/web/e2e/prl-door-api.spec.ts`, `operacion.md §12.7`): en verde con dos centros sintéticos, HTTP real, cookie de sesión y CSRF. **No probado**: un MinIO/S3 real (el E2E usó el servidor S3 falso de `apps/api/tests/Support/e2e-fake-s3.php`: no se comprueba la firma ni la caducidad de las URL), la caducidad de la URL de la fotografía de extremo a extremo, un navegador (`CA-PRL-012`, `1.14b-c`), la reversión en servidor ni la carrera real entre una revocación y un registro (`DP-9`).

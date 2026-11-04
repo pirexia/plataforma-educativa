@@ -146,6 +146,7 @@ paths:
         '403': { description: 'Sin el permiso (`403`) o módulo `prl` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
         '409': { $ref: '../components.yaml#/components/responses/Conflict' }
         '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+        '503': { description: 'La puerta no obtuvo el bloqueo de las filas que sostienen la decisión en `prl.lock_timeout_ms` (3000 ms) o agotó los reintentos por interbloqueo (`prl.errors.busy`, RN-PRL-16): no se escribió nada; reintente tras `Retry-After: 1`. Una repetición con la misma `Idempotency-Key` se trata como petición nueva.', headers: { Retry-After: { $ref: '../components.yaml#/components/headers/RetryAfter' } }, content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
 
   /api/v1/student-movements/{publicId}:
     parameters:
@@ -242,6 +243,7 @@ paths:
         '404': { $ref: '../components.yaml#/components/responses/NotFound' }
         '409': { $ref: '../components.yaml#/components/responses/Conflict' }
         '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+        '503': { description: 'La puerta no obtuvo el bloqueo de las filas que sostienen la decisión en `prl.lock_timeout_ms` (3000 ms) o agotó los reintentos por interbloqueo (`prl.errors.busy`, RN-PRL-16): no se escribió nada; reintente tras `Retry-After: 1`. Una repetición con la misma `Idempotency-Key` se trata como petición nueva.', headers: { Retry-After: { $ref: '../components.yaml#/components/headers/RetryAfter' } }, content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
 
   /api/v1/pickup-alerts/{publicId}:
     parameters:

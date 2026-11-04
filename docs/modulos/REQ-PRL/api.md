@@ -64,9 +64,9 @@ El servidor resuelve `basis` y la referencia (vínculo o autorización) con `Aut
 - **Lecturas con datos de personas** (`funcional.md DP-11`, decisión del usuario del 2026-11-02): `POST /pickup-alerts`, `GET /pickup-alerts` (**enmienda 2026-11-04**: el listado devuelve nombres; una fila `puerta_alerta` si hay resultados, `entries` = alertas de la página), `GET` y `PATCH /pickup-alerts/{id}` (alerta abierta), `GET /student-movements` y `GET /student-movements/{id}` escriben una fila `read` sin valores y consumen el cupo de lectura de `prl` (`429` con `Retry-After`).
 - **Parámetros de ruta**: en código y en OpenAPI `{studentPersonPublicId}` (`ADR-051 §5.2`); el texto de `§8.4` escribe `{student_person}` por herencia de la especificación.
 
-### 8.8 Entrega `1.14b-d1` — PROPUESTA (2026-11-04)
+### 8.8 Entrega `1.14b-d1` — APROBADA (2026-11-04); bloqueo implementado en el tramo T2
 
-> **Estado**: **PROPUESTA**, pendiente de aprobación. **Ningún *endpoint* nuevo** ni cambio de cuerpo o representación. Cambia el comportamiento interno de dos *endpoints* de escritura (`funcional.md RN-PRL-12` a `-16`) y aparece una respuesta nueva (`OPEN-PRL-04`).
+> **Estado**: **APROBADA** (`OPEN-PRL-04` A) e **implementada** en el tramo T2: `StudentMovementService` y `PickupAlertService` bloquean con `FOR SHARE` antes de decidir y responden `503 prl.errors.busy` (`apps/api/app/Modules/Prl/Application/LockedTransaction.php`; el código viaja en `detail`, sin campo, como `prl.errors.read_rate_limited`; `ApiException::unavailable()` admite ahora una clave de `detail` opcional). `OPEN-PRL-03`: **no implementado** (se deja `C`: `Core\Domain` no ofrece comprobar el permiso de otro usuario por interfaz). **Ningún *endpoint* nuevo** ni cambio de cuerpo o representación. Cambia el comportamiento interno de dos *endpoints* de escritura (`funcional.md RN-PRL-12` a `-16`) y aparece una respuesta nueva (`OPEN-PRL-04`).
 
 | *Endpoint* | Cambio |
 |------------|--------|

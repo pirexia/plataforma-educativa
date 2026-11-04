@@ -8,6 +8,8 @@
  * Uso: php prl-worker.php <tenantId> <operación> [argumentos…]
  *   record-exit <userPublicId> <studentPersonPublicId> <personPublicId> <idempotencyKey|->   (StudentMovementService::record)
  *   raise-alert <userPublicId> <studentPersonPublicId> <idempotencyKey|->                    (PickupAlertService::raise)
+ *   record-exit-hold <userPublicId> <studentPersonPublicId> <personPublicId> <signalFile> <seconds>
+ *       registra la salida y, **sin confirmar**, escribe el fichero de señal y espera: retiene los bloqueos de `RN-PRL-12` (`CA-PRL-027`)
  */
 
 use App\Models\User;
@@ -54,6 +56,21 @@ $result = app(TenantContext::class)->runFor((int) $tenantId, function () use ($o
                     ], $user, $key($args[3]));
 
                     return ['outcome' => 'ok', 'public_id' => $recorded['movement']->public_id, 'replayed' => $recorded['replayed']];
+
+                case 'record-exit-hold':
+                    $public = DB::transaction(function () use ($args, $user): string {
+                        $recorded = app(StudentMovementService::class)->record([
+                            'student_person' => $args[1], 'direction' => 'salida', 'picked_up_by' => $args[2], 'verification_method' => 'foto',
+                            'delivered_by' => null, 'off_schedule' => false, 'off_schedule_reason' => null, 'notes' => null, 'corrects' => null, 'correction_reason' => null,
+                        ], $user, null);
+
+                        file_put_contents($args[3], '1');
+                        sleep((int) $args[4]);
+
+                        return $recorded['movement']->public_id;
+                    });
+
+                    return ['outcome' => 'ok', 'public_id' => $public, 'replayed' => false];
 
                 case 'raise-alert':
                     $raised = app(PickupAlertService::class)->raise([
