@@ -2299,8 +2299,8 @@ components:
           oneOf:
             - { $ref: '#/components/schemas/TermsVersionRef' }
             - { type: 'null' }
-        title: { type: string, nullable: true }
-        body: { type: string, nullable: true }
+        title: { type: string, nullable: true, description: 'Texto plano (ADR-070): se pinta siempre como texto, nunca como HTML.' }
+        body: { type: string, nullable: true, description: 'Texto plano (ADR-070): los saltos de línea son su única estructura; se pinta siempre como texto, nunca como HTML.' }
         locale:
           oneOf:
             - { $ref: '#/components/schemas/Locale' }
@@ -2321,10 +2321,10 @@ components:
         public_id: { $ref: '#/components/schemas/PublicId' }
         kind: { $ref: '#/components/schemas/TermsVersionKind' }
         version_number: { type: integer, minimum: 1, description: 'Correlativo por centro y tipo; no se reutiliza.' }
-        title: { type: string }
-        title_translations: { type: object, additionalProperties: { type: string }, description: 'Idiomas `es-ES`, `en`, `de`, `fr`; el idioma por defecto del centro es obligatorio (ADR-062).' }
-        body: { type: string }
-        body_translations: { type: object, additionalProperties: { type: string } }
+        title: { type: string, description: 'Texto plano (ADR-070): se pinta siempre como texto, nunca como HTML.' }
+        title_translations: { type: object, additionalProperties: { type: string }, description: 'Idiomas `es-ES`, `en`, `de`, `fr`; el idioma por defecto del centro es obligatorio (ADR-062). Texto plano (ADR-070): el marcado HTML se rechaza con `422 fam_unit.terms.markup_not_allowed`.' }
+        body: { type: string, description: 'Texto plano (ADR-070): los saltos de línea son su única estructura; se pinta siempre como texto, nunca como HTML.' }
+        body_translations: { type: object, additionalProperties: { type: string }, description: 'Texto plano (ADR-070): el marcado HTML se rechaza con `422 fam_unit.terms.markup_not_allowed`.' }
         status: { $ref: '#/components/schemas/TermsVersionStatus' }
         requires_reacceptance: { type: boolean }
         published_at:

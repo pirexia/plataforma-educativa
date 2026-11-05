@@ -1652,3 +1652,13 @@ Bajos de `1.14-b` aprobados por el usuario el 2026-11-05; sus tests citan `REQ-F
 | D-74 | **Inmutabilidad en el motor (#482)**: disparadores que impiden cambiar título y cuerpo de una versión no borrador, volverla a borrador y borrarla físicamente. La purga de `1.23b` tendrá que desactivarlos como propietario (no decidido) | Es evidencia legal; la garantía estaba solo en `assertDraft` |
 | D-75 | **`CHECK (char_length(user_agent) <= 512)` (#480, punto 1)**. El procedimiento de supresión de `ip_address` y `user_agent` (punto 2) se difiere a `1.23b` (#371) | REQ-PRIV-006 |
 | D-76 | **`trustProxies` (#484)**: `TRUSTED_PROXIES` (por defecto `10.89.10.0/24`, rechaza `*` fuera de `local`/`testing`), solo `X-Forwarded-For`. Limitación aceptada y a decidir: confiar en la subred permite que otro contenedor de la red falsee la IP; propuesta, confiar solo en la IP de Traefik | `operacion.md §13.3` |
+
+## 26. Texto legal en texto plano (`ADR-070`, issue #481, 2026-11-05)
+
+Decisión del usuario del 2026-11-05 (`OPEN-070-01`: no se rechazan las referencias de carácter; `whitespace-pre-line` confirmado). `title` y `body` de `terms_versions` son texto plano: `TermsVersionService` rechaza el marcado en `create`, `update` y `publish` (`422 fam_unit.terms.markup_not_allowed`) y el frontend lo pinta solo como texto (`whitespace-pre-line`, sin `v-html`). Tests: `CA-070-01` a `-06` (`apps/api/tests/Feature/FamUnit/TermsPlainTextTest.php`, `apps/web/src/modules/fam-unit/views/TermsPlainText.spec.ts`).
+
+**Matices de implementación respecto al texto del `ADR-070`** (inmutable): el error sale por `ApiException::validation` con un error por idioma (no por `FamUnitErrors::invalid`); en `update` se comprueba el payload entrante y `publish` revisa lo almacenado; los esquemas OpenAPI están en `components.yaml` y en `paths/fam-unit.yaml` solo se amplió la `description` de las respuestas `422`; `CA-070-06` cubre `TermsWallView` y `TermsTextDialog`, no la gestión de versiones ni el asistente de recogida (sin test).
+
+**`CA-070-08`** (formato declarado en `api.md` y OpenAPI, y mensaje de error en los cuatro idiomas): verificado por revisión documental y por `TranslationParityTest` (paridad de claves); sin test propio.
+
+**Obligación heredada por `1.22` (`REQ-FAM-PORTAL`) — `CA-070-07`, sin implementar en esta entrega**: toda vista o plantilla de PDF que muestre `title` o `body` de una versión de texto legal entra en el test de `CA-070-06` (sin `v-html` ni `innerHTML`) o en uno equivalente para Blade (sin `{!!` sobre estos campos), y el HTML generado para un `body` con `<` contiene `&lt;`. Los saltos de línea se resuelven con `white-space: pre-line` o `nl2br(e($body))`, nunca `nl2br` sobre el texto sin escapar (`ADR-070 §4.4`).

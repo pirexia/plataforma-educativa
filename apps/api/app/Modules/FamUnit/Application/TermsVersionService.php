@@ -5,6 +5,7 @@ namespace App\Modules\FamUnit\Application;
 use App\Http\Middleware\ResolveApiLocale;
 use App\Modules\Core\Domain\TenantSettingsReader;
 use App\Modules\FamUnit\Domain\Models\TermsVersion;
+use App\Support\Api\ApiException;
 use App\Support\I18n\Locales;
 use App\Support\I18n\TranslationResolver;
 use App\Support\Tenancy\TenantContext;
@@ -32,6 +33,9 @@ final class TermsVersionService
     public const TITLE_MAX_LENGTH = 200;
 
     public const BODY_MAX_LENGTH = 20000;
+
+    /** `ADR-070 §4.2.1`: apertura o cierre de etiqueta, comentario, `<!DOCTYPE`, `<![CDATA[` o instrucción `<?`. */
+    public const MARKUP_PATTERN = '/<\s*[a-zA-Z!\/?]/u';
 
     public function __construct(
         private readonly TenantSettingsReader $settings,
@@ -87,6 +91,8 @@ final class TermsVersionService
             throw FamUnitErrors::invalid('kind', 'fam_unit.terms.kind_invalid');
         }
 
+        $this->assertPlainText(['title_translations' => $title, 'body_translations' => $body]);
+
         return DB::transaction(function () use ($kind, $title, $body): TermsVersion {
             $this->lockKind($kind);
 
@@ -115,6 +121,7 @@ final class TermsVersionService
         return DB::transaction(function () use ($publicId, $title, $body): TermsVersion {
             $version = TermsVersion::query()->where('public_id', $publicId)->lockForUpdate()->firstOrFail();
             $this->assertDraft($version);
+            $this->assertPlainText(['title_translations' => $title, 'body_translations' => $body]);
 
             if ($title !== null) {
                 $version->title_translations = $title;
@@ -169,6 +176,12 @@ final class TermsVersionService
                     throw FamUnitErrors::invalid($column, 'fam_unit.terms.default_locale_missing', ['locale' => $default]);
                 }
             }
+
+            // `ADR-070 §4.2.2`: un borrador anterior a la regla no se publica con marcado.
+            $this->assertPlainText([
+                'title_translations' => (array) $version->title_translations,
+                'body_translations' => (array) $version->body_translations,
+            ]);
 
             $current = TermsVersion::query()
                 ->where('kind', $version->kind)
@@ -232,6 +245,30 @@ final class TermsVersionService
         $requested = array_search(app()->getLocale(), ResolveApiLocale::TO_LARAVEL_LOCALE, true);
 
         return is_string($requested) && Locales::isKnown($requested) ? $requested : null;
+    }
+
+    /**
+     * `ADR-070 §4.2`: el texto legal es texto plano. Se rechaza el marcado (nunca se limpia): un `422
+     * fam_unit.terms.markup_not_allowed` por campo e idioma afectado, en `<campo>_translations.<locale>`.
+     *
+     * @param  array<string, array<string, mixed>|null>  $fields
+     */
+    private function assertPlainText(array $fields): void
+    {
+        $errors = [];
+
+        foreach ($fields as $field => $translations) {
+            foreach ($translations ?? [] as $locale => $text) {
+                if (is_string($text) && preg_match(self::MARKUP_PATTERN, $text) === 1) {
+                    $params = ['locale' => (string) $locale];
+                    $errors["{$field}.{$locale}"] = [['code' => 'fam_unit.terms.markup_not_allowed', 'message' => __('fam_unit.terms.markup_not_allowed', $params), 'params' => $params]];
+                }
+            }
+        }
+
+        if ($errors !== []) {
+            throw ApiException::validation($errors);
+        }
     }
 
     private function assertDraft(TermsVersion $version): void

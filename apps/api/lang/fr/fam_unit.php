@@ -60,6 +60,7 @@ return [
         'version_not_current' => 'La version des conditions affichée n\'est plus la version en vigueur : relisez le texte publié avant d\'accepter.',
         'not_draft' => 'Seule une version en brouillon peut être modifiée, supprimée ou publiée.',
         'default_locale_missing' => 'Le titre et le texte doivent être rédigés dans la langue par défaut de l\'établissement (:locale) avant publication.',
+        'markup_not_allowed' => 'Le texte ne peut pas contenir de balisage (HTML) dans la langue :locale : veuillez le rédiger en texte brut, avec des sauts de ligne.',
     ],
 
     'pickup' => [

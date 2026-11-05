@@ -60,6 +60,7 @@ return [
         'version_not_current' => 'The version of the terms that was shown is no longer the current one: read the published text again before accepting.',
         'not_draft' => 'Only a draft version can be edited, deleted or published.',
         'default_locale_missing' => 'The title and the text must be written in the school\'s default language (:locale) before publishing.',
+        'markup_not_allowed' => 'The text cannot contain markup (HTML) in the :locale language: write it as plain text, using line breaks.',
     ],
 
     'pickup' => [

@@ -35,7 +35,7 @@ const t = useT()
       </DialogHeader>
 
       <div
-        class="border-border max-h-96 overflow-y-auto rounded-md border p-4 text-sm whitespace-pre-wrap"
+        class="border-border max-h-96 overflow-y-auto rounded-md border p-4 text-sm whitespace-pre-line"
         tabindex="0"
         role="region"
         :aria-label="t('famUnit.terms.text.label')"

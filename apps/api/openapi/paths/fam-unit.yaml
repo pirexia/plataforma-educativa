@@ -964,7 +964,9 @@ paths:
         `body_translations` son contenido del centro (ADR-062: el idioma por defecto del centro es obligatorio y solo se
         admiten idiomas activos; errores `translations.*`). `kind` ausente: `422 fam_unit.validation.required`; fuera del
         vocabulario: `422 fam_unit.terms.kind_invalid` (RN-FAM-UNIT-73). `condiciones_uso` se gestiona desde `1.14-c`:
-        publicarla activa el muro de condiciones de uso (ADR-067).
+        publicarla activa el muro de condiciones de uso (ADR-067). El título y el cuerpo son **texto plano** (ADR-070):
+        un valor con marcado HTML (`<b>`, `</p>`, `<!--`...) se rechaza, nunca se limpia, con `422
+        fam_unit.terms.markup_not_allowed` en `<campo>_translations.<locale>`.
       tags: ['FamUnit / Textos legales']
       security: [{ SessionCookie: [] }]
       requestBody:
@@ -1019,7 +1021,8 @@ paths:
       description: >
         Permiso `texto_legal.actualizar`. Solo un `borrador` (`409 fam_unit.terms.not_draft`, RN-FAM-UNIT-73). Las
         traducciones se fusionan por idioma (ADR-038 §9.2 regla 4): una clave con cadena cambia ese idioma, `null` lo
-        quita. `kind` es inmutable: `422 fam_unit.terms.kind_not_editable` (RN-FAM-UNIT-73), también con el mismo valor.
+        quita. `kind` es inmutable: `422 fam_unit.terms.kind_not_editable` (RN-FAM-UNIT-73), también con el mismo valor. Texto plano (ADR-070): el marcado HTML se rechaza con `422
+        fam_unit.terms.markup_not_allowed` en `<campo>_translations.<locale>`.
       tags: ['FamUnit / Textos legales']
       security: [{ SessionCookie: [] }]
       requestBody:
@@ -1073,7 +1076,7 @@ paths:
         fam_unit.terms.default_locale_missing`). `requires_reacceptance` solo tiene sentido en `condiciones_uso`: con
         `true`, todo usuario obligado vuelve a ver el muro hasta aceptar **esta** versión (RN-FAM-UNIT-62); en un tipo de
         imagen, `true` es `422 fam_unit.terms.requires_reacceptance_not_allowed`. Publicar `condiciones_uso` surte efecto
-        en la petición siguiente de cada tutor (sin caché, ADR-067 §5.8). Solo un `borrador` (`409 fam_unit.terms.not_draft`).
+        en la petición siguiente de cada tutor (sin caché, ADR-067 §5.8). Solo un `borrador` (`409 fam_unit.terms.not_draft`). Publica otra vez la comprobación de texto plano (ADR-070): un borrador con marcado, anterior a la regla, es `422 fam_unit.terms.markup_not_allowed`.
       tags: ['FamUnit / Textos legales']
       security: [{ SessionCookie: [] }]
       requestBody:
