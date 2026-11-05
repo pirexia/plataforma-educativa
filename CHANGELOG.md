@@ -6,6 +6,12 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-05 · `fix`: Bajos de `1.14b` y evidencia del consentimiento de imagen
+
+- PR #538 (Bajos del grupo A): `Cache-Control: no-store` en las lecturas de pickup (#510); `VITE_API_URL` en los scripts E2E (#530); margen en la hora de llamada (#521); `Checkbox` shadcn-vue (#520); `CA-PRL-027` por fichero `.release` (#532); bases de test (#533); logs `prl.lock.*` (#528); orden de bloqueo de `GuardianService::delete` y `CA-PRL-038` (#527). Abierto #537 (cruce `revoke`/`delete`).
+- PR #539 (`REQ-FAM-UNIT-004`, `ADR-066`): disparadores de inmutabilidad y de no-borrado en `terms_versions` (#482), `occurred_at` y `legal_guardian_verified_at` a `timestamptz(6)` con cast propio (#483), `trustProxies` con `TRUSTED_PROXIES` (#484; variable aún no en los `.env.example`), `CHECK` de 512 en `user_agent` (#480 punto 1; la supresión queda para `1.23b`). Documentación en `datos.md`, `api.md`, `operacion.md §13`, `SYSADMIN.md §2c` y `RUNBOOK.md §3b.8`.
+- #535: segundo test de recuento de consultas intermitente (`TermsAcceptanceWallTest` CA-067-08), endurecido igual; causa común sin confirmar.
+
 ## 2026-11-04 · `feat(prl)`: `1.14b-d1`, bloqueos de la puerta y alertas cerradas inmutables
 
 - La puerta de entrega de menores recomprueba la lista de autorizados con bloqueo de fila `FOR SHARE` (`PersonDirectory::lockLiveByPublicIds`, `AuthorizedPickupList::grantForLocked`) en `StudentMovementService` y `PickupAlertService::raise()`: cierra `OPEN-FAM-UNIT-51` (carrera TOCTOU). Espera acotada (`prl.lock_timeout_ms`, 3000 ms), hasta 3 intentos ante interbloqueo y `503 prl.errors.busy` con `Retry-After: 1`.
