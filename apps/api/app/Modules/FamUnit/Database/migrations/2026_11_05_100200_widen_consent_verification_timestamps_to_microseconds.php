@@ -11,13 +11,16 @@ use Illuminate\Support\Facades\DB;
  * descartaba en silencio. La semántica no cambia.
  *
  * Ampliar la precisión de `timestamp(n)` es una conversión binariamente compatible: PostgreSQL **no reescribe la tabla** ni
- * reconstruye sus índices (solo cambia el `typmod` en el catálogo), de modo que basta un `ACCESS EXCLUSIVE` instantáneo,
- * acotado con `lock_timeout`. Es compatible con la versión anterior del código, que lee y escribe los mismos valores. Los
- * valores existentes quedan como estaban (a segundo exacto). `image_consent_decisions` es de solo anexar (`REVOKE UPDATE`):
- * `ALTER COLUMN TYPE` lo ejecuta el propietario y no toca ninguna fila.
+ * reconstruye sus índices (solo cambia el `typmod`; comprobado: el `relfilenode` no cambia). **Pero no es instantáneo**: toma
+ * `ACCESS EXCLUSIVE` y, como `guardian_student_links_verified_needs_legal_check` depende de la columna, PostgreSQL **vuelve a
+ * recorrer la tabla** para revalidar esa restricción. En `guardian_student_links` (pequeña, una fila por vínculo) es breve; el
+ * bloqueo se acota con `lock_timeout` (espera del bloqueo) y `statement_timeout` (duración del recorrido) y, si saltara alguno,
+ * la migración falla sin efecto y se reintenta. Es compatible con la versión anterior del código, que lee y escribe los
+ * mismos valores. Los valores existentes quedan como estaban (a segundo exacto). `image_consent_decisions` es de solo anexar
+ * (`REVOKE UPDATE`): `ALTER COLUMN TYPE` lo ejecuta el propietario y no toca ninguna fila.
  *
- * `down()` vuelve a `timestamptz(0)` (redondea los microsegundos a segundo; no pierde filas ni la evidencia relevante, que es
- * el instante a segundo).
+ * `down()` vuelve a `timestamptz(0)`: **redondea** los microsegundos al segundo más cercano (puede adelantar un instante hasta
+ * 0,5 s) y esos valores no se recuperan. No pierde filas.
  */
 return new class extends Migration
 {
@@ -40,7 +43,9 @@ return new class extends Migration
     {
         $owner = DB::connection('pgsql_owner');
         $previous = $owner->selectOne("SELECT current_setting('lock_timeout') AS v")->v;
+        $previousStatement = $owner->selectOne("SELECT current_setting('statement_timeout') AS v")->v;
         $owner->statement("SET lock_timeout = '5s'");
+        $owner->statement("SET statement_timeout = '60s'");
 
         try {
             foreach (self::COLUMNS as $table => $column) {
@@ -48,6 +53,7 @@ return new class extends Migration
             }
         } finally {
             $owner->statement("SET lock_timeout = '{$previous}'");
+            $owner->statement("SET statement_timeout = '{$previousStatement}'");
         }
     }
 };
