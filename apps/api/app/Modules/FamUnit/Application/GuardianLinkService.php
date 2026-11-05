@@ -4,7 +4,6 @@ namespace App\Modules\FamUnit\Application;
 
 use App\Models\User;
 use App\Modules\Core\Domain\PersonDirectory;
-use App\Modules\FamUnit\Domain\Models\FamilyUnit;
 use App\Modules\FamUnit\Domain\Models\Guardian;
 use App\Modules\FamUnit\Domain\Models\GuardianStudentLink;
 use App\Support\Authorization\PermissionDecision;
@@ -243,7 +242,7 @@ final class GuardianLinkService
             // una baja o un levantamiento concurrentes se ven (404 si ya no existe, `invalid_transition` si cambió de estado).
             $probe = GuardianStudentLink::query()->where('public_id', $publicId)->firstOrFail();
             $guardian = Guardian::query()->whereKey($probe->guardian_id)->sharedLock()->firstOrFail();
-            FamilyUnit::query()->whereKey($guardian->family_unit_id)->lockForUpdate()->first();
+            $this->units->lockForWrite((int) $guardian->family_unit_id);
 
             $link = GuardianStudentLink::query()->with('guardian')->where('public_id', $publicId)->lockForUpdate()->firstOrFail();
 
