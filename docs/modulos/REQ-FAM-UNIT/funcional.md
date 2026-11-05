@@ -1657,4 +1657,6 @@ Bajos de `1.14-b` aprobados por el usuario el 2026-11-05; sus tests citan `REQ-F
 
 Decisión del usuario del 2026-11-05 (`OPEN-070-01`: no se rechazan las referencias de carácter; `whitespace-pre-line` confirmado). `title` y `body` de `terms_versions` son texto plano: `TermsVersionService` rechaza el marcado en `create`, `update` y `publish` (`422 fam_unit.terms.markup_not_allowed`) y el frontend lo pinta solo como texto (`whitespace-pre-line`, sin `v-html`). Tests: `CA-070-01` a `-06` y `-08` (`apps/api/tests/Feature/FamUnit/TermsPlainTextTest.php`, `apps/web/src/modules/fam-unit/views/TermsPlainText.spec.ts`).
 
+**`CA-070-08`** (formato declarado en `api.md` y OpenAPI, y mensaje de error en los cuatro idiomas): verificado por revisión documental y por `TranslationParityTest` (paridad de claves); sin test propio.
+
 **Obligación heredada por `1.22` (`REQ-FAM-PORTAL`) — `CA-070-07`, sin implementar en esta entrega**: toda vista o plantilla de PDF que muestre `title` o `body` de una versión de texto legal entra en el test de `CA-070-06` (sin `v-html` ni `innerHTML`) o en uno equivalente para Blade (sin `{!!` sobre estos campos), y el HTML generado para un `body` con `<` contiene `&lt;`. Los saltos de línea se resuelven con `white-space: pre-line` o `nl2br(e($body))`, nunca `nl2br` sobre el texto sin escapar (`ADR-070 §4.4`).
