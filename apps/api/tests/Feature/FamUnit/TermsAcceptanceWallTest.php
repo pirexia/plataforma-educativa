@@ -414,11 +414,20 @@ test('CA-067-08 ADR-067 §5.8: con fam_unit activo, un docente hace exactamente 
         // Caliente la caché de módulos y todo lo memoizable.
         $request();
 
+        // #535: una consulta de una sola vez (caducidad de una clave de caché, caché por proceso) puede caer en una medición y no
+        // en la otra; el muro suma su consulta en **todas** las lecturas, así que se compara el mínimo de dos por variante.
+        $fewest = static function (array $a, array $b): array {
+            $a = $a[1];
+            $b = $b[1];
+
+            return count($b) < count($a) ? $b : $a;
+        };
+
         app()->instance(SessionWallRegistry::class, $onlyMfa);
-        [, $withoutWall] = queriesOf($request);
+        $withoutWall = $fewest(queriesOf($request), queriesOf($request));
 
         app()->instance(SessionWallRegistry::class, $original);
-        [, $withWall] = queriesOf($request);
+        $withWall = $fewest(queriesOf($request), queriesOf($request));
     } finally {
         app()->instance(SessionWallRegistry::class, $original);
     }
