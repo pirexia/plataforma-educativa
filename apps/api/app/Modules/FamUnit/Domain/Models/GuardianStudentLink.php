@@ -2,6 +2,7 @@
 
 namespace App\Modules\FamUnit\Domain\Models;
 
+use App\Modules\FamUnit\Domain\Casts\MicrosecondDateTime;
 use App\Support\Audit\Auditable;
 use App\Support\Audit\AuditValuePolicy;
 use App\Support\Audit\HasAuditableAttributes;
@@ -65,7 +66,7 @@ class GuardianStudentLink extends TenantModel implements Auditable
             'is_legal_guardian' => 'boolean',
             'is_emergency_contact' => 'boolean',
             'restricted_categories' => 'array',
-            'legal_guardian_verified_at' => 'datetime',
+            'legal_guardian_verified_at' => MicrosecondDateTime::class,
             'revoked_at' => 'datetime',
         ];
     }

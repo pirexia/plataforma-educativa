@@ -2,6 +2,7 @@
 
 namespace App\Modules\FamUnit\Domain\Models;
 
+use App\Modules\FamUnit\Domain\Casts\MicrosecondDateTime;
 use App\Support\Audit\Auditable;
 use App\Support\Audit\AuditActor;
 use App\Support\Audit\AuditValuePolicy;
@@ -53,7 +54,7 @@ class ImageConsentDecision extends AppendOnlyModel implements Auditable
 
     protected function casts(): array
     {
-        return ['occurred_at' => 'datetime'];
+        return ['occurred_at' => MicrosecondDateTime::class];
     }
 
     /**
