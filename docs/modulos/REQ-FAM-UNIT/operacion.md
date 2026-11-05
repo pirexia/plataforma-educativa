@@ -211,3 +211,43 @@ Señales a vigilar cuando haya observabilidad: lecturas de lista por usuario y h
 Las tablas nuevas entran en la copia por centro; los objetos de fotografía, en la copia del almacenamiento con versionado (`REQ-BKP-001`). **Restaurar a un punto anterior a una retirada o a una revocación devolvería a alguien a la lista de un menor**: se suma a `OPEN-FAM-UNIT-21` para `1.26` (reaplicación tras restaurar). No se resuelve aquí.
 
 **`1.14b-c1` (pantallas de autorizados de recogida)**: solo `apps/web`; ninguna variable de entorno, servicio, cola ni tarea programada nuevos. E2E real: `docs/modulos/REQ-PRL/operacion.md §12.7`. Cabecera `Cache-Control: no-store` del servidor pendiente (#510).
+
+---
+
+## 13. Endurecimiento del consentimiento de imagen (issues #480, #482, #483, #484)
+
+Entrega de correcciones Bajas sobre `1.14-b` (`REQ-FAM-UNIT-004`, `ADR-066`). Sin servicios, colas ni tareas programadas nuevas.
+
+### 13.1 Migraciones (orden: `php artisan migrate --database=pgsql_owner`)
+
+Tres migraciones *expand*, aditivas y reversibles (`down()` no se niega con datos: no destruye evidencia), sin tocar filas:
+
+| Migración | Qué hace | Coste en una tabla en uso |
+|-----------|----------|---------------------------|
+| `2026_11_05_100100_add_terms_versions_published_immutable_trigger` (#482) | Dos disparadores: impiden cambiar título y cuerpo de una versión que no es borrador, volverla a borrador y borrarla físicamente | `CREATE TRIGGER` toma un bloqueo breve (`lock_timeout` 5 s) |
+| `2026_11_05_100200_widen_consent_verification_timestamps_to_microseconds` (#483) | `image_consent_decisions.occurred_at` y `guardian_student_links.legal_guardian_verified_at` pasan a `timestamptz(6)` | Sin reescritura de tabla ni de índices (ampliar la precisión solo cambia el `typmod`; comprobado: el `relfilenode` de la tabla y del índice no cambia). **No es instantáneo**: toma `ACCESS EXCLUSIVE` y, como `guardian_student_links_verified_needs_legal_check` depende de la columna, PostgreSQL vuelve a recorrer `guardian_student_links` para revalidarlo (tabla pequeña: breve). Acotado con `lock_timeout` 5 s y `statement_timeout` 60 s; si salta, falla sin efecto y se reintenta |
+| `2026_11_05_100300_add_image_consent_decisions_user_agent_length_check` (#480 punto 1) | `CHECK (char_length(user_agent) <= 512)` | `NOT VALID` + `VALIDATE CONSTRAINT` (sin bloqueo largo). Si `VALIDATE` falla, aborta y no se corrigen filas |
+
+**Compatibilidad con la versión anterior del código** (`RARQ-DEP-005`): la anterior escribe en segundos (valores válidos en `timestamptz(6)`), trunca el `user_agent` a 512 y no edita textos publicados, de modo que ninguna restricción la rechaza. **Reversión**: `migrate:rollback --step=3` es seguro, pero el `down()` de la precisión **redondea** los microsegundos a segundo (hasta 0,5 s) de forma irrecuperable; ver `RUNBOOK.md §3b.8`.
+
+### 13.2 Síntomas
+
+| Síntoma | Causa probable | Qué hacer |
+|---------|----------------|-----------|
+| `SQLSTATE 23001` (`restrict_violation`) al editar, devolver a borrador o borrar una versión de texto legal | Un `UPDATE` o `DELETE` directo (no por la API) sobre una versión publicada o retirada | Es la protección esperada: la evidencia no se edita. Publicar una versión nueva |
+| `SQLSTATE 23514` (`image_consent_decisions_user_agent_length_check`) | Un `INSERT` directo con `user_agent` de más de 512 caracteres | Truncar antes de insertar; el servicio ya lo hace |
+
+### 13.3 Proxies de confianza: `TRUSTED_PROXIES` (#484)
+
+`ImageConsentService` registra `ip_address` con `$request->ip()`. Detrás de Traefik, sin confiar en el proxy, esa IP era la de Traefik y el dato no probaba nada. `bootstrap/app.php` configura ahora `trustProxies` (clase `App\Support\Http\TrustedProxyList`):
+
+- **Variable `TRUSTED_PROXIES`** (lista separada por comas de IP o CIDR). **Por defecto `10.89.10.0/24`**, la subred de `infra/quadlet/plataforma.network` a la que se unen Traefik, `api@` y `web` (`ADR-028`: no se escribe a mano ninguna IP de contenedor). Se aborta el arranque con `*`, `0.0.0.0/0` o `::/0` fuera de `local` y `testing`, o con una entrada que no sea IP ni CIDR.
+- **Solo `X-Forwarded-For`**. `X-Forwarded-Host/Proto/Port` no se aceptan: el tenant se resuelve por `Host` (`ADR-014`).
+- Desde un origen que no es de confianza, `X-Forwarded-For` se ignora. Con una cadena `a, b`, la IP es la última no confiable por la derecha.
+- **Limitación conocida (revisión de seguridad M1)**: la confianza es por **subred**, no por la IP de Traefik. Cualquier otro contenedor de la red `plataforma-net` (`web`, `redis`, `postgres`, MinIO, un contenedor comprometido) puede llamar a `api:8000` directamente con un `X-Forwarded-For` inventado y la API lo creerá: puede falsear `ip_address` y saltarse tanto la lista blanca de IP del *backoffice* de la aplicación (`EnforcePlatformIpAllowlist`) como la de Traefik (que no ve esa llamada interna). **El cliente de Internet no puede falsearla** (Traefik reescribe la cabecera), pero un contenedor interno sí.
+- **Propuesta (decisión pendiente del usuario, no aplicada)**: confiar solo en la IP de Traefik, dándole una IP fija propia o una subred dedicada solo a Traefik (`ADR-028` hoy prohíbe escribir IP de contenedor a mano, así que habría que decidirlo allí) y poniendo esa dirección en `TRUSTED_PROXIES`.
+- **B1 — Podman rootless puede enmascarar la IP de origen**: con red *rootless* (`pasta`/`slirp4netns`) el contenedor puede ver como origen una dirección del propio *runtime* y no la del cliente real, de modo que `X-Forwarded-For` que escribe Traefik ya podría ser interna. Por eso la verificación real (abajo) es obligatoria y la IP registrada no tiene valor probatorio hasta hacerla.
+- Traefik recibe hoy la conexión directamente (`PublishPort=80:80`) y reescribe `X-Forwarded-For` con la IP real; si un día hay otro proxy delante, además de esta variable hace falta `forwardedHeaders.trustedIPs` en `traefik.container` (su comentario lo recoge).
+- **Efecto colateral deseado**: todo lo que usa `$request->ip()` pasa a ver la IP del cliente —limitadores por IP, `login_attempts`, sesiones, y la lista blanca de IP del *backoffice* (`EnforcePlatformIpAllowlist`), que antes comparaba contra la del proxy—. Si `TRUSTED_PROXIES` queda fuera de la red real, nada falla: la IP vuelve a ser la del proxy.
+
+**Verificar en un despliegue real queda pendiente.** Los tests (`TrustedProxiesTest`, `TrustedProxyListTest`) prueban la lógica con direcciones simuladas, no la cadena Traefik real. Comprobación obligatoria antes de dar valor probatorio a `ip_address`: registrar una decisión desde un cliente con IP conocida y confirmar que `image_consent_decisions.ip_address` es la del cliente y no `10.89.10.x`; y que la subred por defecto coincide con `plataforma.network` del servidor. Mientras no se haga, el campo no se aporta como prueba (`REQ-PRIV-003`, `api.md §2.7`).

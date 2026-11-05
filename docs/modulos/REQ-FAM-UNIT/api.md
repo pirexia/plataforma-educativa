@@ -70,6 +70,8 @@ Para un sujeto con ámbito `unidad_familiar`, `students_count` cuenta solo los a
 
 `public_id`, `student_person`, `level`, `decision`, `guardian` (`public_id`), `recorded_by` (`public_id` de usuario), `channel`, `consent_text_version` (`{ "public_id", "kind", "version_number" }`, o `null` solo en un `no_autorizo` sin texto publicado, `RN-FAM-UNIT-68`), `shown_locale` (o `null`, `RN-FAM-UNIT-43`), `occurred_at`. **No** se exponen `ip_address` ni `user_agent` en la API (se conservan como evidencia; consultables en caso de litigio por el procedimiento de `REQ-PRIV-003`).
 
+> **Precisión de los instantes de la verificación y la decisión (issue #483, cambio aditivo de contrato)**: `occurred_at` (`ImageConsentDecision`) y `legal_guardian_verified_at` (`GuardianStudentLink`) se devuelven ahora **con microsegundos** (`2026-10-26T09:05:00.123456Z`); antes la fracción era siempre cero. Los clientes que parseen ISO 8601 no cambian; los que comparen cadenas literales deben comparar instantes. El cursor del histórico (§3) también conserva la fracción; un cursor antiguo (a segundo) sigue siendo válido.
+
 ### 1.7 `TermsVersion`
 
 `public_id`, `kind` (`condiciones_uso` | `consentimiento_imagen_web` | `consentimiento_imagen_redes`), `version_number`, `title`, `title_translations`, `body`, `body_translations`, `status`, `requires_reacceptance`, `published_at`, `created_at`, `updated_at`. `title`/`body` resueltos en el servidor y de solo lectura (`ADR-062 §5.4`). `kind` es inmutable tras la creación [DERIVADA: cambiarlo rompería la numeración correlativa por tipo; **aceptada por el usuario el 2026-10-27**]; `PATCH` con `kind` ⇒ `422 fam_unit.terms.kind_not_editable`.

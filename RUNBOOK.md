@@ -326,6 +326,10 @@ podman exec plataforma-api php artisan fam_unit:purge-orphan-photos
 
 Despacha un trabajo por centro activo a la cola `default` (necesita el *worker*, §2.8). Da de baja la fotografía de las personas que no son tutoras y llevan más de `fam_unit.pickup.photo.orphan_grace_days` días (30) sin autorización vigente ni futura, y borra del *bucket* los objetos de `tenants/<centro>/fam-unit/pickup-photos/` sin fila viva con más de esos días (`docs/modulos/REQ-FAM-UNIT/funcional.md §22` D-58). Es idempotente y no toca los activos de marca. **Probado** solo con el disco local simulado de los tests; **no probado** contra un *bucket* S3 real.
 
+### 3b.8 Revertir la precisión de microsegundos del consentimiento de imagen (issue #483)
+
+`migrate:rollback` de `2026_11_05_100200_widen_consent_verification_timestamps_to_microseconds` redondea `image_consent_decisions.occurred_at` y `guardian_student_links.legal_guardian_verified_at` al segundo más cercano (hasta 0,5 s de diferencia, irrecuperable). Si ya hay decisiones, prefiere desplegar la imagen anterior sin revertir el esquema (es compatible).
+
 ## 4. Copias de seguridad y recuperación
 
 **No aplica todavía.** El módulo `REQ-BKP` (copias de seguridad, restauración granular en cuatro niveles, copia inmutable) no está implementado, y el proveedor de almacenamiento de copias distinto del host sigue sin decidir (`OPEN-10`). No hay nada que respaldar en un entorno sin datos reales.
