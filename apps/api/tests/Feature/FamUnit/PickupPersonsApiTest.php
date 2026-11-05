@@ -532,6 +532,8 @@ test('RN-FAM-UNIT-81 issue #510: las lecturas de la lista de recogida, de person
     $f = Fam::pickupFamily('pp-nostore');
     $third = Fam::thirdParty($f, 14);
     $urls = [
+        '/pickup-authorizations',
+        "/pickup-authorizations/{$third['authorization']}",
         "/pickup-lists/{$f['student']->public_id}",
         '/pickup-persons?document_type=dni&document_number='.Fam::dni(14),
         "/pickup-persons/{$third['person']}",

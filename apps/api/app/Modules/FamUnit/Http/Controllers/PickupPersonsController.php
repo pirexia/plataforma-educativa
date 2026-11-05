@@ -18,7 +18,7 @@ use Illuminate\Http\Response;
  * REQ-FAM-UNIT/api.md §8.2 (1.14b-a, `REQ-FAM-UNIT-005`, `ADR-068 §5.2`/`§5.3`): las personas de recogida (un tutor o un
  * tercero) y su fotografía. Permisos del recurso `autorizado_recogida`. Una persona solo es alcanzable si es tutor del centro
  * o figura en alguna autorización viva; cualquier otra, `404` (no es un directorio de personas del centro). Las lecturas
- * (`GET` de lista, detalle y fotografía) llevan `Cache-Control: no-store` (`RN-FAM-UNIT-81`; teléfono, documento y URL firmadas). Nunca escribe en
+ * (`GET` de lista, detalle y fotografía; las de `PickupListsController` y `PickupAuthorizationsController`, igual) llevan `Cache-Control: no-store` (`RN-FAM-UNIT-81`; teléfono, documento y URL firmadas). Nunca escribe en
  * `people` salvo por `PersonRegistrar` (`INV-007`).
  */
 class PickupPersonsController extends FamUnitController
