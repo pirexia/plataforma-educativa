@@ -236,6 +236,15 @@ final class FamilyUnitService
     }
 
     /**
+     * Issue #537: toma el bloqueo de escritura de la unidad en el orden canónico de `fam_unit` (tutor → unidad → vínculo).
+     * Vive aquí porque `AR-10` solo sanciona a este servicio y a `GuardianService` para consultar `FamilyUnit`.
+     */
+    public function lockForWrite(int $unitId): void
+    {
+        FamilyUnit::query()->whereKey($unitId)->lockForUpdate()->first();
+    }
+
+    /**
      * `RN-FAM-UNIT-38`: si el tutor `$guardianId` es el principal de su unidad y, tras revocar el vínculo con el
      * alumno `$studentPersonId`, ya no le queda ningún vínculo activo con alumnos de esa unidad, la unidad queda sin
      * principal. Devuelve si se limpió. Los vínculos se leen por la relación del tutor, no por consulta estática

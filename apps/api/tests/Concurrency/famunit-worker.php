@@ -11,6 +11,7 @@
  *   create-link <guardianPublicId> <studentPersonPublicId> <emergency 0|1>
  *   record-decision <userPublicId> <studentPersonPublicId> <level> <decision>   (1.14-b, CA-FAM-UNIT-058: el propio tutor, canal portal)
  *   publish-text <termsVersionPublicId>                                          (1.14-b, CA-FAM-UNIT-099: publicar un borrador)
+ *   revoke-link <linkPublicId>                                                   (issue #537, CA-FAM-UNIT-147: GuardianLinkService::revoke)
  *   register-person <documentType> <documentNumber>                              (1.14b-a, CA-068-05: PersonRegistrar::registerOrReuse)
  */
 
@@ -90,6 +91,11 @@ $result = app(TenantContext::class)->runFor((int) $tenantId, function () use ($o
                     );
 
                     return ['outcome' => 'ok', 'public_id' => $recorded['decision']->public_id, 'state' => $recorded['state']['state']];
+
+                case 'revoke-link':
+                    $revoked = app(GuardianLinkService::class)->revoke($args[0], 'resolucion_judicial', $actor());
+
+                    return ['outcome' => 'ok', 'public_id' => $revoked['link']->public_id, 'principal_cleared' => $revoked['principal_cleared']];
 
                 case 'register-person':
                     $registered = app(PersonRegistrar::class)->registerOrReuse(new PersonRegistration('Abuelo', 'Carrera', null, $args[0], $args[1]));

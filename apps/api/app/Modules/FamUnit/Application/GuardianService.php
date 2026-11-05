@@ -30,6 +30,15 @@ final class GuardianService
         private readonly PersonDirectory $people,
     ) {}
 
+    /**
+     * Issue #537: toma el bloqueo compartido del tutor en el orden canónico de `fam_unit` (tutor → unidad → vínculo) y lo
+     * devuelve. Vive aquí porque `AR-10` solo sanciona a este servicio para consultar `Guardian`.
+     */
+    public function lockShared(int $guardianId): Guardian
+    {
+        return Guardian::query()->whereKey($guardianId)->sharedLock()->firstOrFail();
+    }
+
     /** Detalle sin acotar por ámbito (escrituras): `404` si no existe o es de otro centro. */
     public function find(string $publicId): Guardian
     {
