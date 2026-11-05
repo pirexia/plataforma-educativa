@@ -19,6 +19,7 @@ use App\Modules\Backoffice\Http\Middleware\RequirePlatformReauthentication;
 use App\Modules\Backoffice\Http\Middleware\RequirePlatformSessionIdleTimeout;
 use App\Modules\Backoffice\Http\Middleware\ResolvePlatformLocale;
 use App\Support\Api\ProblemResponseFactory;
+use App\Support\Http\TrustedProxyList;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Application;
@@ -37,6 +38,15 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Issue #484: detrás de Traefik, `$request->ip()` es la del proxy salvo que se confíe en él. Solo se acepta
+        // `X-Forwarded-For` (la IP del cliente: evidencia de `image_consent_decisions`, lista blanca del backoffice,
+        // limitadores). `X-Forwarded-Host/Proto/Port` NO: el tenant se resuelve por `Host` (ADR-014) y no se toca. Ver
+        // `TrustedProxyList` y `SYSADMIN.md §2c` (`TRUSTED_PROXIES`).
+        $middleware->trustProxies(
+            at: TrustedProxyList::parse(env('TRUSTED_PROXIES'), (string) env('APP_ENV', 'production')),
+            headers: Request::HEADER_X_FORWARDED_FOR,
+        );
+
         // INV-013: antes que nada, en los dos grupos — a diferencia de
         // ResolveTenant, request_id no depende de tenant y tiene que
         // existir incluso en /api/health.
