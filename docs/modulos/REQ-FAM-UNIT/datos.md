@@ -336,3 +336,26 @@ Ninguna tabla nueva se purga en `1.14b`. Plazos: catálogo de `1.23b` (`OPEN-FAM
 ### 8.9 Ampliaciones de `Core` previstas (D2, sin esquema nuevo)
 
 `PersonRegistrar` escribe en `people` existente (nombre, `document_type`/`document_number` emparejados, `contact_phone`); reutiliza la persona viva con el mismo documento (índice único `people_tenant_document_unique`) **sin actualizarla**; la corrección de una persona **sin usuario** es `PersonRegistrar::correctUnaccounted`, auditada por `Core` (`OPEN-068-07`). Si el centro no aporta documento, se crea sin él y el tercero no podrá verificarse por documento (`OPEN-FAM-UNIT-27`). Ninguna columna nueva en `people`: la fotografía queda fuera de `people` a propósito.
+
+---
+
+## 9. Ventana sin `CHECK` al ensanchar `data_exports.kind` (issue #479) — aceptada
+
+La migración `apps/api/app/Modules/Core/Database/migrations/2026_10_27_100100_widen_data_exports_kind_for_image_consents.php` (`1.14-b`, `REQ-FAM-UNIT-004`, `ADR-066`) ensancha el `kind` admitido en `data_exports` con `DROP CONSTRAINT data_exports_kind_check` y, en una sentencia aparte, `ADD CONSTRAINT … CHECK (kind IN ('audit_logs', 'users', 'image_consents')) NOT VALID`, seguido de `VALIDATE CONSTRAINT`. Entre el `DROP` y el `ADD` la tabla no tiene restricción sobre `kind` durante milisegundos. La migración anterior de la misma tabla (`2026_10_02_100100`) usa el mismo patrón.
+
+**Decisión: ventana aceptada, la migración no se rehace.** Motivos: la migración ya está mezclada y desplegada (rehacerla no cambia nada en los entornos donde ya corrió, y editar una migración aplicada diverge de lo que ya está en cada base); `data_exports` solo se escribe por servicio (`EloquentExportRequestService::request`, a la que cada módulo pasa su `kind` como literal en su propio código, p. ej. `ImageConsentsController`; ningún endpoint acepta un `kind` del cliente), así que ninguna escritura concurrente puede traer un valor no previsto; y `VALIDATE CONSTRAINT` posterior comprueba todas las filas existentes, de modo que cualquier valor ajeno escrito en la ventana haría fallar el despliegue, no pasaría en silencio.
+
+**Patrón correcto para las próximas migraciones que cambien un `CHECK` en una tabla con datos** (no deja ventana):
+
+```sql
+-- 1. Añadir el CHECK nuevo con OTRO nombre, sin validar (bloqueo breve)
+ALTER TABLE t ADD CONSTRAINT t_kind_check_v2 CHECK (kind IN (…, 'nuevo')) NOT VALID;
+-- 2. Validarlo (solo SHARE UPDATE EXCLUSIVE: no bloquea lecturas ni escrituras)
+ALTER TABLE t VALIDATE CONSTRAINT t_kind_check_v2;
+-- 3. Retirar el antiguo: siempre queda al menos un CHECK vigente
+ALTER TABLE t DROP CONSTRAINT t_kind_check;
+```
+
+Si el nombre canónico importa (p. ej. para tests de esquema o `down()`), un cuarto paso opcional renombra el nuevo (`ALTER TABLE … RENAME CONSTRAINT`), que es un cambio de catálogo instantáneo. El `down()` aplica el mismo orden a la inversa. Si el `CHECK` nuevo es **más estricto** que el antiguo, el antiguo se retira solo después de validar el nuevo; si es **más laxo** (ensanchar), ambos coexisten sin problema mientras tanto (el más estricto, el antiguo, rechazaría el valor nuevo hasta el paso 3, por eso el código que escribe el valor nuevo se despliega después de la migración, como en `expand/contract`).
+
+Referencia de proceso: skill `migracion-segura` (`.claude/skills/migracion-segura/references/check-not-valid.md`, patrón `DROP + ADD … NOT VALID + VALIDATE`; **no editada aquí**: `.claude/` queda fuera del alcance y no hay en `docs/` un sitio natural para la pauta fuera de la documentación del módulo).

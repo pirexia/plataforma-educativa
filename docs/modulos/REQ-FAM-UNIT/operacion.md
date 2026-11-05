@@ -251,3 +251,34 @@ Tres migraciones *expand*, aditivas y reversibles (`down()` no se niega con dato
 - **Efecto colateral deseado**: todo lo que usa `$request->ip()` pasa a ver la IP del cliente —limitadores por IP, `login_attempts`, sesiones, y la lista blanca de IP del *backoffice* (`EnforcePlatformIpAllowlist`), que antes comparaba contra la del proxy—. Si `TRUSTED_PROXIES` queda fuera de la red real, nada falla: la IP vuelve a ser la del proxy.
 
 **Verificar en un despliegue real queda pendiente.** Los tests (`TrustedProxiesTest`, `TrustedProxyListTest`) prueban la lógica con direcciones simuladas, no la cadena Traefik real. Comprobación obligatoria antes de dar valor probatorio a `ip_address`: registrar una decisión desde un cliente con IP conocida y confirmar que `image_consent_decisions.ip_address` es la del cliente y no `10.89.10.x`; y que la subred por defecto coincide con `plataforma.network` del servidor. Mientras no se haga, el campo no se aporta como prueba (`REQ-PRIV-003`, `api.md §2.7`).
+
+---
+
+## 14. El documento de un tercero en la query de `GET /pickup-persons` (issue #511, hallazgo B-2 de `1.14b-c1`)
+
+`GET /pickup-persons?document_type=&document_number=` (`api.md §8.2`) lleva el número de documento de una persona que aún no es tutora ni autorizada en la query string. La decisión del contrato es mantener `GET` (no se cambia a `POST` mientras no se demuestre que no se puede garantizar lo de abajo). La SPA no lo pone en la URL del navegador (`UI-3`). **Verificado en el repositorio (2026-11-05)** qué capa lo registra:
+
+| Capa | Dónde se configura | ¿Registra la query hoy? |
+|------|--------------------|-------------------------|
+| Traefik (único punto de entrada, enruta `/api/*`) | `infra/quadlet/traefik.container` (`Exec=`) y `infra/compose/compose.prodlike.yaml` (`command:`) | **No.** Ninguno de los dos pasa `--accesslog`, y el registro de acceso de Traefik está desactivado por defecto. `--log.level=INFO` es el registro técnico de Traefik (arranque, proveedores, errores), no el de peticiones. |
+| nginx del contenedor `web` | `infra/containers/web/nginx.conf` | **No aplica.** Solo sirve estáticos de la SPA y no recibe `/api/*` (Traefik enruta; no hay `proxy_pass`, y CI falla si aparece). |
+| Servidor de la API | `infra/containers/api/Containerfile` (etapa de producción: `frankenphp php-server --listen :8000 --root …/public`) y `infra/quadlet/api@.container` (no define `Exec=`) | **No.** `php-server` solo escribe registro de acceso con la opción `--access-log`, que no se pasa. (En la etapa de desarrollo, `php artisan serve` sí imprime la línea de cada petición con su query; es solo desarrollo, con datos de `REQ-SEED`.) |
+| Aplicación Laravel | `apps/api/config/logging.php`, `apps/api/bootstrap/app.php`, `apps/api/app/Http/Middleware/` | **No hay middleware de registro de peticiones.** `AssignRequestId` solo añade `request_id` al contexto. La única escritura sobre una excepción (`ProblemResponseFactory`, `Log::error`) registra clase, mensaje e `request_id`, no la URL. La auditoría de la búsqueda (`read`, `api.md §8.2`) no guarda la query. |
+
+**Conclusión**: con la configuración que hay hoy en el repositorio, el número de documento **no queda en ningún registro de acceso**. Es una garantía por ausencia de configuración, no por una regla activa que lo enmascare: basta con que alguien active un registro de acceso para que aparezca.
+
+**Qué hay que hacer si se activa el registro de acceso de Traefik** (`--accesslog=true`, o `accessLog` en la configuración estática). Traefik conserva por defecto la query en el campo `RequestPath` del registro. Hay que añadir una de estas dos opciones (contrastado con la documentación de Traefik v3):
+
+- `--accesslog.fields.queryParameters.defaultMode=drop` (en fichero, `accessLog.fields.queryParameters.defaultMode = "drop"`): elimina la query de `RequestPath` para **todas** las rutas. Es la opción preferida.
+- Alternativa más tosca: `--accesslog.fields.names.RequestPath=drop`, que descarta el campo entero (también la ruta).
+
+`accessLog.fields.names` por sí solo no cubre la query: hay que nombrar el campo concreto (`RequestPath`) o usar `queryParameters`. La imagen es `traefik:v3` (etiqueta móvil): al activar el registro, **comprobar contra la versión desplegada** que la opción existe (`traefik version`, documentación de esa versión), porque `queryParameters` es posterior a `fields.names`.
+
+**Si se activa el registro de acceso del servidor de la API** (`--access-log` de `frankenphp php-server`, que escribe la URI de la petición): hay que descartar o enmascarar la query en ese registro; `php-server` no ofrece esa opción, así que habría que pasar a un `Caddyfile` propio con el formato de registro sin `request.uri` completo. Mientras no se necesite, no se activa.
+
+**Riesgo residual** (no garantizable desde el repositorio; acción pendiente del despliegue):
+
+1. **Registros de acceso fuera del repositorio**: un proxy, balanceador o WAF delante de Traefik, o un agregador de registros del host, no están bajo `infra/`. Antes del primer despliegue con tercero delante hay que comprobar que no registran la query de `/api/v1/pickup-persons` (misma comprobación operativa que `§13.3`).
+2. **Herramientas de red del navegador y del equipo del centro** (pestaña de red, extensiones, proxies corporativos con inspección TLS): ven la URL completa. No se puede controlar desde el servidor. Solo ve el documento quien ya lo tecleó, pero quedaría fuera del registro de auditoría de la plataforma.
+3. **Mensajes de excepción con parámetros**: el mensaje de una `QueryException` incluye la consulta con sus valores enlazados, y `ProblemResponseFactory` registra el mensaje de toda excepción no controlada. Si una consulta por documento fallara con un `500`, el número podría llegar al registro de la aplicación. No se ha reproducido; se vigila al revisar los `500` de este endpoint.
+4. **Acción pendiente**: al preparar el primer despliegue real, anotar aquí quién es responsable de (1) y confirmar que `--accesslog` sigue sin activarse en `traefik.container`. Si el centro exige que quede garantizado por regla activa y no por ausencia, la salida es una decisión nueva: ruta `POST` de búsqueda (el cuerpo no se registra en ninguna de las capas anteriores). No se aplica ahora, por decisión del usuario (2026-11-05; queda registrada en el issue #511).
