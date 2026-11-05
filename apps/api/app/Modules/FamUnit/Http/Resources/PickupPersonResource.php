@@ -31,6 +31,10 @@ class PickupPersonResource extends JsonResource
             $contact = $view->contact;
             $data += [
                 'display_name' => $view->person->displayName,
+                // #509: los nombres por separado para precargar la edición; nada más de la persona (ni fecha de nacimiento).
+                'given_name' => $contact?->givenName,
+                'family_name_1' => $contact?->familyName1,
+                'family_name_2' => $contact?->familyName2,
                 'document' => $contact !== null && $contact->documentType !== null && $contact->documentNumber !== null
                     ? ['type' => $contact->documentType, 'number' => $contact->documentNumber]
                     : null,

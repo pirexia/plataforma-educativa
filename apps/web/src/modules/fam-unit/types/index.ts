@@ -228,6 +228,10 @@ export interface PickupAuthorization {
 export interface PickupPerson {
   person: PublicId
   display_name?: string
+  /** #509: nombres por separado, para precargar la edición. */
+  given_name?: string | null
+  family_name_1?: string | null
+  family_name_2?: string | null
   document?: PickupFullDocument | null
   contact_phone?: string | null
   has_photo?: boolean

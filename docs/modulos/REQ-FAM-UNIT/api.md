@@ -330,7 +330,7 @@ Nota: el issue #60 (`ValidationErrorFormatter` antepone `core.` al `code` de cua
 
 **`PickupAuthorization`**: `public_id`, `student_person`, `person` (`public_id` + `display_name`), `relationship`, `kind`, `valid_from`, `valid_until`, `reason` (solo con `autorizado_recogida.leer` de ámbito `todos`), `authorized_by` (`public_id` del tutor), `terms_version` (`{ public_id, kind, version_number }`), `channel`, `authorized_at`, `recorded_by`, `is_effective` (vigente ahora, calculado), `ineffective_reason` (`sin_foto`, `fuera_de_vigencia`, `retirada`, `persona_excluida` — la causa concreta **solo** con `revocacion_tutor.leer`; sin él, **toda** causa se muestra como `no_vigente`, decisión del usuario del 2026-11-02), `withdrawn_at`, `created_at`. Nunca `ip_address` ni `user_agent`.
 
-**`PickupPerson`** (gestión de un tercero o tutor como persona de recogida): `person`, `display_name`, `document` (completo solo aquí y con `autorizado_recogida.actualizar`, `RN-FAM-UNIT-90`), `contact_phone`, `has_photo`, `photo_updated_at`.
+**`PickupPerson`** (gestión de un tercero o tutor como persona de recogida): `person`, `display_name`, `given_name`, `family_name_1`, `family_name_2` (los tres anulables; **cambio aditivo de contrato, issue #509, 2026-11-05**: sirven para precargar la edición; no se expone nada más de la persona, ni fecha de nacimiento; la lectura conserva la misma auditoría `read` de `GET /pickup-persons/{p}`, `D-66`), `document` (completo solo aquí y con `autorizado_recogida.actualizar`, `RN-FAM-UNIT-90`), `contact_phone`, `has_photo`, `photo_updated_at`.
 
 ### 8.2 Personas y fotografías (`fam_unit`, `1.14b-a`)
 

@@ -403,7 +403,7 @@
         "notCorrectable": "This person cannot be corrected here; if they have a user account, correct it under Users.",
         "unavailable": "This person is not available.",
         "title": "Details of {person}",
-        "correctHint": "Fill in only what you want to correct; anything left empty will not change.",
+        "correctHint": "The fields show the current values; only what you change is sent. The second surname and the phone number can be emptied to remove them.",
         "nothingToSave": "You have not changed any data.",
         "documentRequired": "Enter the document number.",
         "nameRequired": "This field is required."
