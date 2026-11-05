@@ -6,6 +6,10 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-05 · `fix(fam-unit)`: orden de bloqueo canónico de la revocación de vínculos (#537)
+
+- `GuardianLinkService::revoke` bloquea ahora tutor (`FOR SHARE`) → unidad (`FOR UPDATE`) → vínculo, el orden de `GuardianService::delete`; antes bloqueaba vínculo → unidad y, contra una baja de tutor, podía acabar en `40P01` (500). Sin cambio de semántica de la revocación (`REQ-FAM-UNIT-002`). Prueba de concurrencia `CA-FAM-UNIT-147` (reproduce el `40P01` con el código anterior). `docs/modulos/REQ-PRL/operacion.md §12.6b` actualizado.
+
 ## 2026-11-05 · `fix(fam-unit)`: `ADR-070`, texto legal del consentimiento como texto plano (#481)
 
 - `ADR-070` (ACEPTADA, complementa `ADR-066`): `title` y `body` de `terms_versions` son texto plano. `TermsVersionService` rechaza el marcado HTML en `create`, `update` y `publish` (`422 fam_unit.terms.markup_not_allowed`, sin limpiar; las entidades se admiten, `OPEN-070-01`); los diálogos del texto legal usan `whitespace-pre-line`. `CA-070-07` (escapado en el PDF) queda como obligación heredada de `1.22`. Documentación: `api.md`, `funcional.md §26`, OpenAPI.

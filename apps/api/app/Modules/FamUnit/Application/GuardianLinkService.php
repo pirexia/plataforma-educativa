@@ -4,6 +4,7 @@ namespace App\Modules\FamUnit\Application;
 
 use App\Models\User;
 use App\Modules\Core\Domain\PersonDirectory;
+use App\Modules\FamUnit\Domain\Models\FamilyUnit;
 use App\Modules\FamUnit\Domain\Models\Guardian;
 use App\Modules\FamUnit\Domain\Models\GuardianStudentLink;
 use App\Support\Authorization\PermissionDecision;
@@ -235,6 +236,15 @@ final class GuardianLinkService
     public function revoke(string $publicId, string $reason, User $actor): array
     {
         return DB::transaction(function () use ($publicId, $reason, $actor): array {
+            // Issue #537: orden canónico de `fam_unit` — tutor → unidad → vínculo, el mismo de `GuardianService::delete` (y,
+            // para tutor → vínculo, el de la puerta de `prl`). Antes se bloqueaba el vínculo y después la unidad
+            // (`clearPrincipalIfOrphaned`): contra una baja de tutor (unidad → vínculos) se esperaban mutuamente (`40P01`, 500).
+            // El vínculo se lee sin bloquear solo para saber de qué tutor es; se bloquea ya en orden y se relee, de modo que
+            // una baja o un levantamiento concurrentes se ven (404 si ya no existe, `invalid_transition` si cambió de estado).
+            $probe = GuardianStudentLink::query()->where('public_id', $publicId)->firstOrFail();
+            $guardian = Guardian::query()->whereKey($probe->guardian_id)->sharedLock()->firstOrFail();
+            FamilyUnit::query()->whereKey($guardian->family_unit_id)->lockForUpdate()->first();
+
             $link = GuardianStudentLink::query()->with('guardian')->where('public_id', $publicId)->lockForUpdate()->firstOrFail();
 
             if ($link->status !== 'activo') {

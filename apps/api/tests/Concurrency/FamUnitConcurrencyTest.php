@@ -325,3 +325,47 @@ test('CA-068-05 ADR-068 §5.2: dos registerOrReuse simultáneos con el mismo doc
 
     expect(app(TenantContext::class)->runFor($tenant->id, fn () => DB::table('people')->where('document_number', '12345678Z')->whereNull('deleted_at')->count()))->toBe(1);
 });
+
+test('CA-FAM-UNIT-147 REQ-FAM-UNIT-002 (issue #537): revocar un vínculo mientras se da de baja a su tutor bloquea en el orden canónico tutor → unidad → vínculo; la baja que ya tiene tutor y unidad no es víctima de un interbloqueo (40P01) y la revocación se completa', function (): void {
+    [$tenant, $admin] = Fam::setup('fam-conc-147');
+    $unit = Fam::unitId($tenant, $admin);
+    [, $guardian] = Fam::familyUser($tenant, $admin, 'tut', $unit);
+    $student = Fam::person($tenant);
+    Fam::addStudent($tenant, $admin, $unit, $student)->assertCreated();
+    $link = Fam::link($tenant, $admin, $guardian, $student)->assertCreated()->json('public_id');
+    Fam::call($tenant, $admin, 'patch', "/family-units/{$unit}", ['principal_guardian' => $guardian])->assertOk();
+
+    // La baja del tutor (`GuardianService::delete`), partida en dos pasos para intercalar la revocación real en la ventana del
+    // interbloqueo: tutor `FOR NO KEY UPDATE` y unidad `FOR UPDATE` ahora; los vínculos, después de que la revocación espere.
+    $delete = famPdo();
+    $delete->beginTransaction();
+    $delete->prepare("select set_config('app.tenant_id', ?, true)")->execute([(string) $tenant->id]);
+    $delete->prepare('select id from guardians where public_id = ? and deleted_at is null for no key update')->execute([$guardian]);
+    $delete->prepare('select id from family_units where public_id = ? and deleted_at is null for update')->execute([$unit]);
+
+    $revoke = famSpawn($tenant->id, 'revoke-link', $link);
+    $deleteError = null;
+
+    try {
+        famWaitBlocked(1, [$revoke], 'transactionid');
+
+        try {
+            $delete->prepare('select l.id from guardian_student_links l where l.deleted_at is null and l.guardian_id = (select id from guardians where public_id = ?) order by l.id for update')->execute([$guardian]);
+            $delete->commit();
+        } catch (PDOException $e) {
+            $deleteError = $e->errorInfo[0] ?? 'error';
+            $delete->rollBack();
+        }
+    } finally {
+        if ($delete->inTransaction()) {
+            $delete->rollBack();
+        }
+    }
+
+    $result = famCollect($revoke);
+
+    expect($deleteError)->toBeNull('la baja del tutor no debe ser la víctima del interbloqueo')
+        ->and($result)->toMatchArray(['outcome' => 'ok', 'principal_cleared' => true], json_encode($result));
+
+    expect(app(TenantContext::class)->runFor($tenant->id, fn () => DB::table('guardian_student_links')->where('public_id', $link)->value('status')))->toBe('revocado');
+});
