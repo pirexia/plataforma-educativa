@@ -338,7 +338,7 @@ describe('CA-PRL-020: fuera de horario (RN-PRL-07, DP-3)', () => {
     await open()
     await click(buttonByText('Entregar a Rosa Ejemplo Vidal'))
     await chooseMethod('foto')
-    await click(el('input[type="checkbox"]'))
+    await click(el('#prl-movement-off-schedule'))
     await submit()
 
     expect(prlApi.createStudentMovement).not.toHaveBeenCalled()

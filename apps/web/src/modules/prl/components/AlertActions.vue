@@ -34,15 +34,23 @@ const RESOLUTIONS: PickupAlertResolution[] = [
 ]
 
 /**
- * Valor para `<input type="datetime-local">` en hora local: `max(ahora, raised_at)` con precisión de milisegundos.
- * El servidor rechaza una hora anterior a la apertura (o futura), así que la propuesta nunca precede a `raised_at`
- * ni se trunca por debajo de él (#518).
+ * Margen con el que se resta a la hora local la propuesta (#521). El servidor rechaza una hora futura
+ * (`422 prl.validation.contact_time_out_of_range`) y el reloj del cliente puede ir por delante del suyo; un minuto
+ * absorbe una deriva razonable sin una petición más ni tocar el cliente HTTP compartido (la alternativa, la cabecera
+ * `Date` de la API, exigiría exponer cabeceras de `apiFetch` fuera de este módulo). El campo es editable.
+ */
+const CLOCK_SKEW_MARGIN_MS = 60_000
+
+/**
+ * Valor para `<input type="datetime-local">` en hora local: `max(ahora - margen, raised_at)` con precisión de
+ * milisegundos. El servidor rechaza una hora anterior a la apertura (o futura), así que la propuesta nunca precede a
+ * `raised_at` (hora del servidor, nunca futura para él) ni se trunca por debajo de él (#518).
  */
 function nowLocal(): string {
-  const now = new Date()
+  const earlier = new Date(Date.now() - CLOCK_SKEW_MARGIN_MS)
   const raised = new Date(props.alert.raised_at)
   const candidate =
-    !Number.isNaN(raised.getTime()) && raised.getTime() > now.getTime() ? raised : now
+    !Number.isNaN(raised.getTime()) && raised.getTime() > earlier.getTime() ? raised : earlier
   const shifted = new Date(candidate.getTime() - candidate.getTimezoneOffset() * 60000)
 
   return shifted.toISOString().slice(0, 23)

@@ -7,6 +7,8 @@ import { describe, expect, it } from 'vitest'
 import { buttonVariants } from './button'
 import { badgeVariants } from './badge'
 import { RadioGroup, RadioGroupItem } from './radio-group'
+import { Checkbox } from './checkbox'
+import { Label } from './label'
 
 describe('Button — CA-DS-044', () => {
   it('variant="link" usa text-primary-on-background', () => {
@@ -48,5 +50,36 @@ describe('RadioGroupItem — CA-DS-044', () => {
 
     expect(item.exists()).toBe(true)
     expect(item.classes().join(' ')).toContain('data-checked:border-primary-on-background')
+  })
+})
+
+describe('Checkbox — REQ-PRL-004 (#520), RN-DS-16', () => {
+  it('es un role=checkbox, alterna con el clic, emite update:modelValue y su etiqueta asociada lo nombra', async () => {
+    const wrapper = mount(
+      {
+        components: { Checkbox, Label },
+        data: () => ({ on: false }),
+        template:
+          '<div><Checkbox id="c1" :model-value="on" @update:model-value="on = $event === true" /><Label for="c1">Fuera de horario</Label></div>',
+      },
+      { attachTo: document.body },
+    )
+
+    const box = wrapper.find('[role="checkbox"]')
+
+    expect(box.exists()).toBe(true)
+    expect(box.attributes('id')).toBe('c1')
+    expect(box.attributes('aria-checked')).toBe('false')
+    expect(wrapper.find('label[for="c1"]').text()).toBe('Fuera de horario')
+
+    await wrapper.find('label[for="c1"]').trigger('click')
+
+    expect(box.attributes('aria-checked')).toBe('true')
+    expect(box.classes().join(' ')).toContain('data-[state=checked]:border-primary-on-background')
+
+    await box.trigger('click')
+
+    expect(box.attributes('aria-checked')).toBe('false')
+    wrapper.unmount()
   })
 })

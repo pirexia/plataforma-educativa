@@ -474,7 +474,7 @@ test('CA-PRL-027 RN-PRL-12 RN-PRL-15: con la salida de T registrada y sin confir
         $f = Prl::doorFamily("prl-conc-027-{$i}");
         $signal = tempnam(sys_get_temp_dir(), 'prl-sig-');
         @unlink($signal);
-        $a = prlSpawn($f['tenant']->id, 'record-exit-hold', $f['conserje']->public_id, $f['student']->public_id, $f['abuelo']['person'], $signal, '6');
+        $a = prlSpawn($f['tenant']->id, 'record-exit-hold', $f['conserje']->public_id, $f['student']->public_id, $f['abuelo']['person'], $signal);
         $deadline = microtime(true) + 60;
 
         while (! file_exists($signal)) {
@@ -497,8 +497,12 @@ test('CA-PRL-027 RN-PRL-12 RN-PRL-15: con la salida de T registrada y sin confir
         expect(pg_connection_busy($b))->toBeTrue("{$name}: B no esperó");
         $before = prlCounts($f['tenant']);
 
+        // A confirma al recibir la señal de liberación (sin retención temporizada, como CA-PRL-036/-037).
+        file_put_contents($signal.'.release', '1');
         $resultA = prlCollect($a);
         $resultB = pg_get_result($b);
+        @unlink($signal.'.release');
+        @unlink($signal);
 
         expect($resultA['outcome'])->toBe('ok')
             ->and(pg_result_error($resultB))->toBe('', "{$name}: B falló")
@@ -551,6 +555,39 @@ test('CA-PRL-036 CA-PRL-037 RN-PRL-12: con la baja sin confirmar, la salida del 
         ->and($result)->toMatchArray(['outcome' => 'api_error', 'status' => 422, 'code' => 'prl.movement.person_not_authorized'])
         ->and(prlCounts($f['tenant'])['movements'])->toBe(0);
 })->with('prl baja de tutor');
+
+test('CA-PRL-038 RN-PRL-12 RN-PRL-15 (issue #527): la baja del tutor bloquea sus filas en el mismo orden que la puerta (guardians antes que guardian_student_links); con la puerta ya sobre el tutor no hay interbloqueo (40P01) y la baja se completa tras la salida', function (): void {
+    $f = Prl::doorFamily('prl-conc-038');
+
+    // La puerta (`lockGrantRows`): paso 1, `guardians` FOR SHARE; paso 2, `guardian_student_links` FOR SHARE. Se separan para
+    // intercalar la baja real entre los dos pasos, que es exactamente la ventana del interbloqueo.
+    $gate = prlHolder($f['tenant']->id);
+    $gate->prepare('select id from guardians where public_id = ? and deleted_at is null for share')->execute([$f['go']]);
+
+    $delete = prlSpawn($f['tenant']->id, 'delete-guardian', $f['admin']->public_id, $f['go']);
+    $gateError = null;
+
+    try {
+        prlWaitLockWaiter([$delete]);
+
+        try {
+            $gate->prepare('select l.id from guardian_student_links l where l.deleted_at is null and l.guardian_id = (select id from guardians where public_id = ?) order by l.id for share')->execute([$f['go']]);
+            $gate->commit();
+        } catch (PDOException $e) {
+            $gateError = $e->errorInfo[0] ?? 'error';
+            $gate->rollBack();
+        }
+    } finally {
+        if ($gate->inTransaction()) {
+            $gate->rollBack();
+        }
+    }
+
+    $result = prlCollect($delete);
+
+    expect($gateError)->toBeNull('la puerta no debe ser la víctima del interbloqueo')
+        ->and($result)->toBe(['outcome' => 'ok'], 'la baja del tutor no debe terminar en 40P01 ni en otro error');
+});
 
 test('CA-PRL-029 RN-PRL-14 RN-PRL-15: fuera de una transacción abierta, lockLiveByPublicIds y grantForLocked lanzan LogicException (fallo en cerrado)', function (): void {
     $f = Prl::doorFamily('prl-conc-029');

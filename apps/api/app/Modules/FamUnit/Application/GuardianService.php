@@ -187,7 +187,12 @@ final class GuardianService
     public function delete(string $publicId): array
     {
         return DB::transaction(function () use ($publicId): array {
-            $guardian = Guardian::query()->where('public_id', $publicId)->firstOrFail();
+            // Issue #527: primero la fila del tutor, antes que sus vínculos, que es el orden de la puerta de `prl`
+            // (`PickupListService::lockGrantRows`: `guardians` y después `guardian_student_links`); en el orden inverso, una
+            // salida en curso y esta baja se esperaban mutuamente (`40P01`, 500). `FOR NO KEY UPDATE` (lo que ya tomaba el
+            // `UPDATE` de la baja lógica): choca con el `FOR SHARE` de la puerta, pero no con el `FOR KEY SHARE` de las
+            // claves foráneas (la designación concurrente de principal), así que no abre otra espera cruzada con la unidad.
+            $guardian = Guardian::query()->where('public_id', $publicId)->lock('for no key update')->firstOrFail();
 
             // Bloquea la unidad: la designación concurrente de este tutor como principal espera o ve la baja.
             $unit = FamilyUnit::query()->whereKey($guardian->family_unit_id)->lockForUpdate()->first();

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Ejecuta los e2e de la puerta (REQ-PRL-004) contra la API real: `prl-door-api.spec.ts` (1.14b-b, HTTP) y `prl-door-real.spec.ts`
-# (1.14b-c2, CA-PRL-012, navegador; necesita la SPA en :5173 con VITE_API_URL=http://<slug>.plataforma.test:8000/api/v1): prepara DOS centros sintéticos con `fam_unit` y `prl`
+# (1.14b-c2, CA-PRL-012, navegador; el script exporta VITE_API_URL=http://<slug>.plataforma.test:8000/api/v1 para la SPA que arranca Playwright, y se niega si ya hay otra en :5173 con otra URL): prepara DOS centros sintéticos con `fam_unit` y `prl`
 # contratados y personal con los roles predefinidos (apps/api/tests/Support/e2e-real-tenant.php setup <slug> door), lanza
 # Playwright con sus credenciales y los retira al terminar, también si falla (mismo método y mismas garantías que
 # `e2e-real-api.sh`: solo contenedores de desarrollo, solo centros que lleven la marca del script, solo datos sintéticos).
@@ -25,6 +25,10 @@ for slug in "$SLUG_A" "$SLUG_B"; do
     exit 2
   fi
 done
+
+# shellcheck source=e2e-vite-api-url.sh
+source "$(dirname "${BASH_SOURCE[0]}")/e2e-vite-api-url.sh"
+prepare_vite_api_url "$SLUG_A" || exit 2
 
 support() { podman exec -e E2E_ALLOW_DESTRUCTIVE=1 "$API_CONTAINER" php tests/Support/e2e-real-tenant.php "$@"; }
 field() { python3 -c 'import json,sys; print(json.load(sys.stdin)[sys.argv[1]])' "$1"; }

@@ -8,12 +8,14 @@
  * Uso: php prl-worker.php <tenantId> <operación> [argumentos…]
  *   record-exit <userPublicId> <studentPersonPublicId> <personPublicId> <idempotencyKey|->   (StudentMovementService::record)
  *   raise-alert <userPublicId> <studentPersonPublicId> <idempotencyKey|->                    (PickupAlertService::raise)
- *   record-exit-hold <userPublicId> <studentPersonPublicId> <personPublicId> <signalFile> <seconds>
- *       registra la salida y, **sin confirmar**, escribe el fichero de señal y espera: retiene los bloqueos de `RN-PRL-12` (`CA-PRL-027`)
+ *   record-exit-hold <userPublicId> <studentPersonPublicId> <personPublicId> <signalFile>
+ *       registra la salida y, **sin confirmar**, escribe el fichero de señal y espera a que exista `<signalFile>.release` (máximo 30 s):
+ *       retiene los bloqueos de `RN-PRL-12` (`CA-PRL-027`)
  *   delete-link-hold <userPublicId> <linkPublicId> <signalFile>      (GuardianLinkService::delete)
  *   delete-guardian-hold <userPublicId> <guardianPublicId> <signalFile>   (GuardianService::delete)
  *       dan de baja el vínculo o el tutor **sin confirmar**, escriben el fichero de señal y esperan a que exista `<signalFile>.release`
  *       (máximo 30 s): retienen los bloqueos de la baja mientras la puerta intenta una salida (`CA-PRL-036`, `CA-PRL-037`)
+ *   delete-guardian <userPublicId> <guardianPublicId>   (GuardianService::delete, confirma al terminar; `CA-PRL-038`, issue #527)
  */
 
 use App\Models\User;
@@ -71,7 +73,11 @@ $result = app(TenantContext::class)->runFor((int) $tenantId, function () use ($o
                         ], $user, null);
 
                         file_put_contents($args[3], '1');
-                        sleep((int) $args[4]);
+                        $deadline = microtime(true) + 30;
+
+                        while (! file_exists($args[3].'.release') && microtime(true) < $deadline) {
+                            usleep(20_000);
+                        }
 
                         return $recorded['movement']->public_id;
                     });
@@ -92,6 +98,11 @@ $result = app(TenantContext::class)->runFor((int) $tenantId, function () use ($o
                             usleep(20_000);
                         }
                     });
+
+                    return ['outcome' => 'ok'];
+
+                case 'delete-guardian':
+                    app(GuardianService::class)->delete($args[1]);
 
                     return ['outcome' => 'ok'];
 

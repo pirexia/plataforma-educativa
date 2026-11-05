@@ -52,7 +52,7 @@ class PickupAuthorizationsController extends FamUnitController
 
         $this->prepare($page->items(), $actor, $refs, $list, $permissions, $view);
 
-        return PagePaginatedResponse::make($page, PickupAuthorizationResource::class);
+        return PagePaginatedResponse::make($page, PickupAuthorizationResource::class)->header('Cache-Control', 'no-store');
     }
 
     public function store(StorePickupAuthorizationRequest $request, PickupAuthorizationService $service, PickupListService $list, FamilyRefs $refs, PermissionResolver $permissions, PickupViewContext $view): JsonResponse
@@ -67,13 +67,14 @@ class PickupAuthorizationsController extends FamUnitController
             ->header('Location', url("/api/v1/pickup-authorizations/{$authorization->public_id}"));
     }
 
-    public function show(Request $request, string $publicId, PickupListService $list, FamilyRefs $refs, PermissionResolver $permissions, PickupViewContext $view): PickupAuthorizationResource
+    public function show(Request $request, string $publicId, PickupListService $list, FamilyRefs $refs, PermissionResolver $permissions, PickupViewContext $view): JsonResponse
     {
         $actor = $this->actor($request);
         $authorization = $list->findScoped($publicId, $this->decision($request), $actor);
         $this->prepare([$authorization], $actor, $refs, $list, $permissions, $view);
 
-        return new PickupAuthorizationResource($authorization);
+        // `RN-FAM-UNIT-81`: la vigencia efectiva cambia al revocar; la respuesta no se cachea.
+        return (new PickupAuthorizationResource($authorization))->response($request)->header('Cache-Control', 'no-store');
     }
 
     public function update(UpdatePickupAuthorizationRequest $request, string $publicId, PickupAuthorizationService $service, PickupListService $list, FamilyRefs $refs, PermissionResolver $permissions, PickupViewContext $view): PickupAuthorizationResource
