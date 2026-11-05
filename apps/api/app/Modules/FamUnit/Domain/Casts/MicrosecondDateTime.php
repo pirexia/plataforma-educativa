@@ -4,6 +4,7 @@ namespace App\Modules\FamUnit\Domain\Casts;
 
 use Carbon\CarbonInterface;
 use Illuminate\Contracts\Database\Eloquent\CastsAttributes;
+use Illuminate\Contracts\Database\Eloquent\ComparesCastableAttributes;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 
@@ -16,7 +17,7 @@ use Illuminate\Support\Carbon;
  *
  * @implements CastsAttributes<Carbon|null, CarbonInterface|string|null>
  */
-class MicrosecondDateTime implements CastsAttributes
+class MicrosecondDateTime implements CastsAttributes, ComparesCastableAttributes
 {
     public function get(Model $model, string $key, mixed $value, array $attributes): ?Carbon
     {
@@ -30,5 +31,18 @@ class MicrosecondDateTime implements CastsAttributes
         }
 
         return ($value instanceof CarbonInterface ? $value : Carbon::parse($value))->format('Y-m-d H:i:s.uP');
+    }
+
+    /**
+     * Compara por instante, no por texto: PostgreSQL devuelve `2026-10-27 09:00:00+00` y el cast escribe
+     * `2026-10-27 09:00:00.000000+00:00`; sin esto reasignar el mismo valor ensuciaría el modelo.
+     */
+    public function compare(Model $model, string $key, mixed $firstValue, mixed $secondValue): bool
+    {
+        if ($firstValue === null || $secondValue === null) {
+            return $firstValue === $secondValue;
+        }
+
+        return Carbon::parse($firstValue)->equalTo(Carbon::parse($secondValue));
     }
 }

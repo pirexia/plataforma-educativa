@@ -350,7 +350,8 @@ final class ImageConsentService
             // del texto) no se vuelve a insertar ni a auditar; se devuelve la existente.
             $current = $verifiedAt === null ? null : ImageConsentDecision::query()
                 ->where('student_person_id', $student->id)->where('level', $input['level'])->where('guardian_id', $guardianId)
-                ->where('occurred_at', '>', $verifiedAt)
+                // Cadena con microsegundos y offset: un Carbon como binding se formatea a segundos (`Y-m-d H:i:s`) y se perdería la fracción (#483).
+                ->where('occurred_at', '>', $verifiedAt->format('Y-m-d H:i:s.uP'))
                 ->orderByDesc('occurred_at')->orderByDesc('id')->first();
 
             if ($current !== null && $current->decision === $input['decision'] && ($current->consent_text_version_id === null ? null : (int) $current->consent_text_version_id) === $version?->id) {
@@ -491,7 +492,7 @@ final class ImageConsentService
         return [
             'rows' => $page->all(),
             'next_cursor' => $hasMore && $last !== null
-                ? $this->cursor->encode($last->occurred_at->toIso8601String(), (int) $last->id, $fingerprint, $this->tenant->tenantId())
+                ? $this->cursor->encode($last->occurred_at->format('Y-m-d H:i:s.uP'), (int) $last->id, $fingerprint, $this->tenant->tenantId())
                 : null,
             'has_more' => $hasMore,
             'student_person_id' => $student->id,
