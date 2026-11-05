@@ -6,6 +6,10 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-05 · `fix(fam-unit)`: `ADR-070`, texto legal del consentimiento como texto plano (#481)
+
+- `ADR-070` (ACEPTADA, complementa `ADR-066`): `title` y `body` de `terms_versions` son texto plano. `TermsVersionService` rechaza el marcado HTML en `create`, `update` y `publish` (`422 fam_unit.terms.markup_not_allowed`, sin limpiar; las entidades se admiten, `OPEN-070-01`); los diálogos del texto legal usan `whitespace-pre-line`. `CA-070-07` (escapado en el PDF) queda como obligación heredada de `1.22`. Documentación: `api.md`, `funcional.md §26`, OpenAPI.
+
 ## 2026-11-05 · `fix`: Bajos de `1.14b` y evidencia del consentimiento de imagen
 
 - PR #538 (Bajos del grupo A): `Cache-Control: no-store` en las lecturas de pickup (#510); `VITE_API_URL` en los scripts E2E (#530); margen en la hora de llamada (#521); `Checkbox` shadcn-vue (#520); `CA-PRL-027` por fichero `.release` (#532); bases de test (#533); logs `prl.lock.*` (#528); orden de bloqueo de `GuardianService::delete` y `CA-PRL-038` (#527). Abierto #537 (cruce `revoke`/`delete`).
