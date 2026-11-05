@@ -85,6 +85,40 @@ Provisional, n = 1 paso (`1.14b-a`):
 - `implementer`: 849 k tokens y 320 llamadas en total. La primera pasada fue el 86 % de los tokens y el 65 % de las llamadas.
 - Revisores: ronda 1 = 402 k tokens; ronda 2 = 272 k (68 % de la ronda 1). La ronda 2 solo se justificó por un Medio de seguridad y los Medios de documentación.
 - `verificador` y `traductor`: 30-65 k tokens cada uno; el `verificador` es lento en reloj (12-23 min).
+| Bajos 2026-11-05 | explorer | inventario de 21 Bajos | 56711 | 4 | 1.1 | 14178 | |
+| Bajos 2026-11-05 | implementer | grupo A tramo 1 (7 issues) | 141516 | 51 | 11.6 | 2775 | |
+| Bajos 2026-11-05 | implementer | grupo A tramo 2 (#527) | 100629 | 20 | 10.5 | 5031 | |
+| Bajos 2026-11-05 | verificador | suite completa grupo A | 36658 | 12 | 7.9 | 3055 | |
+| Bajos 2026-11-05 | security-reviewer | grupo A | 66432 | 6 | 0.5 | 11072 | |
+| Bajos 2026-11-05 | implementer | evidencia consentimiento P1 (#482-#484, #480) | 184549 | 84 | 21.5 | 2197 | |
+| Bajos 2026-11-05 | db-reviewer | evidencia consentimiento | 78317 | 9 | 1.2 | 8702 | |
+| Bajos 2026-11-05 | security-reviewer | evidencia consentimiento | 74554 | 7 | 0.9 | 10651 | |
+| Bajos 2026-11-05 | implementer | evidencia consentimiento P2 correcciones (delta de la reanudación) | 64053 | 68 | 15.3 | 942 | |
+| Bajos 2026-11-05 | verificador | suite evidencia (rojo: CA-067-08, consulta de más) | 43327 | 9 | 6.5 | 4814 | |
+| Bajos 2026-11-05 | verificador | suite evidencia (verde) | 25039 | 5 | 8.7 | 5008 | |
+| Bajos 2026-11-05 | doc-precheck | evidencia consentimiento | 80282 | 8 | 1.0 | 10035 | |
+| Bajos 2026-11-05 | doc-reviewer | evidencia consentimiento | 84296 | 11 | 1.3 | 7663 | |
+| Bajos 2026-11-05 | architect | ADR-070 (#481) | 87925 | 16 | 3.2 | 5495 | |
+| Bajos 2026-11-05 | implementer | ADR-070 implementación | 122646 | 54 | 25.2 | 2271 | |
+| Bajos 2026-11-05 | verificador | suite ADR-070 (verde) | 27972 | 9 | 15.1 | 3108 | |
+| Bajos 2026-11-05 | security-reviewer | ADR-070 | 76080 | 12 | 1.1 | 6340 | |
+| Bajos 2026-11-05 | doc-precheck | ADR-070 | 60063 | 6 | 0.5 | 10010 | |
+| Bajos 2026-11-05 | doc-reviewer | ADR-070 | 81580 | 9 | 0.9 | 9064 | |
+| Bajos 2026-11-05 | implementer | #537 orden de bloqueo | 117752 | 39 | 20.8 | 3019 | |
+| Bajos 2026-11-05 | verificador | suite #537 (rojo AR-10, FamilyUnit) | 28337 | 7 | 12.4 | 4048 | |
+| Bajos 2026-11-05 | verificador | suite #537 (rojo AR-10, Guardian) | 25844 | 6 | 13.0 | 4307 | |
+| Bajos 2026-11-05 | verificador | suite #537 (verde) | 25298 | 6 | 15.4 | 4216 | |
+| Bajos 2026-11-05 | security-reviewer | #537 | 65657 | 6 | 0.7 | 10943 | |
+| Bajos 2026-11-05 | doc-reviewer | #537 | 64340 | 5 | 0.6 | 12868 | |
+| Bajos 2026-11-05 | implementer | documentales (#529, #511, #479, #531) | 127226 | 36 | 4.7 | 3534 | |
+| Bajos 2026-11-05 | doc-precheck | documentales | 58272 | 5 | 0.4 | 11654 | |
+| Bajos 2026-11-05 | doc-reviewer | documentales | 98667 | 22 | 2.6 | 4485 | |
+| Bajos 2026-11-05 | implementer | #509 y #512 | 154962 | 75 | 19.8 | 2066 | |
+| Bajos 2026-11-05 | verificador | suite #509/#512 (verde) | 25610 | 6 | n/d | 4268 | |
+| Bajos 2026-11-05 | security-reviewer | #509/#512 (cifra aproximada) | 65000 | 5 | 0.7 | 13000 | |
+| Bajos 2026-11-05 | doc-reviewer | #509/#512 | 76786 | 7 | 0.9 | 10969 | |
+
+**Sesión 2026-11-05 (recapitulación de Bajos, 32 pasadas):** no es un paso del plan, así que no se recalcularon medias por tipo. Cifras tomadas de los avisos de fin; las de verificador y las de reanudaciones son las acumuladas del último aviso (la del implementer de la evidencia, P2, es el delta). Las filas «n/d» o «aproximada» no se anotaron en el momento. Codex sigue sin cuota hasta 2026-12-02 (régimen `ADR-050`).
 
 ## Codex (`ADR-069`)
 
