@@ -6,6 +6,13 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-05 · `docs`: Bajos documentales de `REQ-PRL` y `REQ-FAM-UNIT` (#529, #511, #479, #531)
+
+- `docs/modulos/REQ-PRL/operacion.md §12.6b`: ficha con el razonamiento de las entradas no bloqueadas al registrar un movimiento (`ModuleAvailability`, `delivered_by`/`OPEN-PRL-03`, zona horaria, oráculo de tiempo 503/422); `OPEN-PRL-03` pasa a A cuando `Core` permita comprobar el permiso de otro usuario (#529).
+- `docs/modulos/REQ-FAM-UNIT/operacion.md §14`: el documento de `GET /pickup-persons` no queda hoy en ningún registro de acceso (Traefik sin `--accesslog`, `frankenphp php-server` sin `--access-log`, sin middleware de registro); qué configurar si se activan (`accesslog.fields.queryParameters.defaultMode=drop`) y riesgo residual con acción pendiente de despliegue (#511).
+- `docs/modulos/REQ-FAM-UNIT/datos.md §9`: ventana sin `CHECK` de `data_exports.kind` aceptada y patrón correcto (añadir el nuevo con otro nombre antes de retirar el antiguo) (#479).
+- Nuevo `docs/manual-usuario/conserjeria.md` (es-ES, sin capturas ni traducciones, pendientes) y enlaces desde `direccion.md` y `secretaria.md` (#531).
+
 ## 2026-11-05 · `fix(fam-unit)`: orden de bloqueo canónico de la revocación de vínculos (#537)
 
 - `GuardianLinkService::revoke` bloquea ahora tutor (`FOR SHARE`) → unidad (`FOR UPDATE`) → vínculo, el orden de `GuardianService::delete`; antes bloqueaba vínculo → unidad y, contra una baja de tutor, podía acabar en `40P01` (500). Sin cambio de semántica de la revocación (`REQ-FAM-UNIT-002`). Prueba de concurrencia `CA-FAM-UNIT-147` (reproduce el `40P01` con el código anterior). `docs/modulos/REQ-PRL/operacion.md §12.6b` actualizado.

@@ -27,7 +27,7 @@
 
 ## Conserjería: entrega de alumnos en la puerta
 
-**Quién la usa.** Conserjería (y el personal con permisos de entrega de menores) en **Conserjería** (`/conserjeria`, en el menú lateral). Conserjería, secretaría y dirección ven el listado y el detalle de **Alertas de entrega** (`/conserjeria/alertas`, `alerta_entrega.leer`); registran la llamada y cierran la alerta dirección y la administración del centro. No existe un manual propio de conserjería: esta sección lo recoge.
+**Quién la usa.** Conserjería (y el personal con permisos de entrega de menores) en **Conserjería** (`/conserjeria`, en el menú lateral). Conserjería, secretaría y dirección ven el listado y el detalle de **Alertas de entrega** (`/conserjeria/alertas`, `alerta_entrega.leer`); registran la llamada y cierran la alerta dirección y la administración del centro. El manual propio de conserjería, con los pasos detallados, es `docs/manual-usuario/conserjeria.md`.
 
 **Buscar al alumno.** Escribe al menos 2 letras del nombre o de los apellidos. Cada resultado muestra la unidad familiar; elige al alumno.
 

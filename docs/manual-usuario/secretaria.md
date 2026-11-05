@@ -54,7 +54,7 @@ En la **ficha de una unidad familiar**, la sección **«Personas autorizadas a r
 - La lista ya cargada **no se actualiza sola** tras retirar una autorización: vuelve a pulsar «Ver lista de recogida».
 - Algunos textos de seguridad y privacidad de esta sección están todavía **solo en castellano** hasta que una persona los traduzca.
 
-La pantalla de conserjería (entrega en la puerta) ya está disponible; cómo se usa se explica en el manual de dirección, sección «Conserjería: entrega de alumnos en la puerta». Con el permiso de leer alertas de entrega, el listado de alertas también está a tu alcance y su consulta queda registrada en la auditoría.
+La pantalla de conserjería (entrega en la puerta) ya está disponible; cómo se usa se explica en el manual de conserjería (`docs/manual-usuario/conserjeria.md`) y, desde dirección, en la sección «Conserjería: entrega de alumnos en la puerta» del manual de dirección. Con el permiso de leer alertas de entrega, el listado de alertas también está a tu alcance y su consulta queda registrada en la auditoría.
 
 ## Condiciones de uso del centro
 
