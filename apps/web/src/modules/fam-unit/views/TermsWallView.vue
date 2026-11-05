@@ -112,7 +112,7 @@ onMounted(load)
         <h2 class="mb-2 text-base font-medium">{{ version.title }}</h2>
         <!-- Región desplazable alcanzable con el teclado y con nombre (WCAG 2.1.1, 4.1.2). -->
         <div
-          class="border-border mb-4 max-h-96 overflow-y-auto rounded-md border p-4 text-sm whitespace-pre-wrap"
+          class="border-border mb-4 max-h-96 overflow-y-auto rounded-md border p-4 text-sm whitespace-pre-line"
           tabindex="0"
           role="region"
           :aria-label="t('famUnit.termsWall.textLabel')"

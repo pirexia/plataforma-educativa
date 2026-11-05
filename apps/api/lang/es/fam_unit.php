@@ -60,6 +60,7 @@ return [
         'version_not_current' => 'La versión de las condiciones que se mostró ya no es la vigente: vuelve a leer el texto publicado antes de aceptar.',
         'not_draft' => 'Solo se puede editar, borrar o publicar una versión en borrador.',
         'default_locale_missing' => 'El título y el texto deben estar escritos en el idioma por defecto del centro (:locale) antes de publicar.',
+        'markup_not_allowed' => 'El texto no puede contener marcado (HTML) en el idioma :locale: escríbelo como texto plano, con saltos de línea.',
     ],
 
     'pickup' => [

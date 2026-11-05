@@ -60,6 +60,7 @@ return [
         'version_not_current' => 'Die angezeigte Fassung der Bedingungen ist nicht mehr die gültige: Lesen Sie den veröffentlichten Text erneut, bevor Sie akzeptieren.',
         'not_draft' => 'Nur eine Entwurfsversion kann bearbeitet, gelöscht oder veröffentlicht werden.',
         'default_locale_missing' => 'Titel und Text müssen vor der Veröffentlichung in der Standardsprache der Schule (:locale) vorliegen.',
+        'markup_not_allowed' => 'Der Text darf in der Sprache :locale kein Markup (HTML) enthalten: Bitte schreiben Sie ihn als reinen Text mit Zeilenumbrüchen.',
     ],
 
     'pickup' => [
