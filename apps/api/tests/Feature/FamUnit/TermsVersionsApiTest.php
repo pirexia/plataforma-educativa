@@ -135,7 +135,9 @@ test('CA-FAM-UNIT-100 datos.md §1.6 ADR-066 §5.8: una versión a la que apunta
     app(TenantContext::class)->runFor($f['tenant']->id, function () use ($decisionId): void {
         $delete = fn () => DB::connection('pgsql')->transaction(fn () => DB::connection('pgsql')->statement('DELETE FROM terms_versions WHERE public_id = ?', [$decisionId]));
 
-        expect($delete)->toThrow(QueryException::class, 'image_consent_decisions_tenant_text_version_foreign');
+        // Desde #482 el disparador BEFORE DELETE rechaza antes el borrado de una versión no borrador; el RESTRICT de la FK
+        // (que sigue declarado: ImageConsentSchemaTest) queda como segunda barrera.
+        expect($delete)->toThrow(QueryException::class, 'no se borra físicamente');
     });
 });
 

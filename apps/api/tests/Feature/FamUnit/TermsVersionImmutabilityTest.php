@@ -85,3 +85,24 @@ test('REQ-FAM-UNIT-004 #482: el rol de la aplicación no puede desactivar ni bor
     $enabled = DB::connection('pgsql_owner')->selectOne("SELECT tgenabled FROM pg_trigger WHERE tgname = 'terms_versions_published_text_immutable'");
     expect($enabled->tgenabled)->toBe('O');
 });
+
+test('REQ-FAM-UNIT-004 #482: una versión publicada o retirada no vuelve a borrador (23001) ni se borra físicamente; un borrador sí se borra y publicar/retirar siguen funcionando', function (): void {
+    [$tenant, $admin] = Fam::setup('tv-482d');
+    $published = Fam::publishText($tenant, $admin, 'web');
+    $id = Fam::row($tenant, 'terms_versions', $published)->id;
+
+    // Regresión de estado: el CHECK de published_at la admitiría; el disparador no.
+    expect(termsDirectUpdate('pgsql', $tenant->id, fn ($c) => $c->table('terms_versions')->where('id', $id)->update(['status' => 'borrador', 'published_at' => null])))->toBe('23001');
+
+    // Borrado físico de una publicada y de una retirada.
+    expect(termsDirectUpdate('pgsql', $tenant->id, fn ($c) => $c->table('terms_versions')->where('id', $id)->delete()))->toBe('23001');
+    Fam::publishText($tenant, $admin, 'web');
+    expect(Fam::row($tenant, 'terms_versions', $published)->status)->toBe('retirada')
+        ->and(termsDirectUpdate('pgsql', $tenant->id, fn ($c) => $c->table('terms_versions')->where('id', $id)->delete()))->toBe('23001');
+
+    // Un borrador se borra (física y lógicamente).
+    $draft = Fam::draftText($tenant, $admin, 'redes_sociales');
+    $draftId = Fam::row($tenant, 'terms_versions', $draft)->id;
+    expect(termsDirectUpdate('pgsql', $tenant->id, fn ($c) => $c->table('terms_versions')->where('id', $draftId)->delete()))->toBeNull();
+    Fam::call($tenant, $admin, 'delete', "/terms-versions/{$draft}")->assertNoContent();
+});
