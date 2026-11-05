@@ -128,7 +128,7 @@ jobs:
       # GHCR (plan Free, verificado en 0.9b.1).
       - name: Login en GHCR
         if: github.event_name != 'pull_request'
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -170,7 +170,7 @@ jobs:
 
       - name: Login en GHCR
         if: github.event_name != 'pull_request'
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
