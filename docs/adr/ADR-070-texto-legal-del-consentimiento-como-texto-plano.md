@@ -1,6 +1,6 @@
 # ADR-070 · El texto legal de `terms_versions` es texto plano
 
-**Estado**: **ACEPTADA** (2026-11-05). El usuario aprueba ese día la decisión de fondo: `title` y `body` son texto plano, el servidor rechaza el marcado HTML, el frontend los pinta siempre como texto y el futuro servicio HTML→PDF los escapa. Este ADR la deja por escrito y fija los detalles comprobables. Queda abierta, con su recomendación, `OPEN-070-01` (`§8`).
+**Estado**: **ACEPTADA** (2026-11-05). El usuario aprueba ese día la decisión de fondo: `title` y `body` son texto plano, el servidor rechaza el marcado HTML, el frontend los pinta siempre como texto y el futuro servicio HTML→PDF los escapa. Este ADR la deja por escrito y fija los detalles comprobables. `OPEN-070-01` resuelta por el usuario el 2026-11-05 (`§8`).
 **Fecha**: 2026-11-05
 **Origen**: issue #481 (severidad baja), detectado en la revisión de `1.14-b`.
 **Afecta a**: `REQ-FAM-UNIT-003` (condiciones de uso), `REQ-FAM-UNIT-004` (consentimiento de imagen), `REQ-FAM-UNIT-005` (autorización de recogida, `kind = autorizacion_recogida`), `REQ-FAM-PORTAL` (`1.22`), el servicio HTML→PDF (`ARCHITECTURE.md`, tabla del stack de `CLAUDE.md §1`), `INV-006`, `INV-010` y `CLAUDE.md §8`.
