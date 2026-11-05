@@ -403,7 +403,7 @@
         "notCorrectable": "Esta persona no se puede corregir desde aquí; si tiene cuenta de usuario, se corrige en Usuarios.",
         "unavailable": "Esta persona no está disponible.",
         "title": "Datos de {person}",
-        "correctHint": "Rellena solo lo que quieras corregir; lo que dejes vacío no cambia.",
+        "correctHint": "Los campos muestran los valores actuales; solo se envía lo que cambies. El segundo apellido y el teléfono se pueden vaciar para borrarlos.",
         "nothingToSave": "No has cambiado ningún dato.",
         "documentRequired": "Escribe el número de documento.",
         "nameRequired": "Este dato es obligatorio."

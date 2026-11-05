@@ -6,8 +6,8 @@
  * `PATCH` corrige nombre, apellidos y teléfono (al menos uno; el documento no se edita). `404` al corregir ⇒
  * `person.notCorrectable` sin distinguir la causa (`api.md §8.2`). Nada se persiste en el navegador (UI-3).
  *
- * La API no devuelve el nombre dividido, solo `display_name`: los campos de nombre empiezan vacíos y solo se envía lo que
- * se rellena.
+ * #509: la ficha trae nombre y apellidos por separado y se precargan; solo se envía lo que cambia (un nombre o primer
+ * apellido vacío no se envía: son obligatorios; el segundo apellido vacío se envía como `null` para borrarlo).
  */
 import { computed, ref, watch } from 'vue'
 import { useT } from '@/i18n'
@@ -63,6 +63,9 @@ async function load(): Promise<void> {
 
     person.value = loaded
     phone.value = loaded.contact_phone ?? ''
+    givenName.value = loaded.given_name ?? ''
+    familyName1.value = loaded.family_name_1 ?? ''
+    familyName2.value = loaded.family_name_2 ?? ''
   } catch (err) {
     if (seq !== loadSeq) return
 
@@ -118,9 +121,15 @@ async function submit(): Promise<void> {
 
   const body: UpdatePickupPersonBody = {}
 
-  if (givenName.value.trim() !== '') body.given_name = givenName.value.trim()
-  if (familyName1.value.trim() !== '') body.family_name_1 = familyName1.value.trim()
-  if (familyName2.value.trim() !== '') body.family_name_2 = familyName2.value.trim()
+  const given = givenName.value.trim()
+  const family1 = familyName1.value.trim()
+  const family2 = familyName2.value.trim()
+
+  if (given !== '' && given !== (person.value?.given_name ?? '')) body.given_name = given
+  if (family1 !== '' && family1 !== (person.value?.family_name_1 ?? ''))
+    body.family_name_1 = family1
+  if (family2 !== (person.value?.family_name_2 ?? ''))
+    body.family_name_2 = family2 === '' ? null : family2
   if (phone.value.trim() !== (person.value?.contact_phone ?? ''))
     body.contact_phone = phone.value.trim()
 

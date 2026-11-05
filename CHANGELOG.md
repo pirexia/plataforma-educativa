@@ -6,6 +6,12 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-05 · `fix(fam-unit)`: nombre y apellidos en el detalle de la persona de recogida y lista local descartada (#509, #512, #522)
+
+- #509: `PickupPerson` devuelve además `given_name`, `family_name_1` y `family_name_2` (cambio aditivo; solo a quien ya ve a la persona; misma auditoría de lectura). `PersonContact` de Core gana tres campos de nombre opcionales. El diálogo de edición precarga los nombres y solo envía lo que cambia.
+- #512: tras retirar una autorización o quitar una foto, la lista de recogida local se descarta sin pedir nada al servidor (`funcional.md §23.4.2`, UI-2).
+- #522: sin traducciones pendientes. Las claves `famUnit.pickup.*` que siguen en es-ES en en/de/fr son las 7 [NT] de `OPEN-FAM-UNIT-59` B y `list.empty`; las tres coincidencias de fr (`kind.permanente`, `channel` ×2) son palabras idénticas en francés.
+
 ## 2026-11-05 · `docs`: Bajos documentales de `REQ-PRL` y `REQ-FAM-UNIT` (#529, #511, #479, #531)
 
 - `docs/modulos/REQ-PRL/operacion.md §12.6b`: ficha con el razonamiento de las entradas no bloqueadas al registrar un movimiento (`ModuleAvailability`, `delivered_by`/`OPEN-PRL-03`, zona horaria, oráculo de tiempo 503/422); `OPEN-PRL-03` pasa a A cuando `Core` permita comprobar el permiso de otro usuario (#529).

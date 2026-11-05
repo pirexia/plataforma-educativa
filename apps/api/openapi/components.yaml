@@ -2389,6 +2389,21 @@ components:
       properties:
         person: { $ref: '#/components/schemas/PublicId' }
         display_name: { type: string }
+        given_name:
+          description: 'Nombre (aditivo, issue #509): para precargar la edición.'
+          oneOf:
+            - { type: string }
+            - { type: 'null' }
+        family_name_1:
+          description: 'Primer apellido (aditivo, issue #509).'
+          oneOf:
+            - { type: string }
+            - { type: 'null' }
+        family_name_2:
+          description: 'Segundo apellido (aditivo, issue #509).'
+          oneOf:
+            - { type: string }
+            - { type: 'null' }
         document:
           oneOf:
             - { $ref: '#/components/schemas/PickupDocument' }

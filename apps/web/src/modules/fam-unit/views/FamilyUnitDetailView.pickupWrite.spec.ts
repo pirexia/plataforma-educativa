@@ -19,6 +19,8 @@ import {
   mountView,
   page,
   pickupAuthorization,
+  pickupEntry,
+  pickupList,
   stubMatchMedia,
   student,
   termsVersion,
@@ -645,6 +647,53 @@ describe('CA-FAM-UNIT-139: retirada y fecha de fin', () => {
   })
 })
 
+describe('CA-FAM-UNIT-139 (#512): retirar o quitar la foto descarta la lista de recogida local', () => {
+  const LISTED = 'Tarjeta de la lista de recogida'
+
+  async function showLoadedList(): Promise<void> {
+    vi.mocked(famApi.getPickupList).mockResolvedValue(
+      pickupList([pickupEntry({ display_name: LISTED })]) as never,
+    )
+    await open()
+    await pickStudent()
+    buttonByText('Ver lista de recogida')!.click()
+    await flushPromises()
+
+    expect(text()).toContain(LISTED)
+  }
+
+  it('tras retirar la autorización la tarjeta desaparece y vuelve «Ver lista de recogida», sin pedir nada al servidor', async () => {
+    vi.mocked(famApi.withdrawPickupAuthorization).mockResolvedValue(pickupAuthorization() as never)
+    await showLoadedList()
+    buttonByLabel('Retirar la autorización de Rosa Ejemplo Vidal para Lucas Ejemplo Ruiz')!.click()
+    await flushPromises()
+    ;[...document.body.querySelectorAll<HTMLButtonElement>('[role="alertdialog"] button')]
+      .find((b) => b.textContent?.includes('Retirar la autorización'))!
+      .click()
+    await flushPromises()
+
+    expect(famApi.withdrawPickupAuthorization).toHaveBeenCalledWith('PA1')
+    expect(text()).not.toContain(LISTED)
+    expect(text()).toContain('pulsa «Ver lista de recogida»')
+    expect(famApi.getPickupList).toHaveBeenCalledTimes(1)
+  })
+
+  it('tras quitar la fotografía ocurre lo mismo', async () => {
+    vi.mocked(famApi.deletePickupPersonPhoto).mockResolvedValue(null as never)
+    await showLoadedList()
+    buttonByLabel('Quitar la fotografía de Rosa Ejemplo Vidal')!.click()
+    await flushPromises()
+    ;[...document.body.querySelectorAll<HTMLButtonElement>('[role="alertdialog"] button')]
+      .find((b) => b.textContent?.includes('Quitar la fotografía'))!
+      .click()
+    await flushPromises()
+
+    expect(famApi.deletePickupPersonPhoto).toHaveBeenCalledWith('PP1')
+    expect(text()).not.toContain(LISTED)
+    expect(famApi.getPickupList).toHaveBeenCalledTimes(1)
+  })
+})
+
 describe('CA-FAM-UNIT-140: ficha de la persona', () => {
   const FULL = {
     person: 'PP1',
@@ -690,6 +739,57 @@ describe('CA-FAM-UNIT-140: ficha de la persona', () => {
 
     expect(famApi.updatePickupPerson).toHaveBeenCalledWith('PP1', { given_name: 'Rosita' })
     expect(text()).toContain('Esta persona no se puede corregir desde aquí')
+  })
+
+  it('#509: nombre y apellidos se precargan y solo se envía lo que cambia', async () => {
+    vi.mocked(famApi.getPickupPerson).mockResolvedValue({
+      ...FULL,
+      given_name: 'Rosa',
+      family_name_1: 'Ejemplo',
+      family_name_2: 'Vidal',
+    } as never)
+    vi.mocked(famApi.updatePickupPerson).mockResolvedValue({ person: 'PP1' } as never)
+    await open()
+    await pickStudent()
+    buttonByLabel('Ver los datos de Rosa Ejemplo Vidal')!.click()
+    await flushPromises()
+
+    const value = (id: string) => document.body.querySelector<HTMLInputElement>(id)!.value
+
+    expect(value('#fam-unit-pickup-person-given')).toBe('Rosa')
+    expect(value('#fam-unit-pickup-person-family1')).toBe('Ejemplo')
+    expect(value('#fam-unit-pickup-person-family2')).toBe('Vidal')
+
+    await fill('#fam-unit-pickup-person-family1', 'Ejemplar')
+    await fill('#fam-unit-pickup-person-family2', '')
+    ;(
+      document.body.querySelector('[data-slot="fam-unit-pickup-person"] form') as HTMLFormElement
+    ).dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }))
+    await flushPromises()
+
+    expect(famApi.updatePickupPerson).toHaveBeenCalledWith('PP1', {
+      family_name_1: 'Ejemplar',
+      family_name_2: null,
+    })
+  })
+
+  it('#509: sin cambios no se envía nada', async () => {
+    vi.mocked(famApi.getPickupPerson).mockResolvedValue({
+      ...FULL,
+      given_name: 'Rosa',
+      family_name_1: 'Ejemplo',
+      family_name_2: null,
+    } as never)
+    await open()
+    await pickStudent()
+    buttonByLabel('Ver los datos de Rosa Ejemplo Vidal')!.click()
+    await flushPromises()
+    ;(
+      document.body.querySelector('[data-slot="fam-unit-pickup-person"] form') as HTMLFormElement
+    ).dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }))
+    await flushPromises()
+
+    expect(famApi.updatePickupPerson).not.toHaveBeenCalled()
   })
 })
 

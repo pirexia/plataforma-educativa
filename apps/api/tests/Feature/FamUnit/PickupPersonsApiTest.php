@@ -37,6 +37,9 @@ test('api.md §8.2 RN-FAM-UNIT-89: POST /pickup-persons crea una persona sin cue
     expect($response->json())->toBe([
         'person' => $response->json('person'),
         'display_name' => 'Rosa Gil',
+        'given_name' => 'Rosa',
+        'family_name_1' => 'Gil',
+        'family_name_2' => 'Soler',
         'document' => ['type' => 'dni', 'number' => Fam::dni(2)],
         'contact_phone' => '611222333',
         'has_photo' => false,
@@ -142,7 +145,10 @@ test('api.md §8.2: GET /pickup-persons/{person} devuelve la ficha (documento co
     $third = Fam::thirdParty($f, 9);
 
     $show = Fam::call($f['tenant'], $f['admin'], 'get', "/pickup-persons/{$third['person']}")->assertOk();
-    expect(array_keys($show->json()))->toBe(['person', 'display_name', 'document', 'contact_phone', 'has_photo', 'photo_updated_at'])
+    expect(array_keys($show->json()))->toBe(['person', 'display_name', 'given_name', 'family_name_1', 'family_name_2', 'document', 'contact_phone', 'has_photo', 'photo_updated_at'])
+        ->and($show->json('given_name'))->toBe('Abuelo')
+        ->and($show->json('family_name_1'))->toBe('Prueba')
+        ->and($show->json('family_name_2'))->toBeNull()
         ->and($show->json('document'))->toBe(['type' => 'dni', 'number' => Fam::dni(9)])
         ->and($show->json('photo_updated_at'))->not->toBeNull()
         ->and(json_encode($show->json()))->not->toContain('object_key')->not->toContain('tenants/');
@@ -544,4 +550,18 @@ test('RN-FAM-UNIT-81 issue #510: las lecturas de la lista de recogida, de person
         $response = Fam::call($f['tenant'], $f['admin'], 'get', $url)->assertOk();
         expect($response->headers->get('Cache-Control'))->toContain('no-store');
     }
+});
+
+test('REQ-FAM-UNIT-005 issue #509 (cambio aditivo de api.md §8.2): GET /pickup-persons/{p} devuelve nombre y apellidos por separado, solo ellos (ni fecha de nacimiento ni correo), con una única fila read', function (): void {
+    $f = Fam::pickupFamily('pp-nombres');
+    $third = Fam::thirdParty($f, 30);
+    $reads = fn () => count(Fam::audit($f['tenant'], 'person', 'read'));
+    $before = $reads();
+
+    $show = Fam::call($f['tenant'], $f['admin'], 'get', "/pickup-persons/{$third['person']}")->assertOk();
+
+    expect($show->json('given_name'))->toBe('Abuelo')
+        ->and($show->json('family_name_1'))->toBe('Prueba')
+        ->and(array_keys($show->json()))->not->toContain('birth_date')->not->toContain('contact_email')
+        ->and($reads())->toBe($before + 1);
 });

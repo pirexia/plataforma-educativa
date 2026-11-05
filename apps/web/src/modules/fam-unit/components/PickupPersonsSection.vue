@@ -8,7 +8,9 @@
  * (UI-2): elegir un alumno carga su tabla de autorizaciones (no escribe `read`), y la lista vigente solo se pide al
  * pulsar «Ver lista de recogida». El nombre del alumno vive únicamente en memoria de este componente: ni URL, ni
  * `history.state`, ni título, ni almacenamiento (UI-3, `OPEN-FAM-UNIT-58`). Al cambiar de alumno se remontan los dos
- * paneles (`:key`) y con ellos se descarta lo cargado, incluidas las URL firmadas.
+ * paneles (`:key`) y con ellos se descarta lo cargado, incluidas las URL firmadas. #512 (decisión del usuario, 2026-11-05):
+ * tras retirar una autorización o quitar una foto se descarta también la lista de recogida local (sin petición alguna)
+ * y vuelve al estado «lista no cargada»; no se avisa de que esté desactualizada.
  */
 import { computed, ref } from 'vue'
 import { useT } from '@/i18n'
@@ -50,6 +52,12 @@ const actions = useActions()
 
 const studentPerson = ref<string>('')
 const table = ref<{ refresh: () => Promise<void> } | null>(null)
+/** #512: subir este número remonta `PickupListPanel` y con ello descarta la lista de recogida ya cargada. */
+const listEpoch = ref(0)
+
+function discardLoadedList(): void {
+  listEpoch.value++
+}
 
 // UI-1: la interfaz oculta, el servidor decide (`INV-002`). Permisos de `/me`, nunca el rol.
 const canCreate = computed(() => can('autorizado_recogida.crear'))
@@ -116,7 +124,10 @@ async function withdraw(row: PickupAuthorization): Promise<void> {
     t('famUnit.pickup.flash.withdrawn'),
   )
 
-  if (done) await reloadTable()
+  if (done) {
+    discardLoadedList()
+    await reloadTable()
+  }
 }
 
 async function removePhoto(row: PickupAuthorization): Promise<void> {
@@ -133,7 +144,10 @@ async function removePhoto(row: PickupAuthorization): Promise<void> {
     t('famUnit.pickup.flash.photoRemoved'),
   )
 
-  if (done) await reloadTable()
+  if (done) {
+    discardLoadedList()
+    await reloadTable()
+  }
 }
 
 function editValidity(row: PickupAuthorization): void {
@@ -205,7 +219,10 @@ async function afterWizard(changed: boolean): Promise<void> {
     </div>
 
     <template v-if="studentPerson !== ''">
-      <PickupListPanel :key="`list-${studentPerson}`" :student-person="studentPerson" />
+      <PickupListPanel
+        :key="`list-${studentPerson}-${listEpoch}`"
+        :student-person="studentPerson"
+      />
       <PickupAuthorizationsTable
         :key="`table-${studentPerson}`"
         ref="table"
