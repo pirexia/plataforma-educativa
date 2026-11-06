@@ -77,6 +77,11 @@ Registro del gasto de cada subagente, para calibrar el tamaño de los tramos de 
 | 1.14b-d1 | implementer | correcciones doc-reviewer | 97122 | 15 | 1.9 | n/d | |
 | 1.14b-d1 | doc-precheck | ronda 2 | 98539 | 13 | 1.2 | n/d | 3 residuos, corregidos por la sesión |
 | proceso | implementer | aplicar ADR-069 (skill, docs) | 106801 | 16 | 2.4 | 6675 | |
+| 1.15 (spec) | spec-writer (Opus) | especificación REQ-ALUM | 318164 | 58 | 13.3 | n/d | clasificación crítico; partición `-a`..`-d`; 30 OPEN-ALUM (8 bloqueantes resueltas) |
+| 1.15 (spec) | doc-precheck | ronda 1 | 79851 | 8 | 0.9 | n/d | 0 hallazgos; CHANGELOG pendiente |
+| 1.15 (spec) | doc-reviewer | ronda 1 | 152088 | 21 | 3.4 | n/d | 1 Alto, 7 Medios, 10 Bajos |
+| 1.15 (spec) | spec-writer (Opus) | correcciones doc-reviewer | 73655 | 40 | 7.5 | n/d | reanudación; tokens = delta (391819 acumulado); reescribió funcional.md entero |
+| 1.15 (spec) | doc-reviewer | ronda 2 | 130051 | 17 | 2.0 | n/d | 0 C/A; 2 Medios y 5 Bajos textuales, corregidos por la sesión |
 
 ## Resumen (se recalcula al cerrar cada paso)
 

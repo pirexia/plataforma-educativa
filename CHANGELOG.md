@@ -6,6 +6,16 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-06 · `i18n`: textos [NT] de `fam-unit` y `prl` en en/de/fr (`REQ-FAM-UNIT-005`, #548)
+
+- Propuestas en/de/fr de `REQ-FAM-UNIT §23.8` aplicadas a las 16 claves [NT] (`CA-FAM-UNIT-143` cerrado); `useNtLang` solo marca el protocolo de la alerta.
+---
+
+## 2026-11-06 · `1.15`: especificación de `REQ-ALUM` aprobada (`REQ-ALUM-001`..`-003`, rama `docs/req-alum-especificacion-1-15`)
+
+- Nueva especificación `docs/modulos/REQ-ALUM/{funcional,datos,api,permisos,operacion}.md` (`RN-ALUM-01..65`, `CA-ALUM-001..072`, `OPEN-ALUM-01..31`), paso **crítico**, partido en `1.15-a`..`-d`. Aprobada por el usuario con la recomendación en las ocho bloqueantes: `-01` A, `-02` A, `-03` A, `-11` B, `-13` A, `-16` A, `-19` A, `-28` A. Corregida tras `doc-reviewer` (1 Alto, 7 Medios, Bajos; nueva `OPEN-ALUM-31`). `OPEN-FAM-UNIT-45` no se cierra en `1.15` ni en `1.14b-d2` (exige ADR que sustituya un punto de `ADR-032`); nota del plan corregida. `-11` B exigirá un ADR antes de `1.15-b`.
+---
+
 ## 2026-11-06 · `chore(proceso)`: E2E real, correcciones textuales y briefing a Haiku; asignación de modelos en una skill (#545)
 
 - `CLAUDE.md` 2.10.2 → 2.11.0. `verificador` (Haiku) ejecuta el E2E real (`npm run test:e2e:real[:prl]`) y devuelve el resultado literal; `implementer` conserva escribir y depurar los specs. `janitor` aplica correcciones textuales de documentación solo con hallazgo cerrado. `explorer` entrega un briefing de tramo (experimental hasta 5 tramos medidos).
