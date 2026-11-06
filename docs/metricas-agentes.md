@@ -117,6 +117,7 @@ Provisional, n = 1 paso (`1.14b-a`):
 | Bajos 2026-11-05 | verificador | suite #509/#512 (verde) | 25610 | 6 | n/d | 4268 | |
 | Bajos 2026-11-05 | security-reviewer | #509/#512 (cifra aproximada) | 65000 | 5 | 0.7 | 13000 | |
 | Bajos 2026-11-05 | doc-reviewer | #509/#512 | 76786 | 7 | 0.9 | 10969 | |
+| proceso | doc-precheck | #545 asignación de modelos y E2E a Haiku | 79861 | 7 | 0.8 | 11409 | 0 fallos; 1 referencia obsoleta y falta de CHANGELOG, corregidos por la sesión |
 
 **Sesión 2026-11-05 (recapitulación de Bajos, 32 pasadas):** no es un paso del plan, así que no se recalcularon medias por tipo. Cifras tomadas de los avisos de fin; las de verificador y las de reanudaciones son las acumuladas del último aviso (la del implementer de la evidencia, P2, es el delta). Las filas «n/d» o «aproximada» no se anotaron en el momento. Codex sigue sin cuota hasta 2026-12-02 (régimen `ADR-050`).
 

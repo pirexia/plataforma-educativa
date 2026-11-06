@@ -12,7 +12,7 @@
 | §1 párrafo «la tabla dice qué está elegido» + caso `1.6d` | Regla en `§1` (una línea, con `composer.json`/`package.json`); relato en `casos-reales.md#horizon-no-instalado` |
 | §1 Prohibido dependencias nuevas / mezclar UI / `design-system.md §22` | `CLAUDE.md §1`, sin cambios |
 | §2 «Plan y modelo por defecto» | `§2` «Modelo por defecto», reescrito (Pro 5 h, Sonnet, Opus a mano, alias) |
-| §2 tablas de tarea→modelo y de agentes | `§2`, sin cambios |
+| §2 tablas de tarea→modelo y de agentes | `§2`; desde 2026-11-06 (#545) viven en la skill `asignacion-de-modelos` y `§2` conserva las reglas absolutas y el puntero |
 | §2 viñetas (modo auto, Opus, delegar, heredan modelo, subagente no lanza subagentes) | `§2`, fusionadas dos y reescritas; todas las reglas presentes |
 | §2 Codex `ADR-049`/`ADR-050` | `§2`, condensado; relato de «prueba terminada» en `casos-reales.md#codex-prueba-cerrada` |
 | §2 «Copia de seguridad de la configuración» + comandos + `PLAN` no se restaura | `docs/proceso/restauracion-configuracion.md`; en `§2` queda etiqueta, commit y enlace |

@@ -1,6 +1,6 @@
 # CLAUDE.md — Normas de trabajo del proyecto
 
-> **Versión 2.10.2** · 2026-11-02 · Fichero de contexto permanente. Se carga en **todas** las sesiones. Contiene solo reglas estables.
+> **Versión 2.11.0** · 2026-11-06 · Fichero de contexto permanente. Se carga en **todas** las sesiones. Contiene solo reglas estables.
 > Proyecto: **Plataforma de Gestión Educativa Multi-tenant**. Fuente de verdad funcional: `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md`.
 
 ---
@@ -50,28 +50,11 @@ Reglas de composición visual del frontend: `docs/design-system.md §22`.
 
 ## 2. Modelos y agentes
 
-**Modelo por defecto.** Plan **Pro con límite de 5 horas**; sesión principal en **Sonnet** (`.claude/settings.json`). Opus se activa a mano (`/model opus`) solo para especificación, arquitectura y planificación, y se vuelve a Sonnet al terminar. Los agentes se declaran con alias (`haiku`, `sonnet`, `opus`), nunca con un ID de versión.
+**La asignación de modelos y agentes está en la skill `asignacion-de-modelos`** (tablas tarea→modelo y agente→modelo, herencia de modelo en `fork`/`general-purpose`/`Plan`, criterios para tareas nuevas): **cárgala antes de elegir agente o modelo al delegar**. Reglas que rigen aunque no se cargue:
 
-| Tarea | Modelo |
-|-------|--------|
-| Especificaciones, arquitectura, planificación, decisiones de diseño, revisión crítica | **Opus** |
-| Implementación, refactor, tests, revisión de código y de seguridad, coherencia de documentación, depuración, `memory.md` | **Sonnet** |
-| Tareas mecánicas: búsquedas e inventarios, ejecución de tests y linters con informe literal, traducción de claves de interfaz no legales, trámites de Git y GitHub (issues ya clasificados, PR, borrado de ramas, entrada de `CHANGELOG.md`), comprobaciones de existencia en documentación, formateo, renombrados | **Haiku** |
-
-| Agente | Modelo | Para qué |
-|--------|--------|----------|
-| `spec-writer`, `architect` | Opus | Especificación y ADR |
-| `implementer`, `test-writer` | Sonnet | Código y tests |
-| `security-reviewer`, `db-reviewer`, `doc-reviewer` | Sonnet | Revisiones obligatorias (nunca se rebajan a Haiku) |
-| `explorer` | Haiku | Búsquedas, inventarios, historial de Git y de GitHub (solo lectura) |
-| `verificador` | Haiku | Ejecuta suite y linters y devuelve el resultado literal; no corrige |
-| `traductor` | Haiku | Completa en/de/fr a partir de es-ES; nunca textos legales ni de consentimiento |
-| `doc-precheck` | Haiku | Pasada mecánica previa a `doc-reviewer`; no lo sustituye en la primera ronda (sí en la segunda, sección 2 «Ahorro de cuota», punto 8) |
-| `janitor` | Haiku | `.gitignore`, formateo, commits rutinarios, issues ya clasificados, PR, ramas, `CHANGELOG.md` |
-
-- Trabaja en **modo auto**. Cada subagente declara su modelo en su definición; no uses Opus en subagentes de ejecución ni para picar código (consume la cuota rápido).
+- Sesión principal en **Sonnet** (`.claude/settings.json`); Opus a mano (`/model opus`) solo para especificación, arquitectura y planificación. Agentes con alias (`haiku`, `sonnet`, `opus`), nunca un ID de versión. Trabaja en **modo auto**.
+- `security-reviewer`, `db-reviewer` y `doc-reviewer` nunca se rebajan a Haiku; Haiku no escribe código de negocio ni tests. No uses Opus en subagentes de ejecución. `fork`, `general-purpose` y `Plan` heredan el modelo de la sesión: para buscar, `explorer`; para tests y linters, `verificador`.
 - Delega en subagentes todo lo que no necesite el contexto principal (exploración, lectura de documentación, revisiones, suite): es un recurso escaso.
-- **Subagentes que heredan el modelo de la sesión.** `fork`, `general-purpose` y `Plan` corren con el modelo de la sesión que los lanza. Para buscar usa `explorer`, no `general-purpose`; para tests o linters, `verificador`. Un `fork` solo si el modelo de la sesión es el adecuado: en una sesión Opus, la ejecución va a un agente con nombre aunque se pierda la caché.
 - **Un subagente no lanza subagentes.** Quien encadena `implementer` → `traductor` → `verificador` → revisores es la sesión orquestadora.
 - **Revisión con Codex (`ADR-049`/`ADR-050`/`ADR-069`)**: plugin `openai/codex-plugin-cc`, protocolo en la skill `revision-con-codex`. Con `ADR-069` Codex revisa **primero** y es obligatorio por el proceso en todo paso con código (no entra en §10); lo lanza la sesión por `Bash` solo con `review` y `adversarial-review`; `rescue` prohibido; sin autoridad de bloqueo; un hallazgo contra un ADR vigente se cierra citándolo. **`OPEN-069-01` confirmada por el usuario (2026-11-02; entrenamiento desactivado en su cuenta de OpenAI): régimen de `ADR-069` activo.** Si dejara de estarlo, no se lanza Codex sobre código del proyecto y rige `ADR-050` (opcional): el interruptor está en la skill. Condiciones de retirada de `ADR-050 §5.3` siempre armadas. Motivo: `docs/proceso/casos-reales.md#codex-prueba-cerrada`.
 
@@ -85,8 +68,8 @@ Reglas de composición visual del frontend: `docs/design-system.md §22`.
 
 **Ahorro de cuota (norma del usuario, 2026-11-02).** El gasto de tokens es una restricción de diseño del proceso (motivo: `docs/proceso/casos-reales.md#cuota-semanal`).
 
-1. **Tramos de `implementer`.** Nunca uno largo por paso: tramos **secuenciales** (jamás en paralelo en la misma rama: el contenedor monta el checkout principal) cortados en costuras naturales — datos y permisos / servicios y *endpoints* / UI / E2E real —, de ~60-100 llamadas o <1 h (`docs/proceso/casos-reales.md#coste-tramos`). Cada tramo cierra con un commit `Verificado: X/X …` y deja la nota viva de la sección 3.
-2. **Prompt mínimo por tramo.** Solo las secciones de la especificación que el tramo necesita (fichero y sección) y las decisiones ya aprobadas para que no se reabran; nunca la especificación entera.
+1. **Tramos de `implementer`.** Nunca uno largo por paso: tramos **secuenciales** (jamás en paralelo en la misma rama: el contenedor monta el checkout principal) cortados en costuras naturales — datos y permisos / servicios y *endpoints* / UI / E2E real —, de ~60-100 llamadas o <1 h (`docs/proceso/casos-reales.md#coste-tramos`). `implementer` escribe y depura los *specs* de E2E; **la ejecución final del E2E real no es un tramo de `implementer`**: la lanza `verificador` (Haiku) y solo un fallo de código vuelve a `implementer` (sección 3). Cada tramo cierra con un commit `Verificado: X/X …` y deja la nota viva de la sección 3.
+2. **Prompt mínimo por tramo.** Solo las secciones de la especificación que el tramo necesita (fichero y sección) y las decisiones ya aprobadas para que no se reabran; nunca la especificación entera. **Antes de cada tramo de código, `explorer` entrega un briefing** (ficheros a imitar, puntos de contacto, lo que no existe) que la sesión pega en el prompt, para que `implementer` no gaste su arranque explorando. Es experimental hasta 5 tramos medidos (punto 4): se anota en `docs/metricas-agentes.md` como fila `explorer · briefing` y se compara el gasto del `implementer` con y sin él.
 3. **Revisiones acotadas.** Los revisores se lanzan **una vez**, al final del paso, sobre el diff y con las decisiones aprobadas en el prompt. Orden con `ADR-069` (`OPEN-069-01` confirmada): Codex primero; en paso **crítico** después `security-reviewer` solo con su columna del reparto; en paso **ordinario** `security-reviewer` solo si Codex trae un Crítico o Alto aceptado o no está disponible. `spec-writer` clasifica el paso y la sesión lo comprueba contra el diff; la duda es crítico. `db-reviewer` siempre que haya migraciones. **Segunda ronda**: la verifica Codex si hubo Medios o Bajos; el revisor de Claude solo reentra por un Crítico o un Alto (la de documentación, punto 8). Si `OPEN-069-01` dejara de estar confirmada (régimen de `ADR-050`): segunda ronda si la primera trae Críticos, Altos o Medios. Los Bajos se corrigen directamente. Las correcciones se reúnen en **una sola reanudación** tras **todos** los informes.
 4. **Métricas.** Al terminar cada subagente se anota una fila (`subagent_tokens`, `tool_uses`, `duration_ms`; en reanudaciones, el delta) en `docs/metricas-agentes.md`. Al cerrar cada paso se recalculan media, mediana y tokens por llamada **por tipo de agente** y se ajusta el número de tramos del siguiente. Con <5 observaciones por tipo son orientativas; `subagent_tokens` no incluye lecturas de caché.
 5. **Contexto principal pequeño.** Lectura, búsqueda y ejecución en subagentes. Se reinicia la sesión por encima de ~50 % de contexto o antes de una pausa larga (la caché caduca tras ~1 h), no por sistema. No releva el cierre de la sección 3.
@@ -130,7 +113,7 @@ Un relanzamiento que encuentra esa nota confía en los commits que cubre sin ree
 
 **Cuándo se ejecuta la suite (`ADR-060 §4.4`).** Durante el trabajo, solo los ficheros o directorios afectados (`php -d memory_limit=-1 vendor/bin/pest <rutas>`). La suite completa (`composer test`: Unit y Feature en paralelo, una base `plataforma_test_N` por proceso, y `Concurrency` en serie) se ejecuta **una vez en local antes de abrir el PR**, y CI la repite en cada *push*. Los revisores no la relanzan salvo necesidad justificada en su informe. El mensaje `Verificado` dice su alcance, `(suite completa)` o `(ficheros afectados: …)`, y un relanzamiento solo da por buena la suite completa con un `Verificado` de suite completa. Las bases por proceso se crean con el script de `SYSADMIN.md`; `composer test:serie` queda como vuelta atrás.
 
-**E2E contra la API real (norma del usuario, 2026-11-02).** Con el paso implementado y su suite en verde, se prueba además **de extremo a extremo contra la API real** en ejecución (Playwright o HTTP real con cookie de sesión y CSRF, datos de `REQ-SEED`), no solo con cliente de pruebas ni API simulada. Se permite **recrear el demo o la base** cuantas veces haga falta, sin pedir permiso. El resultado (qué se probó y qué no, p. ej. S3/MinIO) se registra en `memory.md` y en el informe del paso.
+**E2E contra la API real (norma del usuario, 2026-11-02).** Con el paso implementado y su suite en verde, se prueba además **de extremo a extremo contra la API real** en ejecución (Playwright o HTTP real con cookie de sesión y CSRF, datos de `REQ-SEED`), no solo con cliente de pruebas ni API simulada. Se permite **recrear el demo o la base** cuantas veces haga falta, sin pedir permiso. **Quién lo ejecuta (2026-11-06):** `verificador` (Haiku) lanza `npm run test:e2e:real[:prl]` y devuelve el resultado literal; si falla por código, la sesión reencarga a `implementer` solo el fallo; si falla por entorno (código 2, pila caída, S3), lo arregla la sesión. Un E2E parcial no se declara verde. El resultado (qué se probó y qué no, p. ej. S3/MinIO) se registra en `memory.md` y en el informe del paso.
 
 ---
 

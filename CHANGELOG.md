@@ -6,6 +6,12 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-06 · `chore(proceso)`: E2E real, correcciones textuales y briefing a Haiku; asignación de modelos en una skill (#545)
+
+- `CLAUDE.md` 2.10.2 → 2.11.0. `verificador` (Haiku) ejecuta el E2E real (`npm run test:e2e:real[:prl]`) y devuelve el resultado literal; `implementer` conserva escribir y depurar los specs. `janitor` aplica correcciones textuales de documentación solo con hallazgo cerrado. `explorer` entrega un briefing de tramo (experimental hasta 5 tramos medidos).
+- Nueva skill `.claude/skills/asignacion-de-modelos`: tablas tarea→modelo y agente→modelo y criterios para tareas nuevas; `CLAUDE.md §2` conserva las reglas absolutas y el puntero.
+- Sin cambios de código de aplicación; no se ejecutaron tests.
+
 ## 2026-11-05 · `fix(fam-unit)`: nombre y apellidos en el detalle de la persona de recogida y lista local descartada (#509, #512, #522)
 
 - #509: `PickupPerson` devuelve además `given_name`, `family_name_1` y `family_name_2` (cambio aditivo; solo a quien ya ve a la persona; misma auditoría de lectura). `PersonContact` de Core gana tres campos de nombre opcionales. El diálogo de edición precarga los nombres y solo envía lo que cambia.
