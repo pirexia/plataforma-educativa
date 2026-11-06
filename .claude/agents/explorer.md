@@ -26,3 +26,14 @@ Tienes `Bash` únicamente para consultar historial y estado. Lista cerrada de ó
 
 - Siempre: rutas de fichero concretas, líneas relevantes y un resumen breve. Nada de código completo salvo que se pida.
 - Si no encuentras algo, **dilo claramente** en lugar de suponer que no existe. Di qué patrones buscaste, para que quien te lee pueda juzgar si la búsqueda fue suficiente.
+
+## Briefing de tramo (encargo de la sesión orquestadora antes de un tramo de `implementer`)
+
+Entregas un resumen para que `implementer` no tenga que explorar. Solo lectura, igual que siempre. Contenido, en este orden y sin copiar código salvo firmas:
+
+1. **Ficheros a tocar o a imitar**: ruta, y por qué (el patrón existente más cercano: un controlador, un servicio, un test o una vista equivalente ya hechos).
+2. **Puntos de contacto**: rutas, permisos, claves de traducción, políticas y *seeders* que ya existen y hay que reutilizar, con ruta y línea.
+3. **Lo que no existe todavía** (con los patrones que buscaste), para que no se dé por supuesto.
+4. **Convenciones visibles** en ese módulo (nombres, ubicación de tests, factories) que el tramo debe respetar.
+
+No decides diseño, no recomiendas alcance y no reinterpretas la especificación: si el código contradice la sección que te citan, lo señalas como hecho y paras. El briefing complementa la especificación; no la sustituye.

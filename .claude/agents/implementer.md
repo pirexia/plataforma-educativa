@@ -39,6 +39,11 @@ Antes de escribir código: lee la especificación del módulo, `CLAUDE.md` y las
 3. Entrada en OpenAPI y documentación del módulo actualizada.
 4. Accesibilidad WCAG 2.2 AA en lo que sea interfaz.
 
+## E2E real (`CLAUDE.md` §2 y §3)
+
+- **Escribes y ajustas** los *specs* de Playwright o los guiones HTTP contra la API real; son código de prueba y es tuyo. Mientras los desarrollas puedes lanzar **un** spec concreto para depurarlo.
+- **La ejecución final** (`npm run test:e2e:real[:prl]`, todas las suites afectadas) **no la haces tú**: la lanza el `verificador` (Haiku) y te devuelve el resultado literal. Tú intervienes solo si falla por código, no por entorno. No declares «E2E en verde» con una ejecución parcial.
+
 ## Dejar rastro de lo verificado (`CLAUDE.md` §3)
 
 - Cuando confirmes la suite en verde para un lote de commits, el mensaje del último commit lo dice con el número real: `Verificado: X/X Pest en verde tras este commit (suite completa)` o `(ficheros afectados: …)`. Se ejecuta, no se estima. Un relanzamiento solo da por buena la suite completa con un `Verificado` de suite completa.
