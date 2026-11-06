@@ -24,7 +24,6 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { getPickupPerson, updatePickupPerson } from '../api'
 import { problemDetail, problemFieldErrors, problemStatus } from '../composables/problem'
-import { useNtLang } from '../composables/useNtLang'
 import type { PickupPerson, UpdatePickupPersonBody } from '../types'
 import LoadingState from '@/layouts/components/LoadingState.vue'
 
@@ -32,7 +31,6 @@ const props = defineProps<{ open: boolean; personPublicId: string }>()
 const emit = defineEmits<{ 'update:open': [value: boolean]; saved: [] }>()
 
 const t = useT()
-const ntLang = useNtLang()
 
 const person = ref<PickupPerson | null>(null)
 const loading = ref(false)
@@ -168,7 +166,7 @@ async function submit(): Promise<void> {
           {{ t('famUnit.pickup.person.title', { person: person?.display_name ?? '' }) }}
         </DialogTitle>
         <DialogDescription>
-          <span :lang="ntLang">{{ t('famUnit.pickup.list.auditNotice') }}</span>
+          <span>{{ t('famUnit.pickup.list.auditNotice') }}</span>
         </DialogDescription>
       </DialogHeader>
 

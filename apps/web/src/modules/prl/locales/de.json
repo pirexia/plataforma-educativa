@@ -9,9 +9,9 @@
       "studentTitle": "Abholliste",
       "asOf": "Liste berechnet um {time}",
       "reload": "Liste neu laden",
-      "empty": "Nadie puede recoger a este alumno en este momento. No lo entregues y avisa a dirección.",
-      "onlyListed": "No entregues al alumno a nadie que no esté en esta lista.",
-      "auditNotice": "Esta consulta queda registrada con tu usuario, la fecha y la hora.",
+      "empty": "Derzeit darf niemand diese/n Schüler/in abholen. Nicht übergeben und die Schulleitung informieren.",
+      "onlyListed": "Übergeben Sie das Kind niemandem, der nicht auf dieser Liste steht.",
+      "auditNotice": "Diese Abfrage wird mit Ihrem Benutzer, Datum und Uhrzeit protokolliert.",
       "notListed": "Die Person steht nicht auf der Liste",
       "deliver": "An {person} übergeben",
       "entryOffSchedule": "Eintritt außerhalb der Zeiten erfassen"
@@ -36,17 +36,17 @@
       "alt": "Foto von {person}",
       "none": "Kein Foto",
       "unavailable": "Foto nicht verfügbar",
-      "verifyDocument": "Verifica con el documento."
+      "verifyDocument": "Prüfen Sie den Ausweis."
     },
     "alert": {
       "title": "Warnung",
-      "protocolTitle": "Qué hacer ahora",
+      "protocolTitle": "Was jetzt zu tun ist",
       "phones": {
         "principal": "Haupterziehungsberechtigte/r",
         "emergency": "Notfallkontakt",
         "unavailable": "Nicht verfügbar"
       },
-      "callManagement": "Avisa a dirección para que registre la llamada y cierre la alerta.",
+      "callManagement": "Informieren Sie die Schulleitung, damit sie den Anruf erfasst und die Warnung schließt.",
       "status": {
         "abierta": "Offen",
         "cerrada": "Geschlossen"
@@ -110,8 +110,8 @@
       "foto": "Anhand des Fotos",
       "documento": "Anhand des Ausweises",
       "foto_y_documento": "Anhand von Foto und Ausweis",
-      "documentOnly": "Esta persona no tiene fotografía: solo puedes verificar con el documento.",
-      "photoUnavailable": "No se puede mostrar la fotografía: verifica solo con el documento."
+      "documentOnly": "Diese Person hat kein Foto: Prüfen Sie nur anhand des Ausweises.",
+      "photoUnavailable": "Das Foto kann nicht angezeigt werden: Prüfen Sie nur anhand des Ausweises."
     },
     "movement": {
       "offSchedule": "Außerhalb der Zeiten",

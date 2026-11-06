@@ -30,7 +30,6 @@ import { Textarea } from '@/components/ui/textarea'
 import { createStudentMovement } from '../api'
 import { describeFailure, type SubmitFailure } from '../composables/submitError'
 import { useIdempotencyKey } from '../composables/useIdempotencyKey'
-import { useNtLang } from '../composables/useNtLang'
 import type {
   OffScheduleReason,
   PickupListEntry,
@@ -56,7 +55,6 @@ const emit = defineEmits<{
 }>()
 
 const t = useT()
-const ntLang = useNtLang()
 const idempotency = useIdempotencyKey()
 
 const REASONS: OffScheduleReason[] = ['medico', 'familiar', 'actividad', 'retraso', 'otro']
@@ -275,10 +273,10 @@ const rejectedMessage = computed(
               </Label>
             </div>
           </RadioGroup>
-          <p v-if="noPhoto" :lang="ntLang" class="text-sm font-medium">
+          <p v-if="noPhoto" class="text-sm font-medium">
             {{ t('prl.verification.documentOnly') }}
           </p>
-          <p v-else-if="photoUnavailable" :lang="ntLang" class="text-sm font-medium">
+          <p v-else-if="photoUnavailable" class="text-sm font-medium">
             {{ t('prl.verification.photoUnavailable') }}
           </p>
           <ul

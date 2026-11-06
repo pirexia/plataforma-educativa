@@ -17,7 +17,6 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { useDataTableFormatters } from '@/data-table'
 import { useLabels } from '../composables/useLabels'
-import { useNtLang } from '../composables/useNtLang'
 import type { PickupListBasis, PickupListEntry } from '../types'
 
 const props = defineProps<{ entry: PickupListEntry }>()
@@ -25,7 +24,6 @@ const emit = defineEmits<{ reload: [] }>()
 
 const t = useT()
 const labels = useLabels()
-const ntLang = useNtLang()
 const { formatDate } = useDataTableFormatters()
 
 /** La imagen emitió `error`: se trata como no disponible, sin ninguna petición automática. */
@@ -111,7 +109,7 @@ function documentTypeLabel(type: string): string {
       <div class="flex min-w-0 flex-col gap-2">
         <h4 class="text-sm font-semibold">{{ props.entry.display_name }}</h4>
 
-        <p v-if="!props.entry.has_photo" :lang="ntLang" class="text-xs font-medium">
+        <p v-if="!props.entry.has_photo" class="text-xs font-medium">
           {{ t('famUnit.pickup.photo.verifyDocument') }}
         </p>
 

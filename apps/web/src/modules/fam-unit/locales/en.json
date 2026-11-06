@@ -318,18 +318,18 @@
         "show": "Show pickup list",
         "reload": "Reload the list",
         "initial": "Choose a student and press \"Show pickup list\".",
-        "empty": "Nadie puede recoger a este alumno en este momento.",
+        "empty": "Nobody can collect this student at the moment.",
         "asOf": "List calculated on {date}",
-        "auditNotice": "Esta consulta queda registrada con tu usuario, la fecha y la hora."
+        "auditNotice": "This lookup is recorded with your user, the date and the time."
       },
       "photo": {
         "alt": "Photograph of {person}",
         "none": "No photograph",
-        "verifyDocument": "Verifica con el documento.",
+        "verifyDocument": "Verify with the identity document.",
         "unavailable": "Photograph not available",
-        "noUpdatePermission": "No tienes permiso para subir la fotografía: la autorización quedará no vigente hasta que alguien con permiso la suba.",
-        "pendingByOther": "Autorización registrada sin fotografía. No es vigente: pide a secretaría que suba la fotografía.",
-        "stepNotice": "Hasta que subas la fotografía, esta autorización no es vigente.",
+        "noUpdatePermission": "You cannot upload the photograph: the authorisation will not be in force until someone with permission uploads it.",
+        "pendingByOther": "Authorisation recorded without a photograph. It is not in force: ask the office to upload the photograph.",
+        "stepNotice": "Until you upload the photograph, this authorisation is not in force.",
         "file": "Photograph",
         "hint": "JPEG, PNG or WebP; up to 5 MB.",
         "tooLarge": "The file exceeds 5 MB.",
@@ -431,10 +431,10 @@
       },
       "confirmWithdraw": {
         "title": "Withdraw {person}'s authorisation?",
-        "description": "Desde ahora no podrá recoger a {student}. La retirada no se puede deshacer: para volver a autorizarle, crea una autorización nueva."
+        "description": "From now on they cannot collect {student}. This cannot be undone: to authorise them again, create a new authorisation."
       },
       "confirmRemovePhoto": {
-        "description": "Sin fotografía, las autorizaciones de un tercero dejan de ser vigentes."
+        "description": "Without a photograph, a third party's authorisations stop being in force."
       },
       "wizard": {
         "title": "New authorised person",

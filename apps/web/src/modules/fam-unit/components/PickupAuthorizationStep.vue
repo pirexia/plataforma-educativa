@@ -24,7 +24,6 @@ import { Textarea } from '@/components/ui/textarea'
 import { createPickupAuthorization } from '../api'
 import { problemDetail, problemEntries } from '../composables/problem'
 import { useLabels } from '../composables/useLabels'
-import { useNtLang } from '../composables/useNtLang'
 import type { FamilyUnitStudent, PickupAuthorization, PickupPerson, TermsVersion } from '../types'
 
 const RELATIONSHIPS = ['abuelo', 'personal_apoyo', 'otra_familia', 'otro']
@@ -50,7 +49,6 @@ const emit = defineEmits<{ 'reload-terms': [] }>()
 
 const t = useT()
 const labels = useLabels()
-const ntLang = useNtLang()
 
 function today(): string {
   const now = new Date()
@@ -201,7 +199,7 @@ defineExpose({ submit })
 
 <template>
   <div class="flex flex-col gap-4">
-    <Alert v-if="!canUpdate" role="status" :lang="ntLang">
+    <Alert v-if="!canUpdate" role="status">
       <AlertDescription>{{ t('famUnit.pickup.photo.noUpdatePermission') }}</AlertDescription>
     </Alert>
 

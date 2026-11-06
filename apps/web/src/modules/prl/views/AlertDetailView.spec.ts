@@ -128,7 +128,7 @@ describe('CA-PRL-023: detalle de una alerta (WCAG 1.4.1)', () => {
     expect(document.body.querySelector('section[aria-labelledby="prl-alert-protocol"]')).toBeNull()
   })
 
-  it('el protocolo y los textos [NT] llevan lang es-ES solo cuando la interfaz no está en español', async () => {
+  it('el protocolo lleva lang es-ES solo cuando la interfaz no está en español', async () => {
     setLocale('de')
     await open()
 

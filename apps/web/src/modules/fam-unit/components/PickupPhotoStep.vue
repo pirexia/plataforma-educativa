@@ -10,7 +10,6 @@ import { useT } from '@/i18n'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { putPickupPersonPhoto } from '../api'
-import { useNtLang } from '../composables/useNtLang'
 import PickupPhotoUpload from './PickupPhotoUpload.vue'
 
 const props = defineProps<{
@@ -22,7 +21,6 @@ const props = defineProps<{
 const emit = defineEmits<{ finish: [uploaded: boolean] }>()
 
 const t = useT()
-const ntLang = useNtLang()
 const replacing = ref(!props.hasPhoto)
 const upload = ref<{ reset: () => void } | null>(null)
 
@@ -32,7 +30,7 @@ defineExpose({ reset: () => upload.value?.reset() })
 <template>
   <div class="flex flex-col gap-4">
     <template v-if="!canUpdate">
-      <Alert role="status" :lang="ntLang">
+      <Alert role="status">
         <AlertDescription>{{ t('famUnit.pickup.photo.pendingByOther') }}</AlertDescription>
       </Alert>
       <div>
@@ -43,7 +41,7 @@ defineExpose({ reset: () => upload.value?.reset() })
     </template>
 
     <template v-else>
-      <p :lang="ntLang" class="text-sm">{{ t('famUnit.pickup.photo.stepNotice') }}</p>
+      <p class="text-sm">{{ t('famUnit.pickup.photo.stepNotice') }}</p>
 
       <div v-if="hasPhoto && !replacing" class="flex flex-wrap gap-2">
         <Button type="button" @click="emit('finish', false)">{{
