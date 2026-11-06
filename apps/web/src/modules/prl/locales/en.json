@@ -9,9 +9,9 @@
       "studentTitle": "Pickup list",
       "asOf": "List calculated at {time}",
       "reload": "Reload the list",
-      "empty": "Nadie puede recoger a este alumno en este momento. No lo entregues y avisa a dirección.",
-      "onlyListed": "No entregues al alumno a nadie que no esté en esta lista.",
-      "auditNotice": "Esta consulta queda registrada con tu usuario, la fecha y la hora.",
+      "empty": "Nobody can collect this student at the moment. Do not release them and inform the management.",
+      "onlyListed": "Do not release the student to anyone who is not on this list.",
+      "auditNotice": "This lookup is recorded with your user, the date and the time.",
       "notListed": "The person is not on the list",
       "deliver": "Release to {person}",
       "entryOffSchedule": "Record off-schedule entry"
@@ -36,17 +36,17 @@
       "alt": "Photograph of {person}",
       "none": "No photograph",
       "unavailable": "Photograph not available",
-      "verifyDocument": "Verifica con el documento."
+      "verifyDocument": "Verify with the identity document."
     },
     "alert": {
       "title": "Alert",
-      "protocolTitle": "Qué hacer ahora",
+      "protocolTitle": "What to do now",
       "phones": {
         "principal": "Main guardian",
         "emergency": "Emergency contact",
         "unavailable": "Not available"
       },
-      "callManagement": "Avisa a dirección para que registre la llamada y cierre la alerta.",
+      "callManagement": "Inform the management so they record the call and close the alert.",
       "status": {
         "abierta": "Open",
         "cerrada": "Closed"
@@ -110,8 +110,8 @@
       "foto": "By photograph",
       "documento": "By identity document",
       "foto_y_documento": "By photograph and document",
-      "documentOnly": "Esta persona no tiene fotografía: solo puedes verificar con el documento.",
-      "photoUnavailable": "No se puede mostrar la fotografía: verifica solo con el documento."
+      "documentOnly": "This person has no photograph: you can only verify with the document.",
+      "photoUnavailable": "The photograph cannot be shown: verify with the document only."
     },
     "movement": {
       "offSchedule": "Off schedule",

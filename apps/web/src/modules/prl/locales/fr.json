@@ -9,9 +9,9 @@
       "studentTitle": "Liste de récupération",
       "asOf": "Liste calculée à {time}",
       "reload": "Recharger la liste",
-      "empty": "Nadie puede recoger a este alumno en este momento. No lo entregues y avisa a dirección.",
-      "onlyListed": "No entregues al alumno a nadie que no esté en esta lista.",
-      "auditNotice": "Esta consulta queda registrada con tu usuario, la fecha y la hora.",
+      "empty": "Personne ne peut récupérer cet élève pour le moment. Ne le remettez pas et prévenez la direction.",
+      "onlyListed": "Ne remettez l'élève à personne qui ne figure pas sur cette liste.",
+      "auditNotice": "Cette consultation est enregistrée avec votre utilisateur, la date et l'heure.",
       "notListed": "La personne ne figure pas sur la liste",
       "deliver": "Remettre à {person}",
       "entryOffSchedule": "Enregistrer une entrée hors horaire"
@@ -36,17 +36,17 @@
       "alt": "Photo de {person}",
       "none": "Pas de photo",
       "unavailable": "Photo indisponible",
-      "verifyDocument": "Verifica con el documento."
+      "verifyDocument": "Vérifiez avec la pièce d'identité."
     },
     "alert": {
       "title": "Alerte",
-      "protocolTitle": "Qué hacer ahora",
+      "protocolTitle": "Que faire maintenant",
       "phones": {
         "principal": "Responsable principal",
         "emergency": "Contact d'urgence",
         "unavailable": "Indisponible"
       },
-      "callManagement": "Avisa a dirección para que registre la llamada y cierre la alerta.",
+      "callManagement": "Prévenez la direction pour qu'elle enregistre l'appel et clôture l'alerte.",
       "status": {
         "abierta": "Ouverte",
         "cerrada": "Clôturée"
@@ -110,8 +110,8 @@
       "foto": "Par la photo",
       "documento": "Par la pièce d'identité",
       "foto_y_documento": "Par la photo et la pièce d'identité",
-      "documentOnly": "Esta persona no tiene fotografía: solo puedes verificar con el documento.",
-      "photoUnavailable": "No se puede mostrar la fotografía: verifica solo con el documento."
+      "documentOnly": "Cette personne n'a pas de photo : vérifiez uniquement avec la pièce d'identité.",
+      "photoUnavailable": "La photo ne peut pas être affichée : vérifiez uniquement avec la pièce d'identité."
     },
     "movement": {
       "offSchedule": "Hors horaire",

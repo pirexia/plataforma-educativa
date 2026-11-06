@@ -36,7 +36,7 @@ const phones = computed(() => [
       {{ t('prl.alert.raised') }}
     </p>
 
-    <p :lang="ntLang" class="text-muted-foreground text-sm">
+    <p class="text-muted-foreground text-sm">
       {{ t('prl.door.auditNotice') }}
     </p>
 
@@ -45,7 +45,7 @@ const phones = computed(() => [
       aria-labelledby="prl-alert-protocol"
       class="border-border bg-muted flex flex-col gap-2 rounded-lg border p-4"
     >
-      <h2 id="prl-alert-protocol" :lang="ntLang" class="text-base font-semibold">
+      <h2 id="prl-alert-protocol" class="text-base font-semibold">
         {{ t('prl.alert.protocolTitle') }}
       </h2>
       <p :lang="ntLang" class="whitespace-pre-line text-sm">{{ alert.protocol }}</p>
@@ -70,7 +70,7 @@ const phones = computed(() => [
           </dd>
         </div>
       </dl>
-      <p v-if="showCallManagement" :lang="ntLang" class="text-sm font-medium">
+      <p v-if="showCallManagement" class="text-sm font-medium">
         {{ t('prl.alert.callManagement') }}
       </p>
     </section>

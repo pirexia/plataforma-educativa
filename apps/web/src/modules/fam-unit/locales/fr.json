@@ -318,18 +318,18 @@
         "show": "Afficher la liste de récupération",
         "reload": "Recharger la liste",
         "initial": "Choisissez un élève et cliquez sur « Afficher la liste de récupération ».",
-        "empty": "Nadie puede recoger a este alumno en este momento.",
+        "empty": "Personne ne peut récupérer cet élève pour le moment.",
         "asOf": "Liste calculée le {date}",
-        "auditNotice": "Esta consulta queda registrada con tu usuario, la fecha y la hora."
+        "auditNotice": "Cette consultation est enregistrée avec votre utilisateur, la date et l'heure."
       },
       "photo": {
         "alt": "Photo de {person}",
         "none": "Pas de photo",
-        "verifyDocument": "Verifica con el documento.",
+        "verifyDocument": "Vérifiez avec la pièce d'identité.",
         "unavailable": "Photo indisponible",
-        "noUpdatePermission": "No tienes permiso para subir la fotografía: la autorización quedará no vigente hasta que alguien con permiso la suba.",
-        "pendingByOther": "Autorización registrada sin fotografía. No es vigente: pide a secretaría que suba la fotografía.",
-        "stepNotice": "Hasta que subas la fotografía, esta autorización no es vigente.",
+        "noUpdatePermission": "Vous ne pouvez pas téléverser la photo : l'autorisation ne sera pas en vigueur tant qu'une personne habilitée ne l'aura pas fait.",
+        "pendingByOther": "Autorisation enregistrée sans photo. Elle n'est pas en vigueur : demandez au secrétariat de téléverser la photo.",
+        "stepNotice": "Tant que vous n'avez pas téléversé la photo, cette autorisation n'est pas en vigueur.",
         "file": "Photo",
         "hint": "JPEG, PNG ou WebP ; 5 Mo maximum.",
         "tooLarge": "Le fichier dépasse 5 Mo.",
@@ -431,10 +431,10 @@
       },
       "confirmWithdraw": {
         "title": "Retirer l'autorisation de {person} ?",
-        "description": "Desde ahora no podrá recoger a {student}. La retirada no se puede deshacer: para volver a autorizarle, crea una autorización nueva."
+        "description": "Dès maintenant, cette personne ne pourra plus récupérer {student}. Ce retrait est définitif : pour l'autoriser à nouveau, créez une nouvelle autorisation."
       },
       "confirmRemovePhoto": {
-        "description": "Sin fotografía, las autorizaciones de un tercero dejan de ser vigentes."
+        "description": "Sans photo, les autorisations d'un tiers ne sont plus en vigueur."
       },
       "wizard": {
         "title": "Nouvelle personne autorisée",

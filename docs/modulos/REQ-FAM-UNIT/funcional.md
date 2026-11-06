@@ -1414,7 +1414,7 @@ Pensado para **tableta en la puerta**: objetivos táctiles de 44 px, *reflow* a 
 | 2.5.8 Tamaño del objetivo (AA 2.2) | ≥ 24 × 24 px como mínimo normativo; en conserjería, 44 × 44 px (`design-system §22` regla 1) |
 | 3.3.1 / 3.3.3 Errores | Error de servidor junto al campo con `aria-describedby` y `aria-invalid`; resumen anunciado con `role="alert"` solo para errores bloqueantes |
 | 3.3.7 Entrada redundante (AA 2.2) | El asistente conserva lo escrito entre pasos; el documento del paso 1 no se vuelve a pedir |
-| 3.1.2 Idioma de las partes | El bloque de protocolo de la alerta lleva `lang="es-ES"` en el bloque del protocolo y en todo texto **[NT]** mientras esté en es-ES en los cuatro ficheros, cuando la interfaz no esté en español (`OPEN-FAM-UNIT-40`, `-59` B). La marca se calcula comparando el idioma activo con `es`, no por clave |
+| 3.1.2 Idioma de las partes | El texto del protocolo de la alerta (`alert.protocol`, es-ES) lleva `lang="es-ES"` cuando la interfaz no esté en español (`OPEN-FAM-UNIT-40`, `-59` B). La marca se calcula comparando el idioma activo con `es`. Los textos **[NT]** ya están traducidos (propuesta de §23.8 aplicada por orden del usuario el 2026-11-06) y no llevan marca |
 | 4.1.3 Mensajes de estado | Resultado de búsqueda, carga, salida registrada y alerta abierta anunciados con región *live* `polite`; la alerta abierta, con `assertive` |
 | 2.3.3 / movimiento | Sin animaciones propias; respeta `prefers-reduced-motion` (`design-system §4.6`) |
 
@@ -1640,7 +1640,7 @@ Implementada y revisada (`feature/REQ-FAM-UNIT-1-14bc1-pantallas-autorizados`): 
 - **Excepción a `CA-CORE-192`** (aprobada por el usuario): `URL.createObjectURL` para la vista previa de la fotografía en `PickupPhotoUpload.vue` (nominal, en `apps/web/src/data-table/architecture.spec.ts`); la URL de objeto se revoca al cambiar de fichero, al reiniciar, al subir y al desmontar. Registrada también en `REQ-CORE/funcional.md`.
 - **`Card` y `Alert`** de `src/components/ui` escritos a mano (`shadcn-vue add` falló sin red, sin tocar `package.json`); regenerarlos con red y comparar.
 - **Nombre dividido**: `GET /pickup-persons/{p}` solo devuelve `display_name`; en `PickupPersonDialog` los campos de nombre empiezan vacíos y solo se envía lo que se rellena. Issue #509.
-- **Traducciones** (`OPEN-FAM-UNIT-59` B): 120 claves traducidas a en/de/fr; las 7 [NT] **y `list.empty`** (texto de seguridad parecido a `prl.door.empty`) quedan en es-ES en los cuatro ficheros hasta la revisión humana. `CA-FAM-UNIT-143` se cierra con esa revisión.
+- **Traducciones** (`OPEN-FAM-UNIT-59` B): 120 claves traducidas a en/de/fr; las 7 [NT] **y `list.empty`** (texto de seguridad parecido a `prl.door.empty`) quedan en es-ES en los cuatro ficheros hasta la revisión humana. `CA-FAM-UNIT-143` se cierra con esa revisión. **Actualización 2026-11-06**: las 15 claves [NT] (8 de `fam-unit` y 8 de `prl`, con `verifyDocument` compartida, y `door.auditNotice` copiada de `list.auditNotice`) llevan ya las propuestas en/de/fr de §23.8, aplicadas verbatim por orden del usuario (no son traducción automática de la sesión); `CA-FAM-UNIT-143` queda cerrado en ese commit. Se retira `useNtLang` de `fam-unit` y en `prl` solo marca el texto del protocolo.
 - **Pendientes registrados**: #510 (`Cache-Control: no-store` en el servidor), #511 (documento de un tercero en la query de `GET /pickup-persons`), #512 (lista de recogida obsoleta tras retirar).
 
 ## 25. Decisiones de implementación de la evidencia del consentimiento de imagen (2026-11-05, PR #539)

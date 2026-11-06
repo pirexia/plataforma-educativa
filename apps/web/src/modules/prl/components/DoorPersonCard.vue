@@ -17,7 +17,6 @@ import { useT } from '@/i18n'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { useNtLang } from '../composables/useNtLang'
 import type { DoorPickupBasis, PickupListEntry } from '../types'
 
 const props = defineProps<{ entry: PickupListEntry; canDeliver?: boolean }>()
@@ -28,7 +27,6 @@ const emit = defineEmits<{
 }>()
 
 const t = useT()
-const ntLang = useNtLang()
 
 /** La imagen emitió `error`: se trata como no disponible, sin ninguna petición automática. */
 const imageFailed = ref(false)
@@ -94,7 +92,7 @@ function documentTypeLabel(type: string): string {
       <div class="flex min-w-0 flex-col gap-2">
         <h2 class="text-base font-semibold">{{ props.entry.display_name }}</h2>
 
-        <p v-if="!props.entry.has_photo" :lang="ntLang" class="text-sm font-medium">
+        <p v-if="!props.entry.has_photo" class="text-sm font-medium">
           {{ t('prl.photo.verifyDocument') }}
         </p>
 

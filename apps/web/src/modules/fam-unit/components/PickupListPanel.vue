@@ -17,14 +17,12 @@ import { resolveErrorState, type ShellErrorState } from '@/layouts/errorState'
 import ErrorState from '@/layouts/components/ErrorState.vue'
 import LoadingState from '@/layouts/components/LoadingState.vue'
 import { getPickupList } from '../api'
-import { useNtLang } from '../composables/useNtLang'
 import type { PickupList } from '../types'
 import PickupPersonCard from './PickupPersonCard.vue'
 
 const props = defineProps<{ studentPerson: string }>()
 
 const t = useT()
-const ntLang = useNtLang()
 const { formatDateTime } = useDataTableFormatters()
 
 const list = ref<PickupList | null>(null)
@@ -63,7 +61,7 @@ const finalMessage = computed<string | null>(() => {
   <div class="flex flex-col gap-3">
     <h3 class="text-sm font-semibold">{{ t('famUnit.pickup.list.title') }}</h3>
 
-    <p :lang="ntLang" class="text-muted-foreground text-xs">
+    <p class="text-muted-foreground text-xs">
       {{ t('famUnit.pickup.list.auditNotice') }}
     </p>
 

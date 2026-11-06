@@ -318,18 +318,18 @@
         "show": "Abholliste anzeigen",
         "reload": "Liste neu laden",
         "initial": "Wählen Sie eine/n Schüler/in und klicken Sie auf „Abholliste anzeigen“.",
-        "empty": "Nadie puede recoger a este alumno en este momento.",
+        "empty": "Derzeit darf niemand diese/n Schüler/in abholen.",
         "asOf": "Liste berechnet am {date}",
-        "auditNotice": "Esta consulta queda registrada con tu usuario, la fecha y la hora."
+        "auditNotice": "Diese Abfrage wird mit Ihrem Benutzer, Datum und Uhrzeit protokolliert."
       },
       "photo": {
         "alt": "Foto von {person}",
         "none": "Kein Foto",
-        "verifyDocument": "Verifica con el documento.",
+        "verifyDocument": "Prüfen Sie den Ausweis.",
         "unavailable": "Foto nicht verfügbar",
-        "noUpdatePermission": "No tienes permiso para subir la fotografía: la autorización quedará no vigente hasta que alguien con permiso la suba.",
-        "pendingByOther": "Autorización registrada sin fotografía. No es vigente: pide a secretaría que suba la fotografía.",
-        "stepNotice": "Hasta que subas la fotografía, esta autorización no es vigente.",
+        "noUpdatePermission": "Sie dürfen das Foto nicht hochladen: Die Vollmacht ist erst gültig, wenn eine berechtigte Person es hochlädt.",
+        "pendingByOther": "Vollmacht ohne Foto erfasst. Sie ist nicht gültig: Bitten Sie das Sekretariat, das Foto hochzuladen.",
+        "stepNotice": "Bis Sie das Foto hochladen, ist diese Vollmacht nicht gültig.",
         "file": "Foto",
         "hint": "JPEG, PNG oder WebP; bis 5 MB.",
         "tooLarge": "Die Datei überschreitet 5 MB.",
@@ -431,10 +431,10 @@
       },
       "confirmWithdraw": {
         "title": "Vollmacht von {person} widerrufen?",
-        "description": "Desde ahora no podrá recoger a {student}. La retirada no se puede deshacer: para volver a autorizarle, crea una autorización nueva."
+        "description": "Ab sofort darf diese Person {student} nicht mehr abholen. Dies kann nicht rückgängig gemacht werden: Legen Sie für eine erneute Berechtigung eine neue Vollmacht an."
       },
       "confirmRemovePhoto": {
-        "description": "Sin fotografía, las autorizaciones de un tercero dejan de ser vigentes."
+        "description": "Ohne Foto sind die Vollmachten einer dritten Person nicht mehr gültig."
       },
       "wizard": {
         "title": "Neue bevollmächtigte Person",

@@ -29,13 +29,11 @@ import { getDoorPickupList, getPickupAlert } from '../api'
 import { mergeAlert } from '../composables/mergeAlert'
 import { describeFailure } from '../composables/submitError'
 import { useDoorContext } from '../composables/useDoorContext'
-import { useNtLang } from '../composables/useNtLang'
 import { usePermissions } from '../composables/usePermissions'
 import type { DoorPickupList, PickupAlert, PickupListEntry, StudentMovement } from '../types'
 
 const t = useT()
 const route = useRoute()
-const ntLang = useNtLang()
 const door = useDoorContext()
 const { can } = usePermissions()
 
@@ -201,7 +199,7 @@ function formatTime(value: string): string {
       </p>
     </header>
 
-    <p :lang="ntLang" class="text-muted-foreground text-sm">
+    <p class="text-muted-foreground text-sm">
       {{ t('prl.door.auditNotice') }}
     </p>
 
@@ -250,7 +248,7 @@ function formatTime(value: string): string {
     <ErrorState v-else-if="error" :state="error" @retry="load" />
 
     <template v-else-if="list">
-      <p v-if="list.data.length === 0" role="status" :lang="ntLang" class="text-sm font-medium">
+      <p v-if="list.data.length === 0" role="status" class="text-sm font-medium">
         {{ t('prl.door.empty') }}
       </p>
 
@@ -266,7 +264,7 @@ function formatTime(value: string): string {
         />
       </ul>
 
-      <p :lang="ntLang" class="text-sm font-medium">{{ t('prl.door.onlyListed') }}</p>
+      <p class="text-sm font-medium">{{ t('prl.door.onlyListed') }}</p>
 
       <div class="flex flex-wrap gap-3">
         <Button
