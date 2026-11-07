@@ -6,6 +6,12 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-07 · `chore(proceso)`: `pr-check` y `espera-ci` invocables por la sesión y por `janitor` (`CLAUDE.md` 2.11.1)
+
+- Las dos skills dejan de ser solo de usuario: descripciones con disparador («SIEMPRE antes/después de `gh pr create`»). `janitor` las lleva cargadas (`skills:`); `pr-check` distingue sesión (delega la suite en `verificador`) de subagente (solo comprueba el `Verificado` del último commit y devuelve el encargo). `CLAUDE.md §4` y la skill `asignacion-de-modelos` lo recogen.
+- Comprobado con la primera mezcla real por `espera-ci` (#552) y con el hook de rama protegida activo en vivo (commit directo en `develop` bloqueado sin reiniciar la sesión).
+---
+
 ## 2026-11-07 · `chore(proceso)`: hooks de rama protegida y de formato, skills `pr-check` y `espera-ci` (#551)
 
 - `.claude/hooks/block-protected-branch.sh` (PreToolUse·Bash): bloquea `git commit` y `git push` en `develop`/`main` y los push con destino a ellas (`CLAUDE.md §4`); permite el commit si el mismo comando crea antes la rama. `.claude/hooks/format-on-edit.sh` (PostToolUse·Edit|Write): Pint en el contenedor `plataforma-api` para `apps/api/**/*.php` y `eslint --fix` en el host para `apps/web`; sin contenedor o `node_modules` no hace nada y los worktrees de agentes se ignoran. Cableados en `.claude/settings.json`.

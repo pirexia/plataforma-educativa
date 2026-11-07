@@ -35,6 +35,8 @@ Plan **Pro con límite de 5 horas**: el gasto de cuota es una restricción de di
 | `doc-precheck` | Haiku | Pasada mecánica previa a `doc-reviewer`; no lo sustituye en la primera ronda (sí en la segunda, `CLAUDE.md §2` «Ahorro de cuota», punto 8) |
 | `janitor` | Haiku | `.gitignore`, formateo, commits rutinarios, issues ya clasificados, PR, ramas, `CHANGELOG.md`, correcciones textuales de documentación con hallazgo cerrado |
 
+> **Skills de PR (2026-11-07).** `janitor` lleva cargadas `pr-check` y `espera-ci`; la sesión orquestadora las invoca ella misma. La suite de `pr-check` la lanza siempre `verificador` desde la sesión: un subagente no lanza subagentes.
+
 ## Subagentes que heredan el modelo de la sesión
 
 `fork`, `general-purpose` y `Plan` corren con el modelo de la sesión que los lanza. Para buscar usa `explorer`, no `general-purpose`; para tests o linters, `verificador`. Un `fork` solo si el modelo de la sesión es el adecuado: en una sesión Opus, la ejecución va a un agente con nombre aunque se pierda la caché. No uses Opus en subagentes de ejecución ni para picar código.

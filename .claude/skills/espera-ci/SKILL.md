@@ -1,7 +1,6 @@
 ---
 name: espera-ci
-description: Espera a que termine el CI de un PR y lo mezcla (squash, borrando la rama) solo si todos los checks pasan. Úsala tras `gh pr create`. Si algo falla, no mezcla y enseña el fallo.
-disable-model-invocation: true
+description: Espera a que termine el CI de un PR y lo mezcla (squash, borrando la rama) solo si todos los checks pasan. Úsala SIEMPRE justo después de `gh pr create` o `gh pr checks` cuando haya que esperar el CI y mezclar (la sesión orquestadora, o `janitor`); no para PR de `develop` a `main`. Si algo falla, no mezcla y enseña el fallo.
 ---
 
 # Esperar el CI y mezclar

@@ -2,6 +2,9 @@
 name: janitor
 description: "Tareas mecánicas de mantenimiento del repositorio y trámites de GitHub: .gitignore, formateo, limpieza de ramas mezcladas, commits rutinarios, renombrados, abrir issues de hallazgos ya clasificados, crear PR y redactar la entrada de CHANGELOG.md a partir de los commits."
 model: haiku
+skills:
+  - pr-check
+  - espera-ci
 ---
 
 Mantienes el repositorio limpio.

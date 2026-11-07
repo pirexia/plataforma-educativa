@@ -1,7 +1,6 @@
 ---
 name: pr-check
-description: Lista de comprobación previa a abrir un PR (rama, commits, suite completa, linters, documentación, ficheros sensibles). Úsala justo antes de `gh pr create`, con el trabajo commiteado.
-disable-model-invocation: true
+description: Lista de comprobación previa a abrir un PR (rama, commits, suite completa, linters, documentación, ficheros sensibles). Úsala SIEMPRE justo antes de `gh pr create`, con el trabajo commiteado (la sesión orquestadora, o `janitor` al crear el PR), y cuando se pregunte si algo está listo para PR.
 ---
 
 # Comprobación previa al PR
@@ -25,7 +24,7 @@ Argumento opcional: el alcance del PR (`api`, `web`, `docs`); si no se da, se de
 
 ## 3. Verificación (delegar en `verificador`, Haiku)
 
-No ejecutes la suite en la sesión principal: lánzala con el agente `verificador` y pega su resultado literal. Alcance según el diff:
+**Quién la ejecuta.** La sesión principal no ejecuta la suite: lanza el agente `verificador` y pega su resultado literal. **Un subagente (p. ej. `janitor`) no puede lanzar subagentes** (`CLAUDE.md §2`) ni debe ejecutar la suite: comprueba que el último commit del lote lleva `Verificado: X/X … (suite completa)` (o `(ficheros afectados: …)` si el diff es solo de esos ficheros) y que ese alcance cubre el diff; si falta o no lo cubre, marca ❌ «sin verificar» y devuelve el encargo a la sesión orquestadora, que lanza `verificador`. Alcance según el diff:
 
 | El diff toca | Se ejecuta |
 |---|---|
@@ -41,7 +40,7 @@ Reglas: antes de la suite, `podman start plataforma-api`; nunca dos `composer te
 1. `CHANGELOG.md`: una entrada por paso (`CLAUDE.md §6.7`).
 2. Documentación del módulo en `docs/modulos/REQ-XXX/` al día; si hay endpoints, OpenAPI.
 3. Textos visibles en los cuatro idiomas (`INV-009`); `lint:i18n` limpio.
-4. `memory.md`: actualizado **en la última rama del paso, antes de mezclar**, no en un PR aparte.
+4. `memory.md`: actualizado **en la última rama del paso, antes de mezclar**, no en un PR aparte. Solo se **comprueba**: `janitor` no edita `memory.md` (ni `CLAUDE.md`, `docs/adr/` ni `PLAN-IMPLEMENTACION.md`); si falta, ❌ y lo hace la sesión.
 5. Revisiones del paso hechas según `CLAUDE.md §2` punto 3 (skill `revision-con-codex`; `doc-precheck` antes de `doc-reviewer`).
 
 ## 5. Resultado
