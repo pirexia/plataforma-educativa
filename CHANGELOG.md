@@ -6,6 +6,11 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-07 · `fix(proceso)`: reglas `allow` de Codex que nunca coincidían (#555)
+
+- `.claude/settings.json`: las cuatro reglas `allow` de `codex-companion.mjs` (`review`, `adversarial-review`, `status`, `result`) mezclaban un `*` en la ruta con el sufijo antiguo `:*`, de modo que Claude Code las trataba como prefijo literal y no coincidían nunca (cada revisión de Codex pedía aprobación a mano). Pasan a la sintaxis ` *` y **con la versión del plugin fijada (`1.0.6`)**: un comodín en la ruta también casaría con opciones intercaladas y las aprobaría sin preguntar. Las reglas `deny` conservan el comodín (un patrón más amplio es lo seguro). **Al actualizar el plugin hay que cambiar `1.0.6` en las cuatro reglas**; si no, vuelven a pedir aprobación (falla hacia lo seguro). Comprobado: `claude -p` ya no emite ningún aviso de permisos.
+---
+
 ## 2026-11-07 · `chore(proceso)`: `pr-check` y `espera-ci` invocables por la sesión y por `janitor` (`CLAUDE.md` 2.11.1)
 
 - Las dos skills dejan de ser solo de usuario: descripciones con disparador («SIEMPRE antes/después de `gh pr create`»). `janitor` las lleva cargadas (`skills:`); `pr-check` distingue sesión (delega la suite en `verificador`) de subagente (solo comprueba el `Verificado` del último commit y devuelve el encargo). `CLAUDE.md §4` y la skill `asignacion-de-modelos` lo recogen.
