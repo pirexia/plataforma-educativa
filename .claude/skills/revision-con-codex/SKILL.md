@@ -16,7 +16,7 @@ description: Protocolo de revisión con Codex (openai/codex-plugin-cc) como prim
 ### Cuándo y cómo se lanza
 
 - En **todo paso que cambie código** (`apps/`, `infra/`), Codex revisa **primero**: después de `implementer`, con la suite en verde y el trabajo **commiteado** (`ADR-049 §7.1`).
-- Lo lanza **la sesión orquestadora por `Bash`**, llamando a `codex-companion.mjs` (en `~/.claude/plugins/cache/openai-codex/codex/<versión>/scripts/`) **solo** con los subcomandos `review` y `adversarial-review` (`OPEN-069-03`, 2026-11-02). `task`, `transfer`, `task-worker` y `rescue` están prohibidos y denegados en `.claude/settings.json`.
+- Lo lanza **la sesión orquestadora por `Bash`**, llamando a `codex-companion.mjs` (en `~/.claude/plugins/cache/openai-codex/codex/<versión>/scripts/`) **solo** con los subcomandos `review` y `adversarial-review` (`OPEN-069-03`, 2026-11-02). `task`, `transfer`, `task-worker` y `rescue` están prohibidos y denegados en `.claude/settings.json`. Las reglas `allow` de `review`, `adversarial-review`, `status` y `result` llevan la **versión del plugin fijada** (`codex/1.0.6/`, issue #555): al actualizar el plugin hay que actualizarla en `.claude/settings.json`, o la sesión volverá a pedir aprobación en cada revisión.
 - Revisión principal: `adversarial-review --base develop` con, como texto de enfoque, el contenido de `contexto-codex.md` más la ruta de la especificación y de los ADR del paso, y las decisiones aprobadas que no se reabren. `review` (no admite instrucciones propias) es solo pasada complementaria.
 - Nunca `--help` ni sintaxis exploratoria: el parser lo toma como enfoque y lanza una revisión real. Nunca sobre trabajo sin commitear.
 

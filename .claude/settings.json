@@ -23,10 +23,10 @@
       "Bash(podman compose logs:*)",
       "Bash(podman logs:*)",
       "Bash(systemctl status:*)",
-      "Bash(node /home/amatias/.claude/plugins/cache/openai-codex/codex/*/scripts/codex-companion.mjs review:*)",
-      "Bash(node /home/amatias/.claude/plugins/cache/openai-codex/codex/*/scripts/codex-companion.mjs adversarial-review:*)",
-      "Bash(node /home/amatias/.claude/plugins/cache/openai-codex/codex/*/scripts/codex-companion.mjs status:*)",
-      "Bash(node /home/amatias/.claude/plugins/cache/openai-codex/codex/*/scripts/codex-companion.mjs result:*)"
+      "Bash(node /home/amatias/.claude/plugins/cache/openai-codex/codex/1.0.6/scripts/codex-companion.mjs review *)",
+      "Bash(node /home/amatias/.claude/plugins/cache/openai-codex/codex/1.0.6/scripts/codex-companion.mjs adversarial-review *)",
+      "Bash(node /home/amatias/.claude/plugins/cache/openai-codex/codex/1.0.6/scripts/codex-companion.mjs status *)",
+      "Bash(node /home/amatias/.claude/plugins/cache/openai-codex/codex/1.0.6/scripts/codex-companion.mjs result *)"
     ],
     "deny": [
       "Bash(node /home/amatias/.claude/plugins/cache/openai-codex/codex/*/scripts/codex-companion.mjs task*)",
