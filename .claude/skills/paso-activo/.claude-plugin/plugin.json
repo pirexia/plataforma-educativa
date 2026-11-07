@@ -1,0 +1,1 @@
+{ "name": "paso-activo", "version": "0.1.0", "description": "Panel lateral con el paso activo del proyecto: trabajo en curso y siguiente paso concreto, leídos de memory.md", "types": "./types/index.d.ts" }
