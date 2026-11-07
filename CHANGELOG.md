@@ -17,6 +17,11 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 - Comprobado con la primera mezcla real por `espera-ci` (#552) y con el hook de rama protegida activo en vivo (commit directo en `develop` bloqueado sin reiniciar la sesión).
 ---
 
+## 2026-11-07 · `chore(proceso)`: mods del proyecto, línea de estado y panel «Paso activo» (#551)
+
+- `.claude/skills/linea-estado/` y `.claude/skills/paso-activo/`: dos plugins (mods) que Claude Code carga solos al abrir una sesión en este proyecto (`<nombre>@skills-dir`), sin instalación ni variables de entorno. `linea-estado`: rama (aviso en `develop`/`main`), PR y CI (`gh pr view`), % de contexto (aviso desde el 50 %, `CLAUDE.md §2.5`) y límites de uso de 5 h y 7 d (aviso desde el 80 %, `§3`). `paso-activo`: panel lateral con el estado, el trabajo en curso y el siguiente paso de `memory.md`; se abre con `/paso-activo` si la terminal es estrecha. Lógica pura en `lib/` probada con Node; carga comprobada con el log de depuración de una sesión nueva.
+---
+
 ## 2026-11-07 · `chore(proceso)`: hooks de rama protegida y de formato, skills `pr-check` y `espera-ci` (#551)
 
 - `.claude/hooks/block-protected-branch.sh` (PreToolUse·Bash): bloquea `git commit` y `git push` en `develop`/`main` y los push con destino a ellas (`CLAUDE.md §4`); permite el commit si el mismo comando crea antes la rama. `.claude/hooks/format-on-edit.sh` (PostToolUse·Edit|Write): Pint en el contenedor `plataforma-api` para `apps/api/**/*.php` y `eslint --fix` en el host para `apps/web`; sin contenedor o `node_modules` no hace nada y los worktrees de agentes se ignoran. Cableados en `.claude/settings.json`.
