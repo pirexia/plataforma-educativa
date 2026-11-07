@@ -1,6 +1,6 @@
 # CLAUDE.md — Normas de trabajo del proyecto
 
-> **Versión 2.11.0** · 2026-11-06 · Fichero de contexto permanente. Se carga en **todas** las sesiones. Contiene solo reglas estables.
+> **Versión 2.11.1** · 2026-11-07 · Fichero de contexto permanente. Se carga en **todas** las sesiones. Contiene solo reglas estables.
 > Proyecto: **Plataforma de Gestión Educativa Multi-tenant**. Fuente de verdad funcional: `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md`.
 
 ---
@@ -131,6 +131,7 @@ Un relanzamiento que encuentra esa nota confía en los commits que cubre sin ree
   - Ejemplo: `feat(auth): MFA obligatorio por rol [REQ-AUTH-003]`
 - Todo commit referencia al menos un ID de requisito o de issue.
 - Antes de cualquier merge: tests en verde, lint limpio, documentación del módulo actualizada.
+- **Pull request** (skills `pr-check` y `espera-ci`; lo hace la sesión orquestadora o `janitor`, que las lleva cargadas): antes de `gh pr create`, `pr-check` (rama, commits, `Verificado`, ficheros sensibles, documentación; la suite la ejecuta `verificador`, un subagente nunca la lanza); tras abrirlo, `espera-ci` espera el CI en segundo plano y mezcla solo si no hay `fail` ni `pending`. Un hook (`.claude/hooks/block-protected-branch.sh`) bloquea además commit y push en `develop` y `main`.
 
 ### .gitignore
 
