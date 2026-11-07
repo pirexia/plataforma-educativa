@@ -1,0 +1,1 @@
+{ "name": "linea-estado", "version": "0.1.0", "description": "Línea de estado del proyecto: rama (aviso en develop/main), PR y CI, % de contexto y límites de uso" }
