@@ -6,6 +6,12 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-07 · `chore(proceso)`: hooks de rama protegida y de formato, skills `pr-check` y `espera-ci` (#551)
+
+- `.claude/hooks/block-protected-branch.sh` (PreToolUse·Bash): bloquea `git commit` y `git push` en `develop`/`main` y los push con destino a ellas (`CLAUDE.md §4`); permite el commit si el mismo comando crea antes la rama. `.claude/hooks/format-on-edit.sh` (PostToolUse·Edit|Write): Pint en el contenedor `plataforma-api` para `apps/api/**/*.php` y `eslint --fix` en el host para `apps/web`; sin contenedor o `node_modules` no hace nada y los worktrees de agentes se ignoran. Cableados en `.claude/settings.json`.
+- Skills de solo usuario `pr-check` (lista previa al PR; delega la suite en `verificador`) y `espera-ci` (espera el CI en segundo plano y mezcla solo sin `fail` ni `pending`). `espera-ci` no es un hook: la espera dura minutos y mezclar es una decisión.
+---
+
 ## 2026-11-06 · `i18n`: textos [NT] de `fam-unit` y `prl` en en/de/fr (`REQ-FAM-UNIT-005`, #548)
 
 - Propuestas en/de/fr de `REQ-FAM-UNIT §23.8` aplicadas a las 16 claves [NT] (`CA-FAM-UNIT-143` cerrado); `useNtLang` solo marca el protocolo de la alerta.
