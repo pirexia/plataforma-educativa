@@ -2,6 +2,7 @@
 
 namespace Tests\Support;
 
+use App\Models\Person;
 use App\Models\User;
 use App\Support\Tenancy\Tenant;
 use App\Support\Tenancy\TenantContext;
@@ -114,6 +115,12 @@ final class AlumTestHelpers
     public static function personId(object $tenant, string $personPublicId): int
     {
         return (int) app(TenantContext::class)->runFor($tenant->id, fn () => DB::table('people')->where('public_id', $personPublicId)->value('id'));
+    }
+
+    /** El modelo de una persona por su `public_id` (para los ayudantes de `fam_unit`, que piden el modelo). */
+    public static function person(object $tenant, string $personPublicId): Person
+    {
+        return app(TenantContext::class)->runFor($tenant->id, fn (): Person => Person::query()->where('public_id', $personPublicId)->firstOrFail());
     }
 
     public static function errorCode(TestResponse $response, string $field): ?string
