@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |-------|-------|
-| **Versión** | 3.2.27 |
+| **Versión** | 3.2.28 |
 | **Fecha** | 2026-11-09 |
 | **Estado** | Borrador consolidado — pendiente de aprobación |
 | **Autor** | Product Owner |
@@ -3369,6 +3369,7 @@ Se mantendrá una matriz de trazabilidad (generada automáticamente desde las re
 
 | Versión | Fecha | Autor | Descripción |
 |---------|-------|-------|-------------|
+| 3.2.28 | 2026-11-09 | Product Owner | `ADR-074` (rediseño de la landing, `PROPUESTA`) referenciado en `§18`; sustituye en parte a `ADR-072` (`§1.1` punto 6, rutas y traducción de `§4.2`, fila `ADR-030` de `§7` y `§8`); `OPEN-074-01` a `-07` abiertas. |
 | 3.2.27 | 2026-11-09 | Product Owner | `ADR-073` (datos legales y correo de la landing) aceptado y referenciado en `§18`; sustituye en parte a `ADR-072` (`OPEN-072-03`, `U4`). |
 | 3.2.26 | 2026-11-09 | Product Owner | `ADR-072` (landing pública del producto, `adagiox.com`) aceptado y referenciado en `§18`. El nombre AdagioX aún no se ha propagado al resto de la documentación (decisión pendiente). |
 | 3.2.25 | 2026-11-09 | Product Owner | `ADR-071` (grupo opcional en la matrícula, `OPEN-ALUM-11` = B) aplicado: `§16.1`/`§16.2` (`ENROLLMENT }o--o| GROUP`, `COURSE ||--o{ ENROLLMENT`), fila de `ADR-071` en `§18` y «Depende de» de `REQ-ALUM` (`§5.6` e índice) = `CORE, CURSO, ACAD, FAM-UNIT` (`OPEN-ALUM-28` = A). |
