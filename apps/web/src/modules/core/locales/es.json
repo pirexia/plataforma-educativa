@@ -372,7 +372,8 @@
         "alum_student": "Alumno",
         "family_unit": "Unidad familiar",
         "guardian": "Tutor",
-        "guardian_student_link": "Vínculo tutor-alumno"
+        "guardian_student_link": "Vínculo tutor-alumno",
+        "family_unit_student": "Alumno de la unidad familiar"
       },
       "module": {
         "core": "Centro y usuarios",

@@ -372,7 +372,8 @@
         "alum_student": "Student",
         "family_unit": "Family unit",
         "guardian": "Guardian",
-        "guardian_student_link": "Guardian-student link"
+        "guardian_student_link": "Guardian-student link",
+        "family_unit_student": "Family unit student"
       },
       "module": {
         "core": "School and users",

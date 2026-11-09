@@ -372,7 +372,8 @@
         "alum_student": "Schüler",
         "family_unit": "Familieneinheit",
         "guardian": "Erziehungsberechtigter",
-        "guardian_student_link": "Verknüpfung Erziehungsberechtigter–Schüler"
+        "guardian_student_link": "Verknüpfung Erziehungsberechtigter–Schüler",
+        "family_unit_student": "Schüler der Familieneinheit"
       },
       "module": {
         "core": "Schule und Benutzer",
