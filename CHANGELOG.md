@@ -6,6 +6,12 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-09 · `docs(alum)`: `ADR-071` aceptada, grupo opcional en la matrícula (`1.15-b`, `REQ-ALUM-001`)
+
+- `docs/adr/ADR-071-grupo-opcional-en-la-matricula.md` (`ACEPTADA`): formaliza `OPEN-ALUM-11` = B (curso de etapa obligatorio, grupo opcional); `OPEN-071-01` = A, `-02` = A, `-03` = sí.
+- `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` 3.2.25: `§16.1`/`§16.2`, fila en `§18`, `§5.6` e índice (`REQ-ALUM` depende de `CORE, CURSO, ACAD, FAM-UNIT`). `README.md`: versión del documento y `CLAUDE.md` 2.11.2.
+- `REQ-ALUM` (`funcional.md`, `datos.md §6`): «antiguo alumno» como derivación (issue #565).
+
 ## 2026-11-09 · `feat(alum)`: alumnado, ficha de alumno y ámbito `unidad_familiar` (`1.15-a` T1+T2, `REQ-ALUM-001`)
 
 - **T1**: módulo `Alum` (`AlumServiceProvider`, catálogo de cuatro permisos `alumno.*`), tabla `students` (faceta de `people`, único parcial de una faceta viva por persona) y modelo `Student` con el alias `alum_student` en el *morph map*. Ampliación aditiva de `Core\Domain` (`OPEN-ALUM-19` = A): `PersonDirectory::birthDatesByIds()`/`PersonBirth` y `PersonRegistrar::correctPerson()`/`PersonDataCorrection`. Siembra `ProvisionTenantDefaults::ALUM_PERMISSION_GRANTS` (y la de `tutor_legal` con `unidad_familiar`), comando `alum:grant-permissions` y entrada de `Student` en el mapa cerrado de `AR-10`.
