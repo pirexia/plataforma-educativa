@@ -65,7 +65,7 @@ Datos según la documentación pública conocida a mediados de 2026. **Precios, 
 
 | Criterio | **Cloudflare** (Workers *static assets* o Pages) | Netlify | GitHub Pages | Bunny.net (UE) |
 |---|---|---|---|---|
-| Coste | Gratis; ancho de banda sin límite en el plan gratuito | Gratis con cupo de créditos mensual (**no verificado**); al agotarlo el sitio se pausa | Gratis | De pago por uso, con mínimo mensual pequeño |
+| Coste | Gratis; ancho de banda sin límite en el plan gratuito (**no verificado**) | Gratis con cupo de créditos mensual (**no verificado**); al agotarlo el sitio se pausa | Gratis | De pago por uso, con mínimo mensual pequeño |
 | Condiciones | Cloudflare Inc. (EE. UU.), DPA con cláusulas tipo, adherida al EU-US Data Privacy Framework (**no verificado; comprobar en U1**) | Netlify Inc. (EE. UU.), DPA y DPF | GitHub/Microsoft (EE. UU.) | BunnyWay d.o.o. (Eslovenia, UE) |
 | Datos y RGPD | Trata IP en su red global; sin localización UE en el plan gratuito | Trata IP; red global | Trata IP | Trata IP; empresa UE, sin transferencia internacional por defecto |
 | Mantenimiento activo | Sí. Cloudflare orienta los proyectos nuevos a Workers con *static assets*; Pages sigue operativo con menos novedades | Sí | Sí | Sí |
@@ -160,7 +160,7 @@ Datos según la documentación pública conocida a mediados de 2026. **Precios, 
 - **Monorepo (3.1-A)**: la landing es pequeña y la revisión de documentación, ADR y dependencias del monorepo ya existe. Un repo aparte duplica la protección de ramas, Renovate y el escaneo para un sitio de dos páginas.
 - **Script propio sin dependencias (3.2-B)**: es la única opción que cumple `INV-009` sin añadir una dependencia de construcción. El código propio cabe en una lectura y su resultado es HTML plano: la opción más reversible y la que menos mantenimiento pide a 3 años. Un generador amortiza su coste con decenas de páginas, blog o CMS, y nada de eso está pedido. Decir que no aquí es la función del ADR: un generador añade una dependencia con subidas mayores periódicas y no aporta nada para cuatro portadas y cuatro páginas legales.
 - **Sin JS ni terceros**: con `default-src 'none'` y sin *script*, el XSS no tiene donde ejecutarse (`RSEC-OWASP-006`), no hay banner y la única transferencia de datos es la del alojamiento, que se declara.
-- **Cloudflare**: gratis sin cupo de tráfico (el riesgo de Netlify es que un pico pause el sitio). Gestiona en el mismo sitio el DNS, DNSSEC, CAA y las redirecciones de los cuatro dominios. Su formato de configuración es portable. En RGPD no hay diferencia entre Cloudflare y Netlify, porque las dos son estadounidenses bajo el DPF. El único argumento serio en contra son los bloqueos en España, y queda como condición verificable, no como fe. Bunny.net gana en RGPD (empresa UE), pero las cabeceras quedan en el panel y no en el repo, y es de pago. Para una página sin datos propios más allá de la IP en los registros del proveedor, esa ventaja no compensa: se descarta, pero queda como salida si el usuario prioriza la localización UE (`OPEN-072-02`).
+- **Cloudflare**: gratis sin cupo de tráfico (**no verificado**, comprobar en U1; el riesgo de Netlify es que un pico pause el sitio). Gestiona en el mismo sitio el DNS, DNSSEC, CAA y las redirecciones de los cuatro dominios. Su formato de configuración es portable. En RGPD no hay diferencia entre Cloudflare y Netlify, porque las dos son estadounidenses y, según lo que se sabe (**no verificado**), están bajo el DPF. El único argumento serio en contra son los bloqueos en España, y queda como condición verificable, no como fe. Bunny.net gana en RGPD (empresa UE), pero las cabeceras quedan en el panel y no en el repo, y es de pago. Para una página sin datos propios más allá de la IP en los registros del proveedor, esa ventaja no compensa: se descarta, pero queda como salida si el usuario prioriza la localización UE (`OPEN-072-02`).
 - **HSTS sin *preload***: se prioriza lo reversible sobre lo óptimo. El *preload* se puede añadir después, pero quitarlo tarda meses.
 
 ---
@@ -229,7 +229,7 @@ La redacción en es-ES la valida el usuario antes de traducirla.
 
 ## 9 · Hallazgos fuera del ámbito de este ADR (reportados, no corregidos)
 
-- **H1**: `ci-api.yml` y `ci-web.yml` no tienen filtro `paths`. Cada PR que solo toque `apps/landing` (o `docs/`) gastará minutos de CI de API y web. No es un fallo. Si se corrige, hay que hacerlo sin romper los *required checks* (el problema de `pending` descrito en `§4.5`).
+- **H1**: `ci-api.yml`, `ci-web.yml`, `dependency-scan.yml` y `build-images.yml` no tienen filtro `paths` (ver `§1.2`). Cada PR que solo toque `apps/landing` (o `docs/`) gastará minutos de CI de API y web. No es un fallo. Si se corrige, hay que hacerlo sin romper los *required checks* (el problema de `pending` descrito en `§4.5`).
 - **H2**: el nombre «AdagioX» y los dominios no figuran en `README.md` ni `ARCHITECTURE.md`, y en el documento de requisitos solo en la fila de este ADR en `§18` y en el historial (3.2.26); el resto de ese documento no los usa. `RUX-DOM-001` sigue con `{slug}.plataforma.com`. Actualizarlo corresponde a quien mantenga esos documentos, y lo condiciona `OPEN-072-04`.
 - **H3**: la entrada de este ADR en el índice de la sección 18 del documento de requisitos **se añadió al aceptar el ADR** (documento de requisitos 3.2.26). Hallazgo resuelto.
 
