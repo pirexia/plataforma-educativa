@@ -330,7 +330,9 @@ a.btn:focus-visible {
 
 .carousel-arrow {
   position: absolute;
-  top: 38%;
+  /* Centro de la ventana de la primera diapositiva: margen y relleno del carrusel, barra de título de 2rem
+     y la imagen (proporción 16:10) a la anchura de .slide. */
+  top: calc(var(--space-12) + var(--space-2) + (min(84vw, 44rem) * 0.625 + 2rem) / 2);
   z-index: 1;
   width: 2.75rem;
   height: 2.75rem;
@@ -344,11 +346,11 @@ a.btn:focus-visible {
 }
 
 .carousel-arrow[data-dir='prev'] {
-  inset-inline-start: var(--space-2);
+  inset-inline-start: max(var(--space-2), calc(var(--gutter) - 3.5rem));
 }
 
 .carousel-arrow[data-dir='next'] {
-  inset-inline-end: var(--space-2);
+  inset-inline-end: max(var(--space-2), calc(var(--gutter) - 3.5rem));
 }
 
 /* Chevrón dibujado con bordes: no hay texto ni imagen, y se invierte solo con dir="rtl". */
@@ -452,6 +454,10 @@ a.btn:focus-visible {
     border-width: 1px;
     opacity: 0.88;
     box-shadow: none;
+  }
+
+  .carousel-bar {
+    column-gap: 0;
   }
 
   .carousel-pause {
