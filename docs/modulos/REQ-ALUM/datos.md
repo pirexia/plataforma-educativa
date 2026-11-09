@@ -1,6 +1,6 @@
 # REQ-ALUM · Modelo de datos
 
-> **Estado**: **APROBADA** (2026-11-06) junto con `funcional.md` (ver su cabecera); lo marcado [DERIVADA] o dependiente de un `OPEN-ALUM` no bloqueante sigue como propuesta. Solo `student_photos` sigue *condicionada* (`OPEN-ALUM-08`); `group_change_requests` entra por `OPEN-ALUM-13` = A. `enrollments` requiere antes el ADR que formalice `OPEN-ALUM-11` = B en `§16` (`funcional.md` C4). Migraciones con `db-reviewer` obligatorio. **Implementada en `1.15-a`: `students`** (el resto sigue sin implementar).
+> **Estado**: **APROBADA** (2026-11-06) junto con `funcional.md` (ver su cabecera); lo marcado [DERIVADA] o dependiente de un `OPEN-ALUM` no bloqueante sigue como propuesta. Solo `student_photos` sigue *condicionada* (`OPEN-ALUM-08`); `group_change_requests` entra por `OPEN-ALUM-13` = A. El ADR que formaliza `OPEN-ALUM-11` = B en `§16` es `ADR-071` (`ACEPTADA`, 2026-11-09; `funcional.md` C4). Migraciones con `db-reviewer` obligatorio. **Implementada en `1.15-a`: `students`** (el resto sigue sin implementar).
 
 Todas las tablas son **de tenant**, creadas con `TenantMigration::tenantTable()` (o `tenantTableAppendOnly()` donde se dice), que aporta `id bigint`, `tenant_id`, RLS `ENABLE` + `FORCE` con la política estándar, `UNIQUE (tenant_id, id)` y `created_at`/`updated_at`/`deleted_at` (`TIMESTAMPTZ`), `created_by`/`updated_by` (`ADR-033`, `ADR-034 §6`/`§7`, `INV-005`). Solo se listan las columnas propias. Toda clave foránea a otra tabla de tenant es **compuesta** `(tenant_id, …)` con `TenantMigration::tenantForeignId()`. Las tablas con `academic_year_id` la declaran con `tenantForeignId($blueprint, 'academic_year_id', 'academic_years')`, que engancha el disparador `academic_year_write_guard` (`ADR-057`, `AR-13`); **ninguna** usa `CASCADE`, `SET NULL` ni `SET DEFAULT` (solo `NO ACTION`). Sin `ENUM`: `text` + `CHECK` (`AR-04`). `public_id` `character(26)` ULID con índice único propio (`AR-05`). Todo es aditivo (*expand*): ninguna tabla existente pierde ni renombra columnas.
 
@@ -135,7 +135,7 @@ Los datos personales del alumno los audita `Core` en la persona. Lectura: fila `
 
 - [x] `tenant_id` primera columna de todos los índices (propuesta de §3)
 - [x] RLS en las cuatro tablas por el ayudante (`IsolationBatteryTest` #8)
-- [x] `group_id` nulo en `enrollments` (`OPEN-ALUM-11` = B; ADR previo, `funcional.md` C4)
+- [x] `group_id` nulo en `enrollments` (`OPEN-ALUM-11` = B; `ADR-071` aceptada; `funcional.md` C4)
 - [x] `academic_year_id` en `enrollments` y `group_change_requests`, `NOT NULL`, con `tenantForeignId()` y sin acciones referenciales (`AR-13`); ausente en `students` y `student_photos` (no dependen del curso)
 - [x] `created_at`, `updated_at`, `deleted_at`, `created_by`, `updated_by` (ayudante)
 - [x] FK compuestas y `CHECK` en el motor (§1)
