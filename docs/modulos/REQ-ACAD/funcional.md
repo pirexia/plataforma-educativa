@@ -659,7 +659,7 @@ Las traducciones `en`/`de`/`fr` son textos de partida, revisados por el agente `
 | Necesidad futura | Qué deja `1.11` | Coste después |
 |------------------|-----------------|---------------|
 | *Rollover* (`1.12b`) | Árbol con clave (curso académico, padre) y códigos estables | **Corregido el 2026-10-20**: el contrato de copia vive en `Curso\Domain` (`AcademicYearRolloverParticipant`, `REQ-CURSO RN-CURSO-61`) y `acad` lo implementa en `Acad\Infrastructure` (§21, `RN-ACAD-145`); nada en `Acad\Domain` |
-| Matrícula (`1.15`) | `groups` con `UNIQUE (tenant_id, academic_year_id, id)` | `GroupDirectory` + vetos de borrado (`RN-ACAD-21`) |
+| Matrícula (`1.15`) | `groups` con `UNIQUE (tenant_id, course_id, id)` (destino de la FK de la matrícula, `REQ-ALUM RN-ALUM-20`) y `UNIQUE (tenant_id, academic_year_id, id)` (destino de `subgroups`) | `GroupDirectory` + vetos de borrado (`RN-ACAD-21`) |
 | Profesorado y ámbitos | `group_subjects` (el par grupo × asignatura que define `clase`, `ADR-063 §5.3`) | **Asignación docente propia de `acad`**, por curso académico y protegida por `ADR-057`, + interfaz de pertenencia en `Acad\Domain` (`ADR-063 §5.2`). Los resolutores los registra **cada módulo dueño del recurso** |
 | Capacidad/ratio | Nada | Columna anulable (*expand*) |
 | Contenido traducible en otros módulos | Ayudante, validación, resolutor, desglose, `AR-16` y componente de `ADR-062` | Una línea en la migración y la regla común |

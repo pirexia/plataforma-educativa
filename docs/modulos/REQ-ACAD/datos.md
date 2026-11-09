@@ -56,7 +56,7 @@ Restricción: `UNIQUE (tenant_id, academic_year_id, id)` (destino de `groups` y 
 | `name` | `text` | No | Texto simple, **no traducible** (`funcional.md` Anexo A punto 6) |
 | `position` | `integer` | No | `CHECK (position >= 1)` |
 
-Restricciones: `UNIQUE (tenant_id, academic_year_id, id)` (destino de `subgroups` y, en `1.15`, de la matrícula) y `UNIQUE (tenant_id, course_id, id)` (destino de `group_subjects`).
+Restricciones: `UNIQUE (tenant_id, academic_year_id, id)` (destino de `subgroups`) y `UNIQUE (tenant_id, course_id, id)` (destino de `group_subjects` y, en `1.15`, de la matrícula: `REQ-ALUM datos.md §1.2`, `RN-ALUM-20`).
 
 Nombre de tabla: `groups` es palabra clave **no reservada** en PostgreSQL; se admite como identificador. Si la implementación encuentra un problema real, `class_groups`, avisando antes.
 
