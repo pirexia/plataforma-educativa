@@ -42,17 +42,18 @@ node scripts/check.mjs --publish  # comprobaciones previas a publicar (ver abajo
 - **Literales (`INV-009`)**: ningún texto visible en las plantillas fuera de un marcador; `alt`, `title`, `aria-label`, `placeholder` y `meta description` solo con marcador; claves usadas inexistentes.
 - **Idiomas**: mismas claves exactas en los cuatro ficheros, sin valores vacíos, sin `<`, y mismos marcadores internos `{nombre}` en cada idioma.
 - **`dist/`**: ausencia de `<script>`, `<form>`, `<iframe>`, `<style>`, atributos `style` y manejadores `on*`; ningún recurso de terceros (`src`, `<link>`, `url()`, `@import`); enlaces internos y anclas; un único `<h1>`; `lang`, `canonical` y `hreflang` correctos y recíprocos; `sitemap.xml`; presencia y valor exacto de cada cabecera de `_headers`. Los enlaces externos no se comprueban (se revisan a mano).
-- **`--publish`** (bloquea la publicación): falla si queda alguna clave `_pending_translation` en en/de/fr o algún marcador pendiente del titular (`[TITULAR]`, `[NIF]`, `[DOMICILIO]`, `[CORREO]`, `[PROVEEDOR]`, `[GARANTIA]`, `[PLAZO]`). En desarrollo solo avisa.
+- **`--publish`** (bloquea la publicación): falla si queda alguna clave `_pending_translation`, algún marcador pendiente (`[TITULAR]`, `[NIF]`, `[DOMICILIO]`, `[CORREO]`, `[PROVEEDOR]`, `[GARANTIA]`, `[PLAZO]`, cualquier `[MAYÚSCULAS_1-2]`, `TODO` o `TBD`) en los locales, las plantillas **o el HTML de `dist/`**, si `dist/` no existe o es anterior a `src/` o `locales/` (por fecha de modificación). En desarrollo solo avisa.
+- **Enlaces externos**: todo `<a>` a otro host http(s) debe llevar `rel="noopener noreferrer"`.
 
 ## Idiomas
 
-- `es-ES.json` es la fuente. `en/de/fr.json` llevan `"_pending_translation": true` y el texto es-ES copiado hasta que los traduzca `traductor` (tratamiento formal). Al traducir se **elimina** esa clave.
+- `es-ES.json` es la fuente. `en/de/fr.json` ya están traducidos (`traductor`, tratamiento formal) y no llevan `_pending_translation`. La clave `"_pending_translation": true` sigue existiendo como mecanismo: al añadir claves nuevas en es-ES, se copian a en/de/fr con ese indicador, `check` avisa y `--publish` falla hasta que se traducen y se elimina el indicador.
 - **Los textos legales no se traducen automáticamente** (`CLAUDE.md §2.9`, `OPEN-072-05`): las claves `legal.body.*` se renderizan siempre desde es-ES, con `lang="es-ES"`, en las cuatro rutas `/legal/`. Solo la línea `legal.lang.notice` (aviso de idioma) se traduce.
 - Rutas: `/`, `/en/`, `/de/`, `/fr/` y `/legal/`, `/en/legal/`, `/de/legal/`, `/fr/legal/`. Sin redirección por `Accept-Language`: el selector son cuatro enlaces.
 
 ## Contenido: afirmación → fuente (`ADR-072 §8`)
 
-Estado visible: «en desarrollo». Sin cifras, clientes, certificaciones, fechas, precios, capturas ni disponibilidad. Los textos de abajo son un **borrador** que debe validar el usuario antes de traducirse.
+Estado visible: «en desarrollo». Sin cifras, clientes, certificaciones, fechas, precios, capturas ni disponibilidad. El copy es-ES lo ha revisado la sesión; **falta la validación del usuario antes de publicar** (`ADR-072 §8`).
 
 | Clave | Afirmación en la landing | Fuente en `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` |
 |---|---|---|
@@ -84,3 +85,8 @@ Lighthouse/axe no certifican conformidad. En cada cambio de contenido o de estil
 ## Desplegar y revertir
 
 **T2** (pendiente): `scripts/deploy.sh`, `ci-landing.yml`, Lighthouse y reversión probada (`ADR-072 §4.5`, `§4.6`).
+
+Requisitos para T2:
+
+- El despliegue debe ejecutar, en este orden, `npm run build` y `npm run check:publish`, y **subir solo `dist/`**. Si `check:publish` falla (marcadores, traducciones pendientes, `dist/` obsoleto), no se publica.
+- `_headers` y `_redirects` dependen del proveedor (Netlify o Cloudflare, `OPEN-072-02`): antes de dar por buena la publicación hace falta un **smoke test de cabeceras contra la URL real** (CSP, HSTS y demás de `scripts/headers.mjs`, y las redirecciones de dominio), no solo el contenido de `dist/`.

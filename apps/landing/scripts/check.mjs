@@ -12,6 +12,7 @@ import {
   ORIGIN,
   PENDING_KEY,
   MARKER_RE,
+  KEY_PATTERN,
   INNER_MARKER_RE,
   PENDING_DATA_RE,
   readLocales,
@@ -22,7 +23,7 @@ import { SECURITY_HEADERS } from './headers.mjs'
 
 const VISIBLE_ATTRS = ['alt', 'title', 'aria-label', 'aria-description', 'placeholder']
 const ANY_MARKER_RE = /\{\{[^}]*\}\}/g
-const ONLY_T_MARKER_RE = /^\{\{t:[A-Za-z0-9_.-]+\}\}$/
+const ONLY_T_MARKER_RE = new RegExp(`^\\{\\{t:${KEY_PATTERN}\\}\\}$`)
 const HAS_PENDING_DATA = new RegExp(PENDING_DATA_RE.source)
 const FORBIDDEN_TAGS = ['script', 'form', 'iframe', 'object', 'embed', 'style']
 
@@ -120,6 +121,11 @@ function checkLocales(root, publish, report) {
 
 export function checkTemplate(name, html, locales, publish, report) {
   const tokens = tokenize(html)
+  for (const m of html.matchAll(/\{\{t:[^}]*\}\}/g)) {
+    if (!new RegExp(`^\\{\\{t:${KEY_PATTERN}\\}\\}$`).test(m[0])) {
+      report.error(`${name}: marcador de clave inválido ${m[0]}`)
+    }
+  }
   for (const t of tokens) {
     if (t.type === 'text') {
       const rest = t.raw.replace(ANY_MARKER_RE, '').trim()
@@ -217,13 +223,25 @@ function collectIds(html) {
   return ids
 }
 
-function checkDist(root, report) {
+function newestMtime(paths) {
+  return Math.max(0, ...paths.map((p) => statSync(p).mtimeMs))
+}
+
+function checkDist(root, publish, report) {
   const distDir = join(root, 'dist')
   if (!existsSync(distDir)) {
     report.error('dist/: no existe (ejecute primero la construcción)')
     return
   }
   const files = walk(distDir)
+  if (publish) {
+    const sources = ['src', 'locales']
+      .filter((d) => existsSync(join(root, d)))
+      .flatMap((d) => walk(join(root, d)))
+    if (newestMtime(files) < newestMtime(sources)) {
+      report.error('dist/: es anterior a src/ o locales/ (vuelva a ejecutar la construcción)')
+    }
+  }
   const htmlFiles = files.filter((f) => f.endsWith('.html'))
   const info = new Map() // url -> {file, tokens, html, alternates, canonical, lang}
   const idCache = new Map()
@@ -237,6 +255,11 @@ function checkDist(root, report) {
     let lang = null
     let h1 = 0
     if (/\{\{[^}]*\}\}/.test(html)) report.error(`dist/${rel}: marcador sin resolver`)
+    if (publish) {
+      const pend = html.match(PENDING_DATA_RE)
+      if (pend) report.error(`dist/${rel}: marcador pendiente ${[...new Set(pend)].join(', ')}`)
+      if (html.includes(PENDING_KEY)) report.error(`dist/${rel}: contiene ${PENDING_KEY}`)
+    }
     for (const t of tokens) {
       if (t.type !== 'open') continue
       if (FORBIDDEN_TAGS.includes(t.name)) report.error(`dist/${rel}: <${t.name}> no permitido`)
@@ -315,6 +338,12 @@ function checkDist(root, report) {
         report.error(`dist/${rel}: URL no válida "${value}"`)
         continue
       }
+      if (t.name === 'a' && /^https?:$/.test(url.protocol) && url.origin !== ORIGIN) {
+        const rels = (t.attrs.rel ?? '').toLowerCase().split(/\s+/)
+        if (!rels.includes('noopener') || !rels.includes('noreferrer')) {
+          report.error(`dist/${rel}: enlace externo "${value}" sin rel="noopener noreferrer"`)
+        }
+      }
       if (url.origin !== ORIGIN) continue // externos: se revisan a mano (ADR-072 §4.5)
       let path = decodeURIComponent(url.pathname)
       if (path.endsWith('/')) path += 'index.html'
@@ -371,7 +400,7 @@ export function runChecks({ root, publish = false, skipDist = false }) {
   const report = { error: (m) => errors.push(m), warn: (m) => warnings.push(m) }
   const locales = checkLocales(root, publish, report)
   checkSource(root, locales, publish, report)
-  if (!skipDist) checkDist(root, report)
+  if (!skipDist) checkDist(root, publish, report)
   return { errors, warnings }
 }
 

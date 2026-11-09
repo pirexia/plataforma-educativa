@@ -1,7 +1,15 @@
 #!/usr/bin/env node
 // Construye dist/ a partir de src/ y locales/ (ADR-072 §4.1). Solo módulos integrados.
 // Uso: node scripts/build.mjs [--root <directorio>]
-import { mkdirSync, readFileSync, writeFileSync, rmSync, existsSync, cpSync } from 'node:fs'
+import {
+  mkdirSync,
+  readFileSync,
+  writeFileSync,
+  rmSync,
+  existsSync,
+  cpSync,
+  statSync,
+} from 'node:fs'
 import { join, dirname, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import {
@@ -9,6 +17,7 @@ import {
   DEFAULT_LANG,
   ORIGIN,
   LEGAL_PREFIX,
+  KEY_PATTERN,
   PAGES,
   readLocales,
   langPath,
@@ -17,7 +26,7 @@ import {
 } from './lib.mjs'
 import { SECURITY_HEADERS, REDIRECT_HOSTS } from './headers.mjs'
 
-const TOKEN_RE = /\{\{(t|v):([^}]+)\}\}/g
+const TOKEN_RE = new RegExp(`\\{\\{(?:(t):(${KEY_PATTERN})|(v):([^}]+))\\}\\}`, 'g')
 const INCLUDE_RE = /\{\{include:([A-Za-z0-9_-]+)\}\}/g
 
 function readTemplate(root, name) {
@@ -46,11 +55,16 @@ function text(locales, lang, key, where) {
 
 export function render(root, locales, template, lang, vars) {
   const html = expandIncludes(root, readTemplate(root, template))
-  return html.replace(TOKEN_RE, (_, kind, key) => {
+  const out = html.replace(TOKEN_RE, (_, tk, tkey, vk, vkey) => {
+    const kind = tk ?? vk
+    const key = tkey ?? vkey
     if (kind === 't') return escapeHtml(text(locales, lang, key, template))
     if (!(key in vars)) throw new Error(`Variable inexistente "${key}" en ${template}`)
     return vars[key]
   })
+  const left = out.match(/\{\{[^}]*\}\}/)
+  if (left) throw new Error(`Marcador inválido ${left[0]} en ${template}`)
+  return out
 }
 
 function pageVars(lang, page) {
@@ -117,6 +131,9 @@ function redirectsFile() {
 }
 
 export function build({ root }) {
+  if (!root || !existsSync(root) || !statSync(root).isDirectory()) {
+    throw new Error(`--root no existe o no es un directorio: ${root}`)
+  }
   const locales = readLocales(root)
   for (const lang of LANGS) {
     if (!locales[lang]) throw new Error(`Falta locales/${lang}.json`)
@@ -148,7 +165,9 @@ const isMain = process.argv[1] && import.meta.url === pathToFileURL(resolve(proc
 if (isMain) {
   const i = process.argv.indexOf('--root')
   const root =
-    i > -1 ? resolve(process.argv[i + 1]) : resolve(dirname(fileURLToPath(import.meta.url)), '..')
+    i > -1
+      ? resolve(process.argv[i + 1] ?? '')
+      : resolve(dirname(fileURLToPath(import.meta.url)), '..')
   try {
     const dist = build({ root })
     console.log(`Construido: ${dist}`)

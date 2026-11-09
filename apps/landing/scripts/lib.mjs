@@ -10,11 +10,12 @@ export const PENDING_KEY = '_pending_translation'
 // renderizan siempre desde es-ES, con lang="es-ES", en las cuatro rutas.
 export const LEGAL_PREFIX = 'legal.body.'
 export const PAGES = ['home', 'legal']
-export const MARKER_RE = /\{\{t:([A-Za-z0-9_.-]+)\}\}/g
+export const KEY_PATTERN = '[A-Za-z0-9_.-]+'
+export const MARKER_RE = new RegExp(`\\{\\{t:(${KEY_PATTERN})\\}\\}`, 'g')
 // Marcadores internos de un valor de idioma: {nombre}.
 export const INNER_MARKER_RE = /\{[A-Za-z0-9_]+\}/g
 // Marcadores pendientes de datos del titular: [TITULAR], [NIF]...
-export const PENDING_DATA_RE = /\[[A-ZÁÉÍÓÚÑ_]{3,}\]/g
+export const PENDING_DATA_RE = /\[[A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑ0-9_-]{2,}\]|\b(?:TODO|TBD)\b/g
 
 export function localeFile(root, lang) {
   return join(root, 'locales', `${lang}.json`)

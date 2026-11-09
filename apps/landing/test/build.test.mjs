@@ -1,9 +1,11 @@
 // ADR-072 §4.1, §4.2, §4.3, §4.4: la construcción genera el sitio esperado.
 import { test, after } from 'node:test'
 import assert from 'node:assert/strict'
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync, mkdtempSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { makeSite, cleanup, editJson, edit } from './helpers.mjs'
+import { makeSite, cleanup, editJson, edit, PROJECT } from './helpers.mjs'
 import { build } from '../scripts/build.mjs'
 import { SECURITY_HEADERS } from '../scripts/headers.mjs'
 
@@ -126,4 +128,24 @@ test('falta un fichero de idioma: la construcción falla', () => {
   const root = makeSite({ built: false })
   writeFileSync(join(root, 'locales', 'fr.json'), '{}')
   assert.throws(() => build({ root }), /Clave de idioma inexistente/)
+})
+
+test('--root inexistente o que no es un directorio: falla sin tocar nada', () => {
+  const missing = join(tmpdir(), 'landing-no-existe-xyz')
+  assert.throws(() => build({ root: missing }), /--root no existe/)
+  assert.ok(!existsSync(missing))
+  const dir = mkdtempSync(join(tmpdir(), 'landing-file-'))
+  const file = join(dir, 'f.txt')
+  writeFileSync(file, 'x')
+  assert.throws(() => build({ root: file }), /no es un directorio/)
+  assert.equal(readFileSync(file, 'utf8'), 'x')
+  assert.throws(() => build({ root: undefined }), /--root/)
+})
+
+test('CLI: --root inexistente sale con código 1', () => {
+  const script = join(PROJECT, 'scripts', 'build.mjs')
+  assert.throws(
+    () => execFileSync('node', [script, '--root', '/tmp/landing-no-existe-xyz'], { stdio: 'pipe' }),
+    (e) => e.status === 1 && /--root no existe/.test(String(e.stderr)),
+  )
 })

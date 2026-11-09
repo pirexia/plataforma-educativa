@@ -1,12 +1,12 @@
 // ADR-072 §4.2 y §4.5: cada comprobación falla con un caso malo y pasa con uno bueno.
 import { test, after } from 'node:test'
 import assert from 'node:assert/strict'
-import { rmSync, writeFileSync, mkdirSync } from 'node:fs'
+import { rmSync, utimesSync } from 'node:fs'
 import { join } from 'node:path'
 import { makeSite, cleanup, edit, editJson, fixture } from './helpers.mjs'
 import { build } from '../scripts/build.mjs'
 import { checkTemplate, runChecks } from '../scripts/check.mjs'
-import { readLocales } from '../scripts/lib.mjs'
+import { readLocales, PENDING_DATA_RE } from '../scripts/lib.mjs'
 import { PROJECT } from './helpers.mjs'
 
 after(cleanup)
@@ -340,4 +340,130 @@ test('marcador sin resolver en dist: error', () => {
       /marcador sin resolver/,
     ),
   )
+})
+
+// ---- --publish escanea dist/ ----
+
+function filledSite() {
+  const root = makeSite({ built: false })
+  const fill = {
+    '[TITULAR]': 'Persona',
+    '[NIF]': '1',
+    '[DOMICILIO]': 'Calle',
+    '[CORREO]': 'a@example.com',
+    '[PROVEEDOR]': 'P',
+    '[GARANTIA]': 'G',
+    '[PLAZO]': '30 días',
+  }
+  for (const l of ['es-ES', 'en', 'de', 'fr']) {
+    editJson(root, `locales/${l}.json`, (d) => {
+      delete d._pending_translation
+      for (const k of Object.keys(d)) {
+        for (const [m, v] of Object.entries(fill)) d[k] = String(d[k]).replaceAll(m, v)
+      }
+    })
+  }
+  build({ root })
+  return root
+}
+
+test('--publish: marcador pendiente en el HTML generado: error', () => {
+  const root = filledSite()
+  assert.deepEqual(run(root, { publish: true }).errors, [])
+  edit(root, 'dist/en/index.html', (h) => h.replace('</main>', '<p>[IBAN2]</p></main>'))
+  assert.ok(
+    has(run(root, { publish: true }), /dist\/en\/index\.html: marcador pendiente \[IBAN2\]/),
+  )
+  assert.deepEqual(run(root).errors, [])
+})
+test('--publish: _pending_translation en el HTML generado: error', () => {
+  const root = filledSite()
+  edit(root, 'dist/index.html', (h) => h.replace('</main>', '<!-- _pending_translation --></main>'))
+  assert.ok(has(run(root, { publish: true }), /contiene _pending_translation/))
+})
+test('--publish: dist/ anterior a src/ o locales/: error; sin --publish no', () => {
+  const root = filledSite()
+  const future = new Date(Date.now() + 60_000)
+  utimesSync(join(root, 'locales', 'en.json'), future, future)
+  assert.ok(has(run(root, { publish: true }), /dist\/: es anterior a src\/ o locales\//))
+  assert.ok(!has(run(root), /es anterior/))
+})
+test('--publish: sin dist/ falla', () => {
+  const root = makeSite({ built: false })
+  assert.ok(has(run(root, { publish: true }), /dist\/: no existe/))
+})
+
+// ---- Enlaces externos ----
+
+const extLink = (rel) => `<a href="https://example.org/x"${rel ? ` rel="${rel}"` : ''}>x</a>`
+test('enlace externo sin rel noopener noreferrer: error', () => {
+  assert.ok(
+    has(
+      brokenDist('index.html', (h) => h.replace('</main>', extLink() + '</main>')),
+      /sin rel="noopener noreferrer"/,
+    ),
+  )
+  assert.ok(
+    has(
+      brokenDist('index.html', (h) => h.replace('</main>', extLink('noopener') + '</main>')),
+      /sin rel/,
+    ),
+  )
+})
+test('enlace externo con rel noopener noreferrer: correcto', () => {
+  const res = brokenDist('index.html', (h) =>
+    h.replace('</main>', extLink('noopener noreferrer') + '</main>'),
+  )
+  assert.deepEqual(res.errors, [])
+})
+test('enlaces mailto y al propio origen no exigen rel', () => {
+  const res = brokenDist('index.html', (h) =>
+    h.replace(
+      '</main>',
+      '<a href="mailto:a@example.com">x</a><a href="https://adagiox.com/en/">y</a></main>',
+    ),
+  )
+  assert.deepEqual(res.errors, [])
+})
+
+// ---- Detección de marcadores pendientes ----
+
+const matches = (s) => s.match(PENDING_DATA_RE) ?? []
+test('PENDING_DATA_RE detecta marcadores con dígitos, guion, TODO y TBD', () => {
+  for (const s of [
+    '[TITULAR]',
+    '[IBAN2]',
+    '[N-A]',
+    '[DATO_1]',
+    'TODO',
+    'pendiente TBD',
+    '[ÑANDÚ]',
+  ]) {
+    assert.ok(matches(s).length > 0, s)
+  }
+})
+test('PENDING_DATA_RE no da falsos positivos con los textos actuales', () => {
+  const locales = readLocales(PROJECT)
+  const allowed = /^\[(TITULAR|NIF|DOMICILIO|CORREO|PROVEEDOR|GARANTIA|PLAZO)\]$/
+  for (const [lang, loc] of Object.entries(locales)) {
+    for (const [k, v] of Object.entries(loc)) {
+      if (typeof v !== 'string') continue
+      for (const m of matches(v)) {
+        assert.ok(k.startsWith('legal.body.') && allowed.test(m), `${lang}:${k} -> ${m}`)
+      }
+    }
+  }
+  for (const s of ['[a]', '[Hola]', 'Todo bien', '[1]', 'array[0]'])
+    assert.deepEqual(matches(s), [], s)
+})
+
+// ---- Claves raras ----
+
+test('una clave rara en {{t:...}} falla en check y en build', () => {
+  const root = makeSite({ built: false })
+  edit(root, 'src/home.html', (h) => h.replace('{{t:home.hero.title}}', '{{t:home hero/title}}'))
+  assert.ok(
+    has(run(root, { skipDist: true }), /marcador de clave inválido \{\{t:home hero\/title\}\}/),
+  )
+  assert.throws(() => build({ root }), /Marcador inválido/)
 })
