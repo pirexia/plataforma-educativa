@@ -1,11 +1,19 @@
 // ADR-072 §4.2 y §4.5: cada comprobación falla con un caso malo y pasa con uno bueno.
 import { test, after } from 'node:test'
 import assert from 'node:assert/strict'
-import { rmSync, utimesSync, writeFileSync, readFileSync, mkdirSync } from 'node:fs'
+import { rmSync, utimesSync, writeFileSync, readFileSync, mkdirSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { makeSite, cleanup, edit, editJson, fixture, addImage, placeImage } from './helpers.mjs'
 import { build } from '../scripts/build.mjs'
-import { checkTemplate, runChecks } from '../scripts/check.mjs'
+import {
+  checkTemplate,
+  runChecks,
+  checkCspValue,
+  checkScriptFile,
+  isVisibleLiteral,
+  EXPECTED_CSP,
+  MAX_SCRIPT_BYTES,
+} from '../scripts/check.mjs'
 import { readLocales, PENDING_DATA_RE, LANGS, MAX_IMG_FILE_BYTES, MAX_IMG_TOTAL_BYTES } from '../scripts/lib.mjs'
 import { PROJECT } from './helpers.mjs'
 
@@ -48,8 +56,8 @@ test('aria-label sin marcador: error', () => {
 test('meta description sin marcador: error', () => {
   assert.ok(tpl('template-bad-meta.html').some((e) => /description/.test(e)))
 })
-test('<script> en una plantilla: error', () => {
-  assert.ok(tpl('template-bad-script.html').some((e) => /<script>/.test(e)))
+test('<script src> fuera de /js/ en una plantilla (ADR-075): error', () => {
+  assert.ok(tpl('template-bad-script.html').some((e) => /fichero propio bajo \/js\//.test(e)))
 })
 test('clave de plantilla inexistente en los idiomas: error', () => {
   assert.ok(tpl('template-bad-key.html').some((e) => /no\.existe\.esta\.clave/.test(e)))
@@ -166,7 +174,7 @@ test('<script> en dist: error', () => {
   assert.ok(
     has(
       brokenDist('index.html', (h) => h.replace('</body>', '<script>1</script></body>')),
-      /<script> no permitido/,
+      /<script> en línea no permitido/,
     ),
   )
 })
@@ -815,7 +823,7 @@ test('§4.5 carrusel: aria-roledescription: error', () => {
 })
 test('§4.5 carrusel: el resultado construido sin tabindex falla también en dist', () => {
   const root = makeSite({ showcase: true })
-  edit(root, 'dist/index.html', (h) => h.replace(/ tabindex="0">(\s*<ul)/, '>$1'))
+  edit(root, 'dist/index.html', (h) => h.replace(/ tabindex="0"(\s+data-prev)/, '$1'))
   assert.ok(has(run(root), /dist\/index\.html: el carrusel debe llevar tabindex="0"/))
 })
 test('§4.5 efectos: animation-timeline dentro de @supports y no-preference solo con transform: correcto', () => {
@@ -849,4 +857,115 @@ test('§4.5 efectos: la animación con opacity que NO va ligada al scroll no se 
 })
 test('§4.5 ::scroll-button y ::scroll-marker: error', () => {
   assert.ok(has(run(fxSite('.carousel::scroll-marker { content: ""; }')), /::scroll-button y ::scroll-marker/))
+})
+
+// ---- ADR-075 §2.6: script propio, CSP y etiquetas ----
+
+function brokenShowcase(rel, fn) {
+  const root = makeSite({ showcase: true })
+  const file = join(root, 'dist', rel)
+  mkdirSync(join(file, '..'), { recursive: true })
+  writeFileSync(file, fn(existsSync(file) ? readFileSync(file, 'utf8') : ''))
+  return run(root)
+}
+const SCRIPT_TAG = '<script src="/js/carousel.js" defer></script>'
+const tplHtml = (html) => {
+  const errors = []
+  checkTemplate('t.html', html, readLocales(PROJECT), false, { error: (m) => errors.push(m), warn() {} })
+  return errors
+}
+const withScript = (tag) => tplHtml(`<main>${tag}</main>`)
+const scriptErrors = (src) => {
+  const errors = []
+  checkScriptFile('s.js', Buffer.from(src), { error: (m) => errors.push(m), warn() {} })
+  return errors
+}
+
+test('ADR-075 script: <script src="/js/…" defer> del mismo origen es válido (bueno)', () => {
+  assert.deepEqual(withScript(SCRIPT_TAG), [])
+})
+test('ADR-075 script: <script> en línea, de otro origen, protocolo relativo, fuera de /js/ o sin defer: error', () => {
+  assert.ok(withScript('<script>1</script>').some((e) => /en línea/.test(e)))
+  for (const src of ['https://cdn.example.com/a.js', '//cdn.example.com/a.js', '/app.js', '/js/../a.js', '/js/a.mjs']) {
+    assert.ok(withScript(`<script src="${src}" defer></script>`).some((e) => /fichero propio bajo \/js\//.test(e)), src)
+  }
+  assert.ok(withScript('<script src="/js/carousel.js"></script>').some((e) => /sin defer/.test(e)))
+})
+test('ADR-075 script: manejadores on* y javascript: en una plantilla: error', () => {
+  assert.ok(tplHtml('<main><a href="#x" onclick="f()">{{t:home.title}}</a></main>').some((e) => /manejador de evento "onclick"/.test(e)))
+  assert.deepEqual(tplHtml('<main><a href="#x">{{t:home.title}}</a></main>'), [])
+  assert.ok(tplHtml('<main><a href="javascript:void(0)">{{t:home.title}}</a></main>').some((e) => /javascript:/.test(e)))
+  assert.ok(tplHtml('<main><img src=" JavaScript:x" alt="{{t:home.title}}"></main>').some((e) => /javascript:/.test(e)))
+})
+test('ADR-075 script: dist con <script> en línea, de otro origen o manejador on*: error', () => {
+  assert.ok(has(brokenShowcase('index.html', (h) => h.replace('</body>', '<script src="https://x.example/a.js" defer></script></body>')), /fichero propio bajo \/js\//))
+  assert.ok(has(brokenShowcase('index.html', (h) => h.replace('<body>', '<body onload="f()">')), /manejador de evento "onload"/))
+  assert.ok(has(brokenShowcase('index.html', (h) => h.replace('<body>', '<a href="javascript:f()">x</a><body>')), /javascript:/))
+  assert.ok(has(brokenShowcase('index.html', (h) => h.replace('/js/carousel.js', '/js/no-existe.js')), /enlace roto "\/js\/no-existe\.js"/))
+})
+test('ADR-075 CSP: la exacta pasa; con unsafe-inline, unsafe-eval, sin script-src o distinta falla', () => {
+  const ok = []
+  checkCspValue(EXPECTED_CSP, { error: (m) => ok.push(m) })
+  assert.deepEqual(ok, [])
+  for (const bad of [
+    EXPECTED_CSP.replace("script-src 'self'", "script-src 'self' 'unsafe-inline'"),
+    EXPECTED_CSP.replace("script-src 'self'", "script-src 'self' 'unsafe-eval'"),
+    EXPECTED_CSP.replace("script-src 'self'; ", ''),
+    EXPECTED_CSP.replace("script-src 'self'", "script-src 'self' https://cdn.example.com"),
+  ]) {
+    const errs = []
+    checkCspValue(bad, { error: (m) => errs.push(m) })
+    assert.ok(errs.length > 0, bad)
+  }
+  assert.ok(has(brokenShowcase('_headers', (h) => h.replace("script-src 'self'; ", '')), /Content-Security-Policy/))
+})
+test('ADR-075 dist/js: solo carousel.js; otro fichero o un .js fuera de dist/js: error', () => {
+  assert.ok(has(brokenShowcase('js/extra.js', () => 'var a = 1'), /dist\/js\/extra\.js: fichero no permitido/))
+  assert.ok(has(brokenShowcase('js/sub/carousel.js', () => 'var a = 1'), /fichero no permitido/))
+  assert.ok(has(brokenShowcase('otro.js', () => 'var a = 1'), /script fuera de dist\/js/))
+})
+test('ADR-075 script: el real pasa; eval, new Function, document.write, innerHTML, red y almacenamiento fallan', () => {
+  assert.deepEqual(scriptErrors(readFileSync(join(PROJECT, 'src', 'js', 'carousel.js'), 'utf8')), [])
+  for (const [code, re] of [
+    ['eval("1")', /eval/],
+    ['const f = new Function("return 1")', /new Function/],
+    ['document.write("x")', /document\.write/],
+    ['a.innerHTML = b', /innerHTML/],
+    ['a.insertAdjacentHTML("beforeend", b)', /innerHTML/],
+    ['setTimeout("f()", 1)', /setTimeout/],
+    ['fetch("/x")', /red o importación/],
+    ['document.cookie = "a=b"', /cookies/],
+  ]) {
+    assert.ok(scriptErrors(code).some((e) => re.test(e)), code)
+  }
+  // Mencionarlos en un comentario o en una cadena no es usarlos.
+  assert.deepEqual(scriptErrors('// eval y new Function\n/* document.write */\nconst a = "eval"'), [])
+})
+test('ADR-075 script: literales visibles fallan; identificadores, selectores y {n} pasan', () => {
+  for (const lit of ['Next', 'Pause', 'Go to slide', 'ir a la diapositiva', 'Siguiente.', '¡Hola!']) {
+    assert.equal(isVisibleLiteral(lit), true, lit)
+    assert.ok(scriptErrors(`btn.textContent = ${JSON.stringify(lit)}`).some((e) => /literal visible/.test(e)), lit)
+  }
+  for (const lit of ['', ' ', 'button', 'aria-current', 'scrollPaddingInlineStart', '.carousel', '.slides > li', ':focus-visible', '(prefers-reduced-motion: reduce)', '{n}', '{total}', 'use strict', '[data-dir="prev"]']) {
+    assert.equal(isVisibleLiteral(lit), false, lit)
+  }
+})
+test('ADR-075 script: más de 6 KiB falla', () => {
+  assert.ok(scriptErrors('a=1;\n'.repeat(Math.ceil(MAX_SCRIPT_BYTES / 5) + 1)).some((e) => /pesa/.test(e)))
+  assert.deepEqual(scriptErrors('a=1;\n'.repeat(100)), [])
+})
+test('ADR-075 script: el fichero fuente con un literal visible hace fallar check (sin dist)', () => {
+  const root = makeSite({ showcase: true, built: false })
+  edit(root, 'src/js/carousel.js', (j) => j.replace("'smooth'", "'Smooth moves'"))
+  assert.ok(has(run(root, { skipDist: true }), /src\/js\/carousel\.js: literal visible/))
+})
+test('ADR-075 etiquetas: el carrusel sin data-* o con texto literal en vez de marcador: error', () => {
+  for (const a of ['data-prev', 'data-next', 'data-goto', 'data-pause', 'data-resume']) {
+    const root = makeSite({ showcase: true, built: false })
+    edit(root, 'src/home.html', (h) => h.replace(new RegExp(`\\s${a}="[^"]*"`), ''))
+    assert.ok(has(run(root, { skipDist: true }), new RegExp(`debe llevar ${a}`)), a)
+  }
+  const root = makeSite({ showcase: true, built: false })
+  edit(root, 'src/home.html', (h) => h.replace('data-pause="{{t:home.carousel.pause}}"', 'data-pause="Pause"'))
+  assert.ok(has(run(root, { skipDist: true }), /atributo "data-pause" visible sin marcador/))
 })

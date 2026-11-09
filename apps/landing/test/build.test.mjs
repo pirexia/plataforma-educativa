@@ -1,7 +1,7 @@
 // ADR-072 §4.1, §4.2, §4.3, §4.4: la construcción genera el sitio esperado.
 import { test, after } from 'node:test'
 import assert from 'node:assert/strict'
-import { existsSync, readFileSync, writeFileSync, mkdtempSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync, mkdtempSync, readdirSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -150,13 +150,14 @@ test('robots.txt apunta al sitemap canónico', () => {
   assert.match(read(root, 'robots.txt'), /Sitemap: https:\/\/adagiox\.com\/sitemap\.xml/)
 })
 
-test('_headers lleva la CSP sin script-src y todas las cabeceras del ADR', () => {
+test('_headers lleva la CSP con script-src \'self\' (ADR-075) y todas las cabeceras del ADR', () => {
   const root = makeSite()
   const h = read(root, '_headers')
   for (const [name, value] of Object.entries(SECURITY_HEADERS)) {
     assert.ok(h.includes(`  ${name}: ${value}\n`), `falta ${name}`)
   }
-  assert.ok(!h.includes('script-src'))
+  assert.ok(h.includes("script-src 'self';"))
+  assert.ok(!/unsafe-inline|unsafe-eval/.test(h))
   assert.ok(!/includeSubDomains|preload/.test(h))
 })
 
@@ -287,7 +288,12 @@ test('la portada real: carrusel de 8 diapositivas con figcaption, una sola image
     assert.equal(eager.length, 1, page)
     assert.match(eager[0][0], /fetchpriority="high"/)
     assert.ok(carousel[1].indexOf(eager[0][0]) > -1, 'la imagen LCP es la del carrusel')
-    assert.ok(carousel[1].indexOf('hero-schedule') < carousel[1].indexOf('schedule-conflict'))
+    // ADR-075 §2.5: la pantalla de acceso va primera; el resto, en el orden de ADR-074.
+    const order = ['sign-in', 'hero-schedule', 'schedule-conflict', 'role-permissions', 'audit-log', 'family-unit', 'pickup-door', 'school-branding']
+    const pos = order.map((id) => carousel[1].indexOf(`/img/${id}-`))
+    assert.ok(pos.every((p) => p > -1), page)
+    assert.deepEqual([...pos].sort((a, b) => a - b), pos, `orden de las diapositivas en ${page}`)
+    assert.ok(carousel[1].indexOf(eager[0][0]) < pos[1], 'la imagen sin lazy es la de sign-in')
   }
 })
 
@@ -298,4 +304,27 @@ test('la portada real mantiene canonical y hreflang, y el estado "en desarrollo"
   for (const hl of ['en', 'es-ES', 'de', 'fr', 'x-default']) assert.ok(html.includes(`hreflang="${hl}"`), hl)
   assert.match(html, /class="badge"/)
   assert.ok(html.includes('href="mailto:founders@adagiox.com"'))
+})
+
+test('ADR-075: la portada de las cuatro lenguas lleva el único script propio con defer y ninguno en línea; la 404 y el aviso legal, ninguno', () => {
+  const root = makeSite({ showcase: true })
+  for (const page of ['index.html', 'es/index.html', 'de/index.html', 'fr/index.html']) {
+    const html = read(root, page)
+    const scripts = [...html.matchAll(/<script\b[^>]*>/g)].map((m) => m[0])
+    assert.deepEqual(scripts, ['<script src="/js/carousel.js" defer>'], page)
+    assert.doesNotMatch(html, /<script(?![^>]*\bsrc=)/i, page)
+    for (const k of ['prev', 'next', 'goto', 'pause', 'resume']) {
+      assert.match(html, new RegExp(`data-${k}="[^"]+"`), `${page} data-${k}`)
+    }
+  }
+  assert.doesNotMatch(read(root, 'legal/index.html'), /<script/i)
+  assert.doesNotMatch(read(root, '404.html'), /<script/i)
+  assert.deepEqual(readdirSync(join(root, 'dist', 'js')), ['carousel.js'])
+})
+
+test('ADR-075: dist/js/carousel.js es copia exacta de la fuente y cabe en 6 KiB', () => {
+  const root = makeSite({ showcase: true })
+  const built = readFileSync(join(root, 'dist', 'js', 'carousel.js'))
+  assert.ok(built.equals(readFileSync(join(PROJECT, 'src', 'js', 'carousel.js'))))
+  assert.ok(built.length <= 6 * 1024, `${built.length} bytes`)
 })

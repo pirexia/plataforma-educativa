@@ -35,7 +35,15 @@ const VISIBLE_ATTRS = ['alt', 'title', 'aria-label', 'aria-description', 'placeh
 const ANY_MARKER_RE = /\{\{[^}]*\}\}/g
 const ONLY_T_MARKER_RE = new RegExp(`^\\{\\{t:${KEY_PATTERN}\\}\\}$`)
 const HAS_PENDING_DATA = new RegExp(PENDING_DATA_RE.source)
-const FORBIDDEN_TAGS = ['script', 'form', 'iframe', 'object', 'embed', 'style']
+// `script` ya no está aquí (ADR-075): lo gobierna checkScripts (solo /js/*.js propio, con defer).
+const FORBIDDEN_TAGS = ['form', 'iframe', 'object', 'embed', 'style']
+// ADR-075 §2.6: CSP exacta (duplicada a propósito de headers.mjs: una edición accidental de uno
+// de los dos falla), único script admitido y peso máximo.
+export const EXPECTED_CSP =
+  "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; upgrade-insecure-requests"
+export const ALLOWED_SCRIPTS = ['carousel.js']
+export const MAX_SCRIPT_BYTES = 6 * 1024
+const CAROUSEL_LABELS = ['data-prev', 'data-next', 'data-goto', 'data-pause', 'data-resume']
 
 function walk(dir) {
   const out = []
@@ -198,7 +206,8 @@ function checkLocales(root, publish, report, langs) {
 
 export function checkTemplate(name, html, locales, publish, report, langs = LANGS) {
   const tokens = tokenize(html)
-  checkCarousels(name, tokens, report)
+  checkCarousels(name, tokens, report, true)
+  checkScripts(name, tokens, report)
   for (const m of html.matchAll(/\{\{t:[^}]*\}\}/g)) {
     if (!new RegExp(`^\\{\\{t:${KEY_PATTERN}\\}\\}$`).test(m[0])) {
       report.error(`${name}: marcador de clave inválido ${m[0]}`)
@@ -212,6 +221,9 @@ export function checkTemplate(name, html, locales, publish, report, langs = LANG
     } else if (t.type === 'open') {
       if (FORBIDDEN_TAGS.includes(t.name))
         report.error(`${name}: etiqueta <${t.name}> no permitida`)
+      for (const a of Object.keys(t.attrs)) {
+        if (a.startsWith('on')) report.error(`${name}: manejador de evento "${a}" no permitido`)
+      }
       for (const attr of VISIBLE_ATTRS) {
         if (attr in t.attrs && !ONLY_T_MARKER_RE.test(t.attrs[attr])) {
           report.error(`${name}: atributo "${attr}" visible sin marcador: "${t.attrs[attr]}"`)
@@ -249,6 +261,10 @@ function checkSource(root, locales, publish, report, langs) {
     checkScrollEffects(css, 'src/styles.css', report)
   }
   else report.error('src/styles.css: no existe')
+  const jsDir = join(srcDir, 'js')
+  if (existsSync(jsDir)) {
+    for (const f of walk(jsDir)) checkScriptFile(relative(root, f), readFileSync(f), report)
+  }
   const used = new Set()
   for (const file of walk(srcDir).filter((f) => f.endsWith('.html'))) {
     const html = readFileSync(file, 'utf8')
@@ -299,6 +315,7 @@ function checkHeaders(distDir, report) {
   const file = join(distDir, '_headers')
   if (!existsSync(file)) return report.error('dist/_headers: no existe')
   const all = parseHeaders(readFileSync(file, 'utf8'))['/*'] ?? {}
+  if ('Content-Security-Policy' in all) checkCspValue(all['Content-Security-Policy'], report, 'dist/_headers: Content-Security-Policy')
   for (const [name, value] of Object.entries(SECURITY_HEADERS)) {
     if (!(name in all)) report.error(`dist/_headers: falta ${name}`)
     else if (all[name] !== value) report.error(`dist/_headers: ${name} no tiene el valor exacto`)
@@ -378,6 +395,7 @@ function checkDist(root, publish, report, langs, locales) {
     if (h1 !== 1) report.error(`dist/${rel}: debe tener exactamente un <h1> (tiene ${h1})`)
     checkPageImages(rel, imgs, manifestIndex, report)
     checkCarousels(`dist/${rel}`, tokens, report)
+    checkScripts(`dist/${rel}`, tokens, report)
     if (!lang) report.error(`dist/${rel}: <html> sin lang`)
 
     const url = pageUrlOf(distDir, file)
@@ -427,7 +445,8 @@ function checkDist(root, publish, report, langs, locales) {
       if ((t.name === 'img' || t.name === 'source') && 'srcset' in t.attrs) {
         checkSrcset(rel, pageUrl, t, distDir, report)
       }
-      const attr = t.name === 'a' || t.name === 'link' ? 'href' : t.name === 'img' ? 'src' : null
+      const attr =
+        t.name === 'a' || t.name === 'link' ? 'href' : t.name === 'img' || t.name === 'script' ? 'src' : null
       if (!attr || !(attr in t.attrs)) continue
       const value = t.attrs[attr]
       if (/^(mailto:|tel:)/i.test(value)) continue
@@ -484,6 +503,7 @@ function checkDist(root, publish, report, langs, locales) {
       checkScrollEffects(css, name, report)
     }
   }
+  checkDistScripts(distDir, files, report)
   checkImageFiles(root, distDir, files, locales, manifest, report)
 
   for (const name of ['404.html', 'robots.txt', 'sitemap.xml', '_redirects']) {
@@ -677,11 +697,123 @@ function checkImageFiles(root, distDir, distFiles, locales, manifest, report) {
 }
 
 
+// ---------- Script propio (ADR-075 §2.6) ----------
+
+// Solo <script src="/js/…" defer> del mismo origen; nada en línea, ni manejadores, ni javascript:.
+function checkScripts(name, tokens, report) {
+  for (const t of tokens) {
+    if (t.type !== 'open') continue
+    for (const [a, v] of Object.entries(t.attrs)) {
+      if (/^\s*javascript:/i.test(v)) report.error(`${name}: URL javascript: no permitida en ${t.name}[${a}]`)
+    }
+    if (t.name !== 'script') continue
+    const src = t.attrs.src
+    if (src === undefined) {
+      report.error(`${name}: <script> en línea no permitido (CSP script-src 'self')`)
+      continue
+    }
+    if (!/^\/js\/[A-Za-z0-9_.-]+\.js$/.test(src)) {
+      report.error(`${name}: <script src="${src}"> debe ser un fichero propio bajo /js/ del mismo origen`)
+    }
+    if (!('defer' in t.attrs)) report.error(`${name}: <script src="${src}"> sin defer`)
+  }
+}
+
+export function checkCspValue(value, report, where = 'Content-Security-Policy') {
+  if (value !== EXPECTED_CSP) report.error(`${where}: no es la CSP exacta de ADR-075`)
+  if (/'unsafe-(inline|eval)'/.test(value)) report.error(`${where}: 'unsafe-inline' y 'unsafe-eval' no permitidos`)
+}
+
+// Vacía comentarios y el contenido de las cadenas; devuelve el código restante y las cadenas.
+// Supone que el script no usa literales de expresión regular con comillas (lo cubre la revisión).
+export function scanScript(source) {
+  let code = ''
+  const literals = []
+  let i = 0
+  while (i < source.length) {
+    const c = source[i]
+    const two = source.slice(i, i + 2)
+    if (two === '//') {
+      while (i < source.length && source[i] !== '\n') i++
+    } else if (two === '/*') {
+      const end = source.indexOf('*/', i + 2)
+      i = end < 0 ? source.length : end + 2
+    } else if (c === "'" || c === '"' || c === '`') {
+      let j = i + 1
+      let lit = ''
+      while (j < source.length && source[j] !== c) {
+        if (source[j] === '\\') j++
+        lit += source[j] ?? ''
+        j++
+      }
+      literals.push(lit)
+      code += c + c
+      i = j + 1
+    } else {
+      code += c
+      i++
+    }
+  }
+  return { code, literals }
+}
+
+// Heurística de «literal visible»: las cadenas admitidas son identificadores en minúscula o
+// camelCase (atributos, clases, eventos, etiquetas), selectores/consultas de medios que empiezan por
+// . # [ ( : y marcadores {n}. «Next», «ir a la diapositiva» o «Pausa» no pasan.
+const TOKEN_LITERAL_RE = /^[.#:[(]?[a-z][\w\-.:#[\]='"()>,*+~]*$/
+const SELECTOR_LITERAL_RE = /^[.#:[(][\w\-.:#[\]='"()>,*+~ ]*$/
+export function isVisibleLiteral(lit) {
+  if (lit.trim() === '') return false
+  if (/^\{[a-z]+\}$/.test(lit) || lit === 'use strict') return false
+  if (/\s/.test(lit)) return !SELECTOR_LITERAL_RE.test(lit)
+  return !TOKEN_LITERAL_RE.test(lit)
+}
+
+const SCRIPT_BANS = [
+  [/\beval\b/, 'eval'],
+  [/\bnew\s+Function\b|\bFunction\s*\(/, 'new Function'],
+  [/\bdocument\s*\.\s*write(?:ln)?\b/, 'document.write'],
+  [/\.(?:innerHTML|outerHTML)\b|\binsertAdjacentHTML\b/, 'innerHTML/outerHTML/insertAdjacentHTML'],
+  [/\bset(?:Timeout|Interval)\s*\(\s*['"`]/, 'setTimeout/setInterval con cadena'],
+  [/\bfetch\s*\(|\bXMLHttpRequest\b|\bWebSocket\b|\bsendBeacon\b|\bimport\s*\(/, 'red o importación dinámica'],
+  [/\bdocument\s*\.\s*cookie\b|\blocalStorage\b|\bsessionStorage\b|\bindexedDB\b/, 'cookies o almacenamiento'],
+]
+
+export function checkScriptFile(name, bytes, report) {
+  if (bytes.length > MAX_SCRIPT_BYTES) {
+    report.error(`${name}: pesa ${bytes.length} bytes (máximo ${MAX_SCRIPT_BYTES}, ADR-075 §2.6)`)
+  }
+  const { code, literals } = scanScript(bytes.toString('utf8'))
+  for (const [re, what] of SCRIPT_BANS) {
+    if (re.test(code)) report.error(`${name}: uso prohibido de ${what}`)
+  }
+  for (const lit of literals) {
+    if (isVisibleLiteral(lit)) {
+      report.error(`${name}: literal visible "${lit.slice(0, 40)}" (las etiquetas salen de data-*, INV-009)`)
+    }
+  }
+}
+
+function checkDistScripts(distDir, files, report) {
+  const jsDir = join(distDir, 'js')
+  const inJs = files.filter((f) => f.startsWith(jsDir + sep))
+  for (const f of inJs) {
+    const rel = relative(distDir, f).split(sep).join('/')
+    if (!ALLOWED_SCRIPTS.includes(rel.slice('js/'.length)) || rel.slice('js/'.length).includes('/')) {
+      report.error(`dist/${rel}: fichero no permitido en dist/js/ (solo ${ALLOWED_SCRIPTS.join(', ')})`)
+    }
+    if (rel.endsWith('.js')) checkScriptFile(`dist/${rel}`, readFileSync(f), report)
+  }
+  for (const f of files.filter((f) => f.endsWith('.js') && !f.startsWith(jsDir + sep))) {
+    report.error(`dist/${relative(distDir, f)}: script fuera de dist/js/`)
+  }
+}
+
 // ---------- Carrusel y efectos de scroll (ADR-074 §4.5) ----------
 
 // Carrusel sin JavaScript: contenedor enfocable con role="region" y nombre; sin aria-roledescription
 // (promete el patrón completo de la APG, que sin JS no se cumple).
-function checkCarousels(name, tokens, report) {
+function checkCarousels(name, tokens, report, isTemplate = false) {
   for (const t of tokens) {
     if (t.type !== 'open') continue
     if ('aria-roledescription' in t.attrs) {
@@ -692,6 +824,14 @@ function checkCarousels(name, tokens, report) {
     if (t.attrs.role !== 'region') report.error(`${name}: el carrusel debe llevar role="region"`)
     if (!('aria-label' in t.attrs) || t.attrs['aria-label'].trim() === '') {
       report.error(`${name}: el carrusel debe llevar aria-label`)
+    }
+    // ADR-075 §2.3: las etiquetas de los controles que crea el script salen de data-* por {{t:…}}.
+    for (const a of CAROUSEL_LABELS) {
+      const v = t.attrs[a]
+      if (v === undefined || v.trim() === '') report.error(`${name}: el carrusel debe llevar ${a} (etiqueta del control)`)
+      else if (isTemplate && !ONLY_T_MARKER_RE.test(v)) {
+        report.error(`${name}: atributo "${a}" visible sin marcador: "${v}"`)
+      }
     }
   }
 }
