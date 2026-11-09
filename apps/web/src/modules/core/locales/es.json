@@ -365,7 +365,14 @@
         "user_invitation": "Invitación",
         "user_import": "Importación de usuarios",
         "data_export": "Exportación de datos",
-        "permission_role": "Permiso de un rol"
+        "permission_role": "Permiso de un rol",
+        "user_known_device": "Dispositivo conocido",
+        "pickup_authorization": "Autorización de recogida",
+        "terms_version": "Versión de condiciones",
+        "alum_student": "Alumno",
+        "family_unit": "Unidad familiar",
+        "guardian": "Tutor",
+        "guardian_student_link": "Vínculo tutor-alumno"
       },
       "module": {
         "core": "Centro y usuarios",

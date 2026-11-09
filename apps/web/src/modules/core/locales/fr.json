@@ -365,7 +365,14 @@
         "user_invitation": "Invitation",
         "user_import": "Importation d’utilisateurs",
         "data_export": "Exportation de données",
-        "permission_role": "Permission d’un rôle"
+        "permission_role": "Permission d’un rôle",
+        "user_known_device": "Appareil connu",
+        "pickup_authorization": "Autorisation de récupération",
+        "terms_version": "Version des conditions",
+        "alum_student": "Élève",
+        "family_unit": "Unité familiale",
+        "guardian": "Tuteur",
+        "guardian_student_link": "Lien tuteur-élève"
       },
       "module": {
         "core": "Établissement et utilisateurs",

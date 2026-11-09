@@ -365,7 +365,14 @@
         "user_invitation": "Invitation",
         "user_import": "User import",
         "data_export": "Data export",
-        "permission_role": "Role permission"
+        "permission_role": "Role permission",
+        "user_known_device": "Known device",
+        "pickup_authorization": "Pickup authorization",
+        "terms_version": "Terms version",
+        "alum_student": "Student",
+        "family_unit": "Family unit",
+        "guardian": "Guardian",
+        "guardian_student_link": "Guardian-student link"
       },
       "module": {
         "core": "School and users",
