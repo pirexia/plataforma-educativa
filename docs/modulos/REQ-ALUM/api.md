@@ -20,7 +20,7 @@ Errores comunes: `401`; `403` sin permiso; `403 urn:pge:error:module-disabled`; 
 - **Permiso**: `alumno.leer` · ámbito `todos`, `unidad_familiar` en `1.15-a`; `grupo` desde `1.15-b`, con su resolutor (`funcional.md §1.2`)
 - **Parámetros**: `academic_year` (**desde `1.15-b`**: sin matrículas no tiene objeto en `1.15-a`; `public_id`; por defecto el del `AcademicYearContext`; filtra a alumnos con matrícula en ese curso cuando se combina con los siguientes), `course`, `group`, `enrollment_status` (`activa`, `baja`) (los tres, desde `1.15-b`), `q` (nombre, por `PersonDirectory::searchByNameAmong`; mínimo 2 caracteres; busca solo entre los alumnos del ámbito del sujeto), `include_deleted` (exige `alumno.eliminar`; sin él, `403`), `sort` (`name`, defecto, o `created_at`; prefijo `-` para descendente; desempate por `id`), `page` y `per_page` (defecto 25, máximo 100).
 - **Respuesta 200** (`1.15-a`): lista de `Student` resumido: `public_id`, `person.public_id`, `display_name` (nombre visible), `birth_date` (`AAAA-MM-DD` o `null`), `created_at`, `updated_at` y, solo en una baja listada con `include_deleted`, `deleted_at`. La matrícula vigente en el curso pedido con curso de etapa y grupo llega con `1.15-b`.
-- **Errores**: (desde `1.15-b`, como `academic_year`) `404` si `academic_year` es de un curso cerrado y no hay `curso_historico.leer` (`RN-ALUM-23`); `422` filtros inválidos.
+- **Errores**: (desde `1.15-b`, como `academic_year`) `404` si `academic_year` es de un curso cerrado y no hay `curso_historico.leer` (`RN-ALUM-23`); `422` filtros inválidos; `403 alum.validation.filter_forbidden` si llega `include_deleted` sin `alumno.eliminar` (`RN-ALUM-05`).
 
 ### `POST /students`
 - **Permiso**: `alumno.crear` · `todos`
@@ -39,7 +39,7 @@ Errores comunes: `401`; `403` sin permiso; `403 urn:pge:error:module-disabled`; 
 - **Permiso**: `alumno.actualizar` · `todos`
 - **Cuerpo**: `given_name`, `family_name_1`, `family_name_2`, `document_type`/`document_number`, `birth_date` y `locale`; al menos uno, solo cuentan las claves presentes (`null` borra `family_name_2`, `document_type` y `document_number`; el par de documento resultante debe seguir completo). **No** admite `family_unit` (la pertenencia se gestiona en `fam_unit`, `RN-ALUM-04`). Se reenvía a `Core` por `PersonRegistrar::correctPerson()` **con o sin usuario** (`OPEN-ALUM-19` = A; `correctUnaccounted` no admite fecha de nacimiento ni documento). Nunca correo de acceso, credenciales ni estado del usuario.
 - **Respuesta 200**: la ficha.
-- **Errores**: `404` (antes que cualquier `422`); `422` como en `POST`; `422 alum.validation.field_not_editable` por cada clave que no sea un dato personal editable (correo, contraseña, estado del usuario, `family_unit`...; `RN-ALUM-10`) y nada cambia; `422 alum.validation.no_changes` con un cuerpo sin datos.
+- **Errores**: `404` (antes que cualquier `422`); `422` como en `POST`, con los errores de documento de `Core` bajo el mismo campo plano que el alta (`document_number`, `document_type`; no `person.document_number`); `422 alum.validation.field_not_editable` por cada clave que no sea un dato personal editable (correo, contraseña, estado del usuario, `family_unit`...; `RN-ALUM-10`) y nada cambia; `422 alum.validation.no_changes` con un cuerpo sin datos.
 
 ### `DELETE /students/{public_id}` · `POST /students/{public_id}/restore`
 - **Permiso**: `alumno.eliminar` · `todos`

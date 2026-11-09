@@ -1,6 +1,6 @@
 # REQ-ALUM · Permisos
 
-> **Estado**: **APROBADA** (2026-11-06) junto con `funcional.md` (ver su cabecera); lo marcado [DERIVADA] o dependiente de un `OPEN-ALUM` no bloqueante sigue como propuesta. La siembra de §4 es la recomendación de `OPEN-ALUM-18`; los ámbitos son la decisión `OPEN-ALUM-16` = A; el cambio de grupo con aprobación, `OPEN-ALUM-13` = A. La fuente de verdad será `AlumServiceProvider::declaredPermissions()` (`ADR-034 §2`); esta tabla será su reflejo.
+> **Estado**: **APROBADA** (2026-11-06) junto con `funcional.md` (ver su cabecera); lo marcado [DERIVADA] o dependiente de un `OPEN-ALUM` no bloqueante sigue como propuesta. La siembra de §4 es la recomendación de `OPEN-ALUM-18`; los ámbitos son la decisión `OPEN-ALUM-16` = A; el cambio de grupo con aprobación, `OPEN-ALUM-13` = A. La fuente de verdad es `AlumServiceProvider::declaredPermissions()` (`ADR-034 §2`), que ya existe (`1.15-a`); esta tabla es su reflejo.
 
 ---
 
@@ -86,6 +86,8 @@ Denegación por defecto (`RPERM-011`). Siembra en `ProvisionTenantDefaults` para
 | `tutor_grupo` | `alumno.leer`, `matricula.leer` | **`grupo`** | «Acceso ampliado a su grupo» (la tutoría entra en `grupo`, `RN-ACAD-98`) |
 | `tutor_legal` | `alumno.leer`, `matricula.leer` | **`unidad_familiar`** | «Información de los estudiantes vinculados» (API; pantallas en `1.22`) |
 | Los restantes (`orientador`, `estudiante`, `conserjeria`…) | — | — | Sin base suficiente en este paso. `orientador` necesitaría `todos` o un ámbito que no existe; lo decide el usuario si lo quiere |
+
+**Nota sobre `alumno.actualizar` y la identidad en `Core`** (`OPEN-ALUM-19` = A): `alumno.actualizar` implica una escritura **limitada sobre la identidad de la persona en `Core`**: nombre, apellidos, documento, fecha de nacimiento e idioma, también cuando la persona tiene usuario. Nunca toca credenciales, correo de acceso ni estado del usuario, y la audita `Core` como cambio de la persona. Quien concede `alumno.actualizar` concede, por tanto, esa corrección de identidad, que `usuario.actualizar` protege en `Core` para el personal.
 
 ## 5. Datos de categoría especial
 
