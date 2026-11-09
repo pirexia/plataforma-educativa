@@ -66,5 +66,13 @@
   "notfound.title": "Page not found · AdagioX",
   "notfound.meta.description": "The page you are looking for does not exist on adagiox.com.",
   "notfound.h1": "Page not found",
-  "notfound.text": "The page you are looking for does not exist. Choose a language to go to the home page."
+  "notfound.text": "The page you are looking for does not exist. Choose a language to go to the home page.",
+  "img.hero-schedule.alt": "Weekly timetable of a class group where moving a lesson to another slot is refused with a notice that the teacher already has a lesson at that time.",
+  "img.academic-structure.alt": "List of the school's educational stages with their code, name, stage type, funding regime and position.",
+  "img.role-permissions.alt": "Permission editor for a custom role, where each permission is allowed or denied with its scope, shown here for the timetables resource.",
+  "img.audit-log.alt": "Audit log listing who did what and when in the school, with filters by date, operation, user, module and entity, and an export option.",
+  "img.year-rollover.alt": "First step of a four-step wizard that copies the structure of one academic year into the next, which shows a simulation before anything runs.",
+  "img.family-unit.alt": "Family unit with its guardians, its students and the links between them, including relationship, legal representation and access level.",
+  "img.pickup-door.alt": "Front desk screen where staff search a student by name before handing the child over to an authorised person.",
+  "img.school-branding.alt": "School branding settings with the logo, favicon and sign-in background, each with its format and size limits."
 }

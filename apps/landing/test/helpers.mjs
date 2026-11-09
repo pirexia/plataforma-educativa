@@ -13,7 +13,9 @@ const created = []
 export function makeSite({ built = true } = {}) {
   const root = mkdtempSync(join(tmpdir(), 'landing-test-'))
   created.push(root)
-  cpSync(join(PROJECT, 'src'), join(root, 'src'), { recursive: true })
+  // Sin `src/img`: los tests parten de un sitio sin imágenes aunque la rama lleve las reales (T2b, ADR-074 §4.3).
+  const IMG_DIR = join(PROJECT, 'src', 'img')
+  cpSync(join(PROJECT, 'src'), join(root, 'src'), { recursive: true, filter: (from) => from !== IMG_DIR })
   cpSync(join(PROJECT, 'locales'), join(root, 'locales'), { recursive: true })
   cpSync(join(PROJECT, '.lighthouserc.json'), join(root, '.lighthouserc.json'))
   if (built) build({ root })

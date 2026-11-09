@@ -6,6 +6,10 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-09 · `feat(landing)`: rediseño, tramo T2b, capturas de las ocho pantallas (`ADR-074`, #579)
+
+- `apps/web`: `e2e/landing-shots.spec.ts` captura las ocho pantallas (`hero-schedule`, `academic-structure`, `role-permissions`, `audit-log`, `year-rollover`, `family-unit`, `pickup-door`, `school-branding`) como PNG maestros 1440 × 900 a DPR 2 en `apps/landing/tools/images/masters/` (ignorado por Git), falla si falta una o hay un 4xx/5xx inesperado o texto no publicable (correo no `@example.com`, marca E2E, URL de desarrollo, documento). `apps/landing`: claves `img.<id>.alt` en los cuatro idiomas; los tests de la landing parten de un sitio sin `src/img`. Las imágenes finales se commitean aparte, tras la revisión humana (`§4.3`).
+
 ## 2026-11-09 · `feat(landing)`: rediseño, tramo T2a, escaparate de datos y arnés de capturas (`ADR-074`, #579)
 
 - `apps/web`: `npm run landing:shots` (`scripts/landing-shots.sh`) crea el centro de escaparate «Colegio Ejemplo Los Álamos (ficticio)» por la API real con el *fixture* fijo `e2e/fixtures/landingShowcase.ts` y lo retira siempre (`trap`); `e2e/landing-shots.spec.ts` (solo con `E2E_LANDING_SHOTS=1`) hace la comprobación de humo en inglés, 1440 × 900 a doble densidad. `purge_tenant_rows` pasa a `scripts/lib/e2e-purge.sh`, compartido con `e2e-real-api.sh` sin cambio de comportamiento.
