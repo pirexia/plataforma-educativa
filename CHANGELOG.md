@@ -6,6 +6,11 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-10 · `feat(landing)`: rediseño, tramo T3, diseño y contenido (`ADR-074`, #579)
+
+- `apps/landing`: portada nueva con identidad propia de AdagioX (tokens índigo con variante oscura), cabecera con estado «In development», carrusel de las ocho pantallas (`ul` de `figure`, `scroll-snap`, sin JavaScript ni avance automático, marco de ventana en CSS), siete bloques de detalle, «And also», «Coming next», línea «Developed with Claude Code» y contacto por `mailto:`; efectos de scroll solo con `transform` bajo `@supports (animation-timeline: view())` y `no-preference`; fondo `hero-bg.svg`. Claves `home.*` nuevas en en y es-ES (redactadas por la sesión, pendientes de validación) y, con el texto en inglés y `_pending_translation`, en de y fr (`check:publish` falla hasta que `traductor` los complete). Se eliminan las claves `home.f1`-`f9`.
+- `check.mjs`: reglas de carrusel (`tabindex`, `role="region"`, `aria-label`, sin `aria-roledescription`) y de efectos (`animation-timeline` solo en `@supports` y `no-preference`, keyframes ligados al scroll solo con `transform`, sin `::scroll-button`/`::scroll-marker`), cada una con caso bueno y malo. README de la landing con la tabla afirmación → paso → PR.
+
 ## 2026-11-09 · `feat(landing)`: rediseño, tramo T2c, ajuste de capturas (`ADR-074`, #579)
 
 - `apps/web`: `e2e/landing-shots.spec.ts` y `e2e/fixtures/landingShowcase.ts`: `hero-schedule` pasa a la rejilla limpia de 1.º ESO A; el diálogo con el conflicto de profesor es la nueva `schedule-conflict`; se añade `sign-in` (acceso sin sesión); `role-permissions` muestra el módulo Academic management con `deny` explícito; `audit-log` da de alta cambios de negocio antes de capturar. Salen `year-rollover` y `academic-structure` (tope de ocho imágenes). Claves `core.audit.entity.timetable_session` y `.facility` en los cuatro idiomas.

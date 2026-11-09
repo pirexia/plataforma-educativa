@@ -2,7 +2,7 @@
 
 Sitio estático de AdagioX (`ADR-072`). Sin JavaScript, sin cookies, sin analítica, sin formularios y sin recursos de terceros. Cuatro idiomas: es-ES (por defecto), en, de y fr. **Solo esta landing usa el nombre AdagioX**; el resto del repositorio no cambia (`ADR-072 §1.1`).
 
-Estado: **T1** (estructura, construcción y comprobaciones) y **T2** (CI, Lighthouse y despliegue, sin probar contra Cloudflare) hechos. Datos legales resueltos por `ADR-073` (titular persona física sin NIF ni domicilio publicados; correo `founders@adagiox.com`; publicación sin asesor). **No se publica nada**: el despliegue está apagado hasta `LANDING_DEPLOY_ENABLED = true`, y antes deben estar el DNS, el buzón `founders@adagiox.com` funcionando y el *environment* `landing-production` (`SYSADMIN.md §4b`).
+Estado: rediseño de `ADR-074` hecho en sus tres tramos (**T1** idiomas y comprobaciones, **T2** capturas, **T3** diseño y contenido): cabecera con carrusel de ocho pantallas, secciones de detalle, «Coming next» y efectos de scroll, todo con HTML y CSS puros. El copy en inglés y en es-ES está redactado por la sesión y **pendiente de validación del usuario**; `de` y `fr` llevan el texto en inglés con `_pending_translation` hasta que `traductor` los complete, así que `npm run check:publish` **falla a propósito** (solo por eso). Datos legales resueltos por `ADR-073` (titular persona física sin NIF ni domicilio publicados; correo `founders@adagiox.com`; publicación sin asesor). **No se publica nada**: el despliegue está apagado hasta `LANDING_DEPLOY_ENABLED = true`, y antes deben estar el DNS, el buzón `founders@adagiox.com` funcionando y el *environment* `landing-production` (`SYSADMIN.md §4b`).
 
 ## Estructura
 
@@ -42,12 +42,13 @@ node scripts/check.mjs --publish  # comprobaciones previas a publicar (ver abajo
 - **Literales (`INV-009`)**: ningún texto visible en las plantillas fuera de un marcador; `alt`, `title`, `aria-label`, `placeholder` y `meta description` solo con marcador; claves usadas inexistentes.
 - **Idiomas**: mismas claves exactas en los cuatro ficheros, sin valores vacíos, sin `<`, y mismos marcadores internos `{nombre}` en cada idioma.
 - **`dist/`**: ausencia de `<script>`, `<form>`, `<iframe>`, `<style>`, atributos `style` y manejadores `on*`; ningún recurso de terceros (`src`, `<link>`, `url()`, `@import`); enlaces internos y anclas; un único `<h1>`; `lang`, `canonical` y `hreflang` correctos y recíprocos; `sitemap.xml`; presencia y valor exacto de cada cabecera de `_headers`. Los enlaces externos no se comprueban (se revisan a mano).
+- **Carrusel y efectos (`ADR-074 §4.5`)**: el contenedor `.carousel` lleva `tabindex="0"`, `role="region"` y `aria-label`; ningún `aria-roledescription`; `animation-timeline` solo dentro de `@supports (animation-timeline: ...)` y de `@media (prefers-reduced-motion: no-preference)`; los `@keyframes` ligados al scroll solo animan `transform` (nunca `opacity`, `filter` ni color); sin `::scroll-button` ni `::scroll-marker`.
 - **`--publish`** (bloquea la publicación): falla si queda alguna clave `_pending_translation`, algún marcador pendiente (`[TITULAR]`, `[NIF]`, `[DOMICILIO]`, `[CORREO]`, `[PROVEEDOR]`, `[GARANTIA]`, `[PLAZO]`, cualquier `[MAYÚSCULAS_1-2]`, `TODO` o `TBD`) en los locales, las plantillas **o el HTML de `dist/`**, si `dist/` no existe o es anterior a `src/` o `locales/` (por fecha de modificación). En desarrollo solo avisa.
 - **Enlaces externos**: todo `<a>` a otro host http(s) debe llevar `rel="noopener noreferrer"`.
 
 ## Idiomas
 
-- `es-ES.json` es la fuente. `en/de/fr.json` ya están traducidos (`traductor`, tratamiento formal) y no llevan `_pending_translation`. La clave `"_pending_translation": true` sigue existiendo como mecanismo: al añadir claves nuevas en es-ES, se copian a en/de/fr con ese indicador, `check` avisa y `--publish` falla hasta que se traducen y se elimina el indicador.
+- `en.json` (`BASE_LANG`) y `es-ES.json` son idiomas de redacción (sin `_pending_translation`). Las claves `home.*` nuevas del rediseño están en `de.json` y `fr.json` **con el texto en inglés y `_pending_translation: true`**: las traduce `traductor` (tratamiento formal) cuando el usuario valide el copy. La clave `"_pending_translation": true` sigue existiendo como mecanismo: al añadir claves nuevas en es-ES, se copian a en/de/fr con ese indicador, `check` avisa y `--publish` falla hasta que se traducen y se elimina el indicador.
 - **Los textos legales no se traducen automáticamente** (`CLAUDE.md §2.9`, `OPEN-072-05`): las claves `legal.body.*` se renderizan siempre desde es-ES, con `lang="es-ES"`, en las cuatro rutas `/legal/`. Solo la línea `legal.lang.notice` (aviso de idioma) se traduce.
 - Rutas: `/`, `/en/`, `/de/`, `/fr/` y `/legal/`, `/en/legal/`, `/de/legal/`, `/fr/legal/`. Sin redirección por `Accept-Language`: el selector son cuatro enlaces.
 
@@ -62,22 +63,40 @@ node scripts/check.mjs --publish  # comprobaciones previas a publicar (ver abajo
 
 `npm run check` falla si falta algún paso (fichero de locale, autónimo, URL de Lighthouse), si hay dos idiomas con el mismo `slug` o si `dir` no es `ltr`/`rtl`; `npm run check:publish` falla mientras quede `_pending_translation`. Selector, `hreflang`, `x-default`, `canonical` y `sitemap.xml` salen de `LANGS` sin tocar plantillas. El texto legal (`legal.body.*`) sigue saliendo siempre de `es-ES`.
 
-## Contenido: afirmación → fuente (`ADR-072 §8`)
+## Contenido: afirmación → paso del plan → PR (`ADR-074 §4.7`)
 
-Estado visible: «en desarrollo». Sin cifras, clientes, certificaciones, fechas, precios, capturas ni disponibilidad. El copy es-ES lo ha revisado la sesión; **falta la validación del usuario antes de publicar** (`ADR-072 §8`).
+Estado visible siempre: «In development: not yet available to schools». Sin cifras, clientes, certificaciones, fechas, precios, comparaciones, logotipos ni nombres de terceros (no se nombra a ningún proveedor de identidad: «external provider»). Las pantallas llevan un aviso de que son de un centro de pruebas con datos ficticios. Una funcionalidad aparece solo si su paso está **mezclado en `develop`** (PR comprobados con `gh pr view` el 2026-11-10: todos `MERGED` en `develop`). El copy en y es-ES **falta de validación del usuario**.
 
-| Clave | Afirmación en la landing | Fuente en `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` |
-|---|---|---|
-| `home.f1.*` | Un único sistema: vida académica, económica, administrativa y comunicación con las familias | `§1.3` |
-| `home.f2.*` | Varios centros en una plataforma, datos de cada uno aislados | `§2.1`, `§12` (`RMT-001`, `RMT-002`), `INV-001` |
-| `home.f3.*` | Cada centro activa solo los módulos que necesita | `§1.3`, `§13` (`RMOD-001`-`004`) |
-| `home.f4.*` | Marca y dominio propios para cada centro | `§1.3`, `§3.3` punto 2, `§10.4`, `§10.5` (`RUX-DOM-002`) |
-| `home.f5.*` | Roles y permisos configurables por el centro | `§3.3` punto 3, `§11` |
-| `home.f6.*` | Toda la funcionalidad por API | `INV-006`, `§3.3` punto 6 |
-| `home.f7.*` | Interfaz en castellano, inglés, alemán y francés | `ADR-021`, `§5.1` |
-| `home.f8.*` | Diseñada con el objetivo de cumplir WCAG 2.2 AA | `RNF-UX-002`, `ADR-009` |
-| `home.f9.*` | Centros públicos, privados y concertados; requisitos para la normativa educativa y de protección de datos españolas, sin afirmar conformidad acreditada | `§2.1`, `§4.1`, `§4.3` |
-| `home.status.*`, `footer.status` | «En desarrollo»; lo descrito son objetivos, no funciones disponibles | `ADR-072 §8` |
+| Claves | Afirmación en la landing | Paso del plan | PR |
+|---|---|---|---|
+| `home.s.access.*` | Cuenta local; sesiones activas con cierre remoto | `1.2`, `1.2b` | #76, #91 |
+| | MFA por aplicación (TOTP) o correo, obligatoria por rol | `1.3`, `1.3b` | #107, #123 |
+| | Inicio de sesión con proveedor externo; SSO OIDC y SAML 2.0 | `1.4`, `1.4b`, `1.4c` | #143, #149, #160 |
+| `home.s.tenant.*` | Datos aislados entre centros (`INV-001`) | `0.7` | no verificado (aislamiento transversal, no un PR propio) |
+| | Logotipo, favicon y fondo de acceso propios; módulos activados por centro; invitaciones | `1.9b`, `1.9e` | #299, #325 |
+| | Importación masiva de usuarios | `1.9c` | #315 |
+| `home.s.roles.*` | Roles personalizados; permiso concedido, denegado o sin definir; la denegación prevalece (`RPERM-007`); permisos efectivos | `1.5`, `1.5b` | #171, #354 |
+| `home.s.audit.*` | Registro de auditoría con filtros y exportación | `1.9d` | #320 |
+| `home.s.timetable.*` | Horario semanal por grupo; conflictos de docente; reserva de espacios | `1.12` (`1.12-a`, `1.12-b`) | #447, #449 |
+| `home.s.families.*` | Unidades familiares, tutores, vínculos (parentesco, representación legal, acceso), custodia por alumno | `1.14-a` | #468 |
+| | Consentimiento de uso de imagen | `1.14-b` | #478 |
+| `home.s.pickup.*` | Búsqueda en conserjería y personas autorizadas a recoger (solo hasta `1.14b-d1`; no se citan `1.14b-d2` a `-d4`) | `1.14b-a`, `-b`, `-c1`, `-c2`, `-d1` | #497, #504, #513, #519, #525 |
+| `home.also.academic.*` | Estructura académica, períodos lectivos, escalas de calificación | `1.11-b`, `1.11d-a`, `1.11d-b` | #423, #435, #439 |
+| `home.also.year.*` | Abrir, cerrar y reabrir un curso; abrir el siguiente | `1.10`, `1.11c`, `1.12b` | #386, `1.11c` no verificado, #460 |
+| `home.also.languages.*` | Interfaz en castellano, inglés, alemán y francés; idioma por usuario | `ADR-021` | no verificado (transversal) |
+| `home.next.*` | Matrícula y listas, asistencia, calificaciones y boletines, comunicación con familias, portales: pasos de fase 1 **no** mezclados, sin fechas ni orden | `1.15`, `1.16`-`1.23` | sin PR |
+| `home.built.*` | «Developed with Claude Code» (`OPEN-074-05`), sin logotipo ni enlace | `ADR-074 §4.7` | no aplica |
+| `home.status.*`, `footer.status` | «En desarrollo»; no disponible para centros | `ADR-074 §4.7` | no aplica |
+
+Contacto: un enlace `mailto:founders@adagiox.com` (el correo que ya publica `/legal/`, `ADR-073`); la landing sigue sin formularios.
+
+**Capturas desfasadas**: la imagen `sign-in` mostrará una pantalla de acceso distinta cuando se implemente el paso `1.15a` (`ADR-064`, capa visual). Entonces hay que regenerar las capturas (`npm run landing:shots` y `tools/images/images.mjs`) en un único commit de imágenes.
+
+## Diseño (`ADR-074 §4.4`-`§4.5`)
+
+- Identidad propia en `:root` de `src/styles.css`: tinta índigo (`--foreground` `oklch(0.2 0.04 270)`) sobre fondo casi blanco, un acento de marca índigo (`--brand`) y un punto cálido (`--accent`) solo decorativo; variante oscura en `@media (prefers-color-scheme: dark)`. Contrastes calculados: texto corriente >= 6,1:1 en claro y >= 6,9:1 en oscuro, botones 7,7:1 y 9,8:1.
+- Fondo: degradado CSS y `src/img/hero-bg.svg` (vectorial propio, < 1 KB, líneas de pentagrama); no es una imagen ráster ni puede ser el LCP (que es la primera captura del carrusel).
+- Efectos de scroll (`@supports (animation-timeline: view())` y `no-preference`): solo `transform` en las capturas, las tarjetas y el fondo. Sin soporte o con `reduce`, el contenido está en su estado final.
 
 Página legal (`legal.body.*`): estructura de `ADR-072 §4.3` y `§4.4` (identificación del art. 10 LSSI-CE; información del art. 13 RGPD: responsable, datos, finalidad, base legal, encargado, transferencia, plazo, derechos, cookies), con los datos de `ADR-073`: titular persona física sin NIF ni domicilio publicados, encargados Cloudflare, Inc. y Arsys Internet, S.L.U., garantía de la transferencia, plazo de conservación y tratamiento de los correos de `founders@adagiox.com`. Ya no es un borrador con marcadores; se publica **sin revisión de asesor** (`ADR-073 §2.4`) y `check:publish` pasa. Los marcadores (`[TITULAR]`, `[NIF]`, `[DOMICILIO]`, `[CORREO]`, `[PROVEEDOR]`, `[GARANTIA]`, `[PLAZO]`) siguen bloqueando la publicación si reaparecen.
 
@@ -107,6 +126,9 @@ Lighthouse/axe no certifican conformidad. En cada cambio de contenido o de estil
 - [ ] Zoom al 200 % sin pérdida de contenido.
 - [ ] `prefers-reduced-motion` y `prefers-color-scheme` respetados.
 - [ ] Un único `h1` por página y jerarquía de títulos sin saltos.
+- [ ] Carrusel con teclado: entrar con `Tab`, recorrer con las flechas, salir con `Tab`; foco visible en el contenedor; sin avance automático.
+- [ ] Objetivo táctil >= 44 px en los botones y de 24 x 24 px (WCAG 2.5.8) en el selector de idioma; el carrusel ocupa el ancho completo en móvil.
+- [ ] Con `prefers-reduced-motion: reduce` no se anima nada.
 
 ## Lighthouse
 
