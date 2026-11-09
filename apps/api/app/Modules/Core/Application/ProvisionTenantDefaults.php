@@ -321,7 +321,7 @@ final class ProvisionTenantDefaults implements TenantProvisioner
 
     /**
      * REQ-ALUM/permisos.md §4 (1.15-a, `CA-ALUM-014a`): `tutor_legal` lee a sus alumnos (`alumno.leer`, ámbito
-     * `unidad_familiar`). El resolutor llega con el T2 de `1.15-a`; hasta entonces la concesión es inerte. La lee también
+     * `unidad_familiar`). El ámbito lo resuelve `AlumnoUnidadFamiliarScopeResolver`. La lee también
      * `GrantAlumPermissionsCommand`.
      *
      * @var array<string, list<string>>
