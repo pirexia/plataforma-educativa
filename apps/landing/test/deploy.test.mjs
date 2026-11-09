@@ -184,9 +184,23 @@ test('deploy.sh --dry-run: construye, comprueba y simula, sin desplegar ni smoke
 })
 
 // Servidor local que responde con las cabeceras de dist/_headers (o con una modificada).
-function serve(headers) {
+// `js` configura la respuesta de /js/carousel.js: { status, headers } (por defecto 200, MIME JS y nosniff);
+// `js: null` hace que el servidor responda 404 en esa ruta.
+const JS_OK = {
+  status: 200,
+  headers: { 'Content-Type': 'text/javascript; charset=utf-8', 'X-Content-Type-Options': 'nosniff' },
+}
+function serve(headers, js = JS_OK) {
   return new Promise((resolve) => {
     const srv = createServer((req, res) => {
+      if (req.url === '/js/carousel.js') {
+        if (js === null) {
+          res.writeHead(404, { 'Content-Type': 'text/plain' })
+          return res.end('no')
+        }
+        res.writeHead(js.status, js.headers)
+        return res.end('x')
+      }
       res.writeHead(200, headers)
       res.end('ok')
     })
@@ -222,6 +236,27 @@ test('deploy.sh: el smoke test falla si falta una cabecera o su valor no es el e
       const r = await runDeploy(root, ['--url', `http://127.0.0.1:${srv.address().port}`])
       assert.notEqual(r.code, 0)
       assert.match(r.out, /smoke test FALLA/)
+    } finally {
+      srv.close()
+    }
+  }
+})
+
+test('deploy.sh: el smoke test falla si /js/carousel.js falta, no es 200, o su MIME o nosniff son erróneos (#583)', async () => {
+  const bad = [
+    null,
+    { status: 500, headers: JS_OK.headers },
+    { status: 200, headers: { ...JS_OK.headers, 'Content-Type': 'text/html' } },
+    { status: 200, headers: { 'X-Content-Type-Options': 'nosniff' } },
+    { status: 200, headers: { 'Content-Type': 'text/javascript' } },
+  ]
+  for (const js of bad) {
+    const { root } = fakeProject()
+    const srv = await serve(SECURITY_HEADERS, js)
+    try {
+      const r = await runDeploy(root, ['--url', `http://127.0.0.1:${srv.address().port}`])
+      assert.notEqual(r.code, 0, JSON.stringify(js))
+      assert.match(r.out, /smoke test FALLA, \/js\/carousel\.js/)
     } finally {
       srv.close()
     }

@@ -163,7 +163,7 @@ CLOUDFLARE_API_TOKEN=... CLOUDFLARE_ACCOUNT_ID=... scripts/deploy.sh --dry-run  
 scripts/deploy.sh --url https://...                                               # fija la URL del smoke test
 ```
 
-`--dry-run` ejecuta `wrangler deploy --dry-run` y no hace smoke test. `check:publish` pasa hoy; si reaparece algún marcador, ambos modos fallan ahí, como debe.
+El smoke test comprueba las cabeceras de `_headers` en la portada y que `/js/carousel.js` responda 200 con tipo MIME JavaScript y `X-Content-Type-Options: nosniff`. `--dry-run` ejecuta `wrangler deploy --dry-run` y no hace smoke test. `check:publish` pasa hoy; si reaparece algún marcador, ambos modos fallan ahí, como debe.
 
 **Pendiente (no probado)**: el redireccionamiento de `www` y de `adagiox.es/.eu/.net` hacia `https://adagiox.com` (`ADR-072 §4.3`). Las reglas de `_redirects` con nombre de host no se han verificado en Workers static assets; se prevén como reglas de redirección de la zona de Cloudflare y el smoke test no las cubre todavía. Hay que comprobarlo en el alta.
 
