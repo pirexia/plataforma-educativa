@@ -139,3 +139,5 @@ Solo cuota de OpenAI; no se mide en tokens de Claude. Registrar por revisión: p
 | 1.14b-c2 | adversarial-review --base develop | no disponible | 0 | 0 | cuota de OpenAI agotada (hasta 2026-12-02): el turno falló y su «approve» no cuenta; régimen de respaldo con security-reviewer completo |
 | 1.14b-d1 | adversarial-review | no disponible | 0 | 0 | cuota de OpenAI agotada (hasta 2026-12-02): régimen de respaldo `ADR-050` con `security-reviewer` completo |
 | 1.15-a T1 | implementer (reanudado tras corte) | datos y permisos | 122183 | 33 | 6.7 | 3702 | sin briefing; auditó trabajo previo sin commitear |
+| 1.15-a T2 | explorer · briefing | briefing T2 | 165580 | 52 | 4.8 | 3184 | experimental; destapó 10 huecos spec/código |
+| 1.15-a T2 | implementer | servicio, endpoints, resolutor, OpenAPI | 274862 | 65 | 15.1 | 4228 | con briefing; 0 cortes |
