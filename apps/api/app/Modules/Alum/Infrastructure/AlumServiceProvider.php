@@ -3,6 +3,7 @@
 namespace App\Modules\Alum\Infrastructure;
 
 use App\Modules\Alum\Domain\Models\Student;
+use App\Support\Authorization\ScopeResolverRegistry;
 use App\Support\Modules\DeclaresModuleRegistry;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\ServiceProvider;
@@ -28,6 +29,9 @@ class AlumServiceProvider extends ServiceProvider implements DeclaresModuleRegis
         Relation::enforceMorphMap([
             'alum_student' => Student::class,
         ]);
+
+        // permisos.md §3.1 (`ADR-044 §3.4`): `unidad_familiar` sobre `alumno`. `grupo` llega con 1.15-b.
+        $this->app->make(ScopeResolverRegistry::class)->register(new AlumnoUnidadFamiliarScopeResolver);
     }
 
     public function moduleDescriptor(): array

@@ -3,6 +3,7 @@
 use App\Models\AuditLog;
 use App\Modules\Acad\Application\FacilityBookingService;
 use App\Modules\Acad\Domain\Models\FacilityBooking;
+use App\Modules\Alum\Application\StudentService;
 use App\Modules\Alum\Domain\Models\Student;
 use App\Modules\Core\Infrastructure\EloquentAuditQuery;
 use App\Modules\Core\Infrastructure\EloquentExportRequestService;
@@ -254,6 +255,10 @@ foreach ([FamilyUnitService::class, GuardianService::class, FamilyUnitStudentSer
         ->toUse(ScopedQuery::class);
 }
 
+arch('AR-10 CA-056-11 CA-ALUM-062: el fichero sancionado StudentService usa ScopedQuery')
+    ->expect(StudentService::class)
+    ->toUse(ScopedQuery::class);
+
 test('AR-10 CA-056-11: las clases sancionadas de los arch() coinciden con los ficheros del mapa', function (): void {
     $toPath = static fn (string $c): string => str_replace('\\', '/', substr($c, strlen('App\\'))).'.php';
 
@@ -262,7 +267,8 @@ test('AR-10 CA-056-11: las clases sancionadas de los arch() coinciden con los fi
         ->and(array_map($toPath, [FamilyUnitService::class, GuardianService::class, FamilyUnitStudentService::class]))->toBe(scopedResourceMap()['familia']['files'])
         ->and(array_map($toPath, [GuardianLinkService::class]))->toBe(scopedResourceMap()['vinculo_tutor']['files'])
         ->and(array_map($toPath, [ImageConsentService::class]))->toBe(scopedResourceMap()['consentimiento_imagen']['files'])
-        ->and(array_map($toPath, [PickupListService::class]))->toBe(scopedResourceMap()['autorizado_recogida']['files']);
+        ->and(array_map($toPath, [PickupListService::class]))->toBe(scopedResourceMap()['autorizado_recogida']['files'])
+        ->and(array_map($toPath, [StudentService::class]))->toBe(scopedResourceMap()['alumno']['files']);
 });
 
 test('AR-10 CA-056-14 control negativo: la función detecta consulta no sancionada y no detecta ::class, escrituras ni comentarios', function (): void {

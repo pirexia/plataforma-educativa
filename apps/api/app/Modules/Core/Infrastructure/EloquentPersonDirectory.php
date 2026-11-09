@@ -133,7 +133,7 @@ final class EloquentPersonDirectory implements PersonDirectory
 
         $contacts = [];
 
-        foreach (Person::query()->whereIn('id', array_values(array_unique($personIds)))->get(['id', 'contact_phone', 'document_type', 'document_number', 'given_name', 'family_name_1', 'family_name_2']) as $person) {
+        foreach (Person::query()->whereIn('id', array_values(array_unique($personIds)))->get(['id', 'contact_phone', 'document_type', 'document_number', 'given_name', 'family_name_1', 'family_name_2', 'locale']) as $person) {
             $contacts[(int) $person->id] = new PersonContact(
                 $person->contact_phone === null ? null : (string) $person->contact_phone,
                 $person->document_type === null ? null : (string) $person->document_type,
@@ -141,6 +141,7 @@ final class EloquentPersonDirectory implements PersonDirectory
                 (string) $person->given_name,
                 (string) $person->family_name_1,
                 $person->family_name_2 === null ? null : (string) $person->family_name_2,
+                $person->locale === null ? null : (string) $person->locale,
             );
         }
 
