@@ -10,11 +10,12 @@ import {
   cpSync,
   statSync,
 } from 'node:fs'
-import { join, dirname, resolve } from 'node:path'
+import { join, dirname, resolve, basename } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import {
   LANGS,
   DEFAULT_LANG,
+  LEGAL_LANG,
   ORIGIN,
   LEGAL_PREFIX,
   KEY_PATTERN,
@@ -23,10 +24,17 @@ import {
   langPath,
   pagePath,
   escapeHtml,
+  langNameKey,
 } from './lib.mjs'
 import { SECURITY_HEADERS, REDIRECT_HOSTS } from './headers.mjs'
+import { readManifest, pictureHtml } from './picture.mjs'
 
-const TOKEN_RE = new RegExp(`\\{\\{(?:(t):(${KEY_PATTERN})|(v):([^}]+))\\}\\}`, 'g')
+// {{t:clave}} texto de idioma · {{v:variable}} variable de página · {{img:id}} / {{img:id:lcp}}
+// imagen del manifiesto (ADR-074 §4.3).
+const TOKEN_RE = new RegExp(
+  `\\{\\{(?:(t):(${KEY_PATTERN})|(v):([^}]+)|(img):([A-Za-z0-9_-]+)(:lcp)?)\\}\\}`,
+  'g',
+)
 const INCLUDE_RE = /\{\{include:([A-Za-z0-9_-]+)\}\}/g
 
 function readTemplate(root, name) {
@@ -44,8 +52,8 @@ function expandIncludes(root, html, depth = 0) {
 }
 
 function text(locales, lang, key, where) {
-  // Textos legales: siempre es-ES (OPEN-072-05).
-  const source = key.startsWith(LEGAL_PREFIX) ? DEFAULT_LANG : lang
+  // Textos legales: siempre LEGAL_LANG (OPEN-072-05, ADR-074 §4.1).
+  const source = key.startsWith(LEGAL_PREFIX) ? LEGAL_LANG : lang
   const value = locales[source]?.[key]
   if (typeof value !== 'string') {
     throw new Error(`Clave de idioma inexistente "${key}" (${source}) en ${where}`)
@@ -55,7 +63,10 @@ function text(locales, lang, key, where) {
 
 export function render(root, locales, template, lang, vars) {
   const html = expandIncludes(root, readTemplate(root, template))
-  const out = html.replace(TOKEN_RE, (_, tk, tkey, vk, vkey) => {
+  const out = html.replace(TOKEN_RE, (_, tk, tkey, vk, vkey, ik, iid, ilcp) => {
+    if (ik) {
+      return pictureHtml(readManifest(root), iid, locales[lang], { lcp: Boolean(ilcp) })
+    }
     const kind = tk ?? vk
     const key = tkey ?? vkey
     if (kind === 't') return escapeHtml(text(locales, lang, key, template))
@@ -67,21 +78,36 @@ export function render(root, locales, template, lang, vars) {
   return out
 }
 
-function pageVars(lang, page) {
-  const vars = {
+// Variables de página. Las plantillas no nombran idiomas: el selector (`lang-items`) y los
+// <link rel="alternate"> (`alternates`) salen de recorrer `langs` (ADR-074 §4.2). Con
+// `current: false` (la 404) ningún enlace del selector lleva aria-current.
+function pageVars(locales, lang, page, langs, { current = true } = {}) {
+  const items = langs.map((l) => {
+    const name = locales[lang]?.[langNameKey(l.code)]
+    if (typeof name !== 'string') {
+      throw new Error(`Falta el nombre del idioma "${langNameKey(l.code)}" en ${lang}`)
+    }
+    const cur = current && l.code === lang ? ' aria-current="page"' : ''
+    const href = pagePath(l.code, page, langs)
+    return `<li><a href="${href}" lang="${l.code}" hreflang="${l.code}"${cur}>${escapeHtml(name)}</a></li>`
+  })
+  const alternates = langs.map(
+    (l) =>
+      `<link rel="alternate" hreflang="${l.code}" href="${ORIGIN + pagePath(l.code, page, langs)}">`,
+  )
+  alternates.push(
+    `<link rel="alternate" hreflang="x-default" href="${ORIGIN + pagePath(DEFAULT_LANG, page, langs)}">`,
+  )
+  return {
     lang,
-    home: langPath(lang),
-    'legal-href': pagePath(lang, 'legal'),
-    canonical: ORIGIN + pagePath(lang, page),
-    'alt.default': ORIGIN + pagePath(DEFAULT_LANG, page),
-    'legal-lang': DEFAULT_LANG,
+    dir: langs.find((l) => l.code === lang).dir,
+    home: langPath(lang, langs),
+    'legal-href': pagePath(lang, 'legal', langs),
+    canonical: ORIGIN + pagePath(lang, page, langs),
+    'legal-lang': LEGAL_LANG,
+    'lang-items': items.join('\n        '),
+    alternates: alternates.join('\n'),
   }
-  for (const l of LANGS) {
-    vars[`alt.${l}`] = ORIGIN + pagePath(l, page)
-    vars[`href.${l}`] = pagePath(l, page)
-    vars[`cur.${l}`] = l === lang ? ' aria-current="page"' : ''
-  }
-  return vars
 }
 
 function write(dist, rel, content) {
@@ -90,19 +116,19 @@ function write(dist, rel, content) {
   writeFileSync(file, content)
 }
 
-function sitemap() {
+function sitemap(langs) {
   const urls = []
   for (const page of PAGES) {
-    for (const lang of LANGS) {
-      const links = LANGS.map(
+    for (const { code: lang } of langs) {
+      const links = langs.map(
         (l) =>
-          `    <xhtml:link rel="alternate" hreflang="${l}" href="${ORIGIN + pagePath(l, page)}"/>`,
+          `    <xhtml:link rel="alternate" hreflang="${l.code}" href="${ORIGIN + pagePath(l.code, page, langs)}"/>`,
       )
       links.push(
-        `    <xhtml:link rel="alternate" hreflang="x-default" href="${ORIGIN + pagePath(DEFAULT_LANG, page)}"/>`,
+        `    <xhtml:link rel="alternate" hreflang="x-default" href="${ORIGIN + pagePath(DEFAULT_LANG, page, langs)}"/>`,
       )
       urls.push(
-        `  <url>\n    <loc>${ORIGIN + pagePath(lang, page)}</loc>\n${links.join('\n')}\n  </url>`,
+        `  <url>\n    <loc>${ORIGIN + pagePath(lang, page, langs)}</loc>\n${links.join('\n')}\n  </url>`,
       )
     }
   }
@@ -130,31 +156,49 @@ function redirectsFile() {
   return lines.join('\n') + '\n'
 }
 
-export function build({ root }) {
+export function build({ root, langs = LANGS }) {
   if (!root || !existsSync(root) || !statSync(root).isDirectory()) {
     throw new Error(`--root no existe o no es un directorio: ${root}`)
   }
-  const locales = readLocales(root)
-  for (const lang of LANGS) {
+  const locales = readLocales(root, langs)
+  for (const { code: lang } of langs) {
     if (!locales[lang]) throw new Error(`Falta locales/${lang}.json`)
   }
   const dist = join(root, 'dist')
   rmSync(dist, { recursive: true, force: true })
   mkdirSync(dist, { recursive: true })
 
-  for (const lang of LANGS) {
+  for (const { code: lang } of langs) {
     for (const page of PAGES) {
-      const html = render(root, locales, page, lang, pageVars(lang, page))
-      write(dist, join(pagePath(lang, page), 'index.html'), html)
+      const html = render(root, locales, page, lang, pageVars(locales, lang, page, langs))
+      write(dist, join(pagePath(lang, page, langs), 'index.html'), html)
     }
   }
+  // La 404 se sirve en DEFAULT_LANG, con enlaces a todas las portadas y sin idioma actual.
   write(
     dist,
     '404.html',
-    render(root, locales, '404', DEFAULT_LANG, pageVars(DEFAULT_LANG, 'home')),
+    render(
+      root,
+      locales,
+      '404',
+      DEFAULT_LANG,
+      pageVars(locales, DEFAULT_LANG, 'home', langs, { current: false }),
+    ),
   )
   cpSync(join(root, 'src', 'styles.css'), join(dist, 'styles.css'))
-  write(dist, 'sitemap.xml', sitemap())
+  // Único script propio (ADR-075): se copia tal cual; check.mjs vigila su contenido y su peso.
+  const jsSrc = join(root, 'src', 'js')
+  if (existsSync(jsSrc)) cpSync(jsSrc, join(dist, 'js'), { recursive: true })
+  // Imágenes ya optimizadas (ADR-074 §4.3); manifest.json es solo fuente de build, no se publica.
+  const imgSrc = join(root, 'src', 'img')
+  if (existsSync(imgSrc)) {
+    cpSync(imgSrc, join(dist, 'img'), {
+      recursive: true,
+      filter: (src) => basename(src) !== 'manifest.json',
+    })
+  }
+  write(dist, 'sitemap.xml', sitemap(langs))
   write(dist, 'robots.txt', `User-agent: *\nAllow: /\n\nSitemap: ${ORIGIN}/sitemap.xml\n`)
   write(dist, '_headers', headersFile())
   write(dist, '_redirects', redirectsFile())

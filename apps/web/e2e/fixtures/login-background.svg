@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" width="1920" height="1080">
+  <!-- Fondo de acceso sintético del centro de escaparate (landing, issue #579): paisaje estilizado, sin personas ni fotografías.
+       La API no admite SVG como fondo: login-background.png se deriva de este fichero con (desde apps/landing/tools/images)
+       node -e "require('sharp')('../../../web/e2e/fixtures/login-background.svg',{density:96}).resize(1920,1080).png({palette:true,quality:90}).toFile('../../../web/e2e/fixtures/login-background.png')" -->
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#EAF1E6"/>
+      <stop offset="1" stop-color="#F6F1E3"/>
+    </linearGradient>
+  </defs>
+  <rect width="1920" height="1080" fill="url(#sky)"/>
+  <circle cx="1560" cy="250" r="120" fill="#E8A33D" opacity="0.28"/>
+  <circle cx="1560" cy="250" r="70" fill="#E8A33D" opacity="0.30"/>
+  <!-- Colinas -->
+  <path d="M0 760 C 320 660 620 700 960 740 S 1620 680 1920 740 V1080 H0 Z" fill="#CFE0C9"/>
+  <path d="M0 850 C 380 780 760 830 1100 850 S 1650 800 1920 850 V1080 H0 Z" fill="#A9C9A4"/>
+  <!-- Edificio escolar geométrico -->
+  <g opacity="0.9">
+    <rect x="1120" y="640" width="440" height="170" fill="#F6F1E3" stroke="#1F6F5C" stroke-opacity="0.35" stroke-width="3"/>
+    <polygon points="1100,640 1340,560 1580,640" fill="#1F6F5C" fill-opacity="0.55"/>
+    <rect x="1316" y="720" width="48" height="90" fill="#1F6F5C" fill-opacity="0.5"/>
+    <g fill="#1F6F5C" fill-opacity="0.28">
+      <rect x="1160" y="680" width="50" height="50"/><rect x="1230" y="680" width="50" height="50"/>
+      <rect x="1400" y="680" width="50" height="50"/><rect x="1470" y="680" width="50" height="50"/>
+    </g>
+  </g>
+  <path d="M0 930 C 420 880 820 920 1200 930 S 1700 900 1920 930 V1080 H0 Z" fill="#7FAF86"/>
+  <!-- Álamos estilizados (como el logo) -->
+  <g>
+    <g transform="translate(260 0)">
+      <rect x="-9" y="740" width="18" height="190" rx="6" fill="#1F6F5C" fill-opacity="0.7"/>
+      <ellipse cx="0" cy="610" rx="64" ry="190" fill="#1F6F5C" fill-opacity="0.78"/>
+      <ellipse cx="0" cy="610" rx="26" ry="170" fill="#E8A33D" fill-opacity="0.45"/>
+    </g>
+    <g transform="translate(470 0)">
+      <rect x="-8" y="780" width="16" height="160" rx="6" fill="#1F6F5C" fill-opacity="0.7"/>
+      <ellipse cx="0" cy="680" rx="52" ry="150" fill="#2C8570" fill-opacity="0.8"/>
+      <ellipse cx="0" cy="680" rx="20" ry="130" fill="#E8A33D" fill-opacity="0.4"/>
+    </g>
+    <g transform="translate(1720 0)">
+      <rect x="-9" y="750" width="18" height="190" rx="6" fill="#1F6F5C" fill-opacity="0.7"/>
+      <ellipse cx="0" cy="620" rx="62" ry="180" fill="#1F6F5C" fill-opacity="0.78"/>
+      <ellipse cx="0" cy="620" rx="25" ry="160" fill="#E8A33D" fill-opacity="0.45"/>
+    </g>
+    <g transform="translate(1850 0)">
+      <rect x="-8" y="800" width="16" height="140" rx="6" fill="#1F6F5C" fill-opacity="0.7"/>
+      <ellipse cx="0" cy="710" rx="48" ry="130" fill="#2C8570" fill-opacity="0.8"/>
+    </g>
+  </g>
+  <!-- Suelo -->
+  <path d="M0 990 C 500 960 1000 1000 1500 975 S 1800 980 1920 985 V1080 H0 Z" fill="#1F6F5C" fill-opacity="0.55"/>
+</svg>

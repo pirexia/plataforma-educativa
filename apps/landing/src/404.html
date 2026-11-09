@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="{{v:lang}}">
+<html lang="{{v:lang}}" dir="{{v:dir}}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -21,10 +21,7 @@
   <p>{{t:notfound.text}}</p>
   <nav aria-label="{{t:nav.language.label}}">
     <ul class="lang-list">
-      <li><a href="/" lang="es-ES" hreflang="es-ES">{{t:lang.name.es-ES}}</a></li>
-      <li><a href="/en/" lang="en" hreflang="en">{{t:lang.name.en}}</a></li>
-      <li><a href="/de/" lang="de" hreflang="de">{{t:lang.name.de}}</a></li>
-      <li><a href="/fr/" lang="fr" hreflang="fr">{{t:lang.name.fr}}</a></li>
+      {{v:lang-items}}
     </ul>
   </nav>
 </main>

@@ -44,39 +44,18 @@ case "${E2E_ONLY:-}" in
     ;;
 esac
 
+# La purga (lib/e2e-purge.sh) exige E2E_ALLOW_DESTRUCTIVE=1 en el entorno: estos scripts solo operan sobre el centro sintético de desarrollo.
+export E2E_ALLOW_DESTRUCTIVE=1
 support() { podman exec -e E2E_ALLOW_DESTRUCTIVE=1 "$API_CONTAINER" php tests/Support/e2e-real-tenant.php "$@"; }
 
 # Lee un campo de una línea JSON recibida por stdin (no por argumentos, que
 # serían visibles en `ps`).
 field() { python3 -c 'import json,sys; print(json.load(sys.stdin)[sys.argv[1]])' "$1"; }
 
-# Borra de las tablas con `tenant_id` las filas de un tenant. Cada fila de
-# estas tablas es sintética; se ejecuta con triggers y FKs desactivados
-# (session_replication_role = replica) dentro de una sola transacción.
-purge_tenant_rows() {
-  local tenant_id="$1"
-  [[ "$tenant_id" =~ ^[0-9]+$ ]] || { echo "tenant_id no numérico: no se purga." >&2; return 1; }
-  local db_user
-  db_user="$(podman exec "$DB_CONTAINER" printenv POSTGRES_USER)"
-  podman exec -i "$DB_CONTAINER" psql -q -U "$db_user" -d plataforma -v ON_ERROR_STOP=1 <<SQL
-BEGIN;
-SET LOCAL session_replication_role = replica;
-DO \$\$
-DECLARE r record;
-BEGIN
-  FOR r IN
-    SELECT c.relname FROM pg_class c
-    JOIN pg_namespace n ON n.oid = c.relnamespace
-    JOIN pg_attribute a ON a.attrelid = c.oid AND a.attname = 'tenant_id' AND NOT a.attisdropped
-    WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p')
-  LOOP
-    EXECUTE format('DELETE FROM public.%I WHERE tenant_id = %s', r.relname, ${tenant_id});
-  END LOOP;
-END
-\$\$;
-COMMIT;
-SQL
-}
+# `purge_tenant_rows` (purga con el superusuario del contenedor de PostgreSQL de desarrollo) vive en un fichero compartido con
+# `landing-shots.sh`.
+# shellcheck source=lib/e2e-purge.sh
+source "$(dirname "${BASH_SOURCE[0]}")/lib/e2e-purge.sh"
 
 cleanup() {
   local out id

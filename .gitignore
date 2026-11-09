@@ -108,3 +108,6 @@ apps/web/coverage/
 apps/landing/dist/
 apps/landing/.lighthouseci/
 apps/landing/.wrangler/
+# Herramienta de imágenes (ADR-074 §4.3): maestros PNG nunca en Git; sharp solo local.
+apps/landing/tools/images/masters/
+apps/landing/tools/images/node_modules/

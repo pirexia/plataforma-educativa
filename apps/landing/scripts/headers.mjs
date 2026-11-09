@@ -1,9 +1,10 @@
-// Cabeceras y redirecciones de ADR-072 §4.3 y §4.4. Las usan build.mjs (las escribe)
-// y check.mjs (comprueba que `_headers` las lleva con el valor exacto).
+// Cabeceras y redirecciones de ADR-072 §4.3 y §4.4. La CSP lleva `script-src 'self'` desde ADR-075
+// (único script propio, sin 'unsafe-inline' ni 'unsafe-eval').
+// Las usan build.mjs (las escribe) y check.mjs (comprueba que `_headers` las lleva con el valor exacto).
 
 export const SECURITY_HEADERS = {
   'Content-Security-Policy':
-    "default-src 'none'; style-src 'self'; img-src 'self'; font-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; upgrade-insecure-requests",
+    "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; upgrade-insecure-requests",
   // ADR-072 §4.3: primero 86400; 31536000 tras una semana sin incidencias. Sin includeSubDomains ni preload.
   'Strict-Transport-Security': 'max-age=86400',
   'X-Content-Type-Options': 'nosniff',

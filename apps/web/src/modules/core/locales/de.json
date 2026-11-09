@@ -365,7 +365,17 @@
         "user_invitation": "Einladung",
         "user_import": "Benutzerimport",
         "data_export": "Datenexport",
-        "permission_role": "Berechtigung einer Rolle"
+        "permission_role": "Berechtigung einer Rolle",
+        "user_known_device": "Bekanntes Gerät",
+        "pickup_authorization": "Abholberechtigung",
+        "terms_version": "Fassung der Nutzungsbedingungen",
+        "alum_student": "Schüler",
+        "family_unit": "Familieneinheit",
+        "guardian": "Erziehungsberechtigter",
+        "guardian_student_link": "Verknüpfung Erziehungsberechtigter–Schüler",
+        "family_unit_student": "Schüler der Familieneinheit",
+        "timetable_session": "Unterrichtsstunde im Stundenplan",
+        "facility": "Raum"
       },
       "module": {
         "core": "Schule und Benutzer",

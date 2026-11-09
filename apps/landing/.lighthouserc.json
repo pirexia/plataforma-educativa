@@ -4,7 +4,7 @@
       "staticDistDir": "./dist",
       "url": [
         "http://localhost/index.html",
-        "http://localhost/en/index.html",
+        "http://localhost/es/index.html",
         "http://localhost/de/index.html",
         "http://localhost/fr/index.html",
         "http://localhost/legal/index.html"
@@ -38,6 +38,30 @@
           "error",
           {
             "minScore": 0.95
+          }
+        ],
+        "largest-contentful-paint": [
+          "error",
+          {
+            "maxNumericValue": 2500
+          }
+        ],
+        "cumulative-layout-shift": [
+          "error",
+          {
+            "maxNumericValue": 0.05
+          }
+        ],
+        "resource-summary:image:size": [
+          "error",
+          {
+            "maxNumericValue": 307200
+          }
+        ],
+        "resource-summary:total:size": [
+          "error",
+          {
+            "maxNumericValue": 460800
           }
         ]
       }

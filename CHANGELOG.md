@@ -6,6 +6,46 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-10 · `feat(landing)`: rediseño, tramo T4, carrusel con script propio (`ADR-075`, #579)
+
+- `apps/landing`: `src/js/carousel.js` (≈ 5 KiB, sin dependencias): flechas, puntos sincronizados con el scroll, avance automático cada 6 s con vuelta, botón de pausa cuya etiqueta alterna Pausar/Reanudar, sin `aria-pressed` (refinamiento de accesibilidad del detalle de ADR-075 §2: la APG desaconseja combinarlos) (WCAG 2.2.2), pausa con puntero, foco de teclado y pestaña oculta, sin avance con `prefers-reduced-motion: reduce`, compatible con `dir="rtl"`. La pantalla de acceso (`sign-in`) pasa a ser la primera diapositiva y la imagen sin `loading="lazy"`. Cinco claves `home.carousel.{prev,next,goto,pause,resume}` y `home.carousel.hint` reescrita, en los cuatro idiomas. La landing deja de ser «sin JavaScript» para ser «sin JavaScript necesario».
+- CSP: `script-src 'self'` (sin `'unsafe-inline'` ni `'unsafe-eval'`). `check.mjs`: solo `<script src="/js/…" defer>` propio; prohibidos scripts en línea, de otro origen, `on*=` y `javascript:`; CSP exacta; `dist/js/` solo con `carousel.js`; el script sin `eval`/`new Function`/`document.write`/`innerHTML`/red/almacenamiento, sin literales visibles y ≤ 6 KiB; etiquetas `data-*` del carrusel por `{{t:…}}`. Pruebas de comportamiento del script con una maqueta de DOM, sin dependencias nuevas.
+
+## 2026-11-10 · `docs(landing)`: ADR-075 script propio del carrusel (`ACEPTADA`, #579)
+
+- `ADR-075`: carrusel con avance automático, puntos, flechas y pausa por mejora progresiva; CSP `script-src 'self'`; la pantalla de acceso como primera diapositiva; sustituye en parte a `ADR-072` (`§4.1`, `§4.4`) y `ADR-074 §4.5`, con la discrepancia registrada en su `§5`. Requisitos 3.2.29.
+
+## 2026-11-09 · `feat(landing)`: rediseño, tramo T2d, fondo de acceso sintético e imágenes aprobadas (`ADR-074`, #579)
+
+- `apps/web/e2e/fixtures/login-background.svg` y `login-background.png`: fondo sintético del login del escaparate, usado por `landingShowcase.ts` y `landing-shots.spec.ts`, que comprueba que se descarga. Ocho capturas aprobadas por el usuario el 2026-11-09 en AVIF/WebP a 640/1024/1600 px (48 variantes, 1,3 MB frente al tope de 2,5 MB, `manifest.json`). Verificado: 129/129 `node --test`, `landing:shots` 5/5.
+
+## 2026-11-10 · `feat(landing)`: rediseño, tramo T3, diseño y contenido (`ADR-074`, #579)
+
+- `apps/landing`: portada nueva con identidad propia de AdagioX (tokens índigo con variante oscura), cabecera con estado «In development», carrusel de las ocho pantallas (`ul` de `figure`, `scroll-snap`, sin JavaScript ni avance automático, marco de ventana en CSS), siete bloques de detalle, «And also», «Coming next», línea «Developed with Claude Code» y contacto por `mailto:`; efectos de scroll solo con `transform` bajo `@supports (animation-timeline: view())` y `no-preference`; fondo `hero-bg.svg`. Claves `home.*` nuevas en en y es-ES (redactadas por la sesión, pendientes de validación) y, con el texto en inglés y `_pending_translation`, en de y fr (`check:publish` falla hasta que `traductor` los complete). Se eliminan las claves `home.f1`-`f9`.
+- `check.mjs`: reglas de carrusel (`tabindex`, `role="region"`, `aria-label`, sin `aria-roledescription`) y de efectos (`animation-timeline` solo en `@supports` y `no-preference`, keyframes ligados al scroll solo con `transform`, sin `::scroll-button`/`::scroll-marker`), cada una con caso bueno y malo. README de la landing con la tabla afirmación → paso → PR.
+
+## 2026-11-09 · `feat(landing)`: rediseño, tramo T2c, ajuste de capturas (`ADR-074`, #579)
+
+- `apps/web`: `e2e/landing-shots.spec.ts` y `e2e/fixtures/landingShowcase.ts`: `hero-schedule` pasa a la rejilla limpia de 1.º ESO A; el diálogo con el conflicto de profesor es la nueva `schedule-conflict`; se añade `sign-in` (acceso sin sesión); `role-permissions` muestra el módulo Academic management con `deny` explícito; `audit-log` da de alta cambios de negocio antes de capturar. Salen `year-rollover` y `academic-structure` (tope de ocho imágenes). Claves `core.audit.entity.timetable_session` y `.facility` en los cuatro idiomas.
+- `apps/landing`: claves `img.<id>.alt` actualizadas en los cuatro idiomas.
+
+## 2026-11-09 · `feat(landing)`: rediseño, tramo T2b, capturas de las ocho pantallas (`ADR-074`, #579)
+
+- `apps/web`: `e2e/landing-shots.spec.ts` captura las ocho pantallas (`hero-schedule`, `academic-structure`, `role-permissions`, `audit-log`, `year-rollover`, `family-unit`, `pickup-door`, `school-branding`) como PNG maestros 1440 × 900 a DPR 2 en `apps/landing/tools/images/masters/` (ignorado por Git), falla si falta una o hay un 4xx/5xx inesperado o texto no publicable (correo no `@example.com`, marca E2E, URL de desarrollo, documento). `apps/landing`: claves `img.<id>.alt` en los cuatro idiomas; los tests de la landing parten de un sitio sin `src/img`. Las imágenes finales se commitean aparte, tras la revisión humana (`§4.3`).
+
+## 2026-11-09 · `feat(landing)`: rediseño, tramo T2a, escaparate de datos y arnés de capturas (`ADR-074`, #579)
+
+- `apps/web`: `npm run landing:shots` (`scripts/landing-shots.sh`) crea el centro de escaparate «Colegio Ejemplo Los Álamos (ficticio)» por la API real con el *fixture* fijo `e2e/fixtures/landingShowcase.ts` y lo retira siempre (`trap`); `e2e/landing-shots.spec.ts` (solo con `E2E_LANDING_SHOTS=1`) hace la comprobación de humo en inglés, 1440 × 900 a doble densidad. `purge_tenant_rows` pasa a `scripts/lib/e2e-purge.sh`, compartido con `e2e-real-api.sh` sin cambio de comportamiento.
+- `apps/api/tests/Support/e2e-real-tenant.php`: modo `showcase` (slug `demo`, `fam_unit`/`prl`/`alum`, tres docentes activos y administrador de datos fijos) que conserva las tres garantías; `teardown` solo retira un escaparate si coinciden slug, nombre fijo y su administrador. Test sin base de datos de las dos primeras salvaguardas.
+- **No hecho** (T2b/T3): capturas de las ocho pantallas e imágenes; diseño y contenido.
+
+## 2026-11-09 · `feat(landing)`: rediseño, tramo T1, idiomas, comprobaciones y pipeline de imágenes (`ADR-074`, #579)
+
+- `apps/landing`: `LANGS` (código, *slug*, `dir`) como única lista; `DEFAULT_LANG`/`BASE_LANG` = `en`, `LEGAL_LANG` = `es-ES`; `/` en inglés y `/es/`, `/de/`, `/fr/`; `x-default` → `/`; plantillas (cabecera, `head-links`, 404) sin idiomas escritos; 404 en inglés; `<html dir>`; `_pending_translation` prohibido también en `en`.
+- `check.mjs`: reglas de idiomas (locale y autónimo de cada idioma, URL en `.lighthouserc.json`, *slug* único, `dir`), texto legal solo de `es-ES`, y las reglas de imagen de `ADR-074 §4.6` (alt/width/height contra el manifiesto, una sola imagen LCP, `srcset` existente y del mismo origen, `url()` local y sin `data:`, topes de 120 KB por fichero y 2,5 MB, bloque `prefers-reduced-motion`). `.lighthouserc.json`: LCP ≤ 2,5 s, CLS ≤ 0,05, imágenes ≤ 300 KB y total ≤ 450 KB.
+- `build.mjs` copia `src/img/` y emite `<picture>` AVIF/WebP con `{{img:id}}`; sin imágenes todavía. `tools/images/` (herramienta aislada, `sharp` 0.35.5 exacta, Apache-2.0, no se instala en CI; maestros PNG fuera de Git).
+- **No hecho** (T2/T3): capturas, diseño, carrusel y contenido.
+
 ## 2026-11-09 · `docs(landing)`: ADR-074 rediseño de la landing (`ACEPTADA`, #579)
 
 - `ADR-074` (`ACEPTADA`): inglés en `/` y resto de idiomas bajo `/es/`, `/de/`, `/fr/`; `DEFAULT_LANG`, `BASE_LANG` y `LEGAL_LANG` (es-ES) separados; capturas reales del demo con datos sintéticos; AVIF/WebP con `sharp` aislada; carrusel y efectos solo con CSS; `OPEN-074-01` a `-07` resueltas con la recomendación (usuario, 2026-11-09). Requisitos 3.2.28.

@@ -1,0 +1,380 @@
+{
+  "images": {
+    "audit-log": {
+      "alt": "img.audit-log.alt",
+      "variants": [
+        {
+          "file": "audit-log-640.avif",
+          "format": "avif",
+          "width": 640,
+          "height": 400,
+          "bytes": 13112
+        },
+        {
+          "file": "audit-log-1024.avif",
+          "format": "avif",
+          "width": 1024,
+          "height": 640,
+          "bytes": 30490
+        },
+        {
+          "file": "audit-log-1600.avif",
+          "format": "avif",
+          "width": 1600,
+          "height": 1000,
+          "bytes": 61947
+        },
+        {
+          "file": "audit-log-640.webp",
+          "format": "webp",
+          "width": 640,
+          "height": 400,
+          "bytes": 17562
+        },
+        {
+          "file": "audit-log-1024.webp",
+          "format": "webp",
+          "width": 1024,
+          "height": 640,
+          "bytes": 36648
+        },
+        {
+          "file": "audit-log-1600.webp",
+          "format": "webp",
+          "width": 1600,
+          "height": 1000,
+          "bytes": 71298
+        }
+      ]
+    },
+    "family-unit": {
+      "alt": "img.family-unit.alt",
+      "variants": [
+        {
+          "file": "family-unit-640.avif",
+          "format": "avif",
+          "width": 640,
+          "height": 400,
+          "bytes": 8410
+        },
+        {
+          "file": "family-unit-1024.avif",
+          "format": "avif",
+          "width": 1024,
+          "height": 640,
+          "bytes": 20811
+        },
+        {
+          "file": "family-unit-1600.avif",
+          "format": "avif",
+          "width": 1600,
+          "height": 1000,
+          "bytes": 39562
+        },
+        {
+          "file": "family-unit-640.webp",
+          "format": "webp",
+          "width": 640,
+          "height": 400,
+          "bytes": 10690
+        },
+        {
+          "file": "family-unit-1024.webp",
+          "format": "webp",
+          "width": 1024,
+          "height": 640,
+          "bytes": 23356
+        },
+        {
+          "file": "family-unit-1600.webp",
+          "format": "webp",
+          "width": 1600,
+          "height": 1000,
+          "bytes": 45684
+        }
+      ]
+    },
+    "hero-schedule": {
+      "alt": "img.hero-schedule.alt",
+      "variants": [
+        {
+          "file": "hero-schedule-640.avif",
+          "format": "avif",
+          "width": 640,
+          "height": 400,
+          "bytes": 13110
+        },
+        {
+          "file": "hero-schedule-1024.avif",
+          "format": "avif",
+          "width": 1024,
+          "height": 640,
+          "bytes": 29863
+        },
+        {
+          "file": "hero-schedule-1600.avif",
+          "format": "avif",
+          "width": 1600,
+          "height": 1000,
+          "bytes": 59943
+        },
+        {
+          "file": "hero-schedule-640.webp",
+          "format": "webp",
+          "width": 640,
+          "height": 400,
+          "bytes": 17980
+        },
+        {
+          "file": "hero-schedule-1024.webp",
+          "format": "webp",
+          "width": 1024,
+          "height": 640,
+          "bytes": 39660
+        },
+        {
+          "file": "hero-schedule-1600.webp",
+          "format": "webp",
+          "width": 1600,
+          "height": 1000,
+          "bytes": 73298
+        }
+      ]
+    },
+    "pickup-door": {
+      "alt": "img.pickup-door.alt",
+      "variants": [
+        {
+          "file": "pickup-door-640.avif",
+          "format": "avif",
+          "width": 640,
+          "height": 400,
+          "bytes": 4899
+        },
+        {
+          "file": "pickup-door-1024.avif",
+          "format": "avif",
+          "width": 1024,
+          "height": 640,
+          "bytes": 11800
+        },
+        {
+          "file": "pickup-door-1600.avif",
+          "format": "avif",
+          "width": 1600,
+          "height": 1000,
+          "bytes": 21058
+        },
+        {
+          "file": "pickup-door-640.webp",
+          "format": "webp",
+          "width": 640,
+          "height": 400,
+          "bytes": 6650
+        },
+        {
+          "file": "pickup-door-1024.webp",
+          "format": "webp",
+          "width": 1024,
+          "height": 640,
+          "bytes": 14754
+        },
+        {
+          "file": "pickup-door-1600.webp",
+          "format": "webp",
+          "width": 1600,
+          "height": 1000,
+          "bytes": 27528
+        }
+      ]
+    },
+    "role-permissions": {
+      "alt": "img.role-permissions.alt",
+      "variants": [
+        {
+          "file": "role-permissions-640.avif",
+          "format": "avif",
+          "width": 640,
+          "height": 400,
+          "bytes": 12354
+        },
+        {
+          "file": "role-permissions-1024.avif",
+          "format": "avif",
+          "width": 1024,
+          "height": 640,
+          "bytes": 30106
+        },
+        {
+          "file": "role-permissions-1600.avif",
+          "format": "avif",
+          "width": 1600,
+          "height": 1000,
+          "bytes": 57791
+        },
+        {
+          "file": "role-permissions-640.webp",
+          "format": "webp",
+          "width": 640,
+          "height": 400,
+          "bytes": 17012
+        },
+        {
+          "file": "role-permissions-1024.webp",
+          "format": "webp",
+          "width": 1024,
+          "height": 640,
+          "bytes": 36290
+        },
+        {
+          "file": "role-permissions-1600.webp",
+          "format": "webp",
+          "width": 1600,
+          "height": 1000,
+          "bytes": 70306
+        }
+      ]
+    },
+    "schedule-conflict": {
+      "alt": "img.schedule-conflict.alt",
+      "variants": [
+        {
+          "file": "schedule-conflict-640.avif",
+          "format": "avif",
+          "width": 640,
+          "height": 400,
+          "bytes": 5475
+        },
+        {
+          "file": "schedule-conflict-1024.avif",
+          "format": "avif",
+          "width": 1024,
+          "height": 640,
+          "bytes": 9905
+        },
+        {
+          "file": "schedule-conflict-1600.avif",
+          "format": "avif",
+          "width": 1600,
+          "height": 1000,
+          "bytes": 16075
+        },
+        {
+          "file": "schedule-conflict-640.webp",
+          "format": "webp",
+          "width": 640,
+          "height": 400,
+          "bytes": 7794
+        },
+        {
+          "file": "schedule-conflict-1024.webp",
+          "format": "webp",
+          "width": 1024,
+          "height": 640,
+          "bytes": 15516
+        },
+        {
+          "file": "schedule-conflict-1600.webp",
+          "format": "webp",
+          "width": 1600,
+          "height": 1000,
+          "bytes": 28298
+        }
+      ]
+    },
+    "school-branding": {
+      "alt": "img.school-branding.alt",
+      "variants": [
+        {
+          "file": "school-branding-640.avif",
+          "format": "avif",
+          "width": 640,
+          "height": 400,
+          "bytes": 7162
+        },
+        {
+          "file": "school-branding-1024.avif",
+          "format": "avif",
+          "width": 1024,
+          "height": 640,
+          "bytes": 17394
+        },
+        {
+          "file": "school-branding-1600.avif",
+          "format": "avif",
+          "width": 1600,
+          "height": 1000,
+          "bytes": 33849
+        },
+        {
+          "file": "school-branding-640.webp",
+          "format": "webp",
+          "width": 640,
+          "height": 400,
+          "bytes": 9394
+        },
+        {
+          "file": "school-branding-1024.webp",
+          "format": "webp",
+          "width": 1024,
+          "height": 640,
+          "bytes": 20478
+        },
+        {
+          "file": "school-branding-1600.webp",
+          "format": "webp",
+          "width": 1600,
+          "height": 1000,
+          "bytes": 39502
+        }
+      ]
+    },
+    "sign-in": {
+      "alt": "img.sign-in.alt",
+      "variants": [
+        {
+          "file": "sign-in-640.avif",
+          "format": "avif",
+          "width": 640,
+          "height": 400,
+          "bytes": 5079
+        },
+        {
+          "file": "sign-in-1024.avif",
+          "format": "avif",
+          "width": 1024,
+          "height": 640,
+          "bytes": 8768
+        },
+        {
+          "file": "sign-in-1600.avif",
+          "format": "avif",
+          "width": 1600,
+          "height": 1000,
+          "bytes": 14775
+        },
+        {
+          "file": "sign-in-640.webp",
+          "format": "webp",
+          "width": 640,
+          "height": 400,
+          "bytes": 8234
+        },
+        {
+          "file": "sign-in-1024.webp",
+          "format": "webp",
+          "width": 1024,
+          "height": 640,
+          "bytes": 14434
+        },
+        {
+          "file": "sign-in-1600.webp",
+          "format": "webp",
+          "width": 1600,
+          "height": 1000,
+          "bytes": 24388
+        }
+      ]
+    }
+  }
+}

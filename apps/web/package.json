@@ -12,6 +12,7 @@
     "test:e2e:real": "bash scripts/e2e-real-api.sh",
     "test:e2e:real:prl": "bash scripts/e2e-real-prl.sh",
     "test:e2e:real:alum": "bash scripts/e2e-real-alum.sh",
+    "landing:shots": "E2E_LANDING_SHOTS=1 bash scripts/landing-shots.sh",
     "lint": "eslint .",
     "lint:i18n": "node scripts/check-i18n-literals.mjs",
     "format": "prettier --write ."

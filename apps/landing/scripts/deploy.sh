@@ -80,4 +80,26 @@ if [ "$STATUS" -ne 0 ]; then
   echo "deploy: el despliegue ya está publicado pero incumple las cabeceras; revertir ya: npx wrangler rollback (README, «Desplegar y revertir»)" >&2
   exit 1
 fi
+
+# Smoke test del script del carrusel (ADR-075): estado 200, tipo MIME JavaScript y nosniff.
+JS_HEADERS="$(curl --silent --show-error --location --max-time 30 --dump-header - --output /dev/null "$URL/js/carousel.js" || true)"
+JS_HEADERS="$(printf '%s' "$JS_HEADERS" | tr -d '\r' | sed -E 's/^([^:]+):/\L\1:/')"
+JS_STATUS="$(printf '%s\n' "$JS_HEADERS" | grep -E '^HTTP/' | tail -1 | awk '{print $2}')"
+JS_OK=true
+if [ "$JS_STATUS" != "200" ]; then
+  echo "deploy: smoke test FALLA, /js/carousel.js responde ${JS_STATUS:-sin estado} (se esperaba 200)" >&2
+  JS_OK=false
+fi
+if ! printf '%s\n' "$JS_HEADERS" | grep -Eiq '^content-type: *(text|application)/javascript([;[:space:]]|$)'; then
+  echo "deploy: smoke test FALLA, /js/carousel.js sin tipo MIME JavaScript" >&2
+  JS_OK=false
+fi
+if ! printf '%s\n' "$JS_HEADERS" | grep -Eiq '^x-content-type-options: *nosniff[[:space:]]*$'; then
+  echo "deploy: smoke test FALLA, /js/carousel.js sin X-Content-Type-Options: nosniff" >&2
+  JS_OK=false
+fi
+if [ "$JS_OK" != true ]; then
+  echo "deploy: el despliegue ya está publicado pero el script del carrusel no se sirve bien; revertir ya: npx wrangler rollback (README, «Desplegar y revertir»)" >&2
+  exit 1
+fi
 echo "deploy: correcto"
