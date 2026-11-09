@@ -40,10 +40,11 @@ export class RealSession {
     path: string,
     expected: number,
     data?: unknown,
+    headers: Record<string, string> = {},
   ): Promise<T> {
     const response = await this.ctx.fetch(path, {
       method,
-      headers: method === 'GET' ? {} : { 'X-XSRF-TOKEN': await this.xsrf() },
+      headers: method === 'GET' ? headers : { ...headers, 'X-XSRF-TOKEN': await this.xsrf() },
       data: data as never,
     })
     const text = await response.text()
