@@ -24,7 +24,7 @@
 ### 1.2 · Hechos verificados (rama `chore/memoria-renovate-pendientes-568`, `4476010`)
 
 - `apps/` contiene solo `api` y `web`. No existe nada de landing. (Estado previo a este ADR: «AdagioX» solo figura ya en su propia aceptación: `§18`, historial y `CHANGELOG.md`.)
-- `.github/workflows/` tiene `build-images.yml`, `ci-api.yml`, `ci-web.yml` y `dependency-scan.yml`. `ci-web.yml` se dispara en **todo** `pull_request`/`push` a `develop`/`main`, **sin filtro `paths`** (`§9`, hallazgo H1).
+- `.github/workflows/` tiene `build-images.yml`, `ci-api.yml`, `ci-web.yml` y `dependency-scan.yml`. `ci-api.yml`, `ci-web.yml` (`pull_request` y `push` a `develop`/`main`), `dependency-scan.yml` (`pull_request`) y `build-images.yml` se disparan en **todo** PR, **sin filtro `paths`** (`§9`, hallazgo H1). Qué checks son *required checks* en GitHub **no está contrastado**: no se pudo leer la protección de ramas (403 del token de `gh`); `SYSADMIN.md §4` habla de nueve jobs (cuatro de `ci-api`, cuatro de `ci-web` y uno de `dependency-scan`).
 - El documento de requisitos no tiene ningún requisito sobre una web del producto. `REQ-WEB` (`§5.14`) es la web pública **de cada centro**, otra cosa. `RUX-DOM-001` (`§10.5`) fija el subdominio por defecto de los centros como `{slug}.plataforma.com`, con un dominio todavía sin nombrar.
 - `ADR-015` nombra el centro objetivo inicial. Ese nombre **no** puede aparecer en la landing (`§8`).
 
@@ -65,15 +65,15 @@ Datos según la documentación pública conocida a mediados de 2026. **Precios, 
 
 | Criterio | **Cloudflare** (Workers *static assets* o Pages) | Netlify | GitHub Pages | Bunny.net (UE) |
 |---|---|---|---|---|
-| Coste | Gratis; ancho de banda sin límite en el plan gratuito | Gratis con cupo de créditos mensual (desde 2025); al agotarlo el sitio se pausa | Gratis | De pago por uso, con mínimo mensual pequeño |
-| Condiciones | Cloudflare Inc. (EE. UU.), DPA con cláusulas tipo, adherida al EU-US Data Privacy Framework | Netlify Inc. (EE. UU.), DPA y DPF | GitHub/Microsoft (EE. UU.) | BunnyWay d.o.o. (Eslovenia, UE) |
+| Coste | Gratis; ancho de banda sin límite en el plan gratuito | Gratis con cupo de créditos mensual (**no verificado**); al agotarlo el sitio se pausa | Gratis | De pago por uso, con mínimo mensual pequeño |
+| Condiciones | Cloudflare Inc. (EE. UU.), DPA con cláusulas tipo, adherida al EU-US Data Privacy Framework (**no verificado; comprobar en U1**) | Netlify Inc. (EE. UU.), DPA y DPF | GitHub/Microsoft (EE. UU.) | BunnyWay d.o.o. (Eslovenia, UE) |
 | Datos y RGPD | Trata IP en su red global; sin localización UE en el plan gratuito | Trata IP; red global | Trata IP | Trata IP; empresa UE, sin transferencia internacional por defecto |
 | Mantenimiento activo | Sí. Cloudflare orienta los proyectos nuevos a Workers con *static assets*; Pages sigue operativo con menos novedades | Sí | Sí | Sí |
 | Cabeceras y CSP propias | Sí, fichero `_headers` en el artefacto | Sí, `_headers` (mismo formato) | **No**: sin cabeceras propias, la CSP solo por `<meta>`, sin HSTS propio ni `frame-ancestors` | Sí, por reglas *edge* en el panel (no en el repo) |
 | Redirecciones | `_redirects` en el artefacto, y reglas de redirección por zona para los otros dominios | `_redirects` (mismo formato) y alias de dominio | Limitadas | Reglas *edge* |
 | DNS de los cuatro dominios | DNS gratuito con DNSSEC, CAA y aplanado de CNAME en el ápice | DNS propio más limitado; ápice por ALIAS/A | No | DNS propio |
 | Portabilidad | Alta: `_headers`/`_redirects` son el formato de facto que también lee Netlify | Alta (mismo formato) | — | Media: reglas en el panel, no en el repo |
-| Riesgo específico | **Bloqueos de IP de Cloudflare por operadores españoles durante partidos de LaLiga** (órdenes judiciales públicas en 2025). Afecta al público objetivo (centros en España) | Pausa del sitio si se agota el cupo (un pico de tráfico o un abuso lo tumba hasta el mes siguiente) | — | Coste variable, sin plan gratuito |
+| Riesgo específico | **Bloqueos de IP de Cloudflare por operadores españoles durante partidos de LaLiga** (órdenes judiciales públicas; **fecha y vigencia no verificadas**, comprobar en U1). Afecta al público objetivo (centros en España) | Pausa del sitio si se agota el cupo (un pico de tráfico o un abuso lo tumba hasta el mes siguiente) | — | Coste variable, sin plan gratuito |
 
 ---
 
@@ -91,7 +91,7 @@ Datos según la documentación pública conocida a mediados de 2026. **Precios, 
 - `dist/` no se versiona (la entrada en `.gitignore` la añade quien implemente).
 - **Sin JavaScript en el sitio publicado.** Ni para el selector de idioma, ni para analítica, ni para animaciones.
 - **Sin librería de componentes ni framework CSS.** shadcn-vue son componentes Vue y no aplican a HTML sin JS. La landing no introduce otra librería: CSS propio que **copia los valores de los *tokens*** de `docs/design-system.md` (colores, espaciados, tipografía) para mantener la coherencia visual, sin importar nada de `apps/web` (`INV-007` por analogía).
-- **Tipografía del sistema** (`system-ui` y alternativas) o fuentes autoalojadas. **Prohibido Google Fonts u otro CDN de terceros**: transfiere la IP del visitante a un tercero, y hay jurisprudencia alemana de 2022 que lo considera infracción del RGPD. Además rompería la CSP de `§4.4`.
+- **Tipografía del sistema** (`system-ui` y alternativas) o fuentes autoalojadas. **Prohibido Google Fonts u otro CDN de terceros**: transfiere la IP del visitante a un tercero, y hay jurisprudencia alemana que lo considera infracción del RGPD (**sin referencia concreta en este ADR; no verificada**). Además rompería la CSP de `§4.4`.
 - **Dependencias de desarrollo**: solo `@lhci/cli` (Lighthouse CI), declarada en `apps/landing/package.json` con *lockfile* y cubierta por Renovate y `dependency-scan.yml`. **Se usa solo en CI y nunca se publica.** Antes de añadirla se hace la comprobación de `CLAUDE.md §1` (mantenimiento, licencia y frecuencia de *releases*) y se anota en el PR. Si no la supera, la alternativa es `@axe-core/playwright` con la misma versión de `@playwright/test` que ya usa `apps/web`. La interfaz propia de `RNF-MANT-007` es, como en `ADR-049`, el **protocolo documentado**: un `npm run check:lighthouse` en el `README.md` de la landing.
 
 ### 4.2 · Idiomas y `INV-009`
@@ -169,7 +169,7 @@ Datos según la documentación pública conocida a mediados de 2026. **Precios, 
 
 **Buenas**
 - Cero dependencias en el sitio publicado y una sola dependencia de desarrollo, aislada en CI.
-- La plataforma no se toca. Un fallo de la landing no bloquea `ci-api`/`ci-web` y al revés.
+- La plataforma no se toca. Un fallo de la landing no bloquea `ci-api`/`ci-web` y al revés. **Excepción (`OPEN-072-08`)**: `require-ci-green` de `build-images.yml` (solo en etiquetas `v*`) cuenta **todos** los *check runs* del commit y falla si alguno está pendiente o no es `success`/`neutral`; como `ci-landing` corre en el *push* a `main` de la *release*, un Lighthouse en rojo o un `deploy` pendiente bloquearía la publicación de la versión de la plataforma.
 - Cambiar de proveedor afecta a `deploy.sh`, un secreto y el DNS.
 
 **Malas o a vigilar**
@@ -177,7 +177,8 @@ Datos según la documentación pública conocida a mediados de 2026. **Precios, 
 - La landing sale a producción con las *releases* de la plataforma (`OPEN-072-06`).
 - **No es un requisito del producto**: no tiene `REQ-*` y no debe inventarse uno. Los commits referencian un **issue de GitHub** propio (`CLAUDE.md §4`), que se abre al aprobar este ADR.
 - `INV-015` no aplica tal cual (no hay requisito). Las reglas de `§4.2`/`§4.4` se cubren con `check.mjs`, que es el test.
-- Documentos raíz: `README.md` y `ARCHITECTURE.md` tendrán que mencionar `apps/landing` y el nombre del producto. Este ADR no los modifica (`§9`, H2).
+- Documentos raíz: `README.md` y `ARCHITECTURE.md` tendrán que mencionar `apps/landing` y el nombre del producto. Este ADR no los modifica (`§9`, H2); al aceptarlo solo se tocó la fila de versiones del `README.md` (3.2.26).
+- **`INV-006` no aplica a la landing**: es contenido estático, sin funcionalidad ni API; solo figura en `§8` como fuente de una afirmación de contenido.
 
 ---
 
@@ -193,7 +194,7 @@ Datos según la documentación pública conocida a mediados de 2026. **Precios, 
 | SELinux `enforcing`, volúmenes `:Z` | **Sí en local** | Montaje con `:Z` en el comando anterior. En el proveedor no aplica. |
 | Reversión probada en cada entrega | **Sí** | `§4.6`. |
 | Cabeceras de seguridad y CSP estricta desde el primer despliegue (`CLAUDE.md §8`) | **Sí** | `§4.4`, comprobadas en CI. |
-| Escaneo de dependencias en cada PR (`CLAUDE.md §8`) | **Sí** | `dependency-scan.yml` debe incluir `apps/landing/package-lock.json`. |
+| Escaneo de dependencias en cada PR (`CLAUDE.md §8`) | **Sí** | `dependency-scan.yml` ya lo cubre sin cambios: Trivy corre en modo `fs` sobre `.` y recoge cualquier *lockfile* (solo HIGH y CRITICAL, con `ignore-unfixed`). `renovate.json` solo agrupa `apps/api` y `apps/web`: la landing caería sin grupo ni sufijo (cosmético). |
 
 ---
 
@@ -211,7 +212,7 @@ La landing dice **solo** lo que el documento de requisitos fija como objetivo de
 | Toda la funcionalidad disponible por API | `INV-006`, `§3.3` punto 6 |
 | Interfaz en castellano, inglés, alemán y francés | `ADR-021`, `§5.1` |
 | Diseñada con el objetivo de cumplir WCAG 2.2 AA | `RNF-UX-002`, `ADR-009` |
-| Pensada para centros públicos, privados y concertados, y para la normativa educativa y de protección de datos española | `§2.1`, `§4.1`, `§4.3` |
+| Pensada para centros públicos, privados y concertados, y con requisitos para la normativa educativa y de protección de datos española (objetivo del producto, sin afirmar conformidad acreditada) | `§2.1`, `§4.1`, `§4.3` |
 
 **Prohibido**, aunque aparezca en el documento como objetivo o plan:
 - certificaciones o auditorías como logradas (ISO 27001, pentest: `§3.3` punto 8 y el hito H4 de `§17` son metas, no hechos);
@@ -230,7 +231,7 @@ La redacción en es-ES la valida el usuario antes de traducirla.
 
 - **H1**: `ci-api.yml` y `ci-web.yml` no tienen filtro `paths`. Cada PR que solo toque `apps/landing` (o `docs/`) gastará minutos de CI de API y web. No es un fallo. Si se corrige, hay que hacerlo sin romper los *required checks* (el problema de `pending` descrito en `§4.5`).
 - **H2**: el nombre «AdagioX» y los dominios no figuran en `README.md` ni `ARCHITECTURE.md`, y en el documento de requisitos solo en la fila de este ADR en `§18` y en el historial (3.2.26); el resto de ese documento no los usa. `RUX-DOM-001` sigue con `{slug}.plataforma.com`. Actualizarlo corresponde a quien mantenga esos documentos, y lo condiciona `OPEN-072-04`.
-- **H3**: la entrada de este ADR en el índice de la sección 18 del documento de requisitos **no se ha añadido**, por instrucción expresa de no tocar otros ficheros en esta tarea. Se añade al aprobarlo.
+- **H3**: la entrada de este ADR en el índice de la sección 18 del documento de requisitos **se añadió al aceptar el ADR** (documento de requisitos 3.2.26). Hallazgo resuelto.
 
 ---
 
@@ -242,9 +243,10 @@ La redacción en es-ES la valida el usuario antes de traducirla.
 | `OPEN-072-02` | Proveedor | **Cloudflare**, condicionado a que no sigan los bloqueos por LaLiga en la fecha de alta; si siguen, **Netlify**. Bunny.net solo si se prioriza la localización UE por encima del coste. **Resuelta: la recomendación** (usuario, 2026-11-09). |
 | `OPEN-072-03` | Correo del dominio | **Ahora**: MX nulo + SPF `-all` + DMARC `p=reject` en los cuatro dominios. Si la solicitud a Anthropic, `security.txt` o el aviso legal necesitan un `@adagiox.com`, se elige un buzón en un proveedor de la UE y solo `adagiox.com` recibe MX, SPF, DKIM y DMARC reales. Esa elección va en una decisión aparte. **Resuelta: la recomendación** (usuario, 2026-11-09). |
 | `OPEN-072-04` | ¿Los centros colgarán de subdominios de `adagiox.com` (`RUX-DOM-001`) o de un dominio aparte? | **No decidirlo en este ADR.** Lo condiciona HSTS (`includeSubDomains`/`preload`), las cookies entre subdominios del mismo dominio registrable (los subdominios de centros distintos serían del mismo «sitio» a efectos de `SameSite`) y el aislamiento de la marca. La práctica habitual en SaaS es un dominio aparte para los centros. Necesita su propio ADR antes del primer despliegue de la plataforma en un dominio real. **Resuelta: la recomendación** (usuario, 2026-11-09). |
-| `OPEN-072-05` | Páginas legales en en/de/fr | **Publicarlas en es-ES en las cuatro rutas**, con `lang="es-ES"` en el contenido y una línea traducida que lo explique, hasta tener una traducción humana revisada (`CLAUDE.md §2.9`). **Resuelta: la recomendación** (usuario, 2026-11-09). |
+| `OPEN-072-05` | Páginas legales en en/de/fr | **Publicarlas en es-ES en las cuatro rutas**, con `lang="es-ES"` en el contenido y una línea traducida que lo explique (la redacta la sesión, no `traductor`, y no es texto legal: solo avisa del idioma), hasta tener una traducción humana revisada (`CLAUDE.md §2.9`). **Resuelta: la recomendación** (usuario, 2026-11-09). |
 | `OPEN-072-06` | ¿Aceptar que la landing salga a producción solo con las *releases* de `develop` a `main`? | **Sí.** Una rama o un camino aparte para la landing rompe el modelo de `CLAUDE.md §4` para ahorrar unos días. Si un cambio urge, se hace una *release*. **Resuelta: la recomendación** (usuario, 2026-11-09). |
 | `OPEN-072-07` | Riesgo del nombre | **Antes de publicar**, búsqueda gratuita de «AdagioX» y variantes fonéticas («Adagio») en TMview/EUIPO y en el localizador de la OEPM, clases de Niza 9, 41 y 42. «Adagio» es un término común y es probable que haya marcas anteriores en software o educación. Si aparece una marca confundible en esas clases, se consulta antes de invertir en la marca. Registrarla es una decisión aparte. **Resuelta: la recomendación** (usuario, 2026-11-09). |
+| `OPEN-072-08` | `require-ci-green` cuenta todos los *check runs* del commit de la *release*: ¿se acepta que un fallo de `ci-landing` bloquee la versión de la plataforma, o se excluye `ci-landing` de esa puerta? | **A** · Aceptar el acoplamiento en la primera versión, sin tocar la puerta. **B** · Excluir los checks de `ci-landing` en `build-images.yml` (toca la puerta de *release*) | **A** por seguridad: no se debilita la puerta de *release*, y un rojo de la landing se ve y se arregla antes de la *release*. **Abierta, pendiente del usuario.** |
 
 ---
 
