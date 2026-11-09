@@ -269,7 +269,7 @@ a.btn:focus-visible {
   outline-offset: 3px;
 }
 
-/* ---------- Carrusel (ADR-074 §4.5): sin JavaScript, sin avance automático ---------- */
+/* ---------- Carrusel (ADR-074 §4.5, ADR-075): usable sin JavaScript; con él, controles añadidos ---------- */
 
 .carousel {
   margin-top: var(--space-12);
@@ -280,6 +280,8 @@ a.btn:focus-visible {
   scrollbar-width: thin;
   scrollbar-color: var(--input) transparent;
   padding-block: var(--space-2) var(--space-6);
+  /* Reserva el hueco de la barra de controles (los crea el script): sin ella, la página saltaría al cargarlo. */
+  margin-bottom: 3.5rem;
 }
 
 .carousel:focus-visible {
@@ -311,6 +313,150 @@ a.btn:focus-visible {
   max-width: 40rem;
   color: var(--muted-foreground);
   font-size: 0.9375rem;
+}
+
+/* Controles del carrusel (ADR-075 §2): los crea carousel.js, así que sin JavaScript no existen. */
+.carousel-frame {
+  position: relative;
+  display: flow-root;
+}
+
+.carousel-arrow,
+.carousel-dot,
+.carousel-pause {
+  font: inherit;
+  cursor: pointer;
+}
+
+.carousel-arrow {
+  position: absolute;
+  top: 38%;
+  z-index: 1;
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+  border: 2px solid var(--input);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--foreground);
+  box-shadow: var(--shadow);
+  transform: translateY(-50%);
+}
+
+.carousel-arrow[data-dir='prev'] {
+  inset-inline-start: var(--space-2);
+}
+
+.carousel-arrow[data-dir='next'] {
+  inset-inline-end: var(--space-2);
+}
+
+/* Chevrón dibujado con bordes: no hay texto ni imagen, y se invierte solo con dir="rtl". */
+.carousel-arrow::before {
+  content: '';
+  display: block;
+  width: 0.75rem;
+  height: 0.75rem;
+  margin: auto;
+  border: solid currentcolor;
+  border-width: 0 0 3px 3px;
+  transform: translateX(15%) rotate(45deg);
+}
+
+.carousel-arrow[data-dir='next']::before {
+  transform: translateX(-15%) rotate(-135deg);
+}
+
+[dir='rtl'] .carousel-arrow::before {
+  scale: -1 1;
+}
+
+.carousel-arrow:hover {
+  background: var(--surface-strong);
+}
+
+.carousel-arrow:focus-visible,
+.carousel-dot:focus-visible,
+.carousel-pause:focus-visible {
+  outline: 3px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.carousel-bar {
+  position: absolute;
+  inset-inline: var(--gutter);
+  bottom: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  column-gap: var(--space-2);
+}
+
+.carousel-pause {
+  min-height: 2.75rem;
+  margin-inline-end: var(--space-4);
+  padding: var(--space-1) var(--space-4);
+  border: 2px solid var(--brand);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--foreground);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.carousel-pause[hidden] {
+  display: none;
+}
+
+.carousel-pause:hover {
+  background: var(--surface-strong);
+}
+
+.carousel-dot {
+  position: relative;
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+/* El punto es el ::before; el botón mide 44 px para el dedo. */
+.carousel-dot::before {
+  content: '';
+  position: absolute;
+  inset: 50% auto auto 50%;
+  width: 0.75rem;
+  height: 0.75rem;
+  border: 2px solid var(--muted-foreground);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.carousel-dot[aria-current='true']::before {
+  width: 1rem;
+  height: 1rem;
+  border-color: var(--brand);
+  background: var(--brand);
+}
+
+@media (max-width: 40rem) {
+  .carousel {
+    margin-bottom: 6.5rem;
+  }
+
+  .carousel-arrow {
+    width: 2.75rem;
+    height: 2.75rem;
+    border-width: 1px;
+    opacity: 0.88;
+    box-shadow: none;
+  }
+
+  .carousel-pause {
+    margin-inline-end: 0;
+  }
 }
 
 .hint {

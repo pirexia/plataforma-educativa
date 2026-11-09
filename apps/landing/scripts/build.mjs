@@ -187,6 +187,9 @@ export function build({ root, langs = LANGS }) {
     ),
   )
   cpSync(join(root, 'src', 'styles.css'), join(dist, 'styles.css'))
+  // Único script propio (ADR-075): se copia tal cual; check.mjs vigila su contenido y su peso.
+  const jsSrc = join(root, 'src', 'js')
+  if (existsSync(jsSrc)) cpSync(jsSrc, join(dist, 'js'), { recursive: true })
   // Imágenes ya optimizadas (ADR-074 §4.3); manifest.json es solo fuente de build, no se publica.
   const imgSrc = join(root, 'src', 'img')
   if (existsSync(imgSrc)) {

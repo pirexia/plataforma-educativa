@@ -7,6 +7,7 @@
 <title>{{t:home.title}}</title>
 <meta name="description" content="{{t:home.meta.description}}">
 {{include:head-links}}
+<script src="/js/carousel.js" defer></script>
 </head>
 <body>
 {{include:header}}
@@ -21,11 +22,20 @@
         <a class="btn btn-secondary" href="#features">{{t:home.hero.cta.more}}</a>
       </p>
     </div>
-    <div class="carousel" role="region" aria-label="{{t:home.carousel.label}}" tabindex="0">
+    <div class="carousel" role="region" aria-label="{{t:home.carousel.label}}" tabindex="0"
+      data-prev="{{t:home.carousel.prev}}" data-next="{{t:home.carousel.next}}"
+      data-goto="{{t:home.carousel.goto}}" data-pause="{{t:home.carousel.pause}}"
+      data-resume="{{t:home.carousel.resume}}">
       <ul class="slides">
       <li class="slide">
         <figure>
-          <div class="window">{{img:hero-schedule:lcp}}</div>
+          <div class="window">{{img:sign-in:lcp}}</div>
+          <figcaption>{{t:home.carousel.cap.sign-in}}</figcaption>
+        </figure>
+      </li>
+      <li class="slide">
+        <figure>
+          <div class="window">{{img:hero-schedule}}</div>
           <figcaption>{{t:home.carousel.cap.hero-schedule}}</figcaption>
         </figure>
       </li>
@@ -63,12 +73,6 @@
         <figure>
           <div class="window">{{img:school-branding}}</div>
           <figcaption>{{t:home.carousel.cap.school-branding}}</figcaption>
-        </figure>
-      </li>
-      <li class="slide">
-        <figure>
-          <div class="window">{{img:sign-in}}</div>
-          <figcaption>{{t:home.carousel.cap.sign-in}}</figcaption>
         </figure>
       </li>
       </ul>
