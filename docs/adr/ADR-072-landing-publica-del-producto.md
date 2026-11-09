@@ -1,6 +1,6 @@
 # ADR-072 · Landing pública del producto (`adagiox.com`): sitio estático propio en `apps/landing`, alojado fuera de la plataforma
 
-**Estado**: **ACEPTADA** (2026-11-09; el usuario aceptó el ADR con la recomendación de `architect` para `OPEN-072-01` (B) a `-07`). Las decisiones de fondo las tomó el usuario el 2026-11-09 y este ADR no las reabre (`§1.1`). Lo que se somete a aprobación es la forma de cumplirlas (`§4`) y las preguntas de `§10`.
+**Estado**: **ACEPTADA** (2026-11-09; el usuario aceptó el ADR con la recomendación de `architect` para `OPEN-072-01` (B) a `-07`). Las decisiones de fondo las tomó el usuario el 2026-11-09 y este ADR no las reabre (`§1.1`). La forma de cumplirlas (`§4`) y las preguntas de `§10` quedaron aprobadas el mismo día.
 **Fecha**: 2026-11-09
 **Origen**: decisión del usuario del 2026-11-09 (nombre del producto, dominios, landing, alojamiento de terceros, idiomas).
 **Afecta a**: monorepo (nuevo `apps/landing`), `.github/workflows/` (nuevo workflow; `dependency-scan.yml` si la landing tiene dependencias de desarrollo), DNS de los cuatro dominios. **No afecta a ninguna línea de `apps/api` ni de `apps/web`, ni a la infraestructura de la plataforma.**
@@ -23,7 +23,7 @@
 
 ### 1.2 · Hechos verificados (rama `chore/memoria-renovate-pendientes-568`, `4476010`)
 
-- `apps/` contiene solo `api` y `web`. No existe nada de landing ni ninguna mención a «AdagioX» en el repositorio.
+- `apps/` contiene solo `api` y `web`. No existe nada de landing. (Estado previo a este ADR: «AdagioX» solo figura ya en su propia aceptación: `§18`, historial y `CHANGELOG.md`.)
 - `.github/workflows/` tiene `build-images.yml`, `ci-api.yml`, `ci-web.yml` y `dependency-scan.yml`. `ci-web.yml` se dispara en **todo** `pull_request`/`push` a `develop`/`main`, **sin filtro `paths`** (`§9`, hallazgo H1).
 - El documento de requisitos no tiene ningún requisito sobre una web del producto. `REQ-WEB` (`§5.14`) es la web pública **de cada centro**, otra cosa. `RUX-DOM-001` (`§10.5`) fija el subdominio por defecto de los centros como `{slug}.plataforma.com`, con un dominio todavía sin nombrar.
 - `ADR-015` nombra el centro objetivo inicial. Ese nombre **no** puede aparecer en la landing (`§8`).
@@ -229,7 +229,7 @@ La redacción en es-ES la valida el usuario antes de traducirla.
 ## 9 · Hallazgos fuera del ámbito de este ADR (reportados, no corregidos)
 
 - **H1**: `ci-api.yml` y `ci-web.yml` no tienen filtro `paths`. Cada PR que solo toque `apps/landing` (o `docs/`) gastará minutos de CI de API y web. No es un fallo. Si se corrige, hay que hacerlo sin romper los *required checks* (el problema de `pending` descrito en `§4.5`).
-- **H2**: el nombre «AdagioX» y los dominios no figuran en `README.md`, `ARCHITECTURE.md` ni en el documento de requisitos. `RUX-DOM-001` sigue con `{slug}.plataforma.com`. Actualizarlo corresponde a quien mantenga esos documentos, y lo condiciona `OPEN-072-04`.
+- **H2**: el nombre «AdagioX» y los dominios no figuran en `README.md` ni `ARCHITECTURE.md`, y en el documento de requisitos solo en la fila de este ADR en `§18` y en el historial (3.2.26); el resto de ese documento no los usa. `RUX-DOM-001` sigue con `{slug}.plataforma.com`. Actualizarlo corresponde a quien mantenga esos documentos, y lo condiciona `OPEN-072-04`.
 - **H3**: la entrada de este ADR en el índice de la sección 18 del documento de requisitos **no se ha añadido**, por instrucción expresa de no tocar otros ficheros en esta tarea. Se añade al aprobarlo.
 
 ---
