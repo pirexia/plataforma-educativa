@@ -10,7 +10,7 @@
 
 ## 1 · Contexto
 
-La landing de `adagiox.com` (`ADR-072`) tenía nueve marcadores pendientes en `/legal/`: `[TITULAR]`, `[NIF]`, `[DOMICILIO]`, `[CORREO]`, `[PROVEEDOR]`, `[GARANTIA]` y `[PLAZO]`. `check:publish` y `deploy.sh` bloquean el despliegue mientras exista alguno (#582). El objetivo inmediato del usuario es tener la landing publicada para solicitar el programa de Anthropic para startups, no para buscar financiación.
+La landing de `adagiox.com` (`ADR-072`) tenía siete tipos de marcador pendientes en `/legal/` (nueve apariciones en `es-ES.json`): `[TITULAR]`, `[NIF]`, `[DOMICILIO]`, `[CORREO]`, `[PROVEEDOR]`, `[GARANTIA]` y `[PLAZO]`. `check:publish` y `deploy.sh` bloquean el despliegue mientras exista alguno (#582). El objetivo inmediato del usuario es tener la landing publicada para solicitar el programa de Anthropic para startups, no para buscar financiación.
 
 ## 2 · Decisiones
 
@@ -29,6 +29,7 @@ La landing de `adagiox.com` (`ADR-072`) tenía nueve marcadores pendientes en `/
 
 - `check:publish` pasa: el despliegue depende ya solo de `LANDING_DEPLOY_ENABLED`, del *environment* `landing-production`, del token de Cloudflare y del DNS.
 - El buzón debe funcionar **antes** de publicar: el art. 10 LSSI-CE exige un medio de contacto efectivo.
+- `security.txt` (`ADR-072 §4.4`) sigue diferido aunque el contacto `founders@adagiox.com` ya exista: se añade cuando el buzón esté operativo, en un cambio aparte.
 - Las pruebas que daban por hecho los marcadores en el proyecto real usan ahora una copia con un marcador reintroducido, para seguir cubriendo la puerta de publicación (#582).
 
 ## 4 · Alternativas descartadas
