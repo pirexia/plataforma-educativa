@@ -103,3 +103,6 @@ marketing/build/
 
 # Informe de cobertura de Vitest (apps/web)
 apps/web/coverage/
+
+# Landing pública (ADR-072): artefacto de construcción
+apps/landing/dist/

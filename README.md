@@ -49,6 +49,7 @@ Excepción: en el **primer ciclo de Infantil (0-3) en régimen privado** sí som
 | UI | Tailwind CSS + shadcn-vue + TanStack Table |
 | Base de datos | PostgreSQL 18 |
 | Caché y colas | Redis (caché); colas: `database` con worker `queue:work` (#128), Redis + Horizon elegido, no instalado |
+| Landing pública | Sitio estático propio en `apps/landing` (`ADR-072`), hosting estático gestionado fuera de la plataforma; **no publicada** hasta tener titular legal y aviso legal revisado |
 | Contenedores | Podman |
 | Desarrollo | WSL2 en equipo personal · solo datos sintéticos |
 | Identificadores | `bigint` interno + `public_id` ULID en API y URLs |

@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="{{v:lang}}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>{{t:legal.title}}</title>
+<meta name="description" content="{{t:legal.meta.description}}">
+{{include:head-links}}
+</head>
+<body>
+{{include:header}}
+<main id="main" tabindex="-1" class="container prose">
+  <h1>{{t:legal.h1}}</h1>
+  <p class="note">{{t:legal.lang.notice}}</p>
+  <div lang="{{v:legal-lang}}">
+    <section aria-labelledby="legal-id">
+      <h2 id="legal-id">{{t:legal.body.id.title}}</h2>
+      <p>{{t:legal.body.id.intro}}</p>
+      <dl>
+        <dt>{{t:legal.body.id.holder.label}}</dt><dd>{{t:legal.body.id.holder.value}}</dd>
+        <dt>{{t:legal.body.id.nif.label}}</dt><dd>{{t:legal.body.id.nif.value}}</dd>
+        <dt>{{t:legal.body.id.address.label}}</dt><dd>{{t:legal.body.id.address.value}}</dd>
+        <dt>{{t:legal.body.id.email.label}}</dt><dd>{{t:legal.body.id.email.value}}</dd>
+      </dl>
+      <p>{{t:legal.body.id.activity}}</p>
+    </section>
+    <section aria-labelledby="legal-privacy">
+      <h2 id="legal-privacy">{{t:legal.body.privacy.title}}</h2>
+      <h3>{{t:legal.body.privacy.controller.title}}</h3>
+      <p>{{t:legal.body.privacy.controller.text}}</p>
+      <h3>{{t:legal.body.privacy.data.title}}</h3>
+      <p>{{t:legal.body.privacy.data.text}}</p>
+      <h3>{{t:legal.body.privacy.purpose.title}}</h3>
+      <p>{{t:legal.body.privacy.purpose.text}}</p>
+      <h3>{{t:legal.body.privacy.basis.title}}</h3>
+      <p>{{t:legal.body.privacy.basis.text}}</p>
+      <h3>{{t:legal.body.privacy.processor.title}}</h3>
+      <p>{{t:legal.body.privacy.processor.text}}</p>
+      <h3>{{t:legal.body.privacy.transfer.title}}</h3>
+      <p>{{t:legal.body.privacy.transfer.text}}</p>
+      <h3>{{t:legal.body.privacy.retention.title}}</h3>
+      <p>{{t:legal.body.privacy.retention.text}}</p>
+      <h3>{{t:legal.body.privacy.rights.title}}</h3>
+      <p>{{t:legal.body.privacy.rights.text}}</p>
+      <h3>{{t:legal.body.privacy.cookies.title}}</h3>
+      <p>{{t:legal.body.privacy.cookies.text}}</p>
+    </section>
+  </div>
+</main>
+{{include:footer}}
+</body>
+</html>

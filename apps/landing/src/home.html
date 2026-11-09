@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="{{v:lang}}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>{{t:home.title}}</title>
+<meta name="description" content="{{t:home.meta.description}}">
+{{include:head-links}}
+</head>
+<body>
+{{include:header}}
+<main id="main" tabindex="-1">
+  <section class="hero container" aria-labelledby="hero-title">
+    <p class="badge">{{t:home.status.badge}}</p>
+    <h1 id="hero-title">{{t:home.hero.title}}</h1>
+    <p class="lead">{{t:home.hero.lead}}</p>
+    <p class="note">{{t:home.status.note}}</p>
+  </section>
+  <section class="container" aria-labelledby="features-title">
+    <h2 id="features-title">{{t:home.features.title}}</h2>
+    <ul class="features">
+      <li><h3>{{t:home.f1.title}}</h3><p>{{t:home.f1.text}}</p></li>
+      <li><h3>{{t:home.f2.title}}</h3><p>{{t:home.f2.text}}</p></li>
+      <li><h3>{{t:home.f3.title}}</h3><p>{{t:home.f3.text}}</p></li>
+      <li><h3>{{t:home.f4.title}}</h3><p>{{t:home.f4.text}}</p></li>
+      <li><h3>{{t:home.f5.title}}</h3><p>{{t:home.f5.text}}</p></li>
+      <li><h3>{{t:home.f6.title}}</h3><p>{{t:home.f6.text}}</p></li>
+      <li><h3>{{t:home.f7.title}}</h3><p>{{t:home.f7.text}}</p></li>
+      <li><h3>{{t:home.f8.title}}</h3><p>{{t:home.f8.text}}</p></li>
+      <li><h3>{{t:home.f9.title}}</h3><p>{{t:home.f9.text}}</p></li>
+    </ul>
+  </section>
+</main>
+{{include:footer}}
+</body>
+</html>
