@@ -7,4 +7,5 @@ return [
     'acad' => 'Gestion académique',
     'fam_unit' => 'Unité familiale',
     'prl' => 'Porte et remise des mineurs',
+    'alum' => 'Élèves et inscription',
 ];
