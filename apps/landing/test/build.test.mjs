@@ -5,8 +5,9 @@ import { existsSync, readFileSync, writeFileSync, mkdtempSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { makeSite, cleanup, editJson, edit, PROJECT } from './helpers.mjs'
+import { makeSite, cleanup, editJson, edit, addImage, placeImage, PROJECT } from './helpers.mjs'
 import { build } from '../scripts/build.mjs'
+import { LANGS, langPath } from '../scripts/lib.mjs'
 import { SECURITY_HEADERS } from '../scripts/headers.mjs'
 
 after(cleanup)
@@ -17,11 +18,11 @@ test('genera una portada y una página legal por idioma, y los ficheros del siti
   const root = makeSite()
   for (const rel of [
     'index.html',
-    'en/index.html',
+    'es/index.html',
     'de/index.html',
     'fr/index.html',
     'legal/index.html',
-    'en/legal/index.html',
+    'es/legal/index.html',
     'de/legal/index.html',
     'fr/legal/index.html',
     '404.html',
@@ -37,40 +38,103 @@ test('genera una portada y una página legal por idioma, y los ficheros del siti
 
 test('cada página lleva su lang, canonical a sí misma y los cinco hreflang', () => {
   const root = makeSite()
-  const en = read(root, 'en/index.html')
-  assert.match(en, /<html lang="en">/)
-  assert.match(en, /<link rel="canonical" href="https:\/\/adagiox\.com\/en\/">/)
+  const es = read(root, 'es/index.html')
+  assert.match(es, /<html lang="es-ES" dir="ltr">/)
+  assert.match(es, /<link rel="canonical" href="https:\/\/adagiox\.com\/es\/">/)
   for (const [hl, href] of [
-    ['es-ES', 'https://adagiox.com/'],
-    ['en', 'https://adagiox.com/en/'],
+    ['es-ES', 'https://adagiox.com/es/'],
+    ['en', 'https://adagiox.com/'],
     ['de', 'https://adagiox.com/de/'],
     ['fr', 'https://adagiox.com/fr/'],
     ['x-default', 'https://adagiox.com/'],
   ]) {
-    assert.ok(en.includes(`hreflang="${hl}" href="${href}"`), `falta hreflang ${hl}`)
+    assert.ok(es.includes(`hreflang="${hl}" href="${href}"`), `falta hreflang ${hl}`)
   }
-  assert.match(read(root, 'index.html'), /<html lang="es-ES">/)
+  assert.match(read(root, 'index.html'), /<html lang="en" dir="ltr">/)
 })
 
 test('el selector de idioma son enlaces con lang y hreflang, sin JavaScript', () => {
   const root = makeSite()
   const html = read(root, 'de/index.html')
   assert.match(html, /<a href="\/fr\/" lang="fr" hreflang="fr">Français<\/a>/)
+  assert.match(html, /<a href="\/" lang="en" hreflang="en">English<\/a>/)
   assert.match(html, /<a href="\/de\/" lang="de" hreflang="de" aria-current="page">Deutsch<\/a>/)
   assert.doesNotMatch(html, /<script/i)
 })
 
-test('las páginas legales de en/de/fr usan el texto es-ES con lang="es-ES" (OPEN-072-05)', () => {
-  const root = makeSite()
-  editJson(root, 'locales/en.json', (d) => {
-    d['legal.body.id.title'] = 'TRADUCIDO AUTOMÁTICAMENTE'
-  })
+test('el texto legal sale siempre de LEGAL_LANG (es-ES) con lang="es-ES" en las cuatro rutas (OPEN-072-05, ADR-074 §4.1)', () => {
+  const root = makeSite({ built: false })
+  for (const l of ['en', 'de', 'fr']) {
+    editJson(root, `locales/${l}.json`, (d) => {
+      d['legal.body.id.title'] = 'TRADUCIDO AUTOMÁTICAMENTE'
+    })
+  }
   build({ root })
-  const html = read(root, 'en/legal/index.html')
-  assert.match(html, /<html lang="en">/)
-  assert.match(html, /<div lang="es-ES">/)
-  assert.ok(html.includes('Identificación del titular'))
-  assert.ok(!html.includes('TRADUCIDO AUTOMÁTICAMENTE'))
+  for (const [rel, lang] of [
+    ['legal/index.html', 'en'],
+    ['es/legal/index.html', 'es-ES'],
+    ['de/legal/index.html', 'de'],
+    ['fr/legal/index.html', 'fr'],
+  ]) {
+    const html = read(root, rel)
+    assert.ok(html.includes(`<html lang="${lang}" dir="ltr">`), rel)
+    assert.match(html, /<div lang="es-ES">/)
+    assert.ok(html.includes('Identificación del titular'), rel)
+    assert.ok(!html.includes('TRADUCIDO AUTOMÁTICAMENTE'), rel)
+  }
+})
+
+test('las rutas salen del slug, no del código: / es inglés y /es/ es es-ES (ADR-074 §4.1)', () => {
+  const root = makeSite()
+  assert.match(read(root, 'index.html'), /<html lang="en" dir="ltr">/)
+  assert.match(read(root, 'es/index.html'), /<html lang="es-ES" dir="ltr">/)
+  assert.ok(!existsSync(join(root, 'dist', 'en')), 'no hay /en/')
+  assert.ok(!existsSync(join(root, 'dist', 'es-ES')), 'no hay /es-ES/')
+})
+
+test('un idioma añadido a LANGS aparece en el selector, en hreflang y en el sitemap sin tocar plantillas (ADR-074 §4.2)', () => {
+  const root = makeSite({ built: false })
+  const langs = [...LANGS, { code: 'it', slug: 'it', dir: 'ltr' }]
+  const en = JSON.parse(readFileSync(join(root, 'locales', 'en.json'), 'utf8'))
+  for (const l of ['en', 'es-ES', 'de', 'fr']) {
+    editJson(root, `locales/${l}.json`, (d) => (d['lang.name.it'] = 'Italiano'))
+  }
+  writeFileSync(
+    join(root, 'locales', 'it.json'),
+    JSON.stringify({ ...en, 'lang.name.it': 'Italiano', _pending_translation: true }),
+  )
+  build({ root, langs })
+  const html = read(root, 'fr/index.html')
+  assert.ok(html.includes('<a href="/it/" lang="it" hreflang="it">Italiano</a>'))
+  assert.ok(html.includes('hreflang="it" href="https://adagiox.com/it/"'))
+  assert.ok(read(root, 'it/legal/index.html').includes('<html lang="it" dir="ltr">'))
+  assert.ok(read(root, 'sitemap.xml').includes('<loc>https://adagiox.com/it/legal/</loc>'))
+  assert.ok(read(root, '404.html').includes('<a href="/it/" lang="it" hreflang="it">Italiano</a>'))
+})
+
+test('las plantillas no nombran idiomas: selector y alternates salen de LANGS', () => {
+  for (const f of ['src/partials/header.html', 'src/partials/head-links.html', 'src/404.html']) {
+    const html = readFileSync(join(PROJECT, f), 'utf8')
+    assert.doesNotMatch(html, /hreflang="[a-zA-Z-]+"|lang="[a-zA-Z-]+"/, f)
+    for (const l of LANGS) assert.ok(!html.includes(`.${l.code}}}`), `${f} nombra ${l.code}`)
+  }
+})
+
+test('la 404 está en inglés, no marca idioma actual y enlaza las cuatro portadas (ADR-074 §4.1)', () => {
+  const root = makeSite()
+  const html = read(root, '404.html')
+  assert.match(html, /<html lang="en" dir="ltr">/)
+  assert.ok(html.includes('Page not found'))
+  for (const l of LANGS) {
+    assert.ok(html.includes(`<a href="${langPath(l.code)}" lang="${l.code}" hreflang="${l.code}">`), l.code)
+  }
+  assert.doesNotMatch(html, /aria-current/)
+})
+
+test('x-default apunta a / en todas las páginas y en el sitemap', () => {
+  const root = makeSite()
+  assert.ok(read(root, 'de/index.html').includes('hreflang="x-default" href="https://adagiox.com/"'))
+  assert.ok(read(root, 'fr/legal/index.html').includes('hreflang="x-default" href="https://adagiox.com/legal/"'))
 })
 
 test('sitemap.xml lista las ocho URLs con sus alternativas', () => {
@@ -105,7 +169,7 @@ test('_redirects redirige www y los otros dominios con 301 al canónico', () => 
 
 test('los valores de idioma se escapan al generar el HTML', () => {
   const root = makeSite({ built: false })
-  editJson(root, 'locales/es-ES.json', (d) => {
+  editJson(root, 'locales/en.json', (d) => {
     d['home.hero.title'] = 'A & B "citado"'
   })
   build({ root })
@@ -127,7 +191,7 @@ test('una variable inexistente hace fallar la construcción', () => {
 test('falta un fichero de idioma: la construcción falla', () => {
   const root = makeSite({ built: false })
   writeFileSync(join(root, 'locales', 'fr.json'), '{}')
-  assert.throws(() => build({ root }), /Clave de idioma inexistente/)
+  assert.throws(() => build({ root }), /Falta el nombre del idioma/)
 })
 
 test('--root inexistente o que no es un directorio: falla sin tocar nada', () => {
@@ -148,4 +212,59 @@ test('CLI: --root inexistente sale con código 1', () => {
     () => execFileSync('node', [script, '--root', '/tmp/landing-no-existe-xyz'], { stdio: 'pipe' }),
     (e) => e.status === 1 && /--root no existe/.test(String(e.stderr)),
   )
+})
+
+// ---- Imágenes (ADR-074 §4.3) ----
+
+test('src/img/ se copia a dist/img/ sin el manifiesto; el manifiesto no se publica', () => {
+  const root = makeSite({ built: false })
+  addImage(root)
+  build({ root })
+  assert.ok(existsSync(join(root, 'dist', 'img', 'shot-a-640.avif')))
+  assert.ok(existsSync(join(root, 'dist', 'img', 'shot-a-1600.webp')))
+  assert.ok(!existsSync(join(root, 'dist', 'img', 'manifest.json')))
+})
+
+test('{{img:id}} emite <picture> con AVIF, WebP, width/height del manifiesto, alt de la locale y lazy', () => {
+  const root = makeSite({ built: false })
+  addImage(root)
+  placeImage(root, '{{img:shot-a}}')
+  build({ root })
+  const html = read(root, 'es/index.html')
+  assert.ok(html.includes('<source type="image/avif" srcset="/img/shot-a-640.avif 640w, /img/shot-a-1024.avif 1024w, /img/shot-a-1600.avif 1600w"'))
+  assert.ok(html.includes('<img src="/img/shot-a-1024.webp" srcset="/img/shot-a-640.webp 640w, /img/shot-a-1024.webp 1024w, /img/shot-a-1600.webp 1600w"'))
+  assert.ok(html.includes('width="1024" height="640" alt="Alt shot-a es-ES" loading="lazy" decoding="async"'))
+  assert.ok(read(root, 'de/index.html').includes('alt="Alt shot-a de"'))
+  assert.doesNotMatch(html, /fetchpriority/)
+})
+
+test('{{img:id:lcp}}: sin loading="lazy" y con fetchpriority="high"', () => {
+  const root = makeSite({ built: false })
+  addImage(root)
+  placeImage(root, '{{img:shot-a:lcp}}')
+  build({ root })
+  const html = read(root, 'index.html')
+  assert.ok(html.includes('fetchpriority="high" decoding="async"'))
+  assert.doesNotMatch(html, /loading="lazy"/)
+})
+
+test('el alt de una imagen se escapa', () => {
+  const root = makeSite({ built: false })
+  addImage(root)
+  editJson(root, 'locales/en.json', (d) => (d['img.shot-a.alt'] = 'A "b" & c'))
+  placeImage(root, '{{img:shot-a}}')
+  build({ root })
+  assert.ok(read(root, 'index.html').includes('alt="A &quot;b&quot; &amp; c"'))
+})
+
+test('imagen inexistente en el manifiesto o sin alt en la locale: la construcción falla', () => {
+  const root = makeSite({ built: false })
+  addImage(root)
+  placeImage(root, '{{img:no-existe}}')
+  assert.throws(() => build({ root }), /no-existe/)
+  const root2 = makeSite({ built: false })
+  addImage(root2)
+  editJson(root2, 'locales/fr.json', (d) => delete d['img.shot-a.alt'])
+  placeImage(root2, '{{img:shot-a}}')
+  assert.throws(() => build({ root: root2 }), /img\.shot-a\.alt/)
 })

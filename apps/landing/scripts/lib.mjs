@@ -2,8 +2,22 @@
 import { readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 
-export const LANGS = ['es-ES', 'en', 'de', 'fr']
-export const DEFAULT_LANG = 'es-ES'
+// ADR-074 §4.1-4.2: LANGS es la única lista de idiomas. `code` es el código BCP 47 (ADR-021: va en
+// `lang` y `hreflang`); `slug` es el segmento de URL ('' = raíz); `dir` es la dirección del texto.
+export const LANGS = [
+  { code: 'en', slug: '', dir: 'ltr' },
+  { code: 'es-ES', slug: 'es', dir: 'ltr' },
+  { code: 'de', slug: 'de', dir: 'ltr' },
+  { code: 'fr', slug: 'fr', dir: 'ltr' },
+]
+export const LANG_CODES = LANGS.map((l) => l.code)
+// Los tres papeles que antes hacía DEFAULT_LANG (ADR-074 §4.1):
+//   DEFAULT_LANG: idioma de `/`, de `x-default` y de la 404.
+//   BASE_LANG: base de la paridad de claves. `en` y `es-ES` son idiomas de redacción.
+//   LEGAL_LANG: idioma único de las claves `legal.body.*`.
+export const DEFAULT_LANG = 'en'
+export const BASE_LANG = 'en'
+export const LEGAL_LANG = 'es-ES'
 export const ORIGIN = 'https://adagiox.com'
 export const PENDING_KEY = '_pending_translation'
 // Los textos legales no se traducen automáticamente (CLAUDE.md §2.9, OPEN-072-05): se
@@ -21,9 +35,9 @@ export function localeFile(root, lang) {
   return join(root, 'locales', `${lang}.json`)
 }
 
-export function readLocales(root) {
+export function readLocales(root, langs = LANGS) {
   const out = {}
-  for (const lang of LANGS) {
+  for (const { code: lang } of langs) {
     const file = localeFile(root, lang)
     if (!existsSync(file)) {
       out[lang] = null
@@ -34,13 +48,31 @@ export function readLocales(root) {
   return out
 }
 
-export function langPath(lang) {
-  return lang === DEFAULT_LANG ? '/' : `/${lang}/`
+export function slugOf(lang, langs = LANGS) {
+  const entry = langs.find((l) => l.code === lang)
+  if (!entry) throw new Error(`Idioma desconocido: ${lang}`)
+  return entry.slug
 }
 
-export function pagePath(lang, page) {
-  return page === 'legal' ? `${langPath(lang)}legal/` : langPath(lang)
+export function langPath(lang, langs = LANGS) {
+  const slug = slugOf(lang, langs)
+  return slug === '' ? '/' : `/${slug}/`
 }
+
+export function pagePath(lang, page, langs = LANGS) {
+  return page === 'legal' ? `${langPath(lang, langs)}legal/` : langPath(lang, langs)
+}
+
+// Clave de locales del nombre propio de un idioma (autónimo), igual en todas las locales.
+export const langNameKey = (code) => `lang.name.${code}`
+// Clave de locales del texto alternativo de una imagen del manifiesto.
+export const imgAltKey = (id) => `img.${id}.alt`
+
+// Límites de peso de ADR-074 §4.3 y §4.6 (KiB = 1024 bytes).
+export const MAX_IMG_FILE_BYTES = 120 * 1024
+export const MAX_IMG_TOTAL_BYTES = Math.round(2.5 * 1024 * 1024)
+export const IMG_WIDTHS = [640, 1024, 1600]
+export const MAX_IMAGES = 8
 
 const VOID = new Set([
   'meta',
