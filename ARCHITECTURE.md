@@ -61,7 +61,7 @@ Monorepo con separación real de despliegue (`A3`).
 │   │   │   ├── Core/ Auth/ Academico/ Calificaciones/ ...
 │   │   │   └── <Modulo>/{Domain,Application,Infrastructure,Http,Database}
 │   │   └── tests/
-│   ├── landing/                # sitio estático público (`ADR-072`), sin JS; se despliega aparte de la plataforma
+│   ├── landing/                # sitio estático público (`ADR-072`), sin JS necesario (un único script propio de mejora, `ADR-075`); se despliega aparte de la plataforma
 │   └── web/                    # Vue 3 + TS
 │       ├── src/components/ui/  # shadcn-vue (código propio)
 │       ├── src/modules/        # espejo de los módulos de la API

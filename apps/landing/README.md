@@ -1,8 +1,8 @@
 # Landing pública de adagiox.com
 
-Sitio estático de AdagioX (`ADR-072`). Sin JavaScript, sin cookies, sin analítica, sin formularios y sin recursos de terceros. Cuatro idiomas: es-ES (por defecto), en, de y fr. **Solo esta landing usa el nombre AdagioX**; el resto del repositorio no cambia (`ADR-072 §1.1`).
+Sitio estático de AdagioX (`ADR-072`). **Sin JavaScript necesario**: el sitio es completamente utilizable sin él y lleva **un único script propio** (`src/js/carousel.js`, `ADR-075`) que solo mejora el carrusel. Sin cookies, sin analítica, sin formularios y sin recursos de terceros. Cuatro idiomas: es-ES (por defecto), en, de y fr. **Solo esta landing usa el nombre AdagioX**; el resto del repositorio no cambia (`ADR-072 §1.1`).
 
-Estado: rediseño de `ADR-074` hecho en sus tres tramos (**T1** idiomas y comprobaciones, **T2** capturas, **T3** diseño y contenido): cabecera con carrusel de ocho pantallas, secciones de detalle, «Coming next» y efectos de scroll, todo con HTML y CSS puros. El copy en inglés y en es-ES está redactado por la sesión y **pendiente de validación del usuario**; `de` y `fr` llevan el texto en inglés con `_pending_translation` hasta que `traductor` los complete, así que `npm run check:publish` **falla a propósito** (solo por eso). Datos legales resueltos por `ADR-073` (titular persona física sin NIF ni domicilio publicados; correo `founders@adagiox.com`; publicación sin asesor). **No se publica nada**: el despliegue está apagado hasta `LANDING_DEPLOY_ENABLED = true`, y antes deben estar el DNS, el buzón `founders@adagiox.com` funcionando y el *environment* `landing-production` (`SYSADMIN.md §4b`).
+Estado: rediseño de `ADR-074` hecho en sus tramos **T1** (idiomas y comprobaciones), **T2** (capturas), **T3** (diseño y contenido, en/es-ES/de/fr) y **T4** (`ADR-075`, carrusel con script propio: avance automático, puntos, flechas y pausa, y la pantalla de acceso como primera diapositiva). El copy en inglés y en es-ES está redactado por la sesión y **pendiente de validación del usuario**; `de` y `fr` están traducidos (tratamiento formal) y `npm run check:publish` pasa. Datos legales resueltos por `ADR-073` (titular persona física sin NIF ni domicilio publicados; correo `founders@adagiox.com`; publicación sin asesor). **No se publica nada**: el despliegue está apagado hasta `LANDING_DEPLOY_ENABLED = true`, y antes deben estar el DNS, el buzón `founders@adagiox.com` funcionando y el *environment* `landing-production` (`SYSADMIN.md §4b`).
 
 ## Estructura
 
@@ -13,7 +13,8 @@ Estado: rediseño de `ADR-074` hecho en sus tres tramos (**T1** idiomas y compro
 | `locales/{es-ES,en,de,fr}.json` | Única fuente de todo texto visible (incluidos `alt`, `title`, `aria-label`, `<title>` y `<meta name="description">`) |
 | `scripts/build.mjs` | Genera `dist/` (Node 24, solo módulos integrados) |
 | `scripts/check.mjs` | Comprobaciones de `ADR-072 §4.2` y `§4.5` |
-| `scripts/headers.mjs` | CSP, HSTS y demás cabeceras; redirecciones de dominio |
+| `scripts/headers.mjs` | CSP (con `script-src 'self'`, `ADR-075`), HSTS y demás cabeceras; redirecciones de dominio |
+| `src/js/carousel.js` | Único script propio (`ADR-075`): controles y avance automático del carrusel; ≤ 6 KiB, sin dependencias |
 | `test/` | Pruebas con `node --test` y fixtures (un caso malo y uno bueno por regla) |
 
 ## Construir y comprobar
@@ -41,8 +42,9 @@ node scripts/check.mjs --publish  # comprobaciones previas a publicar (ver abajo
 
 - **Literales (`INV-009`)**: ningún texto visible en las plantillas fuera de un marcador; `alt`, `title`, `aria-label`, `placeholder` y `meta description` solo con marcador; claves usadas inexistentes.
 - **Idiomas**: mismas claves exactas en los cuatro ficheros, sin valores vacíos, sin `<`, y mismos marcadores internos `{nombre}` en cada idioma.
-- **`dist/`**: ausencia de `<script>`, `<form>`, `<iframe>`, `<style>`, atributos `style` y manejadores `on*`; ningún recurso de terceros (`src`, `<link>`, `url()`, `@import`); enlaces internos y anclas; un único `<h1>`; `lang`, `canonical` y `hreflang` correctos y recíprocos; `sitemap.xml`; presencia y valor exacto de cada cabecera de `_headers`. Los enlaces externos no se comprueban (se revisan a mano).
+- **`dist/`**: ausencia de `<script>` en línea o de otro origen, `<form>`, `<iframe>`, `<style>`, atributos `style` y manejadores `on*`; ningún recurso de terceros (`src`, `<link>`, `url()`, `@import`); enlaces internos y anclas; un único `<h1>`; `lang`, `canonical` y `hreflang` correctos y recíprocos; `sitemap.xml`; presencia y valor exacto de cada cabecera de `_headers`. Los enlaces externos no se comprueban (se revisan a mano).
 - **Carrusel y efectos (`ADR-074 §4.5`)**: el contenedor `.carousel` lleva `tabindex="0"`, `role="region"` y `aria-label`; ningún `aria-roledescription`; `animation-timeline` solo dentro de `@supports (animation-timeline: ...)` y de `@media (prefers-reduced-motion: no-preference)`; los `@keyframes` ligados al scroll solo animan `transform` (nunca `opacity`, `filter` ni color); sin `::scroll-button` ni `::scroll-marker`.
+- **Script propio (`ADR-075 §2.6`)**: solo se admite `<script src="/js/…">` del mismo origen y con `defer`; se prohíben `<script>` en línea, `src` de otro origen, `on*=` y `javascript:`. La CSP de `dist/_headers` debe ser exactamente `default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; upgrade-insecure-requests` (sin `'unsafe-inline'` ni `'unsafe-eval'`; duplicada en `check.mjs` a propósito). `dist/js/` solo puede contener `carousel.js`. En el script (fuente y `dist/`): sin `eval`, `new Function`, `document.write`, `innerHTML`/`outerHTML`/`insertAdjacentHTML`, red (`fetch`, `XMLHttpRequest`, `WebSocket`, `sendBeacon`, `import()`) ni cookies o almacenamiento; peso ≤ 6 KiB; y **sin literales visibles** (heurística de `scanScript`/`isVisibleLiteral`: solo cadenas en minúscula o `camelCase`, selectores o consultas de medios que empiecen por `. # [ ( :` y marcadores `{n}`; no detecta una palabra suelta en minúscula, que se revisa a mano). El carrusel debe llevar `data-prev`, `data-next`, `data-goto`, `data-pause` y `data-resume`, y en las plantillas solo con `{{t:…}}`.
 - **`--publish`** (bloquea la publicación): falla si queda alguna clave `_pending_translation`, algún marcador pendiente (`[TITULAR]`, `[NIF]`, `[DOMICILIO]`, `[CORREO]`, `[PROVEEDOR]`, `[GARANTIA]`, `[PLAZO]`, cualquier `[MAYÚSCULAS_1-2]`, `TODO` o `TBD`) en los locales, las plantillas **o el HTML de `dist/`**, si `dist/` no existe o es anterior a `src/` o `locales/` (por fecha de modificación). En desarrollo solo avisa.
 - **Enlaces externos**: todo `<a>` a otro host http(s) debe llevar `rel="noopener noreferrer"`.
 
@@ -50,6 +52,7 @@ node scripts/check.mjs --publish  # comprobaciones previas a publicar (ver abajo
 
 - `en.json` (`BASE_LANG`) y `es-ES.json` son idiomas de redacción (sin `_pending_translation`). Las claves `home.*` nuevas del rediseño están en `de.json` y `fr.json` **con el texto en inglés y `_pending_translation: true`**: las traduce `traductor` (tratamiento formal) cuando el usuario valide el copy. La clave `"_pending_translation": true` sigue existiendo como mecanismo: al añadir claves nuevas en es-ES, se copian a en/de/fr con ese indicador, `check` avisa y `--publish` falla hasta que se traducen y se elimina el indicador.
 - **Los textos legales no se traducen automáticamente** (`CLAUDE.md §2.9`, `OPEN-072-05`): las claves `legal.body.*` se renderizan siempre desde es-ES, con `lang="es-ES"`, en las cuatro rutas `/legal/`. Solo la línea `legal.lang.notice` (aviso de idioma) se traduce.
+- Etiquetas del carrusel: cinco claves `home.carousel.{prev,next,goto,pause,resume}` (`goto` lleva `{n}` y `{total}`) más `home.carousel.hint`, que describe los controles y sigue siendo veraz sin JavaScript. Llegan al script por atributos `data-*` del contenedor `.carousel` (`data-prev`, `data-next`, `data-goto`, `data-pause`, `data-resume`) puestos con `{{t:…}}`: el script no contiene texto. Para añadir una etiqueta, se crea la clave en los cuatro idiomas, se pone un `data-…` nuevo con su marcador y el script lo lee con `getAttribute`; `check` exige las cinco actuales.
 - Rutas: `/`, `/en/`, `/de/`, `/fr/` y `/legal/`, `/en/legal/`, `/de/legal/`, `/fr/legal/`. Sin redirección por `Accept-Language`: el selector son cuatro enlaces.
 
 ### Cómo añadir un idioma (`ADR-074 §4.2`)
@@ -126,9 +129,21 @@ Lighthouse/axe no certifican conformidad. En cada cambio de contenido o de estil
 - [ ] Zoom al 200 % sin pérdida de contenido.
 - [ ] `prefers-reduced-motion` y `prefers-color-scheme` respetados.
 - [ ] Un único `h1` por página y jerarquía de títulos sin saltos.
-- [ ] Carrusel con teclado: entrar con `Tab`, recorrer con las flechas, salir con `Tab`; foco visible en el contenedor; sin avance automático.
-- [ ] Objetivo táctil >= 44 px en los botones y de 24 x 24 px (WCAG 2.5.8) en el selector de idioma; el carrusel ocupa el ancho completo en móvil.
+- [ ] Carrusel con teclado: entrar con `Tab`, recorrer con las flechas del teclado, pasar por los botones anterior/siguiente, los puntos y el de pausa, salir con `Tab`; foco visible en todos; el avance automático se detiene con el botón de pausa (WCAG 2.2.2), con el foco de teclado dentro, con el puntero encima y con la pestaña oculta, y no existe con `prefers-reduced-motion: reduce`.
+- [ ] Objetivo táctil >= 44 px en los botones, las flechas y los puntos del carrusel y de 24 x 24 px (WCAG 2.5.8) en el selector de idioma; el carrusel ocupa el ancho completo en móvil.
 - [ ] Con `prefers-reduced-motion: reduce` no se anima nada.
+
+## Carrusel con script propio (`ADR-075`)
+
+Mejora progresiva: sin JavaScript el carrusel es el de `ADR-074 §4.5` (desplazamiento con `scroll-snap` y teclado, la siguiente diapositiva asoma) y no se ve ningún botón. Con JavaScript, `src/js/carousel.js` (script clásico con `defer`, cargado desde la portada) añade, creados por el propio script:
+
+- Flechas anterior y siguiente (con vuelta), superpuestas a los lados, y un punto por diapositiva (`aria-label` «ir a la pantalla N de M», `aria-current="true"` en el activo) sincronizados con el desplazamiento por `IntersectionObserver`.
+- Avance automático cada 6 s con vuelta a la primera, y botón de pausa/reanudación visible y operable por teclado (`aria-pressed`; WCAG 2.2.2). Se pausa con el puntero (ratón) encima, con foco de teclado (`:focus-visible`) dentro y con la pestaña oculta. Con `prefers-reduced-motion: reduce` no hay avance automático ni botón de pausa, pero flechas y puntos sí, sin desplazamiento suave.
+- Dirección: los controles usan propiedades lógicas y el cálculo del desplazamiento distingue `dir="rtl"`.
+
+**Reglas**: sin dependencias, sin `eval`, sin HTML dinámico, sin red ni almacenamiento, sin literales visibles (etiquetas por `data-*`), ≤ 6 KiB sin comprimir (hoy ≈ 5 KiB). Pruebas de comportamiento en `test/carousel.test.mjs` con una maqueta mínima de DOM y `vm`, sin dependencias.
+
+**CSP**: `script-src 'self'` (ADR-075 sustituye a `ADR-072 §4.4` en esa directiva): ni scripts en línea ni de terceros. Se verificó con `wrangler dev` (cabeceras reales) y el Chromium de Playwright: sin violaciones de CSP.
 
 ## Lighthouse
 

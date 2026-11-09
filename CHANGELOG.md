@@ -6,6 +6,11 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-10 · `feat(landing)`: rediseño, tramo T4, carrusel con script propio (`ADR-075`, #579)
+
+- `apps/landing`: `src/js/carousel.js` (≈ 5 KiB, sin dependencias): flechas, puntos sincronizados con el scroll, avance automático cada 6 s con vuelta, botón de pausa con `aria-pressed` (WCAG 2.2.2), pausa con puntero, foco de teclado y pestaña oculta, sin avance con `prefers-reduced-motion: reduce`, compatible con `dir="rtl"`. La pantalla de acceso (`sign-in`) pasa a ser la primera diapositiva y la imagen sin `loading="lazy"`. Cinco claves `home.carousel.{prev,next,goto,pause,resume}` y `home.carousel.hint` reescrita, en los cuatro idiomas. La landing deja de ser «sin JavaScript» para ser «sin JavaScript necesario».
+- CSP: `script-src 'self'` (sin `'unsafe-inline'` ni `'unsafe-eval'`). `check.mjs`: solo `<script src="/js/…" defer>` propio; prohibidos scripts en línea, de otro origen, `on*=` y `javascript:`; CSP exacta; `dist/js/` solo con `carousel.js`; el script sin `eval`/`new Function`/`document.write`/`innerHTML`/red/almacenamiento, sin literales visibles y ≤ 6 KiB; etiquetas `data-*` del carrusel por `{{t:…}}`. Pruebas de comportamiento del script con una maqueta de DOM, sin dependencias nuevas.
+
 ## 2026-11-10 · `docs(landing)`: ADR-075 script propio del carrusel (`ACEPTADA`, #579)
 
 - `ADR-075`: carrusel con avance automático, puntos, flechas y pausa por mejora progresiva; CSP `script-src 'self'`; la pantalla de acceso como primera diapositiva; sustituye en parte a `ADR-072` (`§4.1`, `§4.4`) y `ADR-074 §4.5`, con la discrepancia registrada en su `§5`. Requisitos 3.2.29.
