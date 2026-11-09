@@ -5,6 +5,7 @@ namespace App\Modules\Core\Infrastructure;
 use App\Models\Person;
 use App\Models\User;
 use App\Modules\Core\Domain\DocumentType;
+use App\Modules\Core\Domain\PersonBirth;
 use App\Modules\Core\Domain\PersonContact;
 use App\Modules\Core\Domain\PersonDirectory;
 use App\Modules\Core\Domain\PersonRef;
@@ -132,7 +133,7 @@ final class EloquentPersonDirectory implements PersonDirectory
 
         $contacts = [];
 
-        foreach (Person::query()->whereIn('id', array_values(array_unique($personIds)))->get(['id', 'contact_phone', 'document_type', 'document_number', 'given_name', 'family_name_1', 'family_name_2']) as $person) {
+        foreach (Person::query()->whereIn('id', array_values(array_unique($personIds)))->get(['id', 'contact_phone', 'document_type', 'document_number', 'given_name', 'family_name_1', 'family_name_2', 'locale']) as $person) {
             $contacts[(int) $person->id] = new PersonContact(
                 $person->contact_phone === null ? null : (string) $person->contact_phone,
                 $person->document_type === null ? null : (string) $person->document_type,
@@ -140,10 +141,26 @@ final class EloquentPersonDirectory implements PersonDirectory
                 (string) $person->given_name,
                 (string) $person->family_name_1,
                 $person->family_name_2 === null ? null : (string) $person->family_name_2,
+                (string) $person->locale,
             );
         }
 
         return $contacts;
+    }
+
+    public function birthDatesByIds(array $personIds): array
+    {
+        if ($personIds === []) {
+            return [];
+        }
+
+        $births = [];
+
+        foreach (Person::query()->whereIn('id', array_values(array_unique($personIds)))->get(['id', 'birth_date']) as $person) {
+            $births[(int) $person->id] = new PersonBirth($person->birth_date?->format('Y-m-d'));
+        }
+
+        return $births;
     }
 
     public function lockLiveByPublicIds(array $publicIds): array

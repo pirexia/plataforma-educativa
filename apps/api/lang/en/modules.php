@@ -7,4 +7,5 @@ return [
     'acad' => 'Academic management',
     'fam_unit' => 'Family unit',
     'prl' => 'Door and release of minors',
+    'alum' => 'Students and enrollment',
 ];

@@ -17,7 +17,7 @@ Ninguna nueva en `.env`. Configuración del módulo en `config/alum.php` [DERIVA
 ## 3. Despliegue: registro de módulos y permisos (`ADR-034 §5`)
 
 1. Migraciones (`php artisan migrate --database=pgsql_owner`), en este orden: (a) `students` (`1.15-a`); (b) `enrollments` (`1.15-b`); (c) `group_change_requests` y, si `OPEN-ALUM-08` = A, `student_photos` (`1.15-c`). Los únicos de destino de las FK compuestas en `acad` ya existen (`datos.md §1.2`): no hay migración de `acad` ni de `Core`. Todas aditivas (*expand*); compatibles con la versión anterior, que no las conoce.
-2. `php artisan platform:sync-registry`: añade el módulo `alum` (`depends_on ['curso','acad','fam_unit']`) y sus diez permisos. **Aborta** si algún código de `depends_on` no existe o hay ciclo: comprobar que `acad` y `fam_unit` están desplegados. Recordatorio de `RMOD-006`: el comando informa y no contrata; un centro con `alum` contratado y sin `acad` o `fam_unit` queda señalado.
+2. `php artisan platform:sync-registry`: añade el módulo `alum` (`depends_on ['curso','acad','fam_unit']`) y sus permisos (diez en total; cuatro en `1.15-a`: `alumno.leer`, `.crear`, `.actualizar`, `.eliminar`). **Aborta** si algún código de `depends_on` no existe o hay ciclo: comprobar que `acad` y `fam_unit` están desplegados. Recordatorio de `RMOD-006`: el comando informa y no contrata; un centro con `alum` contratado y sin `acad` o `fam_unit` queda señalado.
 3. `php artisan alum:grant-permissions` para los centros existentes (siembra de `permisos.md §4`), idempotente; se ejecuta tras `1.15-a` (solo `alumno.*`) y de nuevo tras `1.15-b` (`matricula.*` y concesiones `grupo`).
 4. Contratar `alum` por centro desde el *backoffice* (`REQ-BO-002`); exige `acad` y `fam_unit` contratados.
 
@@ -47,6 +47,7 @@ Sin métricas propias. La cifra de `CA-ALUM-060` (sobrecoste del disparador en `
 | `platform:sync-registry` aborta | `acad` o `fam_unit` no registrados | Desplegar en orden |
 | Exportación `pendiente` indefinida | *Worker* parado | `RUNBOOK.md`, arranque del perfil `worker` |
 | Foto no visible | S3 caído o credenciales | §2; la ficha sigue funcionando |
+| Datos de un menor en `idempotency_keys.response_body` durante 24 h tras el alta | Respuesta `201` de `POST /students` guardada por la idempotencia de `Core` | Conocido, sin acción operativa; seguimiento en #558 |
 
 ## 7. Impacto en copias de seguridad y restauración
 

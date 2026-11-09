@@ -7,7 +7,7 @@
 | Fase | 1 · paso **1.15** del plan (bloque D, Personas) |
 | Depende de | Documento: `CORE`, `FAM-UNIT`. Real: `CORE` (esencial), `CURSO` (esencial; la matrícula lleva `academic_year_id`), `ACAD` (grupos y cursos de etapa) y `FAM-UNIT` (pertenencia del alumno a su unidad). **Aprobado** (`OPEN-ALUM-28` = A, 2026-11-06): `depends_on: ['curso', 'acad', 'fam_unit']`. El documento de requisitos se actualiza (`operacion.md §8`) |
 | Esencial | `essential: false`: consecuencia de `OPEN-ALUM-28` = A, porque un esencial no puede depender de `acad` ni de `fam_unit`, que no lo son (`ADR-045`) |
-| Estado | **APROBADA** (2026-11-06); lo marcado [DERIVADA] o dependiente de un `OPEN-ALUM` no bloqueante sigue como propuesta. Decisiones del usuario: `OPEN-ALUM-01` = A, `-02` = A, `-03` = A, `-11` = B, `-13` = A, `-16` = A, `-19` = A, `-28` = A. Corregida el mismo día con los hallazgos de `doc-reviewer` (un Alto, siete Medios, Bajos). Quedan abiertas las no bloqueantes de §14.2 y `OPEN-ALUM-31`. Sin implementar |
+| Estado | **APROBADA** (2026-11-06); lo marcado [DERIVADA] o dependiente de un `OPEN-ALUM` no bloqueante sigue como propuesta. Decisiones del usuario: `OPEN-ALUM-01` = A, `-02` = A, `-03` = A, `-11` = B, `-13` = A, `-16` = A, `-19` = A, `-28` = A. Corregida el mismo día con los hallazgos de `doc-reviewer` (un Alto, siete Medios, Bajos). Quedan abiertas las no bloqueantes de §14.2 (`OPEN-ALUM-31` resuelta A el 2026-11-09). `1.15-a` implementada (T1+T2); `1.15-b`/`-c`/`-d` sin implementar |
 | Clasificación del paso: crítico | Ver §2 |
 | Decisiones vinculantes de partida | `ADR-004`, `ADR-013`, `ADR-015`, `ADR-016`, `ADR-020`, `ADR-021`, `ADR-029`, `ADR-032`, `ADR-033`, `ADR-034 §1`/`§4`/`§6`, `ADR-035`, `ADR-038` (incluido `§8`, idempotencia), `ADR-044` (enmendado por `ADR-063`), `ADR-045`, `ADR-048`, `ADR-053`, `ADR-054`, `ADR-055`, `ADR-056`, `ADR-057`/`ADR-058`, `ADR-062`, `ADR-063`, `ADR-066`, `ADR-068`, `ADR-069 §4.2`; contratos ya aprobados de `REQ-ACAD/funcional.md §7.2` y `§18.7`, `REQ-FAM-UNIT/funcional.md §7.1`/`§7.4`, `REQ-CURSO/funcional.md §7.1` |
 
@@ -131,7 +131,7 @@ Ninguna regla compara roles (`AR-08`).
 ### 4.1 Alta de un alumno
 
 1. Secretaría envía nombre, apellidos, documento (si lo tiene), fecha de nacimiento e idioma, opcionalmente el `public_id` de una unidad familiar, y la cabecera `Idempotency-Key` (`RN-ALUM-27`).
-2. En **una** transacción: `Core` registra la persona (`PersonRegistrar`); `alum` crea la faceta; si llega la unidad, `alum` comprueba el permiso que fije `OPEN-ALUM-31` e invoca `FamUnit\Domain\FamilyUnitStudents::add()` (reglas de `REQ-FAM-UNIT §5.2`).
+2. En **una** transacción, en dos pasos de `Core`: `PersonRegistrar::registerOrReuse()` registra la persona (nombre, apellidos, documento) y `PersonRegistrar::correctPerson()` escribe en la misma transacción su `birth_date` y `locale`, que `PersonRegistration` no lleva; `alum` crea la faceta; si llega la unidad, `alum` comprueba el permiso fijado por `OPEN-ALUM-31` = A (`familia.actualizar`) e invoca `FamUnit\Domain\FamilyUnitStudents::add()` (reglas de `REQ-FAM-UNIT §5.2`).
 3. Cada escritura se audita en su módulo (`INV-003`). `201` con la ficha.
 
 Un fallo en cualquier paso deshace los tres. Si el documento coincide con una persona viva del centro, `422 person_exists` sin revelar quién es (`RN-ALUM-09`).
@@ -169,16 +169,16 @@ Subida por `App\Support\Files` (`ADR-068`, precedente `pickup_photos`): tipo rea
 
 | ID | Regla |
 |----|-------|
-| `RN-ALUM-01` | Un alumno es una **faceta** de una persona: `UNIQUE (tenant_id, person_id) WHERE deleted_at IS NULL` (`ADR-034 §1`). Una persona con faceta viva no recibe otra ⇒ `422 alum.validation.person_already_student` |
+| `RN-ALUM-01` | Un alumno es una **faceta** de una persona: `UNIQUE (tenant_id, person_id) WHERE deleted_at IS NULL` (`ADR-034 §1`). Una persona con faceta viva no recibe otra ⇒ `422 alum.validation.person_already_student`. Desde el alta no se alcanza: `RN-ALUM-09` comprueba el documento antes y responde `person_exists`; la regla la cierra el índice único (y la comprobación del servicio) |
 | `RN-ALUM-02` | `alum` **no guarda** nombre, documento, fecha de nacimiento ni contacto: los lee y escribe por `Core\Domain` (`§16.3` regla 1, `INV-007`). Nunca consulta `people` |
 | `RN-ALUM-03` | El alta crea persona, faceta y, si llega `family_unit`, pertenencia, en una sola transacción |
-| `RN-ALUM-04` | La unidad familiar es **opcional** en el alta (`OPEN-ALUM-23`). Con unidad, además de `alumno.crear` rige lo que decida `OPEN-ALUM-31` (recomendación A: el sujeto debe tener también `familia.actualizar` de `fam_unit`; sin él, `403` y no se escribe nada). Añadir o quitar después sigue siendo la API de `fam_unit` |
+| `RN-ALUM-04` | La unidad familiar es **opcional** en el alta (`OPEN-ALUM-23`). Con unidad, además de `alumno.crear` el sujeto debe tener también `familia.actualizar` de `fam_unit` (`OPEN-ALUM-31` = A, resuelta por el usuario el 2026-11-09); sin él, `403` y no se escribe nada. Añadir o quitar después sigue siendo la API de `fam_unit` |
 | `RN-ALUM-05` | Baja lógica (`INV-004`). Un alumno con alguna matrícula `activa` viva no se da de baja ⇒ `409 alum.conflict.has_active_enrollments` [DERIVADA]. La baja **no** borra la persona ni la pertenencia. En `1.15-a`, antes de existir `enrollments`, la comprobación no tiene objeto y la baja se permite; la entrega `1.15-b` la añade |
 | `RN-ALUM-06` | Restauración: solo si la persona sigue viva y no tiene otra faceta de alumno viva; si no, `409 alum.conflict.cannot_restore` |
-| `RN-ALUM-07` | Corrección de datos personales: el `PATCH` de `alum` los reenvía a `Core`, que audita el cambio de la persona. Persona **sin** usuario: `PersonRegistrar::correctUnaccounted` (existe). Persona **con** usuario: la ampliación aprobada de `Core\Domain` (`RN-ALUM-10`) |
+| `RN-ALUM-07` | Corrección de datos personales: el `PATCH` de `alum` los reenvía a `Core`, que audita el cambio de la persona. Siempre por `PersonRegistrar::correctPerson()`, **con o sin usuario** (`OPEN-ALUM-19` = A; `correctUnaccounted` no admite fecha de nacimiento ni documento y `alum` no lo usa) (`RN-ALUM-10`) |
 | `RN-ALUM-08` | Fecha de nacimiento obligatoria en el alta [DERIVADA: edad para la salida autónoma y para distinguir menores]; `AAAA-MM-DD`, no futura ⇒ `422 alum.validation.birth_date_invalid`. Se guarda en `people.birth_date` (columna existente) |
 | `RN-ALUM-09` | **Documento que coincide con una persona viva del centro** (`OPEN-ALUM-19` = A): `422 alum.validation.person_exists`, con el mismo cuerpo sea cual sea la persona (sin nombre, sin `public_id`, sin decir si es alumno, tutor o personal), y no se crea nada. Secretaría busca a la persona existente por los cauces que su permiso le dé |
-| `RN-ALUM-10` | **Corrección de una persona con usuario** (`OPEN-ALUM-19` = A): ampliación aditiva de `Core\Domain` que permite a `alum`, con `alumno.actualizar`, corregir nombre, apellidos, documento, fecha de nacimiento e idioma de la persona del alumno aunque tenga usuario; **nunca** credenciales, correo de acceso ni estado del usuario (siguen siendo de `Core`). Auditada por `Core` como cambio de la persona |
+| `RN-ALUM-10` | **Corrección de una persona con usuario** (`OPEN-ALUM-19` = A): ampliación aditiva de `Core\Domain` que permite a `alum`, con `alumno.actualizar`, corregir nombre, apellidos, documento, fecha de nacimiento e idioma de la persona del alumno con o sin usuario, siempre por `PersonRegistrar::correctPerson()`; **nunca** credenciales, correo de acceso ni estado del usuario (siguen siendo de `Core`). Auditada por `Core` como cambio de la persona |
 
 ### 5.2 Matrícula (`1.15-b`)
 
@@ -262,7 +262,7 @@ Toda interfaz vive en `Domain` (nunca `Domain\Models`); ningún módulo lee tabl
 | `acad` | Registro de vetos de borrado (`RN-ACAD-21`) | No existe: lo crea `1.15-b` con la forma de `RN-CURSO-30` |
 | `fam_unit` | `FamilyMembership` | Existe (`REQ-FAM-UNIT §7.1`) |
 | `fam_unit` | `FamilyUnitStudents::add()` | **Existe** (`FamUnit/Domain/FamilyUnitStudents.php`, `Application/FamilyUnitStudentService.php`); se consume. No comprueba permisos: lo hace `alum` según `OPEN-ALUM-31` |
-| `Core` | `PersonRegistrar`, `PersonDirectory` | Existen. Ampliación aprobada (`OPEN-ALUM-19` = A): lectura de `birth_date` por ids en `PersonDirectory` (la columna `people.birth_date` ya existe; falta su lectura) y corrección de una persona con usuario (`RN-ALUM-10`) |
+| `Core` | `PersonRegistrar`, `PersonDirectory` | Existen. Ampliación aprobada (`OPEN-ALUM-19` = A) **ya implementada en `1.15-a`**: `PersonDirectory::birthDatesByIds()` (lectura de `people.birth_date`) y `PersonRegistrar::correctPerson()` (corrección de una persona con o sin usuario, `RN-ALUM-10`) |
 | `Core` | `data_exports` con un `kind` nuevo | Ampliación del catálogo de tipos (precedente `1.14-b`) |
 | núcleo | `TenantModel`, `Auditable`, `AuditRecorder::recordRead`, `App\Support\Files`, `RequireIdempotencyKey`, `ScopedQuery` | Existen |
 
@@ -338,9 +338,9 @@ Pest en `apps/api/tests/Feature/Alum/` (concurrencia en `tests/Concurrency/`), V
 
 ### 11.1 Alumnado (`1.15-a`)
 
-- **CA-ALUM-001** — *Dado* secretaría con `alumno.crear` (y lo que exija `OPEN-ALUM-31`), *cuando* da de alta un alumno con nombre, fecha de nacimiento, una unidad familiar viva e `Idempotency-Key`, *entonces* `201`, existe una persona nueva en `Core`, una faceta en `students` y una pertenencia en `fam_unit`, con tres registros `created` en `audit_logs` (`RN-ALUM-03`).
+- **CA-ALUM-001** — *Dado* secretaría con `alumno.crear` y `familia.actualizar` (`OPEN-ALUM-31` = A), *cuando* da de alta un alumno con nombre, fecha de nacimiento, una unidad familiar viva e `Idempotency-Key`, *entonces* `201`, existe una persona nueva en `Core`, una faceta en `students` y una pertenencia en `fam_unit`, con tres registros `created` en `audit_logs` (`RN-ALUM-03`).
 - **CA-ALUM-002** — *Dado* el alta con una unidad familiar inexistente o de otro centro, *entonces* `422 alum.validation.family_unit_not_found` y ni persona, ni faceta, ni pertenencia (`RN-ALUM-03`).
-- **CA-ALUM-003** — *Dado* una persona con faceta de alumno viva, *cuando* se intenta otra, *entonces* `422 alum.validation.person_already_student` (`RN-ALUM-01`).
+- **CA-ALUM-003** — *Dado* una persona con faceta de alumno viva, *cuando* se intenta otra, *entonces* `422 alum.validation.person_already_student` (`RN-ALUM-01`). *Implementación `1.15-a`*: el alta por API con un documento ya existente responde `person_exists` (`RN-ALUM-09`, decisión del 2026-11-09), así que este caso se verifica como `person_exists` y por el índice único parcial (`StudentSchemaTest`).
 - **CA-ALUM-004a** — *Dado* un alumno, *cuando* se da de baja, *entonces* `204` y la persona y la pertenencia siguen vivas (`RN-ALUM-05`, parte sin matrículas).
 - **CA-ALUM-005** — *Dado* un alumno dado de baja, *cuando* se restaura, *entonces* `200`; *y* si la persona ya tiene otra faceta viva, `409 alum.conflict.cannot_restore` (`RN-ALUM-06`).
 - **CA-ALUM-006** — *Dado* una fecha de nacimiento futura o con formato inválido, *entonces* `422 alum.validation.birth_date_invalid` (`RN-ALUM-08`).
@@ -348,7 +348,7 @@ Pest en `apps/api/tests/Feature/Alum/` (concurrencia en `tests/Concurrency/`), V
 - **CA-ALUM-008** — *Dado* `PATCH` del nombre y la fecha de nacimiento de un alumno **con** usuario, *entonces* `200`, `Core` corrige la persona y lo audita; *y* un `PATCH` que intenta cambiar correo de acceso, contraseña o estado del usuario ⇒ `422` y nada cambia (`RN-ALUM-10`).
 - **CA-ALUM-009** — *Dado* un alta cuyo documento coincide con una persona viva del centro (alumno, tutor o personal), *entonces* `422 alum.validation.person_exists` con cuerpo **idéntico** en los tres casos, sin nombre ni `public_id`, y no se crea nada (`RN-ALUM-09`).
 - **CA-ALUM-019** — Idempotencia de `POST /students` (`RN-ALUM-27`): sin `Idempotency-Key` ⇒ `400 urn:pge:error:malformed`; con una clave que no es ULID ⇒ `400`; reintento con la misma clave y el mismo cuerpo ⇒ la respuesta original `201` con `Idempotency-Replayed: true` y una sola persona; misma clave con otro cuerpo ⇒ `409`.
-- **CA-ALUM-032** — *(condicionado a `OPEN-ALUM-31` = A)* *Dado* un sujeto con `alumno.crear` y sin `familia.actualizar`, *cuando* da de alta un alumno con `family_unit`, *entonces* `403` y no se crea nada; *y* sin `family_unit`, `201`.
+- **CA-ALUM-032** — *(`OPEN-ALUM-31` = A, resuelta el 2026-11-09)* *Dado* un sujeto con `alumno.crear` y sin `familia.actualizar`, *cuando* da de alta un alumno con `family_unit`, *entonces* `403` y no se crea nada; *y* sin `family_unit`, `201`.
 
 ### 11.2 Ámbitos
 
@@ -456,7 +456,7 @@ Pest en `apps/api/tests/Feature/Alum/` (concurrencia en `tests/Concurrency/`), V
 | `OPEN-ALUM-11` | Grupo en la matrícula | **B** · Curso de etapa obligatorio, grupo opcional (requiere ADR, C4) |
 | `OPEN-ALUM-13` | Cambio de grupo | **A** · Solicitud + aprobación (`matricula.aprobar`), sin autoaprobación; aprueban por defecto `direccion` y `administrador_centro` |
 | `OPEN-ALUM-16` | Ámbitos | **A** · `['todos','grupo','unidad_familiar']`; sin `clase` ni `propios` |
-| `OPEN-ALUM-19` | Ampliación de `Core\Domain` | **A** · Aditiva: lectura de `birth_date` y corrección de una persona con usuario (`RN-ALUM-10`); documento coincidente ⇒ `422 person_exists` sin revelar quién (`RN-ALUM-09`) |
+| `OPEN-ALUM-19` | Ampliación de `Core\Domain` | **A** · Aditiva: lectura de `birth_date` y corrección (`correctPerson`) de una persona con o sin usuario (`RN-ALUM-10`); documento coincidente ⇒ `422 person_exists` sin revelar quién (`RN-ALUM-09`) |
 | `OPEN-ALUM-28` | `depends_on` | **A** · `['curso','acad','fam_unit']` |
 
 ### 14.2 Abiertas (con recomendación aplicable)
@@ -485,7 +485,7 @@ Pest en `apps/api/tests/Feature/Alum/` (concurrencia en `tests/Concurrency/`), V
 | `OPEN-ALUM-27` | Auditoría de lectura de la ficha | Solo con URL de foto |
 | `OPEN-ALUM-29` | `INV-008` | Cobertura parcial; `OPEN-13` |
 | `OPEN-ALUM-30` | Partición | La de §15 |
-| **`OPEN-ALUM-31`** | **Alta con `family_unit`**: `FamilyUnitStudents::add()` no comprueba permisos; el alta de `alum` escribiría en `fam_unit` con solo `alumno.crear` | **A** · Exigir además `familia.actualizar` de `fam_unit` (el permiso de `POST /family-units/{id}/students`; solo admite `todos`, así que no hay comprobación de ámbito adicional) y responder `403` sin escribir si falta. **B** · Basta `alumno.crear`. **Recomiendo A**: con B, `alumno.crear` se convierte en una puerta trasera a una escritura que `fam_unit` protege con su propio permiso; con la siembra recomendada `secretaria` tiene ambos, así que no cambia el uso normal. Condiciona `RN-ALUM-04` y `CA-ALUM-032` |
+| **`OPEN-ALUM-31`** | **Alta con `family_unit`**: `FamilyUnitStudents::add()` no comprueba permisos; el alta de `alum` escribiría en `fam_unit` con solo `alumno.crear` | **A** · Exigir además `familia.actualizar` de `fam_unit` (el permiso de `POST /family-units/{id}/students`; solo admite `todos`, así que no hay comprobación de ámbito adicional) y responder `403` sin escribir si falta. **B** · Basta `alumno.crear`. **Recomiendo A**: con B, `alumno.crear` se convierte en una puerta trasera a una escritura que `fam_unit` protege con su propio permiso; con la siembra recomendada `secretaria` tiene ambos, así que no cambia el uso normal. Condiciona `RN-ALUM-04` y `CA-ALUM-032` | **Resuelta A por el usuario el 2026-11-09** (implementada en `1.15-a`, `CA-ALUM-032`).
 
 ---
 

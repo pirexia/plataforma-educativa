@@ -23,6 +23,7 @@ use App\Modules\Acad\Domain\Models\TimeSlot;
 use App\Modules\Acad\Domain\Models\Timetable;
 use App\Modules\Acad\Domain\Models\TimetableFrame;
 use App\Modules\Acad\Domain\Models\TimetableSession;
+use App\Modules\Alum\Domain\Models\Student;
 use App\Modules\Auth\Domain\Models\IdentityProvider;
 use App\Modules\Auth\Domain\Models\MfaReset;
 use App\Modules\Auth\Domain\Models\SamlIdentityProviderSettings;
@@ -116,7 +117,7 @@ test('todo modelo del morph map es Auditable y el conjunto Full coincide con ADR
         AcademicYearReopening::class, YearRollover::class, YearRolloverItem::class,
         Facility::class, Timetable::class, TeachingAssignment::class, GroupTutor::class,
         TimetableFrame::class, TimeSlot::class, TimetableSession::class, FacilityBooking::class,
-        Guardian::class, FamilyUnitStudent::class, TermsVersion::class,
+        Guardian::class, FamilyUnitStudent::class, TermsVersion::class, Student::class,
     ]);
 });
 

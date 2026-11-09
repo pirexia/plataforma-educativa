@@ -24,6 +24,7 @@ use App\Modules\Core\Domain\TenantProvisioner;
 use App\Modules\Core\Domain\TenantSettingsReader;
 use App\Modules\Core\Domain\UserDirectory;
 use App\Modules\Core\Infrastructure\Console\GrantAcademicYearPermissionsCommand;
+use App\Modules\Core\Infrastructure\Console\GrantAlumPermissionsCommand;
 use App\Modules\Core\Infrastructure\Console\GrantFamUnitPermissionsCommand;
 use App\Modules\Core\Infrastructure\Console\GrantReopenPermissionCommand;
 use App\Modules\Core\Infrastructure\Console\GrantRoleAdministrationCommand;
@@ -137,6 +138,7 @@ class CoreServiceProvider extends ServiceProvider implements DeclaresModuleRegis
                 GrantRolloverPermissionsCommand::class,
                 GrantStructurePermissionsCommand::class,
                 GrantFamUnitPermissionsCommand::class,
+                GrantAlumPermissionsCommand::class,
             ]);
         }
     }

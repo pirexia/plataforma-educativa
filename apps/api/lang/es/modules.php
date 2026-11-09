@@ -9,4 +9,5 @@ return [
     'acad' => 'Gestión académica',
     'fam_unit' => 'Unidad familiar',
     'prl' => 'Puerta y entrega de menores',
+    'alum' => 'Alumnado y matrícula',
 ];

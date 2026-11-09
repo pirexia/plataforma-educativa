@@ -27,7 +27,7 @@ Excepción: en el **primer ciclo de Infantil (0-3) en régimen privado** sí som
 | **`PLAN-IMPLEMENTACION.md`** | Pasos de ejecución, dimensionados a sesiones de 5 h | Al arrancar cada sesión |
 | **`ARCHITECTURE.md`** | Stack, estructura, despliegue, dimensionado de hardware | Antes de tocar arquitectura |
 | **`SYSADMIN.md`** | Entorno de desarrollo, `compose.yaml`, operación | Antes de tocar infraestructura |
-| **`docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md`** | Fuente de verdad funcional. 53 módulos especificados (secciones 5.1-5.53; hoy hay 5 bounded contexts implementados en `apps/api/app/Modules`), 69 ADR en el índice | Al empezar un módulo |
+| **`docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md`** | Fuente de verdad funcional. 53 módulos especificados (secciones 5.1-5.53; hoy hay 8 bounded contexts implementados (Acad, Alum, Auth, Backoffice, Core, Curso, FamUnit, Prl) en `apps/api/app/Modules`), 69 ADR en el índice | Al empezar un módulo |
 | **`docs/i18n.md`** | Convención de internacionalización, backend y frontend (`ADR-021`/`INV-009`) | Antes de escribir cualquier texto visible |
 | **`docs/SETUP-ENTORNO.md`** | **Puesta en marcha completa**: WSL2, Podman, Claude Code, repositorio | Antes que nada |
 | **`docs/SETUP-CLAUDE-CODE.md`** | Plugins, MCP, subagentes y skills | Al configurar el entorno |

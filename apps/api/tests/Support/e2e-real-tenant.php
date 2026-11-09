@@ -13,6 +13,8 @@
  * Con `door` (1.14b-b, `REQ-PRL-004`, `apps/web/scripts/e2e-real-prl.sh`) el centro contrata además `fam_unit` y `prl` y deja dos
  * usuarios sintéticos activos con los roles predefinidos `conserjeria_pas` y `secretaria` (sin MFA) y una contraseña común.
  *
+ * Con `alum` (1.15-a, `REQ-ALUM`, `apps/web/scripts/e2e-real-alum.sh`) contrata `alum` y `fam_unit` y deja un tutor sintético con el rol `tutor_legal`.
+ *
  * El slug por defecto es `demo`, el centro para el que está configurado el
  * entorno de desarrollo (`VITE_API_URL=http://demo.plataforma.test:8000`).
  *
@@ -54,10 +56,12 @@ const E2E_ADMIN_EMAIL = 'e2e-admin@example.com';
 const E2E_TARGET_EMAIL = 'e2e-docente@example.com';
 const E2E_CONSERJE_EMAIL = 'e2e-conserje@example.com';
 const E2E_SECRETARIA_EMAIL = 'e2e-secretaria@example.com';
+const E2E_TUTOR_EMAIL = 'e2e-tutor@example.com';
 
 $mode = $argv[1] ?? '';
 $slug = $argv[2] ?? 'demo';
 $door = ($argv[3] ?? '') === 'door';
+$alum = ($argv[3] ?? '') === 'alum';
 
 if (! in_array($mode, ['setup', 'teardown'], true) || preg_match('/^[a-z0-9][a-z0-9-]{0,39}$/', $slug) !== 1) {
     fwrite(STDERR, "Uso: php tests/Support/e2e-real-tenant.php setup|teardown [slug] (slug: minúsculas, dígitos y guiones, hasta 40)\n");
@@ -122,8 +126,9 @@ $password = 'E2e-'.Str::random(20);
 $staffPassword = 'E2e-'.Str::random(20);
 
 $students = [];
+$tutorUser = null;
 
-app(TenantContext::class)->runFor($tenant->id, function () use ($password, $door, $staffPassword, &$students): void {
+app(TenantContext::class)->runFor($tenant->id, function () use ($password, $door, $alum, $staffPassword, &$students, &$tutorUser): void {
     // El administrador aprovisionado queda invitado (sin contraseña) y su rol
     // obliga a MFA: se activa con contraseña conocida y una excepción de MFA
     // viva (REQ-AUTH-003) para que el login real no pida inscribir un factor.
@@ -156,6 +161,27 @@ app(TenantContext::class)->runFor($tenant->id, function () use ($password, $door
         'email' => 'e2e-docente2@example.com',
         'status' => UserStatus::Activo,
     ]);
+
+    // REQ-ALUM (1.15-a): `alum` y `fam_unit` contratados y un tutor sintético activo con el rol predefinido `tutor_legal`
+    // (`alumno.leer` con ámbito `unidad_familiar`) y contraseña conocida; el alumnado y los vínculos los crea el test por la API.
+    if ($alum) {
+        foreach (['alum', 'fam_unit'] as $module) {
+            ModuleSubscription::on('pgsql_platform')->create([
+                'module_code' => $module, 'enabled' => true, 'enabled_at' => now(), 'reason' => 'Test e2e de alumnado con datos sintéticos.',
+            ]);
+            Cache::forget("modules:{$module}:enabled");
+        }
+
+        $tutorUser = User::factory()->for(Person::factory()->create(['given_name' => 'Tomás', 'family_name_1' => 'Tutor', 'family_name_2' => 'Ficticio']))->create([
+            'email' => E2E_TUTOR_EMAIL,
+            'password' => $staffPassword,
+            'status' => UserStatus::Activo,
+            'email_verified_at' => now(),
+        ]);
+        $tutorUser->roles()->attach(Role::where('code', 'tutor_legal')->firstOrFail()->id);
+
+        return;
+    }
 
     if (! $door) {
         return;
@@ -194,5 +220,6 @@ echo json_encode([
     'admin_password' => $password,
     'target_email' => E2E_TARGET_EMAIL,
     'target_name' => 'Daniel Docente',
+    ...($alum ? ['staff_password' => $staffPassword, 'tutor_email' => E2E_TUTOR_EMAIL, 'tutor_user' => $tutorUser?->public_id] : []),
     ...($door ? ['staff_password' => $staffPassword, 'conserje_email' => E2E_CONSERJE_EMAIL, 'secretaria_email' => E2E_SECRETARIA_EMAIL, 'student_1' => $students[0], 'student_2' => $students[1]] : []),
 ]), "\n";

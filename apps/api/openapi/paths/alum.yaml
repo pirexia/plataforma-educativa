@@ -1,0 +1,169 @@
+# REQ-ALUM (paso 1.15-a), docs/modulos/REQ-ALUM/api.md §1. Convenciones de ADR-038.
+# `1.15-a`: alumnado (listado, alta, ficha, corrección, baja y restauración) sin matrículas, sin foto y con los ámbitos
+# `todos` y `unidad_familiar`. Matrícula, cambio de grupo y fotografía (`1.15-b` y `1.15-c`) se documentan con su entrega.
+paths:
+  /api/v1/students:
+    get:
+      operationId: listStudents
+      summary: Lista el alumnado
+      description: >
+        Permiso `alumno.leer`, ámbito `todos` o `unidad_familiar`. Con `unidad_familiar` el listado devuelve solo los
+        alumnos con un vínculo **activo** del sujeto (RN-ALUM-62, sin caché entre peticiones, RN-ALUM-63); lo no
+        alcanzado no aparece. Paginación por página (defecto 25, máximo 100). Orden por `name` (defecto, nombre visible)
+        o `created_at`, desempate por `id`. `q` busca por prefijo de nombre o apellidos (mínimo 2 caracteres) solo entre
+        los alumnos del ámbito del sujeto. `include_deleted=true` exige `alumno.eliminar` (si no, `403`). Los filtros por
+        curso, grupo y estado de matrícula y la matrícula vigente llegan con `1.15-b`.
+      tags: ['Alum / Alumnado']
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - name: q
+          in: query
+          description: Prefijo del nombre o de los apellidos (mínimo 2 caracteres; los comodines de `LIKE` se tratan como texto).
+          schema: { type: string, minLength: 2, maxLength: 100 }
+        - name: include_deleted
+          in: query
+          description: Incluye los alumnos dados de baja (con `deleted_at`). Solo con `alumno.eliminar`.
+          schema: { type: boolean }
+        - { $ref: '../components.yaml#/components/parameters/StudentSortParam' }
+        - { $ref: '../components.yaml#/components/parameters/PageParam' }
+        - { $ref: '../components.yaml#/components/parameters/PerPageParam' }
+      responses:
+        '200':
+          description: Página de resultados
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '../components.yaml#/components/schemas/StudentSummary' }
+                  meta: { $ref: '../components.yaml#/components/schemas/PageMeta' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`), filtro `include_deleted` sin `alumno.eliminar` o módulo `alum` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+    post:
+      operationId: createStudent
+      summary: Da de alta un alumno
+      description: >
+        Permiso `alumno.crear`, ámbito `todos`. En **una** transacción crea la persona (`Core`), fija su fecha de
+        nacimiento e idioma, crea la faceta de alumno y, si llega `family_unit`, la pertenencia a la unidad
+        (RN-ALUM-03). Con `family_unit` se exige además `familia.actualizar` (OPEN-ALUM-31 = A, RN-ALUM-04): sin él,
+        `403` y no se escribe nada. **`Idempotency-Key` obligatoria** (RN-ALUM-27, ADR-038 §8): ausente o con formato
+        inválido ⇒ `400`; el reintento con el mismo cuerpo repite la respuesta original (`Idempotency-Replayed: true`);
+        con otro cuerpo, `409`. Un documento que coincide con una persona viva del centro ⇒
+        `422 alum.validation.person_exists`, con el mismo cuerpo sea quien sea esa persona (RN-ALUM-09). Una unidad
+        familiar inexistente o de otro centro ⇒ `422 alum.validation.family_unit_not_found`.
+      tags: ['Alum / Alumnado']
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - { $ref: '../components.yaml#/components/parameters/IdempotencyKeyHeader' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '../components.yaml#/components/schemas/StudentCreate' }
+      responses:
+        '201':
+          description: Alumno creado. Cabecera `Location` con su URL.
+          headers:
+            Idempotency-Replayed: { $ref: '../components.yaml#/components/headers/IdempotencyReplayed' }
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/Student' }
+        '400': { description: 'Falta `Idempotency-Key` o no es un ULID (`urn:pge:error:malformed`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso, con `family_unit` sin `familia.actualizar`, o módulo `alum` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '409': { $ref: '../components.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+
+  /api/v1/students/{publicId}:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    get:
+      operationId: getStudent
+      summary: Ficha del alumno
+      description: >
+        Permiso `alumno.leer`, ámbito `todos` o `unidad_familiar`. Fuera de ámbito o inexistente (o de otro centro):
+        `404` idéntico (RN-ALUM-64). Nombres por partes, fecha de nacimiento e idioma de la persona (de `Core`); el
+        documento de identidad va **enmascarado**, nunca completo. Sin `enrollments[]` (`1.15-b`), `emergency_contact`,
+        `guardians[]` ni `photo`.
+      tags: ['Alum / Alumnado']
+      security: [{ SessionCookie: [] }]
+      responses:
+        '200':
+          description: La ficha
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/Student' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `alum` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+    patch:
+      operationId: updateStudent
+      summary: Corrige los datos personales del alumno
+      description: >
+        Permiso `alumno.actualizar`, ámbito `todos`. Reenvía la corrección a `Core` (con o sin usuario, RN-ALUM-07 y
+        RN-ALUM-10), que valida el documento y el idioma, y la audita como cambio de la persona. Solo cuentan las claves
+        presentes. Cualquier otra clave (correo de acceso, contraseña, estado del usuario, `family_unit`...) ⇒
+        `422 alum.validation.field_not_editable` y no cambia nada. Un cuerpo sin ningún dato ⇒
+        `422 alum.validation.no_changes`. El alumno inexistente es `404` antes que cualquier `422`.
+      tags: ['Alum / Alumnado']
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '../components.yaml#/components/schemas/StudentUpdate' }
+      responses:
+        '200':
+          description: La ficha corregida
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/Student' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `alum` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+    delete:
+      operationId: deleteStudent
+      summary: Da de baja al alumno
+      description: >
+        Permiso `alumno.eliminar`, ámbito `todos`. Baja lógica (RN-ALUM-05): no borra la persona ni su pertenencia a la
+        unidad familiar. Hasta `1.15-b` no hay matrículas que impidan la baja.
+      tags: ['Alum / Alumnado']
+      security: [{ SessionCookie: [] }]
+      responses:
+        '204': { description: Dado de baja }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `alum` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+
+  /api/v1/students/{publicId}/restore:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    post:
+      operationId: restoreStudent
+      summary: Restaura un alumno dado de baja
+      description: >
+        Permiso `alumno.eliminar`, ámbito `todos`. Solo si la persona sigue viva y no tiene otra faceta de alumno viva;
+        si no, `409 alum.conflict.cannot_restore` (RN-ALUM-06). Un alumno que no está dado de baja es `404`.
+      tags: ['Alum / Alumnado']
+      security: [{ SessionCookie: [] }]
+      responses:
+        '200':
+          description: Restaurado
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/Student' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `alum` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../components.yaml#/components/responses/Conflict' }

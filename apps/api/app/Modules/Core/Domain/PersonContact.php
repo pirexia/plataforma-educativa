@@ -9,6 +9,9 @@ namespace App\Modules\Core\Domain;
  *
  * Los tres campos de nombre (`givenName`, `familyName1`, `familyName2`) los añade el issue #509 (aditivo, opcionales):
  * solo los emite `GET /pickup-persons/{p}` y las demás respuestas de `PickupPerson` para precargar la edición.
+ *
+ * `locale` (idioma de la persona) lo añade `1.15-a` (REQ-ALUM, ficha de alumno; aditivo, opcional): lo consume solo la
+ * ficha de `alum`.
  */
 final class PersonContact
 {
@@ -19,5 +22,6 @@ final class PersonContact
         public readonly ?string $givenName = null,
         public readonly ?string $familyName1 = null,
         public readonly ?string $familyName2 = null,
+        public readonly ?string $locale = null,
     ) {}
 }

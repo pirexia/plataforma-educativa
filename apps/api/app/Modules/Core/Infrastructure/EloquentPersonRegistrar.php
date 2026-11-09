@@ -5,8 +5,10 @@ namespace App\Modules\Core\Infrastructure;
 use App\Models\Person;
 use App\Models\User;
 use App\Modules\Core\Application\DocumentNumberValidator;
+use App\Modules\Core\Application\PersonDocumentRules;
 use App\Modules\Core\Domain\DocumentType;
 use App\Modules\Core\Domain\PersonCorrection;
+use App\Modules\Core\Domain\PersonDataCorrection;
 use App\Modules\Core\Domain\PersonNotCorrectableException;
 use App\Modules\Core\Domain\PersonRegistrar;
 use App\Modules\Core\Domain\PersonRegistration;
@@ -33,6 +35,7 @@ final class EloquentPersonRegistrar implements PersonRegistrar
     public function __construct(
         private readonly DocumentNumberValidator $documents,
         private readonly TenantSettingsReader $settings,
+        private readonly PersonDocumentRules $documentRules,
     ) {}
 
     public function registerOrReuse(PersonRegistration $data): PersonRegistrationOutcome
@@ -85,6 +88,57 @@ final class EloquentPersonRegistrar implements PersonRegistrar
 
             foreach ($data->changes as $column => $value) {
                 $person->{$column} = $value === null ? null : trim($value);
+            }
+
+            $person->save();
+        });
+    }
+
+    public function correctPerson(int $personId, PersonDataCorrection $data): void
+    {
+        DB::transaction(function () use ($personId, $data): void {
+            $person = Person::query()->whereKey($personId)->lockForUpdate()->first();
+
+            if ($person === null) {
+                throw new PersonNotCorrectableException;
+            }
+
+            $changes = $data->changes;
+            $errors = new ValidationErrorBag;
+
+            // Mismas reglas que `UpdateUser` (RN-CORE-93): el par de documento resultante, no cada campo suelto.
+            $typeProvided = array_key_exists('document_type', $changes);
+            $numberProvided = array_key_exists('document_number', $changes);
+            $document = null;
+
+            if ($typeProvided || $numberProvided) {
+                $document = $this->documentRules->check(
+                    $typeProvided ? $changes['document_type'] : $person->document_type,
+                    $numberProvided ? $changes['document_number'] : $person->document_number,
+                    $errors,
+                    $personId,
+                );
+            }
+
+            if (array_key_exists('locale', $changes) && $changes['locale'] !== null && ! in_array($changes['locale'], $this->settings->activeLocales(), true)) {
+                $errors->add('locale', 'core.validation.locale_not_active', 'core.validation.locale_not_active', ['locale' => $changes['locale']]);
+            }
+
+            $errors->throwIfAny();
+
+            foreach ($changes as $column => $value) {
+                $person->{$column} = $value === null ? null : trim($value);
+            }
+
+            if ($document !== null) {
+                // Valor canónico (RN-CORE-92) para los campos enviados.
+                if ($typeProvided) {
+                    $person->document_type = $document['type'];
+                }
+
+                if ($numberProvided) {
+                    $person->document_number = $document['number'];
+                }
             }
 
             $person->save();

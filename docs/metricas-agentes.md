@@ -138,3 +138,18 @@ Solo cuota de OpenAI; no se mide en tokens de Claude. Registrar por revisión: p
 | 1.14b-c1 | adversarial-review --base 76fe7c3 (ronda 3) | 0 | 0 | 0 | approve |
 | 1.14b-c2 | adversarial-review --base develop | no disponible | 0 | 0 | cuota de OpenAI agotada (hasta 2026-12-02): el turno falló y su «approve» no cuenta; régimen de respaldo con security-reviewer completo |
 | 1.14b-d1 | adversarial-review | no disponible | 0 | 0 | cuota de OpenAI agotada (hasta 2026-12-02): régimen de respaldo `ADR-050` con `security-reviewer` completo |
+| 1.15-a T1 | implementer (reanudado tras corte) | datos y permisos | 122183 | 33 | 6.7 | 3702 | sin briefing; auditó trabajo previo sin commitear |
+| 1.15-a T2 | explorer · briefing | briefing T2 | 165580 | 52 | 4.8 | 3184 | experimental; destapó 10 huecos spec/código |
+| 1.15-a T2 | implementer | servicio, endpoints, resolutor, OpenAPI | 274862 | 65 | 15.1 | 4228 | con briefing; 0 cortes |
+| 1.15-a cierre | security-reviewer | revisión completa (ADR-050, sin Codex) | 122463 | 24 | 3.6 | 5103 | 0 Crít./Altos; 2 Medios, 3 Bajos |
+| 1.15-a cierre | db-reviewer | migración students | 73201 | 8 | 0.7 | 9150 | sin hallazgos |
+| 1.15-a cierre | doc-precheck (ronda 1) | mecánica | 103430 | 14 | 1.6 | 7388 | |
+| 1.15-a cierre | doc-reviewer | ronda 1 | 139482 | 20 | 2.6 | 6974 | 6 Medios, 5 Bajos (todos documentales) |
+| 1.15-a cierre | verificador | suite completa (1.ª) | 35463 | 12 | 9.1 | 2955 | 4 rojos por expectativas de Core |
+| 1.15-a cierre | implementer | reanudación única de correcciones | 137183 | 36 | 6.4 | 3811 | |
+| 1.15-a cierre | doc-precheck (ronda 2) | lista cerrada | 70686 | 7 | 0.7 | 10098 | |
+| 1.15-a cierre | verificador | suite completa (2.ª) | 30364 | 12 | 8.4 | 2530 | 2250+67 en verde |
+| 1.15-a cierre | implementer | spec E2E real alum | 106808 | 25 | 3.6 | 4272 | |
+| 1.15-a cierre | verificador | E2E real alum | n/d | n/d | n/d | n/d | 3/3 verde; cifras no recibidas |
+
+Medias por tipo de `1.15-a` sin recalcular: el paso `1.15` no está cerrado (faltan `-b`..`-d`); se recalculan al cerrar `1.15`.
