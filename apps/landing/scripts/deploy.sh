@@ -77,7 +77,7 @@ while IFS= read -r line; do
   esac
 done < dist/_headers
 if [ "$STATUS" -ne 0 ]; then
-  echo "deploy: el despliegue ya está publicado pero incumple las cabeceras; revertir (README, «Desplegar y revertir»)" >&2
+  echo "deploy: el despliegue ya está publicado pero incumple las cabeceras; revertir ya: npx wrangler rollback (README, «Desplegar y revertir»)" >&2
   exit 1
 fi
 echo "deploy: correcto"
