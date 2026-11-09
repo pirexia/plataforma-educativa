@@ -6,6 +6,10 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-09 · `docs(landing)`: ADR-074 rediseño de la landing (`ACEPTADA`, #579)
+
+- `ADR-074` (`ACEPTADA`): inglés en `/` y resto de idiomas bajo `/es/`, `/de/`, `/fr/`; `DEFAULT_LANG`, `BASE_LANG` y `LEGAL_LANG` (es-ES) separados; capturas reales del demo con datos sintéticos; AVIF/WebP con `sharp` aislada; carrusel y efectos solo con CSS; `OPEN-074-01` a `-07` resueltas con la recomendación (usuario, 2026-11-09). Requisitos 3.2.28.
+
 ## 2026-11-09 · `feat(landing)`: datos legales y correo de la landing (`ADR-073`, #579)
 
 - `ADR-073` ACEPTADA: titular persona física sin NIF ni domicilio publicados; `founders@adagiox.com` en Arsys (sustituye `OPEN-072-03`); publicación sin asesor (sustituye `U4`); discrepancia registrada en su `§5`. Requisitos 3.2.27.
