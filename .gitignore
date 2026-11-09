@@ -106,3 +106,5 @@ apps/web/coverage/
 
 # Landing pública (ADR-072): artefacto de construcción
 apps/landing/dist/
+apps/landing/.lighthouseci/
+apps/landing/.wrangler/

@@ -11,6 +11,11 @@
     "build": "node scripts/build.mjs",
     "check": "node scripts/check.mjs",
     "check:publish": "node scripts/check.mjs --publish",
-    "test": "node --test \"test/*.test.mjs\""
+    "test": "node --test \"test/*.test.mjs\"",
+    "lighthouse": "lhci autorun"
+  },
+  "devDependencies": {
+    "@lhci/cli": "0.16.0",
+    "wrangler": "4.159.0"
   }
 }
