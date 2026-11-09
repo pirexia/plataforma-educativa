@@ -51,6 +51,17 @@ node scripts/check.mjs --publish  # comprobaciones previas a publicar (ver abajo
 - **Los textos legales no se traducen automáticamente** (`CLAUDE.md §2.9`, `OPEN-072-05`): las claves `legal.body.*` se renderizan siempre desde es-ES, con `lang="es-ES"`, en las cuatro rutas `/legal/`. Solo la línea `legal.lang.notice` (aviso de idioma) se traduce.
 - Rutas: `/`, `/en/`, `/de/`, `/fr/` y `/legal/`, `/en/legal/`, `/de/legal/`, `/fr/legal/`. Sin redirección por `Accept-Language`: el selector son cuatro enlaces.
 
+### Cómo añadir un idioma (`ADR-074 §4.2`)
+
+`scripts/lib.mjs` → `LANGS` es la única lista de idiomas (`code` BCP 47, `slug` de URL y `dir`); las plantillas no nombran idiomas. Para añadir `xx`:
+
+1. Una entrada en `LANGS`: `{ code: 'xx', slug: 'xx', dir: 'ltr' }` (`rtl` si procede). El `slug` es el segmento de URL; el `code` va en `lang` y `hreflang`. El idioma por defecto (`DEFAULT_LANG`) es el único con `slug: ''`.
+2. `locales/xx.json` con todas las claves de `en.json` y `"_pending_translation": true`. `en` (`BASE_LANG`) y `es-ES` (`LEGAL_LANG`) son idiomas de redacción y no admiten esa marca.
+3. La clave `lang.name.xx` (nombre del idioma en su propia lengua) con **el mismo valor en todas** las locales.
+4. La URL de su portada (`http://localhost/xx/index.html`) en `.lighthouserc.json`.
+
+`npm run check` falla si falta algún paso (fichero de locale, autónimo, URL de Lighthouse), si hay dos idiomas con el mismo `slug` o si `dir` no es `ltr`/`rtl`; `npm run check:publish` falla mientras quede `_pending_translation`. Selector, `hreflang`, `x-default`, `canonical` y `sitemap.xml` salen de `LANGS` sin tocar plantillas. El texto legal (`legal.body.*`) sigue saliendo siempre de `es-ES`.
+
 ## Contenido: afirmación → fuente (`ADR-072 §8`)
 
 Estado visible: «en desarrollo». Sin cifras, clientes, certificaciones, fechas, precios, capturas ni disponibilidad. El copy es-ES lo ha revisado la sesión; **falta la validación del usuario antes de publicar** (`ADR-072 §8`).

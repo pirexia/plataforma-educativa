@@ -6,6 +6,13 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-09 · `feat(landing)`: rediseño, tramo T1, idiomas, comprobaciones y pipeline de imágenes (`ADR-074`, #579)
+
+- `apps/landing`: `LANGS` (código, *slug*, `dir`) como única lista; `DEFAULT_LANG`/`BASE_LANG` = `en`, `LEGAL_LANG` = `es-ES`; `/` en inglés y `/es/`, `/de/`, `/fr/`; `x-default` → `/`; plantillas (cabecera, `head-links`, 404) sin idiomas escritos; 404 en inglés; `<html dir>`; `_pending_translation` prohibido también en `en`.
+- `check.mjs`: reglas de idiomas (locale y autónimo de cada idioma, URL en `.lighthouserc.json`, *slug* único, `dir`), texto legal solo de `es-ES`, y las reglas de imagen de `ADR-074 §4.6` (alt/width/height contra el manifiesto, una sola imagen LCP, `srcset` existente y del mismo origen, `url()` local y sin `data:`, topes de 120 KB por fichero y 2,5 MB, bloque `prefers-reduced-motion`). `.lighthouserc.json`: LCP ≤ 2,5 s, CLS ≤ 0,05, imágenes ≤ 300 KB y total ≤ 450 KB.
+- `build.mjs` copia `src/img/` y emite `<picture>` AVIF/WebP con `{{img:id}}`; sin imágenes todavía. `tools/images/` (herramienta aislada, `sharp` 0.35.5 exacta, Apache-2.0, no se instala en CI; maestros PNG fuera de Git).
+- **No hecho** (T2/T3): capturas, diseño, carrusel y contenido.
+
 ## 2026-11-09 · `docs(landing)`: ADR-074 rediseño de la landing (`ACEPTADA`, #579)
 
 - `ADR-074` (`ACEPTADA`): inglés en `/` y resto de idiomas bajo `/es/`, `/de/`, `/fr/`; `DEFAULT_LANG`, `BASE_LANG` y `LEGAL_LANG` (es-ES) separados; capturas reales del demo con datos sintéticos; AVIF/WebP con `sharp` aislada; carrusel y efectos solo con CSS; `OPEN-074-01` a `-07` resueltas con la recomendación (usuario, 2026-11-09). Requisitos 3.2.28.
