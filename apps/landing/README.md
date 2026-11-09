@@ -1,6 +1,6 @@
 # Landing pública de adagiox.com
 
-Sitio estático de AdagioX (`ADR-072`). **Sin JavaScript necesario**: el sitio es completamente utilizable sin él y lleva **un único script propio** (`src/js/carousel.js`, `ADR-075`) que solo mejora el carrusel. Sin cookies, sin analítica, sin formularios y sin recursos de terceros. Cuatro idiomas: es-ES (por defecto), en, de y fr. **Solo esta landing usa el nombre AdagioX**; el resto del repositorio no cambia (`ADR-072 §1.1`).
+Sitio estático de AdagioX (`ADR-072`). **Sin JavaScript necesario**: el sitio es completamente utilizable sin él y lleva **un único script propio** (`src/js/carousel.js`, `ADR-075`) que solo mejora el carrusel. Sin cookies, sin analítica, sin formularios y sin recursos de terceros. Cuatro idiomas: en (por defecto, en `/`); es-ES, de y fr bajo `/es/`, `/de/`, `/fr/`; los textos legales solo en es-ES. **Solo esta landing usa el nombre AdagioX**; el resto del repositorio no cambia (`ADR-072 §1.1`).
 
 Estado: rediseño de `ADR-074` hecho en sus tramos **T1** (idiomas y comprobaciones), **T2** (capturas), **T3** (diseño y contenido, en/es-ES/de/fr) y **T4** (`ADR-075`, carrusel con script propio: avance automático, puntos, flechas y pausa, y la pantalla de acceso como primera diapositiva). El copy en inglés y en es-ES está redactado por la sesión y **pendiente de validación del usuario**; `de` y `fr` están traducidos (tratamiento formal) y `npm run check:publish` pasa. Datos legales resueltos por `ADR-073` (titular persona física sin NIF ni domicilio publicados; correo `founders@adagiox.com`; publicación sin asesor). **No se publica nada**: el despliegue está apagado hasta `LANDING_DEPLOY_ENABLED = true`, y antes deben estar el DNS, el buzón `founders@adagiox.com` funcionando y el *environment* `landing-production` (`SYSADMIN.md §4b`).
 
@@ -51,10 +51,10 @@ node scripts/check.mjs --publish  # comprobaciones previas a publicar (ver abajo
 
 ## Idiomas
 
-- `en.json` (`BASE_LANG`) y `es-ES.json` son idiomas de redacción (sin `_pending_translation`). Las claves `home.*` nuevas del rediseño están en `de.json` y `fr.json` **con el texto en inglés y `_pending_translation: true`**: las traduce `traductor` (tratamiento formal) cuando el usuario valide el copy. La clave `"_pending_translation": true` sigue existiendo como mecanismo: al añadir claves nuevas en es-ES, se copian a en/de/fr con ese indicador, `check` avisa y `--publish` falla hasta que se traducen y se elimina el indicador.
+- `en.json` (`BASE_LANG`) y `es-ES.json` son idiomas de redacción; `de.json` y `fr.json` llevan las claves `home.*` traducidas (tratamiento formal) y sin `_pending_translation`. El indicador sigue existiendo como mecanismo: al añadir claves nuevas en es-ES, se copian a en/de/fr con ese indicador, `check` avisa y `--publish` falla hasta que se traducen y se elimina el indicador.
 - **Los textos legales no se traducen automáticamente** (`CLAUDE.md §2.9`, `OPEN-072-05`): las claves `legal.body.*` se renderizan siempre desde es-ES, con `lang="es-ES"`, en las cuatro rutas `/legal/`. Solo la línea `legal.lang.notice` (aviso de idioma) se traduce.
 - Etiquetas del carrusel: cinco claves `home.carousel.{prev,next,goto,pause,resume}` (`goto` lleva `{n}` y `{total}`) más `home.carousel.hint`, que describe los controles y sigue siendo veraz sin JavaScript. Llegan al script por atributos `data-*` del contenedor `.carousel` (`data-prev`, `data-next`, `data-goto`, `data-pause`, `data-resume`) puestos con `{{t:…}}`: el script no contiene texto. Para añadir una etiqueta, se crea la clave en los cuatro idiomas, se pone un `data-…` nuevo con su marcador y el script lo lee con `getAttribute`; `check` exige las cinco actuales.
-- Rutas: `/`, `/en/`, `/de/`, `/fr/` y `/legal/`, `/en/legal/`, `/de/legal/`, `/fr/legal/`. Sin redirección por `Accept-Language`: el selector son cuatro enlaces.
+- Rutas: `/` (en), `/es/`, `/de/`, `/fr/` y `/legal/`, `/es/legal/`, `/de/legal/`, `/fr/legal/`. Sin redirección por `Accept-Language`: el selector son cuatro enlaces.
 
 ### Cómo añadir un idioma (`ADR-074 §4.2`)
 
@@ -86,9 +86,9 @@ Estado visible siempre: «In development: not yet available to schools». Sin ci
 | | Consentimiento de uso de imagen | `1.14-b` | #478 |
 | `home.s.pickup.*` | Búsqueda en conserjería y personas autorizadas a recoger (solo hasta `1.14b-d1`; no se citan `1.14b-d2` a `-d4`) | `1.14b-a`, `-b`, `-c1`, `-c2`, `-d1` | #497, #504, #513, #519, #525 |
 | `home.also.academic.*` | Estructura académica, períodos lectivos, escalas de calificación | `1.11-b`, `1.11d-a`, `1.11d-b` | #423, #435, #439 |
-| `home.also.year.*` | Abrir, cerrar y reabrir un curso; abrir el siguiente | `1.10`, `1.11c`, `1.12b` | #386, `1.11c` no verificado, #460 |
+| `home.also.year.*` | Abrir, cerrar y reabrir un curso; abrir el siguiente | `1.10`, `1.11c`, `1.12b` | #386, #443, #460 |
 | `home.also.languages.*` | Interfaz en castellano, inglés, alemán y francés; idioma por usuario | `ADR-021` | no verificado (transversal) |
-| `home.next.*` | Matrícula y listas, asistencia, calificaciones y boletines, comunicación con familias, portales: pasos de fase 1 **no** mezclados, sin fechas ni orden | `1.15`, `1.16`-`1.23` | sin PR |
+| `home.next.*` | Matrícula y listas, asistencia, calificaciones y boletines, comunicación con familias, portales: pasos de fase 1 **no** mezclados, sin fechas ni orden | `1.15-b` a `1.23`; `1.15-a` (alumnado, #559) está mezclado y la landing no lo afirma | sin PR |
 | `home.built.*` | «Developed with Claude Code» (`OPEN-074-05`), sin logotipo ni enlace | `ADR-074 §4.7` | no aplica |
 | `home.status.*`, `footer.status` | «En desarrollo»; no disponible para centros | `ADR-074 §4.7` | no aplica |
 
