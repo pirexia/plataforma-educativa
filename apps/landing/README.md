@@ -2,7 +2,7 @@
 
 Sitio estático de AdagioX (`ADR-072`). Sin JavaScript, sin cookies, sin analítica, sin formularios y sin recursos de terceros. Cuatro idiomas: es-ES (por defecto), en, de y fr. **Solo esta landing usa el nombre AdagioX**; el resto del repositorio no cambia (`ADR-072 §1.1`).
 
-Estado: **T1** (estructura, construcción y comprobaciones) y **T2** (CI, Lighthouse y despliegue, sin probar contra Cloudflare). No se publica nada hasta cumplir la puerta de `ADR-072`.
+Estado: **T1** (estructura, construcción y comprobaciones) y **T2** (CI, Lighthouse y despliegue, sin probar contra Cloudflare) hechos. Datos legales resueltos por `ADR-073` (titular persona física sin NIF ni domicilio publicados; correo `founders@adagiox.com`; publicación sin asesor). **No se publica nada**: el despliegue está apagado hasta `LANDING_DEPLOY_ENABLED = true`, y antes deben estar el DNS, el buzón `founders@adagiox.com` funcionando y el *environment* `landing-production` (`SYSADMIN.md §4b`).
 
 ## Estructura
 
@@ -68,7 +68,7 @@ Estado visible: «en desarrollo». Sin cifras, clientes, certificaciones, fechas
 | `home.f9.*` | Centros públicos, privados y concertados; requisitos para la normativa educativa y de protección de datos españolas, sin afirmar conformidad acreditada | `§2.1`, `§4.1`, `§4.3` |
 | `home.status.*`, `footer.status` | «En desarrollo»; lo descrito son objetivos, no funciones disponibles | `ADR-072 §8` |
 
-Página legal (`legal.body.*`): estructura de `ADR-072 §4.3` y `§4.4` (identificación del art. 10 LSSI-CE; información del art. 13 RGPD: responsable, datos, finalidad, base legal, encargado, transferencia, plazo, derechos, cookies). **Es un borrador con marcadores, no un texto legal revisado**: lo redacta o encarga el usuario (`U4`). Los marcadores `[TITULAR]`, `[NIF]`, `[DOMICILIO]`, `[CORREO]` son los del ADR; `[PROVEEDOR]`, `[GARANTIA]` y `[PLAZO]` dependen del proveedor elegido en `U1` (`OPEN-072-02`) y se añadieron para no inventar datos. Ninguno puede publicarse (`--publish` falla).
+Página legal (`legal.body.*`): estructura de `ADR-072 §4.3` y `§4.4` (identificación del art. 10 LSSI-CE; información del art. 13 RGPD: responsable, datos, finalidad, base legal, encargado, transferencia, plazo, derechos, cookies), con los datos de `ADR-073`: titular persona física sin NIF ni domicilio publicados, encargados Cloudflare, Inc. y Arsys Internet, S.L.U., garantía de la transferencia, plazo de conservación y tratamiento de los correos de `founders@adagiox.com`. Ya no es un borrador con marcadores; se publica **sin revisión de asesor** (`ADR-073 §2.4`) y `check:publish` pasa. Los marcadores (`[TITULAR]`, `[NIF]`, `[DOMICILIO]`, `[CORREO]`, `[PROVEEDOR]`, `[GARANTIA]`, `[PLAZO]`) siguen bloqueando la publicación si reaparecen.
 
 ## Lista manual de accesibilidad (WCAG 2.2 AA)
 
@@ -90,16 +90,16 @@ Lighthouse/axe no certifican conformidad. En cada cambio de contenido o de estil
 
 ## Desplegar y revertir
 
-Proveedor: Cloudflare **Workers static assets** (`ADR-072 §4.7`; no Pages). `wrangler.jsonc`: Worker `adagiox-landing`, `assets.directory = ./dist`, sin `main`, `workers_dev: true`, **sin rutas ni dominios personalizados** (el DNS aún no existe, `OPEN-072-04`), `html_handling: auto-trailing-slash` (`/en/` sirve `en/index.html`, coherente con las URL canónicas) y `not_found_handling: 404-page` (sirve `404.html` con estado 404). Workers lee `_headers` y `_redirects` de `dist/`.
+Proveedor: Cloudflare **Workers static assets** (`ADR-072 §4.7`; no Pages). `wrangler.jsonc`: Worker `adagiox-landing`, `assets.directory = ./dist`, sin `main`, `workers_dev: true`, **`observability.enabled: false`** (sin Workers Logs: la landing no registra peticiones propias, `ADR-073 §2.5`), **sin rutas ni dominios personalizados** (el DNS aún no existe, `OPEN-072-04`), `html_handling: auto-trailing-slash` (`/en/` sirve `en/index.html`, coherente con las URL canónicas) y `not_found_handling: 404-page` (sirve `404.html` con estado 404). Workers lee `_headers` y `_redirects` de `dist/`.
 
-`scripts/deploy.sh` es el **único punto que conoce al proveedor**. Lo llama solo `ci-landing.yml` (job `deploy`: `push` a `main`, tras `build`, `check` y `lighthouse`, con la variable de repositorio `LANDING_DEPLOY_ENABLED = true`; alta del token y secretos en `SYSADMIN.md §4b`). Orden: exige `CLOUDFLARE_API_TOKEN` y `CLOUDFLARE_ACCOUNT_ID`; `npm run build`; `npm run check:publish` (**puerta de publicación, #582**: con marcadores `[TITULAR]`, traducciones pendientes o `dist/` obsoleto el despliegue no continúa); `wrangler deploy`; y smoke test de cabeceras (#583) con `curl` a la URL desplegada, comparando con el valor exacto de `dist/_headers` (CSP, HSTS `max-age=86400`, `nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy`, COOP y CORP).
+`scripts/deploy.sh` es el **único punto que conoce al proveedor**. Lo llama solo `ci-landing.yml` (job `deploy`: `push` a `main`, tras `build`, `check` y `lighthouse`, con la variable de repositorio `LANDING_DEPLOY_ENABLED = true`). El token de Cloudflare ya existe como secreto de GitHub (`CLOUDFLARE_API_TOKEN`); el alta de secretos, del *environment* `landing-production` y de la variable está en `SYSADMIN.md §4b`. Orden: exige `CLOUDFLARE_API_TOKEN` y `CLOUDFLARE_ACCOUNT_ID`; `npm run build`; `npm run check:publish` (**puerta de publicación, #582**: con marcadores `[TITULAR]`, traducciones pendientes o `dist/` obsoleto el despliegue no continúa); `wrangler deploy`; y smoke test de cabeceras (#583) con `curl` a la URL desplegada, comparando con el valor exacto de `dist/_headers` (CSP, HSTS `max-age=86400`, `nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy`, COOP y CORP).
 
 ```
 CLOUDFLARE_API_TOKEN=... CLOUDFLARE_ACCOUNT_ID=... scripts/deploy.sh --dry-run   # todo menos subir
 scripts/deploy.sh --url https://...                                               # fija la URL del smoke test
 ```
 
-`--dry-run` ejecuta `wrangler deploy --dry-run` y no hace smoke test. Mientras queden marcadores, ambos modos fallan en `check:publish`: es lo esperado.
+`--dry-run` ejecuta `wrangler deploy --dry-run` y no hace smoke test. `check:publish` pasa hoy; si reaparece algún marcador, ambos modos fallan ahí, como debe.
 
 **Pendiente (no probado)**: el redireccionamiento de `www` y de `adagiox.es/.eu/.net` hacia `https://adagiox.com` (`ADR-072 §4.3`). Las reglas de `_redirects` con nombre de host no se han verificado en Workers static assets; se prevén como reglas de redirección de la zona de Cloudflare y el smoke test no las cubre todavía. Hay que comprobarlo en el alta.
 
@@ -110,4 +110,4 @@ scripts/deploy.sh --url https://...                                             
 3. **DNS**: antes de cambiar cualquier registro, anotar aquí los actuales (tipo, nombre, valor, TTL) y restaurarlos para revertir. Registros anteriores anotados: *ninguno todavía; la zona no existe*.
 4. **Parada de emergencia**: borrar la variable de repositorio `LANDING_DEPLOY_ENABLED` detiene los despliegues; `npx wrangler delete` retira el Worker.
 
-**Pendiente explícito: la reversión (1) no se ha probado.** No hay cuenta de Cloudflare autenticada en el CLI, así que ni el despliegue real ni el `rollback` se han ejecutado. `ADR-072 §4.6` exige ejecutarla una vez en el primer despliegue y anotar el resultado en el PR; hasta entonces, la reversión figura como **no probada**.
+**Pendiente explícito: la reversión (1) no se ha probado.** No hay cuenta de Cloudflare autenticada en el CLI local (el token vive solo como secreto de GitHub), así que ni el despliegue real ni el `rollback` se han ejecutado. `ADR-072 §4.6` exige ejecutarla una vez en el primer despliegue y anotar el resultado en el PR; hasta entonces, la reversión figura como **no probada**.

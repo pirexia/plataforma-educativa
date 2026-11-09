@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |-------|-------|
-| **Versión** | 3.2.26 |
+| **Versión** | 3.2.27 |
 | **Fecha** | 2026-11-09 |
 | **Estado** | Borrador consolidado — pendiente de aprobación |
 | **Autor** | Product Owner |
@@ -3279,6 +3279,7 @@ Del `028` en adelante, cada decisión vive en `docs/adr/` (`ADR-026`).
 | `ADR-070` | **El texto legal de `terms_versions` es texto plano** (issue #481, `REQ-FAM-UNIT-003`/`-004`/`-005` y `REQ-FAM-PORTAL`; complementa `ADR-066` sin sustituirlo; no sustituye ningún ADR). **Estado: `ACEPTADA`** (2026-11-05, decisión de fondo aprobada por el usuario). `title`, `body` y sus `*_translations` son texto plano en todos los `kind`, sin HTML ni Markdown. `TermsVersionService` rechaza el marcado (`/<\s*[a-zA-Z!\/?]/u`) en `create`, `update` y `publish` con `422 fam_unit.terms.markup_not_allowed` por idioma; no lo limpia. El frontend lo pinta solo como texto (sin `v-html`, con `whitespace-pre-line`) y el futuro servicio HTML→PDF lo escapa antes de incrustarlo. No hay migración: no existían textos con marcado. Se descartan el HTML saneado y el Markdown. `OPEN-070-01` resuelta (2026-11-05): las referencias de carácter no se rechazan y `pre-line` queda confirmado |
 | `ADR-071` | **Grupo opcional en la matrícula** (entrada de `1.15-b`, `REQ-ALUM-001`/`-003`, `OPEN-ALUM-11` = B; no sustituye ningún ADR). **Estado: `ACEPTADA`** (2026-11-09, aprobada por el usuario). `ENROLLMENT }o--o| GROUP`: el curso de etapa es obligatorio y el grupo, opcional (FK `MATCH SIMPLE`); se añade `COURSE ||--o{ ENROLLMENT` a `§16.2`. Una matrícula sin grupo no la ve nadie por el ámbito `grupo` (`INV-002`; prohibido `OR group_id IS NULL`) y es válida sin límite de tiempo; dos vetos de borrado independientes (por grupo y por curso de etapa). «Antiguo alumno» no es un estado, se deriva; sus usos futuros se resuelven en `1.23b`. Fichero: `docs/adr/ADR-071-grupo-opcional-en-la-matricula.md`. |
 | `ADR-072` | **Landing pública del producto** (`adagiox.com`; nombre del producto **AdagioX**, dominios `.com` canónico y `.es`/`.eu`/`.net` con 301; no sustituye ningún ADR). **Estado: `ACEPTADA`** (2026-11-09, aprobada por el usuario con la recomendación de `architect` en `OPEN-072-01` a `-07`). Sitio estático propio en `apps/landing`, alojado fuera de la plataforma en hosting estático gestionado (Cloudflare recomendado, Netlify como alternativa), es-ES/en/de/fr, sin JavaScript, cookies, analítica ni formulario, CSP `default-src 'none'`; contenido solo a partir de este documento, sin cifras, clientes ni fechas. **No se publica hasta tener titular legal, aviso legal revisado y búsqueda de marca.** Fichero: `docs/adr/ADR-072-landing-publica-del-producto.md`. |
+| `ADR-073` | **Datos legales y correo de la landing** (titular persona física sin NIF ni domicilio publicados; regla de no escribirlos nunca en Git; `founders@adagiox.com` en Arsys; publicación sin asesor; Cloudflare y Arsys como encargados). **Estado: `ACEPTADA`** (2026-11-09). Sustituye en parte a `ADR-072` (`OPEN-072-03` y `U4`), con la discrepancia registrada en su `§5`. | [`docs/adr/ADR-073-datos-legales-y-correo-de-la-landing.md`](adr/ADR-073-datos-legales-y-correo-de-la-landing.md) |
 
 ### Decisiones abiertas vivas
 
@@ -3367,6 +3368,7 @@ Se mantendrá una matriz de trazabilidad (generada automáticamente desde las re
 
 | Versión | Fecha | Autor | Descripción |
 |---------|-------|-------|-------------|
+| 3.2.27 | 2026-11-09 | Product Owner | `ADR-073` (datos legales y correo de la landing) aceptado y referenciado en `§18`; sustituye en parte a `ADR-072` (`OPEN-072-03`, `U4`). |
 | 3.2.26 | 2026-11-09 | Product Owner | `ADR-072` (landing pública del producto, `adagiox.com`) aceptado y referenciado en `§18`. El nombre AdagioX aún no se ha propagado al resto de la documentación (decisión pendiente). |
 | 3.2.25 | 2026-11-09 | Product Owner | `ADR-071` (grupo opcional en la matrícula, `OPEN-ALUM-11` = B) aplicado: `§16.1`/`§16.2` (`ENROLLMENT }o--o| GROUP`, `COURSE ||--o{ ENROLLMENT`), fila de `ADR-071` en `§18` y «Depende de» de `REQ-ALUM` (`§5.6` e índice) = `CORE, CURSO, ACAD, FAM-UNIT` (`OPEN-ALUM-28` = A). |
 | 3.2.24 | 2026-11-02 | Product Owner | `ADR-069` (Codex como primer revisor del pipeline, con reparto de la revisión por tipo de comprobación) aplicado: `CLAUDE.md` 2.10.0, skill `revision-con-codex` con `contexto-codex.md`, agentes `security-reviewer`/`db-reviewer`/`spec-writer`, `PLAN-IMPLEMENTACION.md` 2.3.19, `SECURITY.md` 0.3.17 y `PRIVACY.md` 0.3.12. Condición `OPEN-069-01` confirmada por el usuario el 2026-11-02: régimen de `ADR-069` activo. Sin cambios en los requisitos de las secciones 1-17. |

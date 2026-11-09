@@ -1,6 +1,6 @@
 # SYSADMIN.md
 
-> **Versión 0.8.23** · 2026-10-28
+> **Versión 0.8.24** · 2026-11-09
 > Documento vivo: se actualiza en cada fase (`CLAUDE.md` sección 6), no solo al final. Cubre por ahora únicamente el entorno de **desarrollo** en WSL2 (`ADR-030`); el alojamiento del piloto y de producción se documentará aquí cuando `OPEN-11` se resuelva.
 
 ---
@@ -451,12 +451,14 @@ Tres workflows en `.github/workflows/`, disparados por `push`/`pull_request` sob
 
 `.github/workflows/ci-landing.yml` (`paths: apps/landing/**`; **no** es *required check*, `ADR-072 §4.5`) construye, comprueba, pasa Lighthouse y, solo en `push` a `main`, despliega con `apps/landing/scripts/deploy.sh` (Cloudflare **Workers static assets**, no Pages; `wrangler` 4.159.0 fijado). **Hoy no despliega nada**: el *job* `deploy` exige la variable de repositorio `LANDING_DEPLOY_ENABLED = true`, que no existe.
 
-Alta, en este orden y solo cuando se cumpla la puerta de `ADR-072` (titular, aviso legal revisado, búsqueda de marca; `check:publish` en verde):
+Puerta de publicación: los datos legales están resueltos por `ADR-073` (titular persona física sin NIF ni domicilio publicados; publicación sin asesor; `check:publish` en verde). Siguen pendientes la búsqueda de marca y los bloqueos LaLiga (U1). Alta, en este orden y solo cuando se cumpla la puerta:
 
+0. **Correo previo (`ADR-073 §3`)**: el buzón `founders@adagiox.com` (Arsys) debe funcionar antes de publicar, porque el art. 10 LSSI-CE exige un medio de contacto efectivo. Los registros de correo del ápice de `adagiox.com` son los que da el panel de Arsys en el alta (MX, SPF, DMARC y DKIM si Arsys lo ofrece); `.es`, `.eu` y `.net` siguen con MX nulo, SPF `-all` y DMARC `p=reject`. Los registros previos se anotan antes de cambiar nada (ver «Desplegar y revertir» en `apps/landing/README.md`).
 1. **Token de API de Cloudflare de permisos mínimos**: Cloudflare → My Profile → API Tokens → *Create Token* → token personalizado con el rol **Workers** (nivel de producto, esa cuenta); `Workers Scripts · Edit` es un permiso *legacy* sustituido por *Editor* (Cloudflare, 2026-09). **Primer despliegue**: rol **Admin**, porque crear un Worker que no existe lo exige. **Después**: token nuevo con rol **Editor** solo sobre el Worker `adagiox-landing` (basta para `wrangler deploy` y `wrangler rollback`) y revocar el de Admin. Sin permisos de zona ni de DNS mientras no haya rutas; con dominio propio, añadir `Zone · Workers Routes · Write` en esa zona. Caducidad fijada y rotación anotada.
-2. **Secretos del repositorio** (Settings → Secrets and variables → Actions): `CLOUDFLARE_API_TOKEN` (el token) y `CLOUDFLARE_ACCOUNT_ID` (ID de cuenta). Preferible como secretos del *environment* `landing-production`, con revisores requeridos si se quiere aprobación manual.
-3. **Variable de repositorio** `LANDING_DEPLOY_ENABLED = true`. Mientras no exista (o valga otra cosa), el *job* `deploy` se omite. Para parar los despliegues, borrarla.
-4. Sin dominio personalizado hasta que exista el DNS (`OPEN-072-04`): el Worker queda en `adagiox-landing.<subdominio>.workers.dev`. Al crear la zona se añaden `routes` a `apps/landing/wrangler.jsonc` y se anotan antes los registros DNS previos (ver «Desplegar y revertir» en `apps/landing/README.md`).
+2. **Secretos del *environment* `landing-production`** (Settings → Environments): `CLOUDFLARE_API_TOKEN` (el token) y `CLOUDFLARE_ACCOUNT_ID` (ID de cuenta). El *job* `deploy` de `ci-landing.yml` usa obligatoriamente ese *environment*, y debe tener un **revisor requerido** que apruebe cada despliegue. El token ya existe como secreto de GitHub; no se guarda en el repositorio.
+3. **Variable de repositorio** `LANDING_DEPLOY_ENABLED = true`. Mientras no exista (o valga otra cosa), el *job* `deploy` se omite: es la posición actual. Para parar los despliegues, borrarla.
+4. **Observabilidad desactivada**: `apps/landing/wrangler.jsonc` lleva `observability.enabled: false` (sin Workers Logs, `ADR-073 §2.5`). No activarla sin una decisión nueva que actualice el ADR.
+5. Sin dominio personalizado hasta que exista el DNS (`OPEN-072-04`): el Worker queda en `adagiox-landing.<subdominio>.workers.dev`. Al crear la zona se añaden `routes` a `apps/landing/wrangler.jsonc` y se anotan antes los registros DNS previos (ver «Desplegar y revertir» en `apps/landing/README.md`).
 
 Reversión: `apps/landing/README.md`, «Desplegar y revertir». **La reversión real contra Cloudflare no está probada todavía.**
 

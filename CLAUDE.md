@@ -1,6 +1,6 @@
 # CLAUDE.md — Normas de trabajo del proyecto
 
-> **Versión 2.11.2** · 2026-11-09 · Fichero de contexto permanente. Se carga en **todas** las sesiones. Contiene solo reglas estables.
+> **Versión 2.11.3** · 2026-11-09 · Fichero de contexto permanente. Se carga en **todas** las sesiones. Contiene solo reglas estables.
 > Proyecto: **Plataforma de Gestión Educativa Multi-tenant**. Fuente de verdad funcional: `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md`.
 
 ---
@@ -260,6 +260,7 @@ Un requisito está terminado cuando:
 - No inventes requisitos que no estén en el documento.
 - No cambies una decisión de un ADR sin escribir un ADR nuevo que lo sustituya.
 - No refactorices código ajeno al objetivo de la sesión sin avisar.
+- **Nunca escribas el NIF/DNI ni la dirección física del usuario en Git**: ni en ficheros, ni en mensajes de commit, PR, *issues* o comentarios, ni en el historial (repositorio público; riesgo físico para su familia). Tampoco se publican en la landing (`ADR-073`).
 - No uses datos reales de alumnos, familias o personal en desarrollo, **bajo ningún concepto** (`ADR-030`). Ni una exportación del centro, ni una copia de producción para depurar. Para eso está `REQ-SEED`.
 - Los datos de prueba siguen la convención de `REQ-SEED-005`: dominios `@example.com`, documentos de identidad con dígito de control inválido, centros con nombre explícitamente ficticio, y nunca fotografías de personas reales.
 - No declares terminado lo que no has ejecutado y verificado.

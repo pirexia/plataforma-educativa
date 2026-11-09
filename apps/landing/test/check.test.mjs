@@ -118,6 +118,8 @@ test('claves pendientes de traducción: aviso en desarrollo, error en --publish'
 })
 test('marcadores [TITULAR]-style: aviso en desarrollo, error en --publish', () => {
   const root = makeSite()
+  // Los textos reales ya no tienen marcadores (ADR-073): se reintroduce uno en la copia.
+  editJson(root, 'locales/es-ES.json', (d) => (d['legal.body.id.holder.value'] = '[TITULAR]'))
   const dev = run(root, { skipDist: true })
   assert.ok(!has(dev, /marcador pendiente/))
   const pub = run(root, { skipDist: true, publish: true })

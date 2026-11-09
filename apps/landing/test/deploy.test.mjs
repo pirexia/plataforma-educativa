@@ -147,8 +147,18 @@ test('deploy.sh: si check:publish falla, no se despliega (puerta de publicación
   assert.deepEqual(calls(log), ['npm run build', 'npm run check:publish'])
 })
 
-test('deploy.sh con el proyecto real: los marcadores [TITULAR] etc. bloquean --dry-run (#582)', () => {
-  const r = spawnSync('bash', [DEPLOY, '--dry-run'], {
+test('deploy.sh con una copia del proyecto con un marcador pendiente: --dry-run se bloquea (#582)', () => {
+  // Copia real (scripts, src, locales, package.json) con npm real; los textos del proyecto ya no
+  // tienen marcadores (ADR-073), así que se reintroduce uno para probar la puerta de publicación.
+  const root = mkdtempSync(join(tmpdir(), 'landing-deploy-marker-'))
+  temps.push(root)
+  for (const d of ['scripts', 'src', 'locales']) cpSync(join(PROJECT, d), join(root, d), { recursive: true })
+  cpSync(join(PROJECT, 'package.json'), join(root, 'package.json'))
+  const es = join(root, 'locales', 'es-ES.json')
+  const loc = JSON.parse(readFileSync(es, 'utf8'))
+  loc['legal.body.id.holder.value'] = '[TITULAR]'
+  writeFileSync(es, JSON.stringify(loc, null, 2) + '\n')
+  const r = spawnSync('bash', [join(root, 'scripts', 'deploy.sh'), '--dry-run'], {
     env: { PATH: process.env.PATH, HOME: process.env.HOME, ...ENV_OK },
     encoding: 'utf8',
   })
