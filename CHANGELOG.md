@@ -6,6 +6,12 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-09 · `feat(landing)`: CI, Lighthouse y despliegue de la landing (`T2`, `ADR-072`, #579, #582, #583)
+
+- `.github/workflows/ci-landing.yml` (`paths`; jobs `build`, `check`, `lighthouse`, `deploy`). `deploy` solo en `push` a `main`, con `needs` de los tres y el interruptor de repositorio `LANDING_DEPLOY_ENABLED == 'true'` (decisión de sesión: `ADR-072` prohíbe publicar antes de la puerta legal).
+- `apps/landing`: `@lhci/cli` 0.16.0 y `wrangler` 4.159.0 (fijadas, solo `devDependencies`, uso en CI), `package-lock.json`, `.lighthouserc.json` (móvil, cuatro portadas y una página legal; accesibilidad = 1, resto >= 0,95), `wrangler.jsonc` (Worker `adagiox-landing`, sin rutas), `scripts/deploy.sh` (puerta `check:publish`, `--dry-run`, smoke test de cabeceras contra la URL real).
+- **No probado**: despliegue real, reversión real y smoke test contra Cloudflare (sin cuenta autenticada). No se publica nada.
+
 ## 2026-11-09 · `feat(landing)`: estructura, contenido y traducción de la landing (`T1`, `ADR-072`, #579)
 
 - `apps/landing`: plantillas con marcadores `{{t:clave}}`, cuatro idiomas (es-ES, en, de, fr; los textos legales y de privacidad solo en es-ES, `OPEN-072-05`), `build.mjs` y `check.mjs` sin dependencias, 65 tests con `node --test`. `check --publish` bloquea mientras queden marcadores del titular o traducciones pendientes (también en `dist/`).
