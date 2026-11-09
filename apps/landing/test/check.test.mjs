@@ -27,7 +27,7 @@ function tpl(name, publish = false) {
 // ---- Línea base ----
 
 test('el sitio del proyecto, construido, pasa todas las comprobaciones (sin --publish)', () => {
-  const res = run(makeSite())
+  const res = run(makeSite({ showcase: true }))
   assert.deepEqual(res.errors, [])
 })
 
@@ -64,8 +64,8 @@ test('un literal real en la plantilla del proyecto hace fallar check', () => {
 
 test('falta una clave en de: error de paridad', () => {
   const root = makeSite()
-  editJson(root, 'locales/de.json', (d) => delete d['home.f3.text'])
-  assert.ok(has(run(root, { skipDist: true }), /de\.json: falta la clave "home\.f3\.text"/))
+  editJson(root, 'locales/de.json', (d) => delete d['home.s.roles.text'])
+  assert.ok(has(run(root, { skipDist: true }), /de\.json: falta la clave "home\.s\.roles\.text"/))
 })
 test('sobra una clave en fr: error de paridad', () => {
   const root = makeSite()
@@ -74,24 +74,24 @@ test('sobra una clave en fr: error de paridad', () => {
 })
 test('clave vacía: error', () => {
   const root = makeSite()
-  editJson(root, 'locales/en.json', (d) => (d['home.f3.text'] = '  '))
-  assert.ok(has(run(root, { skipDist: true }), /en\.json: clave "home\.f3\.text" vacía/))
+  editJson(root, 'locales/en.json', (d) => (d['home.s.roles.text'] = '  '))
+  assert.ok(has(run(root, { skipDist: true }), /en\.json: clave "home\.s\.roles\.text" vacía/))
 })
 test('valor con "<": error', () => {
   const root = makeSite()
-  editJson(root, 'locales/es-ES.json', (d) => (d['home.f3.text'] = 'Hola <b>mundo</b>'))
+  editJson(root, 'locales/es-ES.json', (d) => (d['home.s.roles.text'] = 'Hola <b>mundo</b>'))
   assert.ok(has(run(root, { skipDist: true }), /contiene "<"/))
 })
 test('marcadores internos distintos entre idiomas: error', () => {
   const root = makeSite()
-  editJson(root, 'locales/es-ES.json', (d) => (d['home.f3.text'] = 'Hola {nombre}'))
-  editJson(root, 'locales/en.json', (d) => (d['home.f3.text'] = 'Hello {name}'))
-  assert.ok(has(run(root, { skipDist: true }), /marcadores de "home\.f3\.text" difieren/))
+  editJson(root, 'locales/es-ES.json', (d) => (d['home.s.roles.text'] = 'Hola {nombre}'))
+  editJson(root, 'locales/en.json', (d) => (d['home.s.roles.text'] = 'Hello {name}'))
+  assert.ok(has(run(root, { skipDist: true }), /marcadores de "home\.s\.roles\.text" difieren/))
 })
 test('marcadores internos iguales entre idiomas: correcto', () => {
   const root = makeSite()
   for (const l of ['es-ES', 'en', 'de', 'fr']) {
-    editJson(root, `locales/${l}.json`, (d) => (d['home.f3.text'] = `Hola {nombre} ${l}`))
+    editJson(root, `locales/${l}.json`, (d) => (d['home.s.roles.text'] = `Hola {nombre} ${l}`))
   }
   assert.deepEqual(run(root, { skipDist: true }).errors, [])
 })
@@ -774,4 +774,79 @@ test('regla 7: styles.css con el bloque prefers-reduced-motion: correcto; sin é
   const half2 = makeSite()
   edit(half2, 'src/styles.css', (c) => c.replace(/scroll-behavior: auto !important;/, ''))
   assert.ok(has(run(half2, { skipDist: true }), /sin "scroll-behavior: auto"/))
+})
+
+// ---- Carrusel y efectos de scroll (ADR-074 §4.5) ----
+
+const GOOD_FX = `
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    @keyframes rise { from { transform: translateY(2rem); } to { transform: none; } }
+    .card { animation: rise linear both; animation-timeline: view(); }
+  }
+}
+`
+
+function fxSite(extraCss) {
+  const root = makeSite()
+  edit(root, 'src/styles.css', (c) => c + extraCss)
+  return root
+}
+
+test('§4.5 carrusel: el de la portada real tiene tabindex, role="region" y aria-label (bueno)', () => {
+  const res = run(makeSite({ showcase: true }))
+  assert.ok(!has(res, /carrusel/))
+})
+test('§4.5 carrusel: sin tabindex, sin role o sin aria-label en el contenedor: error', () => {
+  for (const [from, re] of [
+    [' tabindex="0"', /tabindex="0"/],
+    [' role="region"', /role="region"/],
+    [' aria-label="{{t:home.carousel.label}}"', /aria-label/],
+  ]) {
+    const root = makeSite({ showcase: true, built: false })
+    edit(root, 'src/home.html', (h) => h.replace(from, ''))
+    assert.ok(has(run(root, { skipDist: true }), re), from)
+  }
+})
+test('§4.5 carrusel: aria-roledescription: error', () => {
+  const root = makeSite({ showcase: true, built: false })
+  edit(root, 'src/home.html', (h) => h.replace('role="region"', 'role="region" aria-roledescription="carousel"'))
+  assert.ok(has(run(root, { skipDist: true }), /aria-roledescription no permitido/))
+})
+test('§4.5 carrusel: el resultado construido sin tabindex falla también en dist', () => {
+  const root = makeSite({ showcase: true })
+  edit(root, 'dist/index.html', (h) => h.replace(/ tabindex="0">(\s*<ul)/, '>$1'))
+  assert.ok(has(run(root), /dist\/index\.html: el carrusel debe llevar tabindex="0"/))
+})
+test('§4.5 efectos: animation-timeline dentro de @supports y no-preference solo con transform: correcto', () => {
+  assert.deepEqual(run(fxSite(GOOD_FX)).errors, [])
+})
+test('§4.5 efectos: animation-timeline fuera de @supports: error', () => {
+  const root = fxSite(`
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes rise { from { transform: none; } to { transform: none; } }
+  .card { animation: rise linear both; animation-timeline: view(); }
+}`)
+  assert.ok(has(run(root), /usa animation-timeline fuera de @supports/))
+})
+test('§4.5 efectos: animation-timeline sin @media (prefers-reduced-motion: no-preference): error', () => {
+  const root = fxSite(`
+@supports (animation-timeline: view()) {
+  @keyframes rise { from { transform: none; } to { transform: none; } }
+  .card { animation: rise linear both; animation-timeline: view(); }
+}`)
+  assert.ok(has(run(root), /fuera de @media \(prefers-reduced-motion: no-preference\)/))
+})
+test('§4.5 efectos: keyframes ligados al scroll con opacity, filter o color: error', () => {
+  for (const prop of ['opacity: 0', 'filter: blur(2px)', 'color: red']) {
+    const root = fxSite(GOOD_FX.replace('from { transform: translateY(2rem); }', `from { transform: translateY(2rem); ${prop}; }`))
+    assert.ok(has(run(root), new RegExp(`anima "${prop.split(':')[0]}": solo se anima transform`)), prop)
+  }
+})
+test('§4.5 efectos: la animación con opacity que NO va ligada al scroll no se rechaza', () => {
+  const root = fxSite('@keyframes fade { from { opacity: 0; } to { opacity: 1; } }\n.x { animation: fade 1s; }')
+  assert.ok(!has(run(root), /solo se anima transform/))
+})
+test('§4.5 ::scroll-button y ::scroll-marker: error', () => {
+  assert.ok(has(run(fxSite('.carousel::scroll-marker { content: ""; }')), /::scroll-button y ::scroll-marker/))
 })

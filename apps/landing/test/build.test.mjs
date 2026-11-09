@@ -268,3 +268,34 @@ test('imagen inexistente en el manifiesto o sin alt en la locale: la construcci�
   placeImage(root2, '{{img:shot-a}}')
   assert.throws(() => build({ root: root2 }), /img\.shot-a\.alt/)
 })
+
+// ---- Portada (ADR-074 §4.5, §4.6) ----
+
+test('la portada real: carrusel de 8 diapositivas con figcaption, una sola imagen sin lazy (la primera, con fetchpriority)', () => {
+  const root = makeSite({ showcase: true })
+  for (const page of ['index.html', 'es/index.html', 'de/index.html', 'fr/index.html']) {
+    const html = read(root, page)
+    const carousel = html.match(/<div class="carousel"[^>]*>([\s\S]*?)<\/ul>/)
+    assert.ok(carousel, page)
+    assert.match(carousel[0], /role="region"/)
+    assert.match(carousel[0], /tabindex="0"/)
+    assert.doesNotMatch(html, /aria-roledescription|autoplay/)
+    assert.equal((carousel[1].match(/<li class="slide">/g) ?? []).length, 8)
+    assert.equal((carousel[1].match(/<figure>/g) ?? []).length, 8)
+    assert.equal((carousel[1].match(/<figcaption>/g) ?? []).length, 8)
+    const eager = [...html.matchAll(/<img [^>]*>/g)].filter((m) => !/loading="lazy"/.test(m[0]))
+    assert.equal(eager.length, 1, page)
+    assert.match(eager[0][0], /fetchpriority="high"/)
+    assert.ok(carousel[1].indexOf(eager[0][0]) > -1, 'la imagen LCP es la del carrusel')
+    assert.ok(carousel[1].indexOf('hero-schedule') < carousel[1].indexOf('schedule-conflict'))
+  }
+})
+
+test('la portada real mantiene canonical y hreflang, y el estado "en desarrollo" está en el HTML', () => {
+  const root = makeSite({ showcase: true })
+  const html = read(root, 'index.html')
+  assert.ok(html.includes('<link rel="canonical" href="https://adagiox.com/">'))
+  for (const hl of ['en', 'es-ES', 'de', 'fr', 'x-default']) assert.ok(html.includes(`hreflang="${hl}"`), hl)
+  assert.match(html, /class="badge"/)
+  assert.ok(html.includes('href="mailto:founders@adagiox.com"'))
+})

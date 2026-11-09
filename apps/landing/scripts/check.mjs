@@ -198,6 +198,7 @@ function checkLocales(root, publish, report, langs) {
 
 export function checkTemplate(name, html, locales, publish, report, langs = LANGS) {
   const tokens = tokenize(html)
+  checkCarousels(name, tokens, report)
   for (const m of html.matchAll(/\{\{t:[^}]*\}\}/g)) {
     if (!new RegExp(`^\\{\\{t:${KEY_PATTERN}\\}\\}$`).test(m[0])) {
       report.error(`${name}: marcador de clave inválido ${m[0]}`)
@@ -242,7 +243,11 @@ function checkSource(root, locales, publish, report, langs) {
     return
   }
   const cssFile = join(srcDir, 'styles.css')
-  if (existsSync(cssFile)) checkReducedMotion(readFileSync(cssFile, 'utf8'), 'src/styles.css', report)
+  if (existsSync(cssFile)) {
+    const css = readFileSync(cssFile, 'utf8')
+    checkReducedMotion(css, 'src/styles.css', report)
+    checkScrollEffects(css, 'src/styles.css', report)
+  }
   else report.error('src/styles.css: no existe')
   const used = new Set()
   for (const file of walk(srcDir).filter((f) => f.endsWith('.html'))) {
@@ -372,6 +377,7 @@ function checkDist(root, publish, report, langs, locales) {
     }
     if (h1 !== 1) report.error(`dist/${rel}: debe tener exactamente un <h1> (tiene ${h1})`)
     checkPageImages(rel, imgs, manifestIndex, report)
+    checkCarousels(`dist/${rel}`, tokens, report)
     if (!lang) report.error(`dist/${rel}: <html> sin lang`)
 
     const url = pageUrlOf(distDir, file)
@@ -473,7 +479,10 @@ function checkDist(root, publish, report, langs, locales) {
         }
       }
     }
-    if (name === 'dist/styles.css') checkReducedMotion(css, name, report)
+    if (name === 'dist/styles.css') {
+      checkReducedMotion(css, name, report)
+      checkScrollEffects(css, name, report)
+    }
   }
   checkImageFiles(root, distDir, files, locales, manifest, report)
 
@@ -663,6 +672,99 @@ function checkImageFiles(root, distDir, distFiles, locales, manifest, report) {
     const name = relative(srcImg, f).split(sep).join('/')
     if (/\.(avif|webp)$/i.test(name) && !listed.has(name)) {
       report.error(`src/img/${name}: no figura en manifest.json`)
+    }
+  }
+}
+
+
+// ---------- Carrusel y efectos de scroll (ADR-074 §4.5) ----------
+
+// Carrusel sin JavaScript: contenedor enfocable con role="region" y nombre; sin aria-roledescription
+// (promete el patrón completo de la APG, que sin JS no se cumple).
+function checkCarousels(name, tokens, report) {
+  for (const t of tokens) {
+    if (t.type !== 'open') continue
+    if ('aria-roledescription' in t.attrs) {
+      report.error(`${name}: aria-roledescription no permitido (el carrusel no cumple el patrón completo de la APG)`)
+    }
+    if (!(t.attrs.class ?? '').split(/\s+/).includes('carousel')) continue
+    if (t.attrs.tabindex !== '0') report.error(`${name}: el carrusel debe llevar tabindex="0"`)
+    if (t.attrs.role !== 'region') report.error(`${name}: el carrusel debe llevar role="region"`)
+    if (!('aria-label' in t.attrs) || t.attrs['aria-label'].trim() === '') {
+      report.error(`${name}: el carrusel debe llevar aria-label`)
+    }
+  }
+}
+
+// Árbol mínimo de bloques CSS: { prelude, body (declaraciones propias), children }.
+function parseCss(css) {
+  const src = css.replace(/\/\*[\s\S]*?\*\//g, '')
+  let i = 0
+  function block() {
+    const node = { prelude: '', body: '', children: [] }
+    let buf = ''
+    while (i < src.length) {
+      const c = src[i++]
+      if (c === '{') {
+        const child = block()
+        child.prelude = buf.trim()
+        node.children.push(child)
+        buf = ''
+      } else if (c === '}') {
+        node.body += buf
+        return node
+      } else buf += c
+    }
+    node.body += buf
+    return node
+  }
+  return block()
+}
+
+const SCROLL_TIMELINE = /animation-timeline\s*:\s*(?!none\b)|animation\s*:[^;]*\b(?:view|scroll)\(/i
+const ALLOWED_KEYFRAME_PROPS = new Set(['transform', 'translate', 'scale', 'rotate', 'animation-timing-function'])
+
+function checkScrollEffects(css, name, report) {
+  if (/::scroll-button|::scroll-marker/i.test(css)) {
+    report.error(`${name}: ::scroll-button y ::scroll-marker no se usan en esta versión (ADR-074 §4.5)`)
+  }
+  const root = parseCss(css)
+  const keyframes = new Map()
+  const linked = []
+  ;(function walkCss(node, ctx) {
+    for (const c of node.children) {
+      if (/^@keyframes\s/i.test(c.prelude)) {
+        keyframes.set(c.prelude.replace(/^@keyframes\s+/i, '').trim(), c)
+      } else if (c.prelude.startsWith('@')) {
+        walkCss(c, [...ctx, c.prelude])
+      } else if (SCROLL_TIMELINE.test(c.body)) {
+        linked.push({ rule: c, ctx })
+      }
+    }
+  })(root, [])
+  for (const { rule, ctx } of linked) {
+    if (!ctx.some((p) => /^@supports[^{]*animation-timeline/i.test(p))) {
+      report.error(`${name}: "${rule.prelude}" usa animation-timeline fuera de @supports (animation-timeline: ...)`)
+    }
+    if (!ctx.some((p) => /^@media[^{]*prefers-reduced-motion\s*:\s*no-preference/i.test(p))) {
+      report.error(`${name}: "${rule.prelude}" usa animation-timeline fuera de @media (prefers-reduced-motion: no-preference)`)
+    }
+    const names = [...rule.body.matchAll(/animation(?:-name)?\s*:\s*([^;]+)/gi)].flatMap((m) => m[1].split(/[\s,]+/))
+    for (const n of names) {
+      const kf = keyframes.get(n)
+      if (!kf) continue
+      const props = new Set()
+      for (const step of kf.children) {
+        for (const d of step.body.split(';')) {
+          const prop = d.split(':')[0].trim().toLowerCase()
+          if (prop) props.add(prop)
+        }
+      }
+      for (const p of props) {
+        if (!ALLOWED_KEYFRAME_PROPS.has(p)) {
+          report.error(`${name}: @keyframes ${n} (ligada al scroll) anima "${p}": solo se anima transform (ADR-074 §4.5)`)
+        }
+      }
     }
   }
 }
