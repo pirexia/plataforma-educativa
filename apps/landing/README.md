@@ -88,7 +88,7 @@ Estado visible siempre: «In development: not yet available to schools». Sin ci
 | `home.also.academic.*` | Estructura académica, períodos lectivos, escalas de calificación | `1.11-b`, `1.11d-a`, `1.11d-b` | #423, #435, #439 |
 | `home.also.year.*` | Abrir, cerrar y reabrir un curso; abrir el siguiente | `1.10`, `1.11c`, `1.12b` | #386, #443, #460 |
 | `home.also.languages.*` | Interfaz en castellano, inglés, alemán y francés; idioma por usuario | `ADR-021` | no verificado (transversal) |
-| `home.next.*` | Matrícula y listas, asistencia, calificaciones y boletines, comunicación con familias, portales: pasos de fase 1 **no** mezclados, sin fechas ni orden | `1.15-b` a `1.23`; `1.15-a` (alumnado, #559) está mezclado y la landing no lo afirma | sin PR |
+| `home.next.*` | Matrícula y listas, asistencia, calificaciones y boletines, comunicación con familias, portales: pasos de fase 1 **no** mezclados, sin fechas ni orden | `1.15-b` a `1.23`; `1.15-a` (alumnado, #559) está mezclado y la landing no lo afirma | sin PR de estos pasos (#559 es solo `1.15-a`) |
 | `home.built.*` | «Developed with Claude Code» (`OPEN-074-05`), sin logotipo ni enlace | `ADR-074 §4.7` | no aplica |
 | `home.status.*`, `footer.status` | «En desarrollo»; no disponible para centros | `ADR-074 §4.7` | no aplica |
 
