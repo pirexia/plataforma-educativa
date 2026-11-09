@@ -15,6 +15,12 @@
  *
  * Con `alum` (1.15-a, `REQ-ALUM`, `apps/web/scripts/e2e-real-alum.sh`) contrata `alum` y `fam_unit` y deja un tutor sintético con el rol `tutor_legal`.
  *
+ * Con `showcase` (landing, ADR-074 §4.4, `apps/web/scripts/landing-shots.sh`) crea el centro de escaparate de la landing: nombre visible
+ * ficticio y legible (no la marca técnica de abajo), slug `demo` (el único origen que la CORS de desarrollo permite, `CORS_ALLOWED_ORIGINS`), `acad`, `fam_unit`, `prl` y `alum` contratados, el
+ * administrador y tres docentes activos con nombres fijos e inventados y correos `@example.com`. El resto de datos los crea el *spec* por la API.
+ * Su marca de seguridad NO es solo el nombre visible: `teardown` solo retira un centro de escaparate si coinciden las TRES cosas (slug `demo`,
+ * nombre fijo de este fichero y el administrador de escaparate dentro de ese centro); un centro real con ese slug o con ese nombre no se toca.
+ *
  * El slug por defecto es `demo`, el centro para el que está configurado el
  * entorno de desarrollo (`VITE_API_URL=http://demo.plataforma.test:8000`).
  *
@@ -58,13 +64,30 @@ const E2E_CONSERJE_EMAIL = 'e2e-conserje@example.com';
 const E2E_SECRETARIA_EMAIL = 'e2e-secretaria@example.com';
 const E2E_TUTOR_EMAIL = 'e2e-tutor@example.com';
 
+// Centro de escaparate de la landing (ADR-074 §4.4). Nombre visible ficticio; marca de seguridad = slug + nombre + administrador.
+const SHOWCASE_SLUG = 'demo';
+const SHOWCASE_NAME = 'Colegio Ejemplo Los Álamos (ficticio)';
+const SHOWCASE_ADMIN_EMAIL = 'elena.marin@example.com';
+/** Docentes de escaparate: correo, nombre, apellido 1, apellido 2 (inventados, `REQ-SEED-005`). */
+const SHOWCASE_TEACHERS = [
+    ['carmen.ibarra@example.com', 'Carmen', 'Ibarra', 'Solano'],
+    ['javier.lorca@example.com', 'Javier', 'Lorca', 'Brea'],
+    ['lucia.navarro@example.com', 'Lucía', 'Navarro', 'Peña'],
+];
+
 $mode = $argv[1] ?? '';
 $slug = $argv[2] ?? 'demo';
 $door = ($argv[3] ?? '') === 'door';
 $alum = ($argv[3] ?? '') === 'alum';
+$showcase = ($argv[3] ?? '') === 'showcase';
 
 if (! in_array($mode, ['setup', 'teardown'], true) || preg_match('/^[a-z0-9][a-z0-9-]{0,39}$/', $slug) !== 1) {
     fwrite(STDERR, "Uso: php tests/Support/e2e-real-tenant.php setup|teardown [slug] (slug: minúsculas, dígitos y guiones, hasta 40)\n");
+    exit(2);
+}
+
+if ($showcase && $slug !== SHOWCASE_SLUG) {
+    fwrite(STDERR, 'e2e-real-tenant aborta: el modo showcase solo crea el slug «'.SHOWCASE_SLUG."».\n");
     exit(2);
 }
 
@@ -95,7 +118,12 @@ if ($mode === 'teardown') {
         exit(0);
     }
 
-    if ($existing->name !== E2E_TENANT_MARK) {
+    // Centro de escaparate: marca = slug + nombre fijo + su administrador dentro de ese mismo centro (el nombre visible solo no basta).
+    $isShowcase = $slug === SHOWCASE_SLUG
+        && $existing->name === SHOWCASE_NAME
+        && $platform->table('users')->where('tenant_id', $existing->id)->where('email', SHOWCASE_ADMIN_EMAIL)->exists();
+
+    if ($existing->name !== E2E_TENANT_MARK && ! $isShowcase) {
         fwrite(STDERR, "teardown aborta: el centro «{$slug}» no lo creó este script, no se toca.\n");
         exit(2);
     }
@@ -113,13 +141,15 @@ if ($existing !== null) {
 
 Artisan::call('platform:sync-registry');
 
-$tenant = Tenant::query()->create(['slug' => $slug, 'name' => E2E_TENANT_MARK, 'status' => TenantStatus::Activo]);
+$adminEmail = $showcase ? SHOWCASE_ADMIN_EMAIL : E2E_ADMIN_EMAIL;
+
+$tenant = Tenant::query()->create(['slug' => $slug, 'name' => $showcase ? SHOWCASE_NAME : E2E_TENANT_MARK, 'status' => TenantStatus::Activo]);
 Cache::forget("tenant-resolution:{$slug}");
 
 app(TenantProvisioner::class)->provision(
     $tenant,
     TenantInitialSettings::defaults(),
-    new TenantAdministrator(E2E_ADMIN_EMAIL, 'Ana', 'Pérez'),
+    $showcase ? new TenantAdministrator($adminEmail, 'Elena', 'Marín') : new TenantAdministrator($adminEmail, 'Ana', 'Pérez'),
 );
 
 $password = 'E2e-'.Str::random(20);
@@ -128,11 +158,11 @@ $staffPassword = 'E2e-'.Str::random(20);
 $students = [];
 $tutorUser = null;
 
-app(TenantContext::class)->runFor($tenant->id, function () use ($password, $door, $alum, $staffPassword, &$students, &$tutorUser): void {
+app(TenantContext::class)->runFor($tenant->id, function () use ($password, $door, $alum, $showcase, $adminEmail, $staffPassword, &$students, &$tutorUser): void {
     // El administrador aprovisionado queda invitado (sin contraseña) y su rol
     // obliga a MFA: se activa con contraseña conocida y una excepción de MFA
     // viva (REQ-AUTH-003) para que el login real no pida inscribir un factor.
-    $admin = User::query()->where('email', E2E_ADMIN_EMAIL)->firstOrFail();
+    $admin = User::query()->where('email', $adminEmail)->firstOrFail();
     $admin->forceFill(['password' => $password, 'status' => UserStatus::Activo, 'email_verified_at' => now()])->save();
 
     UserMfaExemption::create([
@@ -149,6 +179,28 @@ app(TenantContext::class)->runFor($tenant->id, function () use ($password, $door
         'module_code' => 'acad', 'enabled' => true, 'enabled_at' => now(), 'reason' => 'Test e2e CA-ACAD-053 con datos sintéticos.',
     ]);
     Cache::forget('modules:acad:enabled');
+
+    // Escaparate de la landing (ADR-074 §4.4): `acad` ya está contratado más arriba; aquí `fam_unit`, `prl` y `alum`, y tres docentes activos de datos fijos. Las
+    // altas de usuario por API quedan «pendientes» y la asignación docente exige un docente activo, igual que en el modo normal. Se
+    // fijan TODOS los campos visibles de la persona (la fábrica los inventa al azar) y la contraseña es aleatoria y no se devuelve.
+    if ($showcase) {
+        $admin->person?->forceFill(['locale' => 'en'])->save();
+
+        foreach (['fam_unit', 'prl', 'alum'] as $module) {
+            ModuleSubscription::on('pgsql_platform')->create([
+                'module_code' => $module, 'enabled' => true, 'enabled_at' => now(), 'reason' => 'Escaparate de la landing con datos sintéticos.',
+            ]);
+            Cache::forget("modules:{$module}:enabled");
+        }
+
+        foreach (SHOWCASE_TEACHERS as [$email, $given, $family1, $family2]) {
+            User::factory()->for(Person::factory()->create([
+                'given_name' => $given, 'family_name_1' => $family1, 'family_name_2' => $family2, 'contact_email' => $email, 'locale' => 'en',
+            ]))->create(['email' => $email, 'password' => 'Esc-'.Str::random(24), 'status' => UserStatus::Activo, 'email_verified_at' => now()]);
+        }
+
+        return;
+    }
 
     // Usuario al que el test asigna el rol «Revisión propia».
     User::factory()->for(Person::factory()->create(['given_name' => 'Daniel', 'family_name_1' => 'Docente']))->create([
@@ -216,10 +268,9 @@ echo json_encode([
     'outcome' => 'created',
     'slug' => $slug,
     'tenant_id' => $tenant->id,
-    'admin_email' => E2E_ADMIN_EMAIL,
+    'admin_email' => $adminEmail,
     'admin_password' => $password,
-    'target_email' => E2E_TARGET_EMAIL,
-    'target_name' => 'Daniel Docente',
+    ...($showcase ? ['teachers' => array_map(static fn (array $t): string => $t[0], SHOWCASE_TEACHERS)] : ['target_email' => E2E_TARGET_EMAIL, 'target_name' => 'Daniel Docente']),
     ...($alum ? ['staff_password' => $staffPassword, 'tutor_email' => E2E_TUTOR_EMAIL, 'tutor_user' => $tutorUser?->public_id] : []),
     ...($door ? ['staff_password' => $staffPassword, 'conserje_email' => E2E_CONSERJE_EMAIL, 'secretaria_email' => E2E_SECRETARIA_EMAIL, 'student_1' => $students[0], 'student_2' => $students[1]] : []),
 ]), "\n";
