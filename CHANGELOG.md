@@ -9,7 +9,7 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 ## 2026-11-09 · `feat(landing)`: estructura, contenido y traducción de la landing (`T1`, `ADR-072`, #579)
 
 - `apps/landing`: plantillas con marcadores `{{t:clave}}`, cuatro idiomas (es-ES, en, de, fr; los textos legales y de privacidad solo en es-ES, `OPEN-072-05`), `build.mjs` y `check.mjs` sin dependencias, 65 tests con `node --test`. `check --publish` bloquea mientras queden marcadores del titular o traducciones pendientes (también en `dist/`).
-- Revisiones: `security-reviewer` (0 Críticos/Altos; los Bajos corregidos; dos Medios para T2: el despliegue debe ejecutar `check:publish` y las cabeceras dependen del proveedor) y `doc-precheck`.
+- Revisiones: `security-reviewer` (0 Críticos/Altos; los Bajos corregidos; dos Medios para T2: el despliegue debe ejecutar `check:publish` y las cabeceras dependen del proveedor) y `doc-precheck` y `doc-reviewer` (0 Críticos/Altos/Medios; tres Bajos corregidos).
 - **No se publica nada.** Falta T2 (`ci-landing.yml`, Lighthouse, despliegue; bloqueado por `OPEN-072-08`), titular y aviso legal revisado, proveedor y DNS, búsqueda de marca.
 
 ## 2026-11-09 · `docs(landing)`: `ADR-072` aceptada, landing pública `adagiox.com`
