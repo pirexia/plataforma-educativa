@@ -305,6 +305,32 @@ final class ProvisionTenantDefaults implements TenantProvisioner
     ];
 
     /**
+     * REQ-ALUM/permisos.md §4 (1.15-a, `CA-ALUM-014a`): concesiones de `alumno.*` con ámbito `todos` a los roles predefinidos
+     * de gestión. `docente` y `tutor_grupo` no reciben nada hasta `1.15-b` (ámbito `grupo`, con su resolutor): ningún módulo de
+     * alumnado da `todos` a `docente` (`RN-ALUM-65`, `ADR-063 §5.4`). `matricula.*` llega con `1.15-b`. Ninguna regla de
+     * código compara estos códigos de rol (`RN-PERM-46`); la lee también `GrantAlumPermissionsCommand`.
+     *
+     * @var array<string, list<string>>
+     */
+    public const ALUM_PERMISSION_GRANTS = [
+        'administrador_centro' => ['alumno.leer', 'alumno.crear', 'alumno.actualizar', 'alumno.eliminar'],
+        'secretaria' => ['alumno.leer', 'alumno.crear', 'alumno.actualizar', 'alumno.eliminar'],
+        'direccion' => ['alumno.leer'],
+        'administrativo' => ['alumno.leer'],
+    ];
+
+    /**
+     * REQ-ALUM/permisos.md §4 (1.15-a, `CA-ALUM-014a`): `tutor_legal` lee a sus alumnos (`alumno.leer`, ámbito
+     * `unidad_familiar`). El resolutor llega con el T2 de `1.15-a`; hasta entonces la concesión es inerte. La lee también
+     * `GrantAlumPermissionsCommand`.
+     *
+     * @var array<string, list<string>>
+     */
+    public const ALUM_PERMISSION_UNIDAD_FAMILIAR_GRANTS = [
+        'tutor_legal' => ['alumno.leer'],
+    ];
+
+    /**
      * ADR-048 §4.5: columnas "operativas" de `tenant_settings` que
      * `provisionFromTemplate()` copia del origen. Nunca identidad fiscal
      * ni marca (funcional.md §5.6.2): esta lista vive aquí porque
@@ -540,6 +566,7 @@ final class ProvisionTenantDefaults implements TenantProvisioner
             self::ACADEMIC_YEAR_ROLLOVER_PERMISSION_GRANTS,
             self::STRUCTURE_PERMISSION_GRANTS,
             self::FAMILY_PERMISSION_GRANTS,
+            self::ALUM_PERMISSION_GRANTS,
         );
 
         foreach ($grants as $roleCode => $permissionCodes) {
@@ -554,7 +581,7 @@ final class ProvisionTenantDefaults implements TenantProvisioner
             }
         }
 
-        foreach (['propios' => self::STRUCTURE_PERMISSION_PROPIOS_GRANTS, 'unidad_familiar' => self::FAMILY_PERMISSION_UNIDAD_FAMILIAR_GRANTS] as $scope => $scopedGrants) {
+        foreach (['propios' => self::STRUCTURE_PERMISSION_PROPIOS_GRANTS, 'unidad_familiar' => array_merge_recursive(self::FAMILY_PERMISSION_UNIDAD_FAMILIAR_GRANTS, self::ALUM_PERMISSION_UNIDAD_FAMILIAR_GRANTS)] as $scope => $scopedGrants) {
             foreach ($scopedGrants as $roleCode => $permissionCodes) {
                 foreach ($permissionCodes as $permissionCode) {
                     PermissionRole::forceCreate([

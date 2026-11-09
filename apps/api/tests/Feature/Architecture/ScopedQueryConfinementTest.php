@@ -3,6 +3,7 @@
 use App\Models\AuditLog;
 use App\Modules\Acad\Application\FacilityBookingService;
 use App\Modules\Acad\Domain\Models\FacilityBooking;
+use App\Modules\Alum\Domain\Models\Student;
 use App\Modules\Core\Infrastructure\EloquentAuditQuery;
 use App\Modules\Core\Infrastructure\EloquentExportRequestService;
 use App\Modules\Core\Infrastructure\Jobs\GenerateAuditLogExport;
@@ -120,6 +121,16 @@ function scopedResourceMap(): array
                 'Modules/FamUnit/Application/PickupListService.php',
             ],
         ],
+        // 1.15-a (REQ-ALUM/permisos.md §3.1, ampliación del mapa aprobada con la especificación, 2026-11-06): `alumno.leer`
+        // admite `unidad_familiar`. Un solo modelo y un solo servicio sancionado (`StudentService`, T2 de 1.15-a: hasta
+        // entonces el test de existencia de ficheros del mapa falla a propósito, `funcional.md §15`). 1.15-b y 1.15-c
+        // añaden `matricula` (`Enrollment`, `GroupChangeRequest`).
+        'alumno' => [
+            'models' => [Student::class],
+            'files' => [
+                'Modules/Alum/Application/StudentService.php',
+            ],
+        ],
     ];
 }
 
@@ -191,7 +202,7 @@ test('AR-10 CA-056-11 CA-056-15: cada recurso del mapa sigue teniendo un permiso
     $stale = array_values(array_diff(array_keys(scopedResourceMap()), array_keys($scoped)));
 
     expect($stale)->toBe([], 'entradas del mapa de AR-10 que ya no hacen falta, retirarlas: '.implode(', ', $stale))
-        ->and(array_keys(scopedResourceMap()))->toBe(['auditoria', 'reservas', 'familia', 'vinculo_tutor', 'consentimiento_imagen', 'autorizado_recogida']);
+        ->and(array_keys(scopedResourceMap()))->toBe(['auditoria', 'reservas', 'familia', 'vinculo_tutor', 'consentimiento_imagen', 'autorizado_recogida', 'alumno']);
 });
 
 test('AR-10 CA-056-11: ningún fichero de app/ fuera de los sancionados hace una consulta estática sobre el modelo de un recurso con ámbito', function (): void {
