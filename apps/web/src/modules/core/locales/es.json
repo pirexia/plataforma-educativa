@@ -373,7 +373,9 @@
         "family_unit": "Unidad familiar",
         "guardian": "Tutor",
         "guardian_student_link": "Vínculo tutor-alumno",
-        "family_unit_student": "Alumno de la unidad familiar"
+        "family_unit_student": "Alumno de la unidad familiar",
+        "timetable_session": "Sesión de horario",
+        "facility": "Espacio"
       },
       "module": {
         "core": "Centro y usuarios",

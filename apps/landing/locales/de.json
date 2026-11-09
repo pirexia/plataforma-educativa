@@ -67,12 +67,12 @@
   "notfound.meta.description": "Die gesuchte Seite existiert auf adagiox.com nicht.",
   "notfound.h1": "Seite nicht gefunden",
   "notfound.text": "Die gesuchte Seite existiert nicht. Wählen Sie eine Sprache, um zur Startseite zu gelangen.",
-  "img.hero-schedule.alt": "Wochenstundenplan einer Klasse, bei dem das Verschieben einer Stunde auf einen anderen Zeitpunkt mit dem Hinweis abgelehnt wird, dass die Lehrkraft zu dieser Zeit bereits Unterricht hat.",
-  "img.academic-structure.alt": "Liste der Bildungsstufen der Schule mit Kürzel, Name, Stufenart, Finanzierungsform und Position.",
-  "img.role-permissions.alt": "Berechtigungseditor für eine benutzerdefinierte Rolle, in dem jede Berechtigung mit ihrem Geltungsbereich erlaubt oder verweigert wird; hier für die Ressource Stundenpläne.",
-  "img.audit-log.alt": "Prüfprotokoll mit Angaben, wer wann was in der Schule getan hat, mit Filtern nach Datum, Vorgang, Benutzer, Modul und Entität sowie Exportfunktion.",
-  "img.year-rollover.alt": "Erster Schritt eines vierstufigen Assistenten, der die Struktur eines Schuljahres in das nächste kopiert und vor der Ausführung eine Simulation zeigt.",
+  "img.hero-schedule.alt": "Wochenstundenplan einer Klasse von Montag bis Freitag, in dem jede Stunde mit Fach, Lehrkraft und Raum belegt ist.",
+  "img.schedule-conflict.alt": "Wochenstundenplan einer Klasse, bei dem das Verschieben einer Stunde auf einen anderen Zeitpunkt mit dem Hinweis abgelehnt wird, dass die Lehrkraft zu dieser Zeit bereits Unterricht hat.",
+  "img.role-permissions.alt": "Berechtigungseditor für eine benutzerdefinierte Rolle im Modul Schulverwaltung, in dem jede Berechtigung mit ihrem Geltungsbereich erlaubt, ausdrücklich verweigert oder nicht erteilt ist.",
+  "img.audit-log.alt": "Prüfprotokoll mit Angaben, wer wann was in der Schule getan hat, etwa Änderungen an Stundenplaneinträgen, Schülerinnen und Schülern, Räumen und Rollenberechtigungen, mit Filtern nach Datum, Vorgang, Benutzer, Modul und Entität sowie Exportfunktion.",
   "img.family-unit.alt": "Familieneinheit mit ihren Erziehungsberechtigten, ihren Schülern und den Verbindungen zwischen beiden, einschließlich Verwandtschaftsverhältnis, gesetzlicher Vertretung und Zugriffsstufe.",
   "img.pickup-door.alt": "Pförtnerbildschirm, auf dem das Personal eine Schülerin oder einen Schüler nach Namen sucht, bevor das Kind an eine berechtigte Person übergeben wird.",
-  "img.school-branding.alt": "Einstellungen zur Markenidentität der Schule mit Logo, Favicon und Anmeldehintergrund, jeweils mit Formaten und Größenbeschränkungen."
+  "img.school-branding.alt": "Einstellungen zur Markenidentität der Schule mit Logo, Favicon und Anmeldehintergrund, jeweils mit Formaten und Größenbeschränkungen.",
+  "img.sign-in.alt": "Anmeldeseite einer Schule mit eigenem Namen, Logo und eigenen Farben über den Feldern für E-Mail-Adresse und Passwort."
 }

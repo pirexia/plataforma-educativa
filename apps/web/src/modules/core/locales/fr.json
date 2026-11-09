@@ -373,7 +373,9 @@
         "family_unit": "Unité familiale",
         "guardian": "Tuteur",
         "guardian_student_link": "Lien tuteur-élève",
-        "family_unit_student": "Élève de l’unité familiale"
+        "family_unit_student": "Élève de l’unité familiale",
+        "timetable_session": "Séance de l’emploi du temps",
+        "facility": "Espace"
       },
       "module": {
         "core": "Établissement et utilisateurs",

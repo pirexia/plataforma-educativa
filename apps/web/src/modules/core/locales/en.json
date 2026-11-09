@@ -373,7 +373,9 @@
         "family_unit": "Family unit",
         "guardian": "Guardian",
         "guardian_student_link": "Guardian-student link",
-        "family_unit_student": "Family unit student"
+        "family_unit_student": "Family unit student",
+        "timetable_session": "Timetable session",
+        "facility": "Facility"
       },
       "module": {
         "core": "School and users",

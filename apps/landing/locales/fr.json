@@ -67,12 +67,12 @@
   "notfound.meta.description": "La page que vous recherchez n'existe pas sur adagiox.com.",
   "notfound.h1": "Page introuvable",
   "notfound.text": "La page que vous recherchez n'existe pas. Choisissez une langue pour accéder à la page d'accueil.",
-  "img.hero-schedule.alt": "Emploi du temps hebdomadaire d'une classe : le déplacement d'un cours vers un autre créneau est refusé, avec un avertissement indiquant que l'enseignant a déjà cours à ce moment.",
-  "img.academic-structure.alt": "Liste des étapes éducatives de l'établissement avec leur code, leur nom, leur type d'étape, leur régime de financement et leur position.",
-  "img.role-permissions.alt": "Éditeur des autorisations d'un rôle personnalisé, où chaque autorisation est accordée ou refusée avec sa portée ; ici, pour la ressource emplois du temps.",
-  "img.audit-log.alt": "Journal d'audit indiquant qui a fait quoi et quand dans l'établissement, avec des filtres par date, opération, utilisateur, module et entité, et une option d'exportation.",
-  "img.year-rollover.alt": "Première étape d'un assistant en quatre étapes qui copie la structure d'une année scolaire vers la suivante et affiche une simulation avant toute exécution.",
+  "img.hero-schedule.alt": "Grille de l'emploi du temps hebdomadaire d'une classe, du lundi au vendredi, dont tous les créneaux sont remplis avec leur matière, leur enseignant et leur salle.",
+  "img.schedule-conflict.alt": "Emploi du temps hebdomadaire d'une classe : le déplacement d'un cours vers un autre créneau est refusé, avec un avertissement indiquant que l'enseignant a déjà cours à ce moment.",
+  "img.role-permissions.alt": "Éditeur des autorisations d'un rôle personnalisé dans le module de gestion pédagogique, où chaque autorisation est accordée, explicitement refusée ou non accordée, avec sa portée.",
+  "img.audit-log.alt": "Journal d'audit indiquant qui a fait quoi et quand dans l'établissement, par exemple les modifications des séances d'emploi du temps, des élèves, des espaces et des autorisations de rôle, avec des filtres par date, opération, utilisateur, module et entité, et une option d'exportation.",
   "img.family-unit.alt": "Unité familiale avec ses responsables légaux, ses élèves et les liens entre eux, avec le lien de parenté, la représentation légale et le niveau d'accès.",
   "img.pickup-door.alt": "Écran de conciergerie où le personnel recherche un élève par son nom avant de le remettre à une personne autorisée.",
-  "img.school-branding.alt": "Paramètres de l'identité visuelle de l'établissement avec le logo, la favicon et l'arrière-plan de connexion, chacun avec ses formats et ses limites de taille."
+  "img.school-branding.alt": "Paramètres de l'identité visuelle de l'établissement avec le logo, la favicon et l'arrière-plan de connexion, chacun avec ses formats et ses limites de taille.",
+  "img.sign-in.alt": "Page de connexion d'un établissement, avec son nom, son logo et ses couleurs propres au-dessus des champs adresse e-mail et mot de passe."
 }

@@ -67,12 +67,12 @@
   "notfound.meta.description": "La página que busca no existe en adagiox.com.",
   "notfound.h1": "Página no encontrada",
   "notfound.text": "La página que busca no existe. Elija un idioma para ir a la portada.",
-  "img.hero-schedule.alt": "Horario semanal de un grupo en el que mover una clase a otra franja se rechaza con un aviso de que el profesor ya tiene clase en ese momento.",
-  "img.academic-structure.alt": "Listado de las etapas educativas del centro con su código, nombre, tipo de etapa, régimen de financiación y posición.",
-  "img.role-permissions.alt": "Editor de permisos de un rol personalizado, donde cada permiso se concede o se deniega con su ámbito; aquí, el recurso de horarios.",
-  "img.audit-log.alt": "Registro de auditoría con quién hizo qué y cuándo en el centro, con filtros por fecha, operación, usuario, módulo y entidad, y opción de exportar.",
-  "img.year-rollover.alt": "Primer paso de un asistente de cuatro pasos que copia la estructura de un curso académico en el siguiente y muestra una simulación antes de ejecutar nada.",
+  "img.hero-schedule.alt": "Rejilla del horario semanal de un grupo, de lunes a viernes, con todas las franjas rellenas con su asignatura, profesor y aula.",
+  "img.schedule-conflict.alt": "Horario semanal de un grupo en el que mover una clase a otra franja se rechaza con un aviso de que el profesor ya tiene clase en ese momento.",
+  "img.role-permissions.alt": "Editor de permisos de un rol personalizado en el módulo de gestión académica, donde cada permiso se concede, se deniega de forma explícita o se deja sin conceder, con su ámbito.",
+  "img.audit-log.alt": "Registro de auditoría con quién hizo qué y cuándo en el centro, como cambios en sesiones de horario, alumnado, espacios y permisos de rol, con filtros por fecha, operación, usuario, módulo y entidad, y opción de exportar.",
   "img.family-unit.alt": "Unidad familiar con sus tutores, sus alumnos y los vínculos entre ambos, con parentesco, representación legal y nivel de acceso.",
   "img.pickup-door.alt": "Pantalla de conserjería donde el personal busca a un alumno por nombre antes de entregarlo a una persona autorizada.",
-  "img.school-branding.alt": "Configuración de la marca del centro con el logotipo, el favicon y el fondo de la pantalla de acceso, cada uno con sus formatos y límites de tamaño."
+  "img.school-branding.alt": "Configuración de la marca del centro con el logotipo, el favicon y el fondo de la pantalla de acceso, cada uno con sus formatos y límites de tamaño.",
+  "img.sign-in.alt": "Página de acceso de un centro, con su nombre, su logo y sus colores propios sobre los campos de correo y contraseña."
 }

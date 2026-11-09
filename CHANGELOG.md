@@ -6,6 +6,11 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-09 · `feat(landing)`: rediseño, tramo T2c, ajuste de capturas (`ADR-074`, #579)
+
+- `apps/web`: `e2e/landing-shots.spec.ts` y `e2e/fixtures/landingShowcase.ts`: `hero-schedule` pasa a la rejilla limpia de 1.º ESO A; el diálogo con el conflicto de profesor es la nueva `schedule-conflict`; se añade `sign-in` (acceso sin sesión); `role-permissions` muestra el módulo Academic management con `deny` explícito; `audit-log` da de alta cambios de negocio antes de capturar. Salen `year-rollover` y `academic-structure` (tope de ocho imágenes). Claves `core.audit.entity.timetable_session` y `.facility` en los cuatro idiomas.
+- `apps/landing`: claves `img.<id>.alt` actualizadas en los cuatro idiomas.
+
 ## 2026-11-09 · `feat(landing)`: rediseño, tramo T2b, capturas de las ocho pantallas (`ADR-074`, #579)
 
 - `apps/web`: `e2e/landing-shots.spec.ts` captura las ocho pantallas (`hero-schedule`, `academic-structure`, `role-permissions`, `audit-log`, `year-rollover`, `family-unit`, `pickup-door`, `school-branding`) como PNG maestros 1440 × 900 a DPR 2 en `apps/landing/tools/images/masters/` (ignorado por Git), falla si falta una o hay un 4xx/5xx inesperado o texto no publicable (correo no `@example.com`, marca E2E, URL de desarrollo, documento). `apps/landing`: claves `img.<id>.alt` en los cuatro idiomas; los tests de la landing parten de un sitio sin `src/img`. Las imágenes finales se commitean aparte, tras la revisión humana (`§4.3`).

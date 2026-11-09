@@ -373,7 +373,9 @@
         "family_unit": "Familieneinheit",
         "guardian": "Erziehungsberechtigter",
         "guardian_student_link": "Verknüpfung Erziehungsberechtigter–Schüler",
-        "family_unit_student": "Schüler der Familieneinheit"
+        "family_unit_student": "Schüler der Familieneinheit",
+        "timetable_session": "Unterrichtsstunde im Stundenplan",
+        "facility": "Raum"
       },
       "module": {
         "core": "Schule und Benutzer",

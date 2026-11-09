@@ -151,7 +151,7 @@ export const ROLE = {
     'curso_academico.leer',
     'auditoria.leer',
   ],
-  deny: ['usuario.eliminar', 'rol.eliminar'],
+  deny: ['usuario.eliminar', 'rol.eliminar', 'horarios.eliminar', 'espacios.eliminar'],
 }
 
 export const FAMILY = {
@@ -206,7 +206,7 @@ export const PICKUP = { given: 'Joaquín', family1: 'Ferrer', family2: 'Soto' }
 const CROCKFORD = '0123456789ABCDEFGHJKMNPQRSTVWXYZ'
 
 /** ULID válido: la `Idempotency-Key` de `POST /students` (RN-ALUM-27). */
-function ulid(): string {
+export function ulid(): string {
   let time = Date.now()
   let out = ''
 
@@ -230,6 +230,7 @@ export interface ShowcaseRefs {
   unit: string
   studentPersons: string[]
   groups: Record<string, string>
+  courses: Record<string, string>
   frame: string
   slots: string[]
   sessions: Record<string, string[]>
@@ -522,6 +523,7 @@ export async function createShowcase(admin: RealSession): Promise<ShowcaseRefs> 
     unit,
     studentPersons,
     groups,
+    courses,
     frame: frame.public_id as string,
     slots,
     sessions,

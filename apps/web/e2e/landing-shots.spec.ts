@@ -10,7 +10,9 @@ import {
   FAMILY,
   OTHER_STUDENTS,
   TEACHERS,
+  ROLE,
   createShowcase,
+  ulid,
   type ShowcaseRefs,
 } from './fixtures/landingShowcase'
 import { RealSession } from './fixtures/realSession'
@@ -22,7 +24,7 @@ import { RealSession } from './fixtures/realSession'
  *
  * T2a: comprobación de humo del arnés (inicia sesión en inglés, crea el escaparate con el *fixture*
  * `e2e/fixtures/landingShowcase.ts` por la API real y comprueba por API que existen los datos clave).
- * T2b: captura las ocho pantallas (`SHOTS`) como PNG maestros 1440 × 900 CSS px a DPR 2 en
+ * T2b/T2c: captura las ocho pantallas (la de acceso, sin sesión, y las siete de `SHOTS`) como PNG maestros 1440 × 900 CSS px a DPR 2 en
  * `apps/landing/tools/images/masters/<id>.png` (directorio ignorado por Git) y deja junto a cada una `<id>.txt` con el texto
  * visible de la pantalla para la revisión humana (ADR-074 §4.3). Falla si falta una pantalla, si aparece una petición de API
  * con 4xx/5xx inesperada, o si el texto visible contiene algo que no debe salir en una imagen pública.
@@ -95,15 +97,81 @@ interface Shot {
   prepare?: (page: Page) => Promise<void>
 }
 
-const SHOTS = (refs: ShowcaseRefs): Shot[] => [
+/**
+ * Acciones de negocio que se dan de alta justo antes de capturar el registro de auditoría, por la API real con la sesión del
+ * administrador: el listado va de lo más reciente a lo más antiguo y el inicio de sesión de la captura (y el dispositivo conocido)
+ * son lo último que se registra, así que sin esto las primeras filas serían ruido de acceso. Son cambios ficticios y de bajo
+ * impacto que no alteran ninguna otra captura (se ejecuta tras ellas, salvo la de familia, que no los muestra).
+ */
+async function businessActivity(admin: RealSession, refs: ShowcaseRefs): Promise<void> {
+  await admin.json(
+    'POST',
+    'students',
+    201,
+    {
+      given_name: 'Marta',
+      family_name_1: 'Olmedo',
+      family_name_2: 'Pons',
+      birth_date: '2015-06-30',
+    },
+    { 'Idempotency-Key': ulid() },
+  )
+  await admin.json(
+    'POST',
+    'students',
+    201,
+    {
+      given_name: 'Pablo',
+      family_name_1: 'Rueda',
+      family_name_2: 'Gil',
+      birth_date: '2014-12-05',
+    },
+    { 'Idempotency-Key': ulid() },
+  )
+  await admin.json('POST', 'facilities', 201, {
+    facility_type: 'aula',
+    code: 'A202',
+    name: 'Classroom 202',
+  })
+
+  const [first, second] = [refs.sessions['1ESO-A']![0]!, refs.sessions['1ESO-A']![5]!]
+  const rooms = (await admin.json('GET', 'facilities?per_page=100', 200)).data as {
+    public_id: string
+    code: string
+  }[]
+  const a202 = rooms.find((r) => r.code === 'A202')!.public_id
+  const a201 = rooms.find((r) => r.code === 'A201')!.public_id
+
+  await admin.json('PATCH', `timetable-sessions/${first}`, 200, { facility: a201 })
+  await admin.json('PATCH', `timetable-sessions/${second}`, 200, { facility: a202 })
+
+  await admin.json('PUT', `roles/${refs.role}/permissions`, 200, {
+    permissions: [
+      ...[...ROLE.allow, 'reservas.crear'].map((code) => ({
+        code,
+        effect: 'allow',
+        scope: 'todos',
+      })),
+      ...ROLE.deny.map((code) => ({ code, effect: 'deny', scope: 'todos' })),
+    ],
+  })
+}
+
+const SHOTS = (refs: ShowcaseRefs, admin: RealSession): Shot[] => [
   {
+    // Rejilla limpia de 1.º ESO A (vista por grupo): sin diálogo ni aviso.
     id: 'hero-schedule',
-    path: '/academico/horarios',
+    path: `/academico/horarios?view=group&id=${refs.groups['1ESO-A']}`,
+    prepare: async (page) => {
+      await page.getByRole('table').first().scrollIntoViewIfNeeded()
+    },
+  },
+  {
+    // Intento de mover una sesión de 1.º ESO B a una franja donde el profesor ya da clase: el servidor lo rechaza.
+    id: 'schedule-conflict',
+    path: `/academico/horarios?view=group&id=${refs.groups['1ESO-B']}`,
     expected: /^422 PATCH .*timetable-sessions/,
     prepare: async (page) => {
-      await page.locator('#acad-timetable-entity').click()
-      await page.getByRole('option', { name: '1st ESO B' }).click()
-      await settle(page)
       await page.getByRole('button', { name: /edit/i }).first().click()
       await page.locator('#acad-session-slot').click()
       await page
@@ -114,17 +182,22 @@ const SHOTS = (refs: ShowcaseRefs): Shot[] => [
       await expect(page.getByRole('alert').first()).toBeVisible()
     },
   },
-  { id: 'academic-structure', path: '/academico/estructura' },
   {
     id: 'role-permissions',
     path: `/administracion/roles/${refs.role}/permisos`,
-    // Los permisos concedidos y el `deny` explícito del rol (no la primera sección, casi toda «sin conceder»).
+    // «Academic management»: el rol concede, deniega de forma explícita (`deny`: no puede borrar horarios ni espacios) y deja sin conceder.
     prepare: async (page) => {
-      await page.getByPlaceholder(/search resource/i).fill('timetable')
+      await page.locator('#role-editor-module').selectOption({ label: 'Academic management' })
     },
   },
-  { id: 'audit-log', path: '/administracion/auditoria' },
-  { id: 'year-rollover', path: `/administracion/cursos/${refs.nextYear}/copiar-estructura` },
+  {
+    id: 'audit-log',
+    path: '/administracion/auditoria',
+    prepare: async (page) => {
+      await businessActivity(admin, refs)
+      await page.reload()
+    },
+  },
   { id: 'family-unit', path: `/familias/${refs.unit}` },
   {
     id: 'pickup-door',
@@ -306,11 +379,45 @@ test.describe('landing:shots: escaparate, comprobación de humo y capturas', () 
       }
     })
 
-    await signIn(page, ADMIN.email, process.env.E2E_ADMIN_PASSWORD ?? '')
-
     const results: string[] = []
 
-    for (const shot of SHOTS(refs)) {
+    const capture = async (id: string): Promise<void> => {
+      const text = await page.locator('body').innerText()
+      const problems = forbiddenIn(text)
+
+      expect(problems, `${id}: texto que no debe salir en una imagen`).toEqual([])
+      expect(failures, `${id}: errores de red o de API inesperados`).toEqual([])
+
+      await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur())
+      await page.mouse.move(1439, 899)
+      await page.screenshot({
+        path: `${MASTERS_DIR}/${id}.png`,
+        animations: 'disabled',
+        caret: 'hide',
+        scale: 'device',
+      })
+      writeFileSync(`${MASTERS_DIR}/${id}.txt`, text)
+      results.push(id)
+    }
+
+    const only = process.env.E2E_SHOTS_ONLY?.split(',').filter(Boolean)
+    const wanted = (id: string) => !only || only.includes(id)
+
+    // Pantalla de acceso tal como la ve un visitante: sin sesión, antes de iniciarla (marca del centro, sin datos de nadie).
+    if (wanted('sign-in')) {
+      failures.length = 0
+      await page.addInitScript(() => window.localStorage.setItem('plataforma.locale', 'en'))
+      await page.goto('/entrar')
+      await settle(page)
+      await expect(page.getByLabel(/email/i)).toBeVisible()
+      await capture('sign-in')
+    }
+
+    await signIn(page, ADMIN.email, process.env.E2E_ADMIN_PASSWORD ?? '')
+
+    const shots = SHOTS(refs, admin).filter((shot) => wanted(shot.id))
+
+    for (const shot of shots) {
       failures.length = 0
       expected = shot.expected ?? null
 
@@ -318,27 +425,14 @@ test.describe('landing:shots: escaparate, comprobación de humo y capturas', () 
       await settle(page)
       await shot.prepare?.(page)
       await settle(page)
-
-      const text = await page.locator('body').innerText()
-      const problems = forbiddenIn(text)
-
-      expect(problems, `${shot.id}: texto que no debe salir en una imagen`).toEqual([])
-      expect(failures, `${shot.id}: errores de red o de API inesperados`).toEqual([])
-
-      await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur())
-      await page.mouse.move(1439, 899)
-      await page.screenshot({
-        path: `${MASTERS_DIR}/${shot.id}.png`,
-        animations: 'disabled',
-        caret: 'hide',
-        scale: 'device',
-      })
-      writeFileSync(`${MASTERS_DIR}/${shot.id}.txt`, text)
-      results.push(shot.id)
+      await capture(shot.id)
       expected = null
     }
 
-    expect(results, 'faltan pantallas').toEqual(SHOTS(refs).map((s) => s.id))
+    expect(results, 'faltan pantallas').toEqual([
+      ...(wanted('sign-in') ? ['sign-in'] : []),
+      ...shots.map((s) => s.id),
+    ])
   })
 
   test('la lista de docentes del fixture coincide con la del soporte', async () => {
