@@ -6,6 +6,12 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-09 · `feat(landing)`: rediseño, tramo T2a, escaparate de datos y arnés de capturas (`ADR-074`, #579)
+
+- `apps/web`: `npm run landing:shots` (`scripts/landing-shots.sh`) crea el centro de escaparate «Colegio Ejemplo Los Álamos (ficticio)» por la API real con el *fixture* fijo `e2e/fixtures/landingShowcase.ts` y lo retira siempre (`trap`); `e2e/landing-shots.spec.ts` (solo con `E2E_LANDING_SHOTS=1`) hace la comprobación de humo en inglés, 1440 × 900 a doble densidad. `purge_tenant_rows` pasa a `scripts/lib/e2e-purge.sh`, compartido con `e2e-real-api.sh` sin cambio de comportamiento.
+- `apps/api/tests/Support/e2e-real-tenant.php`: modo `showcase` (slug `demo`, `fam_unit`/`prl`/`alum`, tres docentes activos y administrador de datos fijos) que conserva las tres garantías; `teardown` solo retira un escaparate si coinciden slug, nombre fijo y su administrador. Test sin base de datos de las dos primeras salvaguardas.
+- **No hecho** (T2b/T3): capturas de las ocho pantallas e imágenes; diseño y contenido.
+
 ## 2026-11-09 · `feat(landing)`: rediseño, tramo T1, idiomas, comprobaciones y pipeline de imágenes (`ADR-074`, #579)
 
 - `apps/landing`: `LANGS` (código, *slug*, `dir`) como única lista; `DEFAULT_LANG`/`BASE_LANG` = `en`, `LEGAL_LANG` = `es-ES`; `/` en inglés y `/es/`, `/de/`, `/fr/`; `x-default` → `/`; plantillas (cabecera, `head-links`, 404) sin idiomas escritos; 404 en inglés; `<html dir>`; `_pending_translation` prohibido también en `en`.

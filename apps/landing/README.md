@@ -81,6 +81,21 @@ Estado visible: «en desarrollo». Sin cifras, clientes, certificaciones, fechas
 
 Página legal (`legal.body.*`): estructura de `ADR-072 §4.3` y `§4.4` (identificación del art. 10 LSSI-CE; información del art. 13 RGPD: responsable, datos, finalidad, base legal, encargado, transferencia, plazo, derechos, cookies), con los datos de `ADR-073`: titular persona física sin NIF ni domicilio publicados, encargados Cloudflare, Inc. y Arsys Internet, S.L.U., garantía de la transferencia, plazo de conservación y tratamiento de los correos de `founders@adagiox.com`. Ya no es un borrador con marcadores; se publica **sin revisión de asesor** (`ADR-073 §2.4`) y `check:publish` pasa. Los marcadores (`[TITULAR]`, `[NIF]`, `[DOMICILIO]`, `[CORREO]`, `[PROVEEDOR]`, `[GARANTIA]`, `[PLAZO]`) siguen bloqueando la publicación si reaparecen.
 
+## Capturas (`ADR-074 §4.4`)
+
+Las imágenes de la cabecera y de las secciones son capturas **reales de la aplicación** con un centro de escaparate de datos sintéticos. No es un test: no entra en `test:e2e:real` ni en CI.
+
+```bash
+# Con la pila de desarrollo arriba (plataforma-api en :8000 y plataforma-postgres):
+cd apps/web && npm run landing:shots
+```
+
+- **Qué hace** (`apps/web/scripts/landing-shots.sh`): crea por el soporte destructivo de la API (`apps/api/tests/Support/e2e-real-tenant.php setup demo showcase`) el centro «Colegio Ejemplo Los Álamos (ficticio)», lanza `apps/web/e2e/landing-shots.spec.ts` y **lo retira siempre** al terminar, también si falla (`trap`).
+- **Datos**: `apps/web/e2e/fixtures/landingShowcase.ts`, con valores fijos (centro, etapas, grupos, asignaturas, aulas, marco horario, horario de 1.º ESO A y B, rol personalizado, unidad familiar con tres tutores y custodia, alumnado, persona autorizada a recoger, marca). Todo se da de alta por la API real con la sesión del administrador; solo los tres docentes activos y el administrador los deja el soporte. Nombres inventados, correos `@example.com`, **sin documentos de identidad, direcciones ni fotografías** (el logo es un SVG sintético).
+- **Slug `demo`**: la CORS de desarrollo de la API (`CORS_ALLOWED_ORIGINS`) solo admite `http://demo.plataforma.test:5173`. El soporte solo crea y retira un `demo` que lleve el nombre fijo del escaparate **y** su administrador (`elena.marin@example.com`); un `demo` de otro origen no se toca.
+- **Estado (tramo T2a)**: solo datos y arnés, con una comprobación de humo (datos clave por API, conflicto de profesor del horario y carga sin error de las ocho pantallas). **Todavía no captura imágenes** (tramo T2b). Salida prevista: PNG a 1440 × 900 CSS px, `deviceScaleFactor: 2`, interfaz en inglés, en un directorio ignorado por Git, y después `tools/images/images.mjs`.
+- **Requisitos**: para la pantalla de marca (logo) hace falta un almacén S3 en `minio:9000` (MinIO o el servidor falso de `docs/modulos/REQ-PRL/operacion.md §12.7`); la cola `long` (`worker-long`) solo si un paso ejecuta la copia del curso siguiente.
+
 ## Lista manual de accesibilidad (WCAG 2.2 AA)
 
 Lighthouse/axe no certifican conformidad. En cada cambio de contenido o de estilos, comprobar a mano:
