@@ -1,6 +1,6 @@
 # CLAUDE.md — Normas de trabajo del proyecto
 
-> **Versión 2.11.1** · 2026-11-07 · Fichero de contexto permanente. Se carga en **todas** las sesiones. Contiene solo reglas estables.
+> **Versión 2.11.2** · 2026-11-09 · Fichero de contexto permanente. Se carga en **todas** las sesiones. Contiene solo reglas estables.
 > Proyecto: **Plataforma de Gestión Educativa Multi-tenant**. Fuente de verdad funcional: `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md`.
 
 ---
@@ -97,10 +97,11 @@ Reglas de composición visual del frontend: `docs/design-system.md §22`.
 2. Actualiza `memory.md`: qué se completó, qué queda a medias, siguiente paso concreto, decisiones tomadas, problemas abiertos.
 3. Actualiza `PLAN-IMPLEMENTACION.md` marcando el progreso.
 4. Deja el repositorio en estado compilable y con tests en verde.
+5. Revisa los PR abiertos por Renovate: `gh pr list --author "app/renovate" --state open`; por cada uno anota en `memory.md` si pasa el CI, está obsoleto (rebase) o falla. Si falla por código del proyecto (p. ej. Larastan), se abre issue con la severidad de §5; los PR con etiqueta `security` se tratan como Altos. Renovate nunca se mezcla sin CI en verde (`automerge: false`).
 
 **Este cierre no espera a que lo pidas.** En cuanto el sistema avise de que la cuota se agota (aviso «usage limit approaching» u otro equivalente), termina el paso atómico en curso (no empieces uno nuevo), aplica los cuatro puntos anteriores y programa un aviso para retomar cuando la cuota se restaure. La hora de reset **no está en tu contexto**: pregúntasela al usuario, salvo que ya te la haya dado. Mecanismo: skill `cierre-de-sesion`.
 
-**Cierre también entre pasos del plan.** Salvo orden explícita del usuario, al terminar un paso de `PLAN-IMPLEMENTACION.md` (aprobado, implementado, revisado y mezclado) aplica el cierre completo **antes** de empezar el siguiente y déjalo dicho en `memory.md`; no encadenes varios pasos del plan en la misma sesión por defecto (higiene de contexto).
+**Cierre también entre pasos del plan.** Salvo orden explícita del usuario, al terminar un paso de `PLAN-IMPLEMENTACION.md` (aprobado, implementado, revisado y mezclado) aplica el cierre completo **antes** de empezar el siguiente y déjalo dicho en `memory.md`, con la revisión de PR de Renovate del punto 5 del cierre de sesión; no encadenes varios pasos del plan en la misma sesión por defecto (higiene de contexto).
 
 **Relanzar un subagente de ejecución (`implementer` u otro) tras un fallo o un corte por cuota no es licencia para decidir alcance.** No recorta, amplía, fusiona ni reinterpreta lo que la especificación aprobada dice, ni siquiera para «simplificar» algo redundante o acelerar el cierre. Sigue la especificación al pie de la letra, como si empezara de cero; si lo que queda no está claro o parece contradecirla, para y repórtalo (sección 0). Quien relanza (la sesión orquestadora) contrasta lo entregado contra la especificación antes de darlo por bueno. Motivo: `docs/proceso/casos-reales.md#relanzamiento-recorta-alcance`.
 
