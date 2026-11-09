@@ -1,0 +1,15 @@
+{
+  // Worker de solo activos estáticos (ADR-072 §4.7). Sin `main`: no hay código de Worker.
+  // Sin `routes` ni dominios personalizados: el DNS de adagiox.com aún no existe (OPEN-072-04).
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "adagiox-landing",
+  "compatibility_date": "2026-11-09",
+  "workers_dev": true,
+  "assets": {
+    "directory": "./dist",
+    // /en/ -> en/index.html, /en/legal/ -> en/legal/index.html (coincide con las URL canónicas con barra final).
+    "html_handling": "auto-trailing-slash",
+    // Ruta inexistente -> 404.html más cercano, con estado 404.
+    "not_found_handling": "404-page"
+  }
+}

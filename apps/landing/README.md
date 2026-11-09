@@ -2,7 +2,7 @@
 
 Sitio estático de AdagioX (`ADR-072`). Sin JavaScript, sin cookies, sin analítica, sin formularios y sin recursos de terceros. Cuatro idiomas: es-ES (por defecto), en, de y fr. **Solo esta landing usa el nombre AdagioX**; el resto del repositorio no cambia (`ADR-072 §1.1`).
 
-Estado: **T1** (estructura, construcción y comprobaciones). Desplegar, revertir, `ci-landing.yml`, Lighthouse y `deploy.sh` son el tramo **T2** y no existen todavía.
+Estado: **T1** (estructura, construcción y comprobaciones) y **T2** (CI, Lighthouse y despliegue, sin probar contra Cloudflare). No se publica nada hasta cumplir la puerta de `ADR-072`.
 
 ## Estructura
 
@@ -82,11 +82,32 @@ Lighthouse/axe no certifican conformidad. En cada cambio de contenido o de estil
 - [ ] `prefers-reduced-motion` y `prefers-color-scheme` respetados.
 - [ ] Un único `h1` por página y jerarquía de títulos sin saltos.
 
+## Lighthouse
+
+`npm run lighthouse` (`lhci autorun`, `@lhci/cli` 0.16.0) sirve `dist/` con `staticDistDir` y audita en perfil móvil las cuatro portadas (es, en, de, fr) y `/legal/`, tres pasadas cada una. Umbrales (`ADR-072 §4.5`, `.lighthouserc.json`): accesibilidad = 1; buenas prácticas, SEO y rendimiento >= 0,95. Necesita Chrome (en CI viene en el runner; en local, `CHROME_PATH`). Informes en `.lighthouseci/` (ignorado por Git).
+
+**Limitación**: `lhci` sirve los ficheros estáticos **sin** `_headers` ni `_redirects`, así que Lighthouse no valida CSP, HSTS ni redirecciones. Eso lo cubren `npm run check` (valor exacto en `dist/_headers`) y el smoke test de `deploy.sh` contra la URL real. Lighthouse no certifica WCAG: sigue la lista manual de arriba.
+
 ## Desplegar y revertir
 
-**T2** (pendiente): `scripts/deploy.sh`, `ci-landing.yml`, Lighthouse y reversión probada (`ADR-072 §4.5`, `§4.6`).
+Proveedor: Cloudflare **Workers static assets** (`ADR-072 §4.7`; no Pages). `wrangler.jsonc`: Worker `adagiox-landing`, `assets.directory = ./dist`, sin `main`, `workers_dev: true`, **sin rutas ni dominios personalizados** (el DNS aún no existe, `OPEN-072-04`), `html_handling: auto-trailing-slash` (`/en/` sirve `en/index.html`, coherente con las URL canónicas) y `not_found_handling: 404-page` (sirve `404.html` con estado 404). Workers lee `_headers` y `_redirects` de `dist/`.
 
-Requisitos para T2:
+`scripts/deploy.sh` es el **único punto que conoce al proveedor**. Lo llama solo `ci-landing.yml` (job `deploy`: `push` a `main`, tras `build`, `check` y `lighthouse`, con la variable de repositorio `LANDING_DEPLOY_ENABLED = true`; alta del token y secretos en `SYSADMIN.md §4b`). Orden: exige `CLOUDFLARE_API_TOKEN` y `CLOUDFLARE_ACCOUNT_ID`; `npm run build`; `npm run check:publish` (**puerta de publicación, #582**: con marcadores `[TITULAR]`, traducciones pendientes o `dist/` obsoleto el despliegue no continúa); `wrangler deploy`; y smoke test de cabeceras (#583) con `curl` a la URL desplegada, comparando con el valor exacto de `dist/_headers` (CSP, HSTS `max-age=86400`, `nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy`, COOP y CORP).
 
-- El despliegue debe ejecutar, en este orden, `npm run build` y `npm run check:publish`, y **subir solo `dist/`**. Si `check:publish` falla (marcadores, traducciones pendientes, `dist/` obsoleto), no se publica.
-- `_headers` y `_redirects` dependen del proveedor (Netlify o Cloudflare, `OPEN-072-02`): antes de dar por buena la publicación hace falta un **smoke test de cabeceras contra la URL real** (CSP, HSTS y demás de `scripts/headers.mjs`, y las redirecciones de dominio), no solo el contenido de `dist/`.
+```
+CLOUDFLARE_API_TOKEN=... CLOUDFLARE_ACCOUNT_ID=... scripts/deploy.sh --dry-run   # todo menos subir
+scripts/deploy.sh --url https://...                                               # fija la URL del smoke test
+```
+
+`--dry-run` ejecuta `wrangler deploy --dry-run` y no hace smoke test. Mientras queden marcadores, ambos modos fallan en `check:publish`: es lo esperado.
+
+**Pendiente (no probado)**: el redireccionamiento de `www` y de `adagiox.es/.eu/.net` hacia `https://adagiox.com` (`ADR-072 §4.3`). Las reglas de `_redirects` con nombre de host no se han verificado en Workers static assets; se prevén como reglas de redirección de la zona de Cloudflare y el smoke test no las cubre todavía. Hay que comprobarlo en el alta.
+
+### Reversión (`ADR-072 §4.6`)
+
+1. **Volver al despliegue anterior**: `npx wrangler rollback` (elige una versión anterior; requiere las mismas variables de entorno) o desde el panel de Cloudflare, Workers & Pages -> `adagiox-landing` -> *Deployments* -> *Rollback*.
+2. **Revertir el commit** que introdujo el cambio en `main` y dejar que `ci-landing.yml` vuelva a desplegar.
+3. **DNS**: antes de cambiar cualquier registro, anotar aquí los actuales (tipo, nombre, valor, TTL) y restaurarlos para revertir. Registros anteriores anotados: *ninguno todavía; la zona no existe*.
+4. **Parada de emergencia**: borrar la variable de repositorio `LANDING_DEPLOY_ENABLED` detiene los despliegues; `npx wrangler delete` retira el Worker.
+
+**Pendiente explícito: la reversión (1) no se ha probado.** No hay cuenta de Cloudflare autenticada en el CLI, así que ni el despliegue real ni el `rollback` se han ejecutado. `ADR-072 §4.6` exige ejecutarla una vez en el primer despliegue y anotar el resultado en el PR; hasta entonces, la reversión figura como **no probada**.

@@ -447,6 +447,19 @@ Tres workflows en `.github/workflows/`, disparados por `push`/`pull_request` sob
 3. **Renovate**: instalar la GitHub App desde `github.com/apps/renovate` sobre este repositorio. La configuración ya está en `renovate.json` (raíz): agrupa por `apps/api`/`apps/web`, ejecución semanal los lunes, sin automerge, alertas de vulnerabilidad con prioridad inmediata.
 4. **Permiso de lectura de checks para el conector MCP de GitHub**: el PAT de grano fino usado por el `github` MCP de Claude Code (`claude mcp get github`) no tiene permiso de "Checks"/"Commit statuses", así que Claude Code no puede leer el resultado de estos workflows por API (`403`). Añadir esos dos permisos de solo lectura al token en https://github.com/settings/personal-access-tokens.
 
+## 4b. Landing pública: despliegue en Cloudflare (`ADR-072`, #579)
+
+`.github/workflows/ci-landing.yml` (`paths: apps/landing/**`; **no** es *required check*, `ADR-072 §4.5`) construye, comprueba, pasa Lighthouse y, solo en `push` a `main`, despliega con `apps/landing/scripts/deploy.sh` (Cloudflare **Workers static assets**, no Pages; `wrangler` 4.159.0 fijado). **Hoy no despliega nada**: el *job* `deploy` exige la variable de repositorio `LANDING_DEPLOY_ENABLED = true`, que no existe.
+
+Alta, en este orden y solo cuando se cumpla la puerta de `ADR-072` (titular, aviso legal revisado, búsqueda de marca; `check:publish` en verde):
+
+1. **Token de API de Cloudflare de permisos mínimos**: Cloudflare → My Profile → API Tokens → *Create Token* → token personalizado con el rol **Workers** (nivel de producto, esa cuenta); `Workers Scripts · Edit` es un permiso *legacy* sustituido por *Editor* (Cloudflare, 2026-09). **Primer despliegue**: rol **Admin**, porque crear un Worker que no existe lo exige. **Después**: token nuevo con rol **Editor** solo sobre el Worker `adagiox-landing` (basta para `wrangler deploy` y `wrangler rollback`) y revocar el de Admin. Sin permisos de zona ni de DNS mientras no haya rutas; con dominio propio, añadir `Zone · Workers Routes · Write` en esa zona. Caducidad fijada y rotación anotada.
+2. **Secretos del repositorio** (Settings → Secrets and variables → Actions): `CLOUDFLARE_API_TOKEN` (el token) y `CLOUDFLARE_ACCOUNT_ID` (ID de cuenta). Preferible como secretos del *environment* `landing-production`, con revisores requeridos si se quiere aprobación manual.
+3. **Variable de repositorio** `LANDING_DEPLOY_ENABLED = true`. Mientras no exista (o valga otra cosa), el *job* `deploy` se omite. Para parar los despliegues, borrarla.
+4. Sin dominio personalizado hasta que exista el DNS (`OPEN-072-04`): el Worker queda en `adagiox-landing.<subdominio>.workers.dev`. Al crear la zona se añaden `routes` a `apps/landing/wrangler.jsonc` y se anotan antes los registros DNS previos (ver «Desplegar y revertir» en `apps/landing/README.md`).
+
+Reversión: `apps/landing/README.md`, «Desplegar y revertir». **La reversión real contra Cloudflare no está probada todavía.**
+
 ## 5. Pendiente de documentar aquí
 
 - Alojamiento del piloto y producción (`OPEN-11`, bloqueante de H0).
