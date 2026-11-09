@@ -236,6 +236,15 @@ test.describe('landing:shots: escaparate, comprobación de humo y capturas', () 
     const tenant = await admin.json('GET', 'tenant/branding', 200)
 
     expect(JSON.stringify(tenant)).toContain(CENTRE_NAME)
+    // #592: la API responde 200 aunque el almacén falle; el fondo debe quedar registrado y descargarse (bytes PNG).
+    expect(tenant.login_background_url, 'fondo de acceso no registrado').toBeTruthy()
+
+    const s3Internal = process.env.E2E_S3_INTERNAL_URL ?? 'http://minio:9000'
+    const s3Public = process.env.E2E_S3_PUBLIC_URL ?? 'http://127.0.0.1:9000'
+    const bg = await fetch(String(tenant.login_background_url).replace(s3Internal, s3Public))
+
+    expect(bg.status, 'el fondo de acceso no se descarga').toBe(200)
+    expect(bg.headers.get('content-type')).toContain('image/png')
 
     const list = async (path: string) => ((await admin.json('GET', path, 200)).data ?? []) as any[]
 

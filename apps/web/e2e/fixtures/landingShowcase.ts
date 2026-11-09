@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import type { RealSession } from './realSession'
 
 /**
@@ -245,6 +246,14 @@ export async function createShowcase(admin: RealSession): Promise<ShowcaseRefs> 
   })
   await admin.upload('PUT', 'tenant/settings/assets/logo', 200, {
     file: { name: 'logo.svg', mimeType: 'image/svg+xml', buffer: Buffer.from(LOGO_SVG) },
+  })
+  // Fondo de acceso sintético (paisaje estilizado; el SVG fuente está al lado y la API no admite SVG como fondo).
+  await admin.upload('PUT', 'tenant/settings/assets/login-background', 200, {
+    file: {
+      name: 'login-background.png',
+      mimeType: 'image/png',
+      buffer: readFileSync(new URL('./login-background.png', import.meta.url)),
+    },
   })
 
   // --- Cursos académicos: el activo y el siguiente (borrador) --------------------------------------------------------------
