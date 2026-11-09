@@ -40,5 +40,6 @@ En cuanto aparezca el aviso de sistema, **no esperes a que el usuario lo pida** 
    - Problemas e issues abiertos
 3. Marca el progreso en `PLAN-IMPLEMENTACION.md`.
 4. Deja el repositorio compilable y con tests en verde.
+5. Revisa los PR de Renovate abiertos y anótalos en `memory.md`, según `CLAUDE.md §3` (cierre de sesión, punto 5).
 
 `memory.md` debe permanecer corto. Si supera unas 150 líneas, archiva lo antiguo en `docs/historial/`.
