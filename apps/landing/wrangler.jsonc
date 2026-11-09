@@ -5,6 +5,8 @@
   "name": "adagiox-landing",
   "compatibility_date": "2026-11-09",
   "workers_dev": true,
+  // Sin Workers Logs: la landing no registra peticiones propias (privacidad, ADR-073).
+  "observability": { "enabled": false },
   "assets": {
     "directory": "./dist",
     // /en/ -> en/index.html, /en/legal/ -> en/legal/index.html (coincide con las URL canónicas con barra final).

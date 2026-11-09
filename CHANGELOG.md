@@ -6,6 +6,12 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-09 · `feat(landing)`: datos legales y correo de la landing (`ADR-073`, #579)
+
+- `ADR-073` ACEPTADA: titular persona física sin NIF ni domicilio publicados; `founders@adagiox.com` en Arsys (sustituye `OPEN-072-03`); publicación sin asesor (sustituye `U4`); discrepancia registrada en su `§5`. Requisitos 3.2.27.
+- `apps/landing`: `/legal/` sin filas de NIF ni domicilio, encargados (Cloudflare, Inc. y Arsys Internet, S.L.U.), garantía de la transferencia (Decisión 2023/1795 y cláusulas tipo 2021/914), plazo de conservación y tratamiento de los correos recibidos; `wrangler.jsonc` con `observability.enabled: false`. `check:publish` pasa sin marcadores. Tests de la puerta #582 sobre copias con un marcador reintroducido.
+- `CLAUDE.md` 2.11.3: regla de no escribir nunca el NIF/DNI ni la dirección física del usuario en Git (`§11`).
+
 ## 2026-11-09 · `feat(landing)`: CI, Lighthouse y despliegue de la landing (`T2`, `ADR-072`, #579, #582, #583)
 
 - `.github/workflows/ci-landing.yml` (`paths`; jobs `build`, `check`, `lighthouse`, `deploy`). `deploy` solo en `push` a `main`, con `needs` de los tres y el interruptor de repositorio `LANDING_DEPLOY_ENABLED == 'true'` (decisión de sesión: `ADR-072` prohíbe publicar antes de la puerta legal).
