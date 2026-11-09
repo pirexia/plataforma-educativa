@@ -6,6 +6,10 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-10 · `docs(landing)`: ADR-075 script propio del carrusel (`ACEPTADA`, #579)
+
+- `ADR-075`: carrusel con avance automático, puntos, flechas y pausa por mejora progresiva; CSP `script-src 'self'`; la pantalla de acceso como primera diapositiva; sustituye en parte a `ADR-072` (`§4.1`, `§4.4`) y `ADR-074 §4.5`, con la discrepancia registrada en su `§5`. Requisitos 3.2.29.
+
 ## 2026-11-10 · `feat(landing)`: rediseño, tramo T3, diseño y contenido (`ADR-074`, #579)
 
 - `apps/landing`: portada nueva con identidad propia de AdagioX (tokens índigo con variante oscura), cabecera con estado «In development», carrusel de las ocho pantallas (`ul` de `figure`, `scroll-snap`, sin JavaScript ni avance automático, marco de ventana en CSS), siete bloques de detalle, «And also», «Coming next», línea «Developed with Claude Code» y contacto por `mailto:`; efectos de scroll solo con `transform` bajo `@supports (animation-timeline: view())` y `no-preference`; fondo `hero-bg.svg`. Claves `home.*` nuevas en en y es-ES (redactadas por la sesión, pendientes de validación) y, con el texto en inglés y `_pending_translation`, en de y fr (`check:publish` falla hasta que `traductor` los complete). Se eliminan las claves `home.f1`-`f9`.
