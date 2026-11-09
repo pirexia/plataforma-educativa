@@ -34,4 +34,16 @@ interface PersonRegistrar
      * @throws PersonNotCorrectableException si la persona no existe en el centro, está borrada o tiene usuario
      */
     public function correctUnaccounted(int $personId, PersonCorrection $data): void;
+
+    /**
+     * REQ-ALUM/funcional.md `RN-ALUM-10` (`OPEN-ALUM-19` = A, ampliación aditiva, 1.15-a): corrige nombre, apellidos, documento,
+     * fecha de nacimiento e idioma de una persona **viva**, **tenga o no usuario**. Nunca toca credenciales, correo de acceso ni
+     * el estado del usuario. Valida con las reglas de `Core` que ya usa `PATCH /users/{id}`: el par de documento **resultante**
+     * (lo no enviado se toma de lo guardado) por `PersonDocumentRules` (`RN-CORE-90` a `-93`, con la persona excluida de la
+     * unicidad) y el idioma entre los activos del centro; un error lanza `422` (`ApiException`) y no se escribe nada. La audita
+     * `Core` como cambio de la persona (`INV-003`).
+     *
+     * @throws PersonNotCorrectableException si la persona no existe en el centro o está borrada
+     */
+    public function correctPerson(int $personId, PersonDataCorrection $data): void;
 }

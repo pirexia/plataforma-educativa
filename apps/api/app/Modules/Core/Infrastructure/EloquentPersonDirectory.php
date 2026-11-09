@@ -5,6 +5,7 @@ namespace App\Modules\Core\Infrastructure;
 use App\Models\Person;
 use App\Models\User;
 use App\Modules\Core\Domain\DocumentType;
+use App\Modules\Core\Domain\PersonBirth;
 use App\Modules\Core\Domain\PersonContact;
 use App\Modules\Core\Domain\PersonDirectory;
 use App\Modules\Core\Domain\PersonRef;
@@ -144,6 +145,21 @@ final class EloquentPersonDirectory implements PersonDirectory
         }
 
         return $contacts;
+    }
+
+    public function birthDatesByIds(array $personIds): array
+    {
+        if ($personIds === []) {
+            return [];
+        }
+
+        $births = [];
+
+        foreach (Person::query()->whereIn('id', array_values(array_unique($personIds)))->get(['id', 'birth_date']) as $person) {
+            $births[(int) $person->id] = new PersonBirth($person->birth_date?->format('Y-m-d'));
+        }
+
+        return $births;
     }
 
     public function lockLiveByPublicIds(array $publicIds): array

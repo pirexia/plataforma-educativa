@@ -12,8 +12,8 @@ namespace App\Modules\Core\Domain;
  * sola consulta por llamada y **sin memoización entre llamadas** (el estado cuenta en el momento de la llamada,
  * `RN-FAM-UNIT-34`). No devuelven nunca el modelo Eloquent.
  *
- * No incluye la fecha de nacimiento que preveía `OPEN-FAM-UNIT-03` para las reglas de edad de `OPEN-FAM-UNIT-18`:
- * esa regla no existe todavía y `ADR-048` pide no construir sin consumidor (`funcional.md §15`, D-4).
+ * La fecha de nacimiento que preveía `OPEN-FAM-UNIT-03` no se incluyó en `1.14-a` (sin consumidor, `ADR-048`, `funcional.md
+ * §15`, D-4); la lee `birthDatesByIds()` desde `1.15-a`, cuando la ficha de alumno la consume (`REQ-ALUM` `OPEN-ALUM-19` = A).
  */
 interface PersonDirectory
 {
@@ -91,4 +91,14 @@ interface PersonDirectory
      * @throws \LogicException si no hay una transacción abierta: un bloqueo sin transacción no protege nada (falla en cerrado)
      */
     public function lockLiveByPublicIds(array $publicIds): array;
+
+    /**
+     * REQ-ALUM/funcional.md §7.1 (`OPEN-ALUM-19` = A, ampliación aditiva, 1.15-a): la fecha de nacimiento de esas personas
+     * **vivas**, por id interno, en una consulta. Las personas que no existen, están borradas o son de otro centro no aparecen;
+     * una viva sin fecha informada aparece con `birthDate = null`.
+     *
+     * @param  list<int>  $personIds
+     * @return array<int, PersonBirth>
+     */
+    public function birthDatesByIds(array $personIds): array;
 }
