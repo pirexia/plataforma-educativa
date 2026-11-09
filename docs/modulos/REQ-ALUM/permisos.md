@@ -19,16 +19,16 @@ Acciones solo de `RPERM-003`; ninguna inventada. `aprobar` es la de `RPERM-003` 
 
 | `code` | Acción | `is_special_category` | `applicable_scopes` | *Endpoints* (`api.md`) |
 |--------|--------|-----------------------|---------------------|------------------------|
-| `alumno.leer` | `leer` | `false` | `['todos','grupo','unidad_familiar']` (en `1.15-a` se declara `['todos','unidad_familiar']`; `1.15-b` añade `grupo` junto con su resolutor, ampliación compatible) | `GET /students`, `GET /students/{id}`, `GET /students/{id}/photo` |
+| `alumno.leer` | `leer` | `false` | `['todos','grupo','unidad_familiar']` (en `1.15-a` se declara `['todos','unidad_familiar']`; `1.15-b` añade `grupo` junto con su resolutor, ampliación compatible) | `GET /students`, `GET /students/{public_id}`, `GET /students/{public_id}/photo` |
 | `alumno.crear` | `crear` | `false` | `['todos']` | `POST /students` |
-| `alumno.actualizar` | `actualizar` | `false` | `['todos']` | `PATCH /students/{id}`, `PUT`/`DELETE /students/{id}/photo` |
-| `alumno.eliminar` | `eliminar` | `false` | `['todos']` | `DELETE /students/{id}`, `POST /students/{id}/restore`, `include_deleted` |
-| `matricula.leer` | `leer` | `false` | `['todos','grupo','unidad_familiar']` | `GET /enrollments`, `GET /enrollments/{id}`, `GET /group-change-requests…`. El permiso admite `unidad_familiar`, pero sobre **solicitudes** ese ámbito resuelve a conjunto vacío (lista vacía, detalle `404`) [DERIVADA: trámite interno; `RN-ALUM-46`] |
+| `alumno.actualizar` | `actualizar` | `false` | `['todos']` | `PATCH /students/{public_id}`, `PUT`/`DELETE /students/{public_id}/photo` |
+| `alumno.eliminar` | `eliminar` | `false` | `['todos']` | `DELETE /students/{public_id}`, `POST /students/{public_id}/restore`, `include_deleted` |
+| `matricula.leer` | `leer` | `false` | `['todos','grupo','unidad_familiar']` | `GET /enrollments`, `GET /enrollments/{public_id}`, `GET /group-change-requests…`. El permiso admite `unidad_familiar`, pero sobre **solicitudes** ese ámbito resuelve a conjunto vacío (lista vacía, detalle `404`) [DERIVADA: trámite interno; `RN-ALUM-46`] |
 | `matricula.crear` | `crear` | `false` | `['todos']` | `POST /enrollments` |
-| `matricula.actualizar` | `actualizar` | `false` | `['todos']` | `PATCH /enrollments/{id}`, `POST /enrollments/{id}/withdrawal`, `POST /group-change-requests`, `…/cancellation` |
-| `matricula.eliminar` | `eliminar` | `false` | `['todos']` | `DELETE /enrollments/{id}` (anulación) |
+| `matricula.actualizar` | `actualizar` | `false` | `['todos']` | `PATCH /enrollments/{public_id}`, `POST /enrollments/{public_id}/withdrawal`, `POST /group-change-requests`, `…/cancellation` |
+| `matricula.eliminar` | `eliminar` | `false` | `['todos']` | `DELETE /enrollments/{public_id}` (anulación) |
 | `matricula.aprobar` | `aprobar` | `false` | `['todos']` | `…/approval`, `…/rejection` (`OPEN-ALUM-13` = A) |
-| `matricula.exportar` | `exportar` | `false` | `['todos']` | `POST /enrollments/exports`, `GET /data-exports/{id}` de tipo `alum_enrollments` |
+| `matricula.exportar` | `exportar` | `false` | `['todos']` | `POST /enrollments/exports`, `GET /data-exports/{public_id}` de tipo `alum_enrollments` |
 
 ### 2.1 Permisos que **no** se declaran
 

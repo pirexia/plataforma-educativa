@@ -112,7 +112,7 @@ final class StudentService
 
             $view = [
                 'person_public_id' => $ref?->publicId,
-                'display_name' => $ref?->displayName ?? '',
+                'display_name' => $ref === null ? '' : $ref->displayName,
                 'birth_date' => ($births[$personId] ?? null)?->birthDate,
             ];
 
@@ -292,7 +292,7 @@ final class StudentService
         $students = $query->get();
         $refs = $this->people->refsByIds(array_map(static fn (Student $s): int => (int) $s->person_id, $students->all()));
 
-        $key = static fn (Student $s): string => mb_strtolower($refs[(int) $s->person_id]->displayName ?? '');
+        $key = static fn (Student $s): string => isset($refs[(int) $s->person_id]) ? mb_strtolower($refs[(int) $s->person_id]->displayName) : '';
 
         $sorted = $students->sort(static function (Student $a, Student $b) use ($key, $descending): int {
             $order = strcmp($key($a), $key($b)) ?: ((int) $a->id <=> (int) $b->id);

@@ -2075,6 +2075,111 @@ components:
         updated_at: { type: string, format: date-time }
         deleted_at: { type: string, format: date-time }
 
+    StudentSummary:
+      type: object
+      description: >
+        REQ-ALUM/api.md §1, `GET /students` (1.15-a). Los datos de la persona vienen de `Core` (`alum` no los guarda,
+        RN-ALUM-02). Sin matrícula vigente hasta `1.15-b`. `deleted_at` solo aparece en un alumno dado de baja (listado con
+        `include_deleted`).
+      required: [public_id, person, display_name, birth_date, created_at, updated_at]
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        person:
+          type: object
+          required: [public_id]
+          properties:
+            public_id: { $ref: '#/components/schemas/PublicId' }
+        display_name: { type: string, description: 'Nombre visible; vacío si la persona está dada de baja.' }
+        birth_date:
+          description: '`AAAA-MM-DD`, o `null` si no está informada.'
+          oneOf:
+            - { type: string, format: date }
+            - { type: 'null' }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        deleted_at: { type: string, format: date-time }
+
+    Student:
+      type: object
+      description: >
+        REQ-ALUM/api.md §1: ficha del alumno en `1.15-a` (sin `enrollments[]`, `emergency_contact`, `guardians[]` ni
+        `photo`). Los datos de la persona vienen de `Core`. **`document_number` va enmascarado** (solo los cuatro últimos
+        caracteres a la vista): la API de alumnado nunca devuelve el documento completo.
+      required: [public_id, person, display_name, given_name, family_name_1, family_name_2, birth_date, locale, document_type, document_number, created_at, updated_at]
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        person:
+          type: object
+          required: [public_id]
+          properties:
+            public_id: { $ref: '#/components/schemas/PublicId' }
+        display_name: { type: string }
+        given_name: { type: string }
+        family_name_1: { type: string }
+        family_name_2: { type: [string, 'null'] }
+        birth_date:
+          oneOf:
+            - { type: string, format: date }
+            - { type: 'null' }
+        locale:
+          description: Idioma de la persona.
+          oneOf:
+            - { $ref: '#/components/schemas/Locale' }
+            - { type: 'null' }
+        document_type:
+          description: Tipo del catálogo de `Core` (`dni`, `nie`, `pasaporte`), o `null`.
+          type: [string, 'null']
+        document_number:
+          description: Número **enmascarado** (`•••••1234`), o `null`.
+          type: [string, 'null']
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        deleted_at: { type: string, format: date-time }
+
+    StudentCreate:
+      type: object
+      description: >
+        REQ-ALUM/api.md §1, `POST /students`. Los nombres de campo son los de la ampliación de `Core`
+        (`PersonDataCorrection`, OPEN-ALUM-19). Texto de 1 a 255 caracteres sin caracteres de control.
+      required: [given_name, family_name_1, birth_date]
+      properties:
+        given_name: { type: string, minLength: 1, maxLength: 255 }
+        family_name_1: { type: string, minLength: 1, maxLength: 255 }
+        family_name_2: { type: [string, 'null'], maxLength: 255 }
+        birth_date:
+          type: string
+          format: date
+          description: '`AAAA-MM-DD`, fecha real y no futura (RN-ALUM-08), si no `422 alum.validation.birth_date_invalid`.'
+        document_type:
+          type: [string, 'null']
+          description: 'Catálogo de `Core` (`dni`, `nie`, `pasaporte`); va junto con `document_number` (RN-CORE-90 a -93).'
+        document_number: { type: [string, 'null'], maxLength: 255 }
+        locale:
+          type: [string, 'null']
+          description: Idioma entre los activos del centro; por defecto, el del centro.
+        family_unit:
+          description: '`public_id` de una unidad familiar viva del centro (RN-ALUM-04). Exige además `familia.actualizar`.'
+          oneOf:
+            - { $ref: '#/components/schemas/PublicId' }
+            - { type: 'null' }
+
+    StudentUpdate:
+      type: object
+      description: >
+        REQ-ALUM/api.md §1, `PATCH /students/{public_id}`: al menos una de estas claves; solo cuentan las presentes.
+        Cualquier otra clave es `422 alum.validation.field_not_editable`. `null` borra `family_name_2`, `document_type` y
+        `document_number` (el par resultante debe seguir completo); `given_name`, `family_name_1`, `birth_date` y
+        `locale` no admiten `null`.
+      additionalProperties: false
+      properties:
+        given_name: { type: string, minLength: 1, maxLength: 255 }
+        family_name_1: { type: string, minLength: 1, maxLength: 255 }
+        family_name_2: { type: [string, 'null'], maxLength: 255 }
+        birth_date: { type: string, format: date }
+        document_type: { type: [string, 'null'] }
+        document_number: { type: [string, 'null'], maxLength: 255 }
+        locale: { type: string }
+
     Guardian:
       type: object
       description: >
@@ -2920,6 +3025,14 @@ components:
         type: string
         enum: [code, -code, created_at, -created_at]
         default: code
+    StudentSortParam:
+      name: sort
+      in: query
+      description: Prefijo "-" para descendente (ADR-038 §5.3). Lista blanca cerrada; desempate por `id`.
+      schema:
+        type: string
+        enum: [name, -name, created_at, -created_at]
+        default: name
     FamUnitCreatedAtSortParam:
       name: sort
       in: query

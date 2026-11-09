@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Tests\Support\AlumTestHelpers as Alum;
 use Tests\Support\FamUnitTestHelpers as Fam;
 
@@ -78,7 +79,7 @@ test('RN-ALUM-62 INV-002: un sujeto con unidad_familiar sin faceta de tutor, sin
     // El tutor del escenario solo lee: las escrituras son 403 aunque la ficha se alcance.
     Alum::call($c['tenant'], $c['tutor'], 'patch', "/students/{$c['a1']['public_id']}", ['given_name' => 'X'])->assertForbidden();
     Alum::call($c['tenant'], $c['tutor'], 'delete', "/students/{$c['a1']['public_id']}")->assertForbidden();
-    Alum::call($c['tenant'], $c['tutor'], 'post', '/students', Alum::body(), ['Idempotency-Key' => (string) Illuminate\Support\Str::ulid()])->assertForbidden();
+    Alum::call($c['tenant'], $c['tutor'], 'post', '/students', Alum::body(), ['Idempotency-Key' => (string) Str::ulid()])->assertForbidden();
 });
 
 test('RN-ALUM-62 PermissionResolver: alumno.leer con un ámbito que el permiso no admite (grupo en 1.15-a) se rechaza al crear el rol', function (): void {

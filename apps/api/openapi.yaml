@@ -29,6 +29,7 @@ tags:
   - name: Acad / Configuración académica
   - name: Acad / Horarios
   - name: Acad / Reservas
+  - name: Alum / Alumnado
   - name: FamUnit / Unidades familiares
   - name: FamUnit / Tutores
   - name: FamUnit / Vínculos
@@ -405,6 +406,14 @@ paths:
 
   # Los endpoints de los módulos siguientes se añaden aquí conforme se
   # implementan, cada uno con su propio apps/api/openapi/paths/<modulo>.yaml.
+
+  # REQ-ALUM (paso 1.15-a), alumnado: listado, alta, ficha, corrección, baja y restauración. apps/api/openapi/paths/alum.yaml
+  /api/v1/students:
+    $ref: "openapi/paths/alum.yaml#/paths/~1api~1v1~1students"
+  /api/v1/students/{publicId}:
+    $ref: "openapi/paths/alum.yaml#/paths/~1api~1v1~1students~1{publicId}"
+  /api/v1/students/{publicId}/restore:
+    $ref: "openapi/paths/alum.yaml#/paths/~1api~1v1~1students~1{publicId}~1restore"
 
   # REQ-FAM-UNIT (pasos 1.14-a, 1.14-b, 1.14-c y 1.14b-a), unidades familiares, tutores, alumnado, vínculos, revocación,
   # consentimiento de imagen, textos legales y autorizados de recogida. apps/api/openapi/paths/fam-unit.yaml

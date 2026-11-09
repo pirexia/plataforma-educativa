@@ -6,6 +6,13 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-09 · `feat(alum)`: alumnado por API y ámbito `unidad_familiar` (`1.15-a` T2, `REQ-ALUM-001`)
+
+- `Modules/Alum`: `StudentService` (único acceso a `Student`, `AR-10`, vía `ScopedQuery`), `StudentsController` y los seis *endpoints* de `api.md §1` (`GET`/`POST /students`, `GET`/`PATCH`/`DELETE /students/{publicId}`, `POST /students/{publicId}/restore`), con `Idempotency-Key` obligatoria solo en el alta (`RN-ALUM-27`). Alta transaccional: persona por `Core` (documento comprobado antes con `findByDocument`: `422 person_exists`, `RN-ALUM-09`), fecha de nacimiento e idioma por `correctPerson`, faceta y, con `family_unit`, pertenencia por `FamilyUnitStudents` (exige además `familia.actualizar`, `OPEN-ALUM-31` = A). `PATCH` por `correctPerson` con o sin usuario; las claves de cuenta son `422 field_not_editable`. La ficha lleva nombres por partes, fecha de nacimiento e idioma, y el documento **enmascarado**.
+- Resolutor `unidad_familiar` sobre `alumno` (`AlumnoUnidadFamiliarScopeResolver`, vínculos activos por `FamilyMembership`, sin caché, `RN-ALUM-62`/`-63`). Aditivo en `Core`: `PersonContact::$locale` (lo lee la ficha).
+- OpenAPI `openapi/paths/alum.yaml`; claves `alum.validation.*` y `alum.conflict.*` en es/en/de/fr; tests de endpoints, ámbito, aislamiento entre centros, módulo descontratado y OpenAPI; `ScopedQueryConfinementTest` completo. Correcciones de texto en `api.md` (ámbito `grupo` solo desde `1.15-b`, nombres de campo) y `permisos.md` (`{public_id}`).
+---
+
 ## 2026-11-07 · `fix(proceso)`: reglas `allow` de Codex que nunca coincidían (#555)
 
 - `.claude/settings.json`: las cuatro reglas `allow` de `codex-companion.mjs` (`review`, `adversarial-review`, `status`, `result`) mezclaban un `*` en la ruta con el sufijo antiguo `:*`, de modo que Claude Code las trataba como prefijo literal y no coincidían nunca (cada revisión de Codex pedía aprobación a mano). Pasan a la sintaxis ` *` y **con la versión del plugin fijada (`1.0.6`)**: un comodín en la ruta también casaría con opciones intercaladas y las aprobaría sin preguntar. Las reglas `deny` conservan el comodín (un patrón más amplio es lo seguro). **Al actualizar el plugin hay que cambiar `1.0.6` en las cuatro reglas**; si no, vuelven a pedir aprobación (falla hacia lo seguro). Comprobado: `claude -p` ya no emite ningún aviso de permisos.

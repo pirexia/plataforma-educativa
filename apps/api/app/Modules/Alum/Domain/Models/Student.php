@@ -17,6 +17,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
  *
  * ADR-035: `Full` (solo ids). Escrituras por instancia, nunca masivas (AR-15). Los demás módulos no usan este modelo
  * (AR-01).
+ *
+ * @mixin IdeHelperStudent
  */
 class Student extends TenantModel implements Auditable
 {

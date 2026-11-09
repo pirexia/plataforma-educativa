@@ -169,7 +169,7 @@ Subida por `App\Support\Files` (`ADR-068`, precedente `pickup_photos`): tipo rea
 
 | ID | Regla |
 |----|-------|
-| `RN-ALUM-01` | Un alumno es una **faceta** de una persona: `UNIQUE (tenant_id, person_id) WHERE deleted_at IS NULL` (`ADR-034 §1`). Una persona con faceta viva no recibe otra ⇒ `422 alum.validation.person_already_student` |
+| `RN-ALUM-01` | Un alumno es una **faceta** de una persona: `UNIQUE (tenant_id, person_id) WHERE deleted_at IS NULL` (`ADR-034 §1`). Una persona con faceta viva no recibe otra ⇒ `422 alum.validation.person_already_student`. Desde el alta no se alcanza: `RN-ALUM-09` comprueba el documento antes y responde `person_exists`; la regla la cierra el índice único (y la comprobación del servicio) |
 | `RN-ALUM-02` | `alum` **no guarda** nombre, documento, fecha de nacimiento ni contacto: los lee y escribe por `Core\Domain` (`§16.3` regla 1, `INV-007`). Nunca consulta `people` |
 | `RN-ALUM-03` | El alta crea persona, faceta y, si llega `family_unit`, pertenencia, en una sola transacción |
 | `RN-ALUM-04` | La unidad familiar es **opcional** en el alta (`OPEN-ALUM-23`). Con unidad, además de `alumno.crear` rige lo que decida `OPEN-ALUM-31` (recomendación A: el sujeto debe tener también `familia.actualizar` de `fam_unit`; sin él, `403` y no se escribe nada). Añadir o quitar después sigue siendo la API de `fam_unit` |
@@ -340,7 +340,7 @@ Pest en `apps/api/tests/Feature/Alum/` (concurrencia en `tests/Concurrency/`), V
 
 - **CA-ALUM-001** — *Dado* secretaría con `alumno.crear` (y lo que exija `OPEN-ALUM-31`), *cuando* da de alta un alumno con nombre, fecha de nacimiento, una unidad familiar viva e `Idempotency-Key`, *entonces* `201`, existe una persona nueva en `Core`, una faceta en `students` y una pertenencia en `fam_unit`, con tres registros `created` en `audit_logs` (`RN-ALUM-03`).
 - **CA-ALUM-002** — *Dado* el alta con una unidad familiar inexistente o de otro centro, *entonces* `422 alum.validation.family_unit_not_found` y ni persona, ni faceta, ni pertenencia (`RN-ALUM-03`).
-- **CA-ALUM-003** — *Dado* una persona con faceta de alumno viva, *cuando* se intenta otra, *entonces* `422 alum.validation.person_already_student` (`RN-ALUM-01`).
+- **CA-ALUM-003** — *Dado* una persona con faceta de alumno viva, *cuando* se intenta otra, *entonces* `422 alum.validation.person_already_student` (`RN-ALUM-01`). *Implementación `1.15-a`*: el alta por API con un documento ya existente responde `person_exists` (`RN-ALUM-09`, decisión del 2026-11-09), así que este caso se verifica como `person_exists` y por el índice único parcial (`StudentSchemaTest`).
 - **CA-ALUM-004a** — *Dado* un alumno, *cuando* se da de baja, *entonces* `204` y la persona y la pertenencia siguen vivas (`RN-ALUM-05`, parte sin matrículas).
 - **CA-ALUM-005** — *Dado* un alumno dado de baja, *cuando* se restaura, *entonces* `200`; *y* si la persona ya tiene otra faceta viva, `409 alum.conflict.cannot_restore` (`RN-ALUM-06`).
 - **CA-ALUM-006** — *Dado* una fecha de nacimiento futura o con formato inválido, *entonces* `422 alum.validation.birth_date_invalid` (`RN-ALUM-08`).
@@ -485,7 +485,7 @@ Pest en `apps/api/tests/Feature/Alum/` (concurrencia en `tests/Concurrency/`), V
 | `OPEN-ALUM-27` | Auditoría de lectura de la ficha | Solo con URL de foto |
 | `OPEN-ALUM-29` | `INV-008` | Cobertura parcial; `OPEN-13` |
 | `OPEN-ALUM-30` | Partición | La de §15 |
-| **`OPEN-ALUM-31`** | **Alta con `family_unit`**: `FamilyUnitStudents::add()` no comprueba permisos; el alta de `alum` escribiría en `fam_unit` con solo `alumno.crear` | **A** · Exigir además `familia.actualizar` de `fam_unit` (el permiso de `POST /family-units/{id}/students`; solo admite `todos`, así que no hay comprobación de ámbito adicional) y responder `403` sin escribir si falta. **B** · Basta `alumno.crear`. **Recomiendo A**: con B, `alumno.crear` se convierte en una puerta trasera a una escritura que `fam_unit` protege con su propio permiso; con la siembra recomendada `secretaria` tiene ambos, así que no cambia el uso normal. Condiciona `RN-ALUM-04` y `CA-ALUM-032` |
+| **`OPEN-ALUM-31`** | **Alta con `family_unit`**: `FamilyUnitStudents::add()` no comprueba permisos; el alta de `alum` escribiría en `fam_unit` con solo `alumno.crear` | **A** · Exigir además `familia.actualizar` de `fam_unit` (el permiso de `POST /family-units/{id}/students`; solo admite `todos`, así que no hay comprobación de ámbito adicional) y responder `403` sin escribir si falta. **B** · Basta `alumno.crear`. **Recomiendo A**: con B, `alumno.crear` se convierte en una puerta trasera a una escritura que `fam_unit` protege con su propio permiso; con la siembra recomendada `secretaria` tiene ambos, así que no cambia el uso normal. Condiciona `RN-ALUM-04` y `CA-ALUM-032` | **Resuelta A por el usuario el 2026-11-09** (implementada en `1.15-a`, `CA-ALUM-032`).
 
 ---
 

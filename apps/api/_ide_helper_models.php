@@ -1264,6 +1264,40 @@ namespace App\Modules\Acad\Domain\Models{
 	class IdeHelperTimetableSession {}
 }
 
+namespace App\Modules\Alum\Domain\Models{
+/**
+ * REQ-ALUM/datos.md §1.1, §4 (1.15-a, `REQ-ALUM-001`). Alumno: faceta de `people` (`ADR-034 §1`).
+ *
+ * @property int $id
+ * @property int $tenant_id
+ * @property string $public_id
+ * @property int $person_id
+ * @property int|null $created_by
+ * @property int|null $updated_by
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Student newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Student newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Student onlyTrashed()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Student query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Student whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Student whereCreatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Student whereDeletedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Student whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Student wherePersonId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Student wherePublicId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Student whereTenantId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Student whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Student whereUpdatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Student withTrashed(bool $withTrashed = true)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Student withoutTrashed()
+ * @mixin \Eloquent
+ */
+	#[\AllowDynamicProperties]
+	class IdeHelperStudent {}
+}
+
 namespace App\Modules\Auth\Domain\Models{
 /**
  * datos.md §A.2. Selective: `email` se redacta como `identifier` (dato

@@ -3,6 +3,8 @@
 use App\Models\User;
 use App\Modules\Alum\Domain\Models\Student;
 use App\Support\Tenancy\TenantContext;
+use Illuminate\Database\QueryException;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
@@ -79,7 +81,7 @@ test('CA-ALUM-003 RN-ALUM-01 RN-ALUM-09: dar de alta dos veces el mismo document
     $student = app(TenantContext::class)->runFor($tenant->id, fn () => Student::query()->firstOrFail());
 
     expect(fn () => app(TenantContext::class)->runFor($tenant->id, fn () => DB::transaction(fn () => (new Student(['person_id' => $student->person_id]))->save())))
-        ->toThrow(Illuminate\Database\QueryException::class);
+        ->toThrow(QueryException::class);
 });
 
 test('CA-ALUM-004a CA-ALUM-005 RN-ALUM-05 RN-ALUM-06: la baja es 204 y deja viva la persona y su pertenencia; restaurar es 200; con otra faceta viva o la persona borrada, 409 cannot_restore', function (): void {
@@ -222,7 +224,7 @@ test('CA-ALUM-009 RN-ALUM-09: un documento que ya tiene un alumno, un tutor o un
 
     foreach ([22222222, 33333333, 44444444] as $number) {
         $response = Alum::create($tenant, $admin, ['given_name' => 'Intruso', 'document_type' => 'dni', 'document_number' => Alum::dni($number)])->assertUnprocessable();
-        $bodies[] = Illuminate\Support\Arr::except($response->json(), ['instance', 'request_id']);
+        $bodies[] = Arr::except($response->json(), ['instance', 'request_id']);
 
         expect(Alum::errorCode($response, 'document_number'))->toBe('alum.validation.person_exists');
     }

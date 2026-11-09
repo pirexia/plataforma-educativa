@@ -141,7 +141,7 @@ final class EloquentPersonDirectory implements PersonDirectory
                 (string) $person->given_name,
                 (string) $person->family_name_1,
                 $person->family_name_2 === null ? null : (string) $person->family_name_2,
-                $person->locale === null ? null : (string) $person->locale,
+                (string) $person->locale,
             );
         }
 
