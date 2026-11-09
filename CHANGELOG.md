@@ -6,6 +6,12 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-09 · `docs(landing)`: `ADR-072` aceptada, landing pública `adagiox.com`
+
+- `docs/adr/ADR-072-landing-publica-del-producto.md` (`ACEPTADA`): sitio estático propio en `apps/landing`, hosting estático gestionado, cuatro idiomas, sin cookies ni analítica; `OPEN-072-01` (B) a `-07` con la recomendación de `architect`.
+- `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` 3.2.26 (fila en `§18` e historial) y `README.md`.
+- No se publica hasta tener titular legal, aviso legal revisado y búsqueda de marca. Sin código todavía.
+
 ## 2026-11-09 · `docs(alum)`: `ADR-071` aceptada, grupo opcional en la matrícula (`1.15-b`, `REQ-ALUM-001`)
 
 - `docs/adr/ADR-071-grupo-opcional-en-la-matricula.md` (`ACEPTADA`): formaliza `OPEN-ALUM-11` = B (curso de etapa obligatorio, grupo opcional); `OPEN-071-01` = A, `-02` = A, `-03` = sí.
