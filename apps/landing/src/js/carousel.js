@@ -50,7 +50,7 @@
     const prev = arrow('prev', 'data-prev')
     const next = arrow('next', 'data-next')
     const bar = make('div', 'carousel-bar')
-    const pause = make('button', 'carousel-pause', { type: 'button', 'aria-pressed': 'false' })
+    const pause = make('button', 'carousel-pause', { type: 'button' })
     bar.appendChild(pause)
     const dots = slides.map((_, i) => {
       const d = make('button', 'carousel-dot', {
@@ -70,7 +70,6 @@
     const refresh = () => {
       pause.hidden = st.reduced
       pause.textContent = label(st.user ? 'data-resume' : 'data-pause')
-      pause.setAttribute('aria-pressed', st.user ? 'true' : 'false')
       list.setAttribute('aria-live', autoplay(st) ? 'off' : 'polite')
       schedule()
     }

@@ -201,7 +201,7 @@ test('ADR-075 estructura: dos flechas, un punto por diapositiva con su etiqueta,
   assert.equal(c.dots[2].attrs['aria-label'], 'Go 3/8')
   assert.equal(c.current(), 0)
   assert.equal(c.pause.textContent, 'Pause')
-  assert.equal(c.pause.attrs['aria-pressed'], 'false')
+  assert.equal(c.pause.attrs['aria-pressed'], undefined)
   assert.equal(c.observer().seen.length, 8)
 })
 
@@ -242,17 +242,17 @@ test('ADR-075 flechas y puntos: avanzan, retroceden con vuelta y reinician la cu
   assert.equal(c.current(), 6)
 })
 
-test('ADR-075 botón de pausa: aria-pressed, etiqueta y reanudación (WCAG 2.2.2)', () => {
+test('ADR-075 botón de pausa: la etiqueta comunica el estado, sin aria-pressed, y reanuda (WCAG 2.2.2)', () => {
   const c = setup()
   assert.equal(c.list.attrs['aria-live'], 'off')
   c.pause.fire('click')
-  assert.equal(c.pause.attrs['aria-pressed'], 'true')
+  assert.equal(c.pause.attrs['aria-pressed'], undefined)
   assert.equal(c.pause.textContent, 'Resume')
   assert.equal(c.list.attrs['aria-live'], 'polite')
   c.advance(60000)
   assert.equal(c.box.scrolls.length, 0, 'en pausa no avanza')
   c.pause.fire('click')
-  assert.equal(c.pause.attrs['aria-pressed'], 'false')
+  assert.equal(c.pause.attrs['aria-pressed'], undefined)
   assert.equal(c.pause.textContent, 'Pause')
   c.advance(6000)
   assert.equal(c.current(), 1)
