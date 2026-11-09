@@ -200,7 +200,7 @@ final class AcadRolloverParticipant implements AcademicYearRolloverParticipant
             $dateRange = ['starts_on' => min($starts)->toDateString(), 'ends_on' => max($ends)->toDateString()];
         }
 
-        if ($outside > 0 && $dateRange !== null) {
+        if ($outside > 0) {
             $issues[] = new AcademicYearRolloverIssue(
                 'acad.rollover.dates_outside_target',
                 (string) __('acad.rollover.dates_outside_target', ['element' => $this->label($code), 'count' => $outside, 'starts_on' => $dateRange['starts_on'], 'ends_on' => $dateRange['ends_on']]),
