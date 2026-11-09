@@ -6,6 +6,15 @@
 # (session_replication_role = replica) dentro de una sola transacción.
 purge_tenant_rows() {
   local tenant_id="$1"
+  # Salvaguardas: operación destructiva con superusuario y sin triggers; solo contra el PostgreSQL de desarrollo del proyecto.
+  if [[ "${E2E_ALLOW_DESTRUCTIVE:-}" != "1" ]]; then
+    echo "purge_tenant_rows: rechazado, falta E2E_ALLOW_DESTRUCTIVE=1 en el entorno." >&2
+    return 1
+  fi
+  if [[ "${DB_CONTAINER:-}" != plataforma-* ]]; then
+    echo "purge_tenant_rows: rechazado, DB_CONTAINER «${DB_CONTAINER:-}» no empieza por «plataforma-»." >&2
+    return 1
+  fi
   [[ "$tenant_id" =~ ^[0-9]+$ ]] || { echo "tenant_id no numérico: no se purga." >&2; return 1; }
   local db_user
   db_user="$(podman exec "$DB_CONTAINER" printenv POSTGRES_USER)"

@@ -39,6 +39,8 @@ prepare_vite_api_url "$SLUG" || exit 2
 # shellcheck source=lib/e2e-purge.sh
 source "$(dirname "${BASH_SOURCE[0]}")/lib/e2e-purge.sh"
 
+# La purga (lib/e2e-purge.sh) exige E2E_ALLOW_DESTRUCTIVE=1 en el entorno: estos scripts solo operan sobre el centro sintético de desarrollo.
+export E2E_ALLOW_DESTRUCTIVE=1
 support() { podman exec -e E2E_ALLOW_DESTRUCTIVE=1 "$API_CONTAINER" php tests/Support/e2e-real-tenant.php "$@"; }
 
 # Lee un campo de una línea JSON recibida por stdin (no por argumentos, que serían visibles en `ps`).
