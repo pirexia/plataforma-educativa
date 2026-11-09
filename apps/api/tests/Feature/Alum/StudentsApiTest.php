@@ -119,6 +119,32 @@ test('CA-ALUM-004a CA-ALUM-005 RN-ALUM-05 RN-ALUM-06: la baja es 204 y deja viva
     Alum::call($tenant, $admin, 'post', "/students/{$second['public_id']}/restore")->assertConflict();
 });
 
+test('RN-ALUM-06 RN-ALUM-01: una carrera que crea otra faceta viva justo antes de restaurar choca con el índice único y es 409 cannot_restore, no 500', function (): void {
+    [$tenant, $admin] = Alum::setup('alum-004b');
+    $student = Alum::student($tenant, $admin);
+    $id = $student['public_id'];
+    $personId = Alum::personId($tenant, $student['person']['public_id']);
+
+    Alum::call($tenant, $admin, 'delete', "/students/{$id}")->assertNoContent();
+
+    // La comprobación previa pasa (aún no hay otra faceta); la carrera ocurre entre ella y el UPDATE de la restauración.
+    $armed = true;
+    Student::restoring(function () use (&$armed, $tenant, $personId): void {
+        if ($armed) {
+            $armed = false;
+            app(TenantContext::class)->runFor($tenant->id, fn () => DB::table('students')->insert([
+                'tenant_id' => $tenant->id, 'public_id' => (string) Str::ulid(), 'person_id' => $personId,
+                'created_at' => now(), 'updated_at' => now(),
+            ]));
+        }
+    });
+
+    $conflict = Alum::call($tenant, $admin, 'post', "/students/{$id}/restore")->assertConflict();
+
+    expect(Alum::errorCode($conflict, 'student'))->toBe('alum.conflict.cannot_restore')
+        ->and(Alum::row($tenant, 'students', $id)->deleted_at)->not->toBeNull();
+});
+
 test('CA-ALUM-006 RN-ALUM-08: una fecha de nacimiento futura, mal formada o ausente es 422 y no se crea nada', function (): void {
     [$tenant, $admin] = Alum::setup('alum-006');
 
@@ -206,6 +232,23 @@ test('CA-ALUM-008 RN-ALUM-10: PATCH de nombre y fecha de nacimiento de un alumno
     // `family_unit` no se edita aquí (RN-ALUM-04) y un cuerpo vacío no cambia nada.
     expect(Alum::errorCode(Alum::call($tenant, $admin, 'patch', "/students/{$student['public_id']}", ['family_unit' => '01JZZZZZZZZZZZZZZZZZZZZZZZ'])->assertUnprocessable(), 'family_unit'))->toBe('alum.validation.field_not_editable');
     expect(Alum::errorCode(Alum::call($tenant, $admin, 'patch', "/students/{$student['public_id']}", [])->assertUnprocessable(), 'body'))->toBe('alum.validation.no_changes');
+});
+
+test('RN-ALUM-08 INV-010: PATCH devuelve los errores de documento de Core con el mismo campo que el alta (document_number, no person.document_number)', function (): void {
+    [$tenant, $admin] = Alum::setup('alum-010b');
+    $other = Alum::student($tenant, $admin, ['given_name' => 'Otro', 'document_type' => 'dni', 'document_number' => Alum::dni(55555555)]);
+    $student = Alum::student($tenant, $admin);
+
+    $bad = Alum::call($tenant, $admin, 'patch', "/students/{$student['public_id']}", ['document_type' => 'dni', 'document_number' => '12345678A'])->assertUnprocessable();
+    expect(Alum::errorCode($bad, 'document_number'))->toBe('core.validation.document_number_invalid')
+        ->and($bad->json('errors'))->not->toHaveKey('person.document_number');
+
+    $clash = Alum::call($tenant, $admin, 'patch', "/students/{$student['public_id']}", ['document_type' => 'dni', 'document_number' => Alum::dni(55555555)])->assertUnprocessable();
+    expect(Alum::errorCode($clash, 'document_number'))->toBe('core.validation.document_duplicate')
+        ->and($other['public_id'])->not->toBe($student['public_id']);
+
+    $half = Alum::call($tenant, $admin, 'patch', "/students/{$student['public_id']}", ['document_type' => 'dni'])->assertUnprocessable();
+    expect(Alum::errorCode($half, 'document_number'))->toBe('core.validation.document_incomplete');
 });
 
 test('CA-ALUM-009 RN-ALUM-09: un documento que ya tiene un alumno, un tutor o un miembro del personal es 422 person_exists con cuerpo idéntico, sin datos de la persona, y no crea nada', function (): void {

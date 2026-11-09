@@ -210,10 +210,31 @@ final class StudentService
                 $this->registrar->correctPerson((int) $student->person_id, new PersonDataCorrection($changes));
             } catch (PersonNotCorrectableException) {
                 throw (new ModelNotFoundException)->setModel(Student::class);
+            } catch (ApiException $e) {
+                throw $this->withAlumFieldNames($e);
             }
 
             return $student;
         });
+    }
+
+    /**
+     * `Core` nombra los campos de persona como en `PATCH /users` (`person.document_number`); el alumnado los expone
+     * planos, como el alta (`document_number`). Solo se renombra la clave: código y mensaje de `Core` siguen intactos.
+     */
+    private function withAlumFieldNames(ApiException $e): ApiException
+    {
+        if ($e->status !== 422 || $e->type !== 'validation') {
+            return $e;
+        }
+
+        $errors = [];
+
+        foreach ($e->errors as $field => $list) {
+            $errors[str_starts_with($field, 'person.') ? substr($field, 7) : $field] = $list;
+        }
+
+        return ApiException::validation($errors, $e->detailKey, $e->detailParams);
     }
 
     /** `RN-ALUM-05`: baja lógica; no borra la persona ni su pertenencia. Sin matrículas en `1.15-a` la baja siempre cabe. */
@@ -227,19 +248,29 @@ final class StudentService
     /** `RN-ALUM-06`: solo si la persona sigue viva y no tiene otra faceta de alumno viva; si no, `409 cannot_restore`. */
     public function restore(string $publicId): Student
     {
-        return DB::transaction(function () use ($publicId): Student {
-            $student = Student::onlyTrashed()->where('public_id', $publicId)->lockForUpdate()->firstOrFail();
+        try {
+            return DB::transaction(function () use ($publicId): Student {
+                $student = Student::onlyTrashed()->where('public_id', $publicId)->lockForUpdate()->firstOrFail();
 
-            $person = $this->people->refsByIds([(int) $student->person_id])[(int) $student->person_id] ?? null;
+                $person = $this->people->refsByIds([(int) $student->person_id])[(int) $student->person_id] ?? null;
 
-            if ($person === null || $person->removed || Student::query()->where('person_id', $student->person_id)->exists()) {
+                if ($person === null || $person->removed || Student::query()->where('person_id', $student->person_id)->exists()) {
+                    throw AlumErrors::conflict('student', 'alum.conflict.cannot_restore');
+                }
+
+                $student->restore();
+
+                return $student;
+            });
+        } catch (QueryException $e) {
+            // Carrera con otra restauración o alta de la misma persona: el índice único de la faceta viva (`RN-ALUM-01`)
+            // la rechaza; es el mismo conflicto que la comprobación previa, no un 500.
+            if (($e->errorInfo[0] ?? null) === '23505') {
                 throw AlumErrors::conflict('student', 'alum.conflict.cannot_restore');
             }
 
-            $student->restore();
-
-            return $student;
-        });
+            throw $e;
+        }
     }
 
     /**
