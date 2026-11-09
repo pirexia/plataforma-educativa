@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |-------|-------|
-| **Versión** | 3.2.28 |
+| **Versión** | 3.2.29 |
 | **Fecha** | 2026-11-09 |
 | **Estado** | Borrador consolidado — pendiente de aprobación |
 | **Autor** | Product Owner |
@@ -3281,6 +3281,7 @@ Del `028` en adelante, cada decisión vive en `docs/adr/` (`ADR-026`).
 | `ADR-072` | **Landing pública del producto** (`adagiox.com`; nombre del producto **AdagioX**, dominios `.com` canónico y `.es`/`.eu`/`.net` con 301; no sustituye ningún ADR). **Estado: `ACEPTADA`** (2026-11-09, aprobada por el usuario con la recomendación de `architect` en `OPEN-072-01` a `-07`). Sitio estático propio en `apps/landing`, alojado fuera de la plataforma en hosting estático gestionado (Cloudflare recomendado, Netlify como alternativa), es-ES/en/de/fr, sin JavaScript, cookies, analítica ni formulario, CSP `default-src 'none'`; contenido solo a partir de este documento, sin cifras, clientes ni fechas. **No se publica hasta tener titular legal, aviso legal revisado y búsqueda de marca.** Fichero: `docs/adr/ADR-072-landing-publica-del-producto.md`. |
 | `ADR-073` | **Datos legales y correo de la landing** (titular persona física sin NIF ni domicilio publicados; regla de no escribirlos nunca en Git; `founders@adagiox.com` en Arsys; publicación sin asesor; Cloudflare y Arsys como encargados). **Estado: `ACEPTADA`** (2026-11-09). Sustituye en parte a `ADR-072` (`OPEN-072-03` y `U4`), con la discrepancia registrada en su `§5`. | [`docs/adr/ADR-073-datos-legales-y-correo-de-la-landing.md`](adr/ADR-073-datos-legales-y-correo-de-la-landing.md) |
 | `ADR-074` | **Rediseño de la landing** (inglés en `/` y `/es/`, `/de/`, `/fr/`; `DEFAULT_LANG` separado de `LEGAL_LANG` = es-ES; idiomas solo en `LANGS`; capturas reales con datos sintéticos creados por la API; AVIF/WebP con `srcset` generados con `sharp` aislada y commiteados con topes de peso; carrusel con `scroll-snap` sin autoplay y efectos solo de `transform` con `animation-timeline`, sin JavaScript; contenido limitado a lo mezclado en `develop`). **Estado: `ACEPTADA`** (2026-11-09; `OPEN-074-01` a `-07` resueltas con la recomendación). Sustituye en parte a `ADR-072` (`§1.1` punto 6, rutas y traducción de `§4.2`, fila `ADR-030` de `§7` y `§8`). | [`docs/adr/ADR-074-rediseno-de-la-landing.md`](adr/ADR-074-rediseno-de-la-landing.md) |
+| `ADR-075` | **Script propio del carrusel de la landing** (avance automático con puntos, flechas y pausa, por mejora progresiva; CSP `script-src 'self'`, sin scripts en línea ni de terceros; la pantalla de acceso como primera diapositiva). **Estado: `ACEPTADA`** (2026-11-10). Sustituye en parte a `ADR-072 §4.1`/`§4.4` (sin JavaScript, CSP) y a `ADR-074 §4.5` (sin avance automático), con la discrepancia registrada en su `§5`. | [`docs/adr/ADR-075-script-propio-del-carrusel-de-la-landing.md`](adr/ADR-075-script-propio-del-carrusel-de-la-landing.md) |
 
 ### Decisiones abiertas vivas
 
@@ -3369,6 +3370,7 @@ Se mantendrá una matriz de trazabilidad (generada automáticamente desde las re
 
 | Versión | Fecha | Autor | Descripción |
 |---------|-------|-------|-------------|
+| 3.2.29 | 2026-11-10 | Product Owner | `ADR-075` (script propio del carrusel de la landing) aceptado y referenciado en `§18`; sustituye en parte a `ADR-072` (`§4.1`, `§4.4`) y a `ADR-074 §4.5`. |
 | 3.2.28 | 2026-11-09 | Product Owner | `ADR-074` (rediseño de la landing, `ACEPTADA`) referenciado en `§18`; sustituye en parte a `ADR-072` (`§1.1` punto 6, rutas y traducción de `§4.2`, fila `ADR-030` de `§7` y `§8`); `OPEN-074-01` a `-07` resueltas con la recomendación (usuario, 2026-11-09). |
 | 3.2.27 | 2026-11-09 | Product Owner | `ADR-073` (datos legales y correo de la landing) aceptado y referenciado en `§18`; sustituye en parte a `ADR-072` (`OPEN-072-03`, `U4`). |
 | 3.2.26 | 2026-11-09 | Product Owner | `ADR-072` (landing pública del producto, `adagiox.com`) aceptado y referenciado en `§18`. El nombre AdagioX aún no se ha propagado al resto de la documentación (decisión pendiente). |
