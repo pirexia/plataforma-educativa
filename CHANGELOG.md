@@ -10,6 +10,7 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 - `ADR-073` ACEPTADA: titular persona física sin NIF ni domicilio publicados; `founders@adagiox.com` en Arsys (sustituye `OPEN-072-03`); publicación sin asesor (sustituye `U4`); discrepancia registrada en su `§5`. Requisitos 3.2.27.
 - `apps/landing`: `/legal/` sin filas de NIF ni domicilio, encargados (Cloudflare, Inc. y Arsys Internet, S.L.U.), garantía de la transferencia (Decisión 2023/1795 y cláusulas tipo 2021/914), plazo de conservación y tratamiento de los correos recibidos; `wrangler.jsonc` con `observability.enabled: false`. `check:publish` pasa sin marcadores. Tests de la puerta #582 sobre copias con un marcador reintroducido.
+- Sincronización documental: `apps/landing/README.md`, `SYSADMIN.md §4b`, `PLAN-IMPLEMENTACION.md` (entrada L), `README.md` y `ARCHITECTURE.md` alineados con `ADR-073`: publicación apagada hasta `LANDING_DEPLOY_ENABLED`, paso previo de correo, *environment* `landing-production` obligatorio y `observability.enabled: false`.
 - `CLAUDE.md` 2.11.3: regla de no escribir nunca el NIF/DNI ni la dirección física del usuario en Git (`§11`).
 
 ## 2026-11-09 · `feat(landing)`: CI, Lighthouse y despliegue de la landing (`T2`, `ADR-072`, #579, #582, #583)
