@@ -11,6 +11,7 @@
     "test:e2e": "playwright test",
     "test:e2e:real": "bash scripts/e2e-real-api.sh",
     "test:e2e:real:prl": "bash scripts/e2e-real-prl.sh",
+    "test:e2e:real:alum": "bash scripts/e2e-real-alum.sh",
     "lint": "eslint .",
     "lint:i18n": "node scripts/check-i18n-literals.mjs",
     "format": "prettier --write ."

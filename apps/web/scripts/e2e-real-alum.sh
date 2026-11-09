@@ -1,0 +1,85 @@
+#!/usr/bin/env bash
+# Ejecuta el e2e de alumnado (REQ-ALUM, 1.15-a, CA-ALUM-009/012/018a) contra la API real: `alum-students-real.spec.ts` (HTTP real con
+# cookie de sesión y CSRF, sin navegador: las pantallas son de 1.15-d). Prepara DOS centros sintéticos con `alum` y `fam_unit`
+# contratados y un tutor con el rol `tutor_legal` (apps/api/tests/Support/e2e-real-tenant.php setup <slug> alum), lanza Playwright
+# con sus credenciales y los retira al terminar, también si falla (mismo método y garantías que `e2e-real-api.sh`: solo
+# contenedores de desarrollo, solo centros con la marca del script, solo datos sintéticos). No usa S3.
+#
+# Requisitos: pila de desarrollo levantada (`plataforma-api` en :8000 y `plataforma-postgres`), migraciones y
+# `platform:sync-registry` aplicados. No necesita entradas de `hosts`: cada centro se alcanza por 127.0.0.1:8000 con la cabecera `Host`.
+#
+# Uso: npm run test:e2e:real:alum -- [argumentos de playwright]
+set -euo pipefail
+
+API_CONTAINER="${API_CONTAINER:-plataforma-api}"
+DB_CONTAINER="${DB_CONTAINER:-plataforma-postgres}"
+SLUG_A="${E2E_TENANT_SLUG_A:-demo}"
+SLUG_B="${E2E_TENANT_SLUG_B:-demo2}"
+
+for slug in "$SLUG_A" "$SLUG_B"; do
+  if [[ ! "$slug" =~ ^[a-z0-9][a-z0-9-]{0,39}$ ]]; then
+    echo "Slug no válido ($slug): minúsculas, dígitos y guiones, hasta 40." >&2
+    exit 2
+  fi
+done
+
+support() { podman exec -e E2E_ALLOW_DESTRUCTIVE=1 "$API_CONTAINER" php tests/Support/e2e-real-tenant.php "$@"; }
+field() { python3 -c 'import json,sys; print(json.load(sys.stdin)[sys.argv[1]])' "$1"; }
+
+purge_tenant_rows() {
+  local tenant_id="$1"
+  [[ "$tenant_id" =~ ^[0-9]+$ ]] || { echo "tenant_id no numérico: no se purga." >&2; return 1; }
+  local db_user
+  db_user="$(podman exec "$DB_CONTAINER" printenv POSTGRES_USER)"
+  podman exec -i "$DB_CONTAINER" psql -q -U "$db_user" -d plataforma -v ON_ERROR_STOP=1 <<SQL
+BEGIN;
+SET LOCAL session_replication_role = replica;
+DO \$\$
+DECLARE r record;
+BEGIN
+  FOR r IN
+    SELECT c.relname FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    JOIN pg_attribute a ON a.attrelid = c.oid AND a.attname = 'tenant_id' AND NOT a.attisdropped
+    WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p')
+  LOOP
+    EXECUTE format('DELETE FROM public.%I WHERE tenant_id = %s', r.relname, ${tenant_id});
+  END LOOP;
+END
+\$\$;
+COMMIT;
+SQL
+}
+
+remove_tenant() {
+  local out id
+  if out="$(support teardown "$1" 2>/dev/null)" && [[ "$(printf '%s' "$out" | field outcome)" == "removed" ]]; then
+    id="$(printf '%s' "$out" | field tenant_id)"
+    purge_tenant_rows "$id" || echo "AVISO: no se pudieron purgar las filas del tenant $id." >&2
+  fi
+}
+
+cleanup() {
+  remove_tenant "$SLUG_A"
+  remove_tenant "$SLUG_B"
+}
+
+trap cleanup EXIT
+cleanup
+
+prepare() {
+  local prefix="$1" slug="$2" json
+  json="$(support setup "$slug" alum)"
+  export "E2E_${prefix}_SLUG=$slug"
+  export "E2E_${prefix}_ADMIN_EMAIL=$(printf '%s' "$json" | field admin_email)"
+  export "E2E_${prefix}_ADMIN_PASSWORD=$(printf '%s' "$json" | field admin_password)"
+  export "E2E_${prefix}_TUTOR_EMAIL=$(printf '%s' "$json" | field tutor_email)"
+  export "E2E_${prefix}_TUTOR_USER=$(printf '%s' "$json" | field tutor_user)"
+  export "E2E_${prefix}_STAFF_PASSWORD=$(printf '%s' "$json" | field staff_password)"
+}
+
+prepare A "$SLUG_A"
+prepare B "$SLUG_B"
+export E2E_REAL_API=1
+
+npx playwright test e2e/alum-students-real.spec.ts --workers=1 "$@"
