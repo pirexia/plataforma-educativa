@@ -2,8 +2,8 @@
 
 | Campo | Valor |
 |-------|-------|
-| **Versión** | 3.2.24 |
-| **Fecha** | 2026-11-02 |
+| **Versión** | 3.2.25 |
+| **Fecha** | 2026-11-09 |
 | **Estado** | Borrador consolidado — pendiente de aprobación |
 | **Autor** | Product Owner |
 | **Documento sustituye a** | v1.2.0 (mismo contenido, reorganizado y ampliado) |
@@ -367,7 +367,7 @@ Cada módulo es una unidad funcional independiente, activable/desactivable por t
 | 5.3 | `REQ-FAM-UNIT` | Unidad familiar, tutores y autorizados | MUST | 1 | CORE, AUTH |
 | 5.4 | `REQ-ACAD` | Gestión académica | MUST | 1 | CORE |
 | 5.5 | `REQ-CALIF` | Calificaciones y evaluación | MUST | 1 | ACAD |
-| 5.6 | `REQ-ALUM` | Alumnos y matrículas | MUST | 1 | CORE, FAM-UNIT |
+| 5.6 | `REQ-ALUM` | Alumnos y matrículas | MUST | 1 | CORE, CURSO, ACAD, FAM-UNIT |
 | 5.7 | `REQ-OFE` | Oferta educativa y preinscripción | SHOULD | 2 | ALUM |
 | 5.8 | `REQ-RRHH` | Gestión de personal / RRHH | SHOULD | 2 | CORE |
 | 5.9 | `REQ-NOM` | Nóminas | COULD | 3 | RRHH |
@@ -725,7 +725,7 @@ El Administrador de Centro puede:
 
 ### 5.6 MÓDULO GESTIÓN DE ALUMNOS Y MATRÍCULAS (`REQ-ALUM`)
 
-> **Prioridad**: MUST · **Fase**: 1 · **Depende de**: CORE, FAM-UNIT 
+> **Prioridad**: MUST · **Fase**: 1 · **Depende de**: CORE, CURSO, ACAD, FAM-UNIT 
 > **Entidades principales**: `Student`, `StudentFile`, `Enrollment`, `EnrollmentRequest`, `WaitingList`
 
 #### REQ-ALUM-001: Expediente del alumno
@@ -2999,7 +2999,7 @@ Para el centro concertado, además: cuotas del primer ciclo de Infantil, becas d
 | `Guardian` | Tutor legal. | Vinculado a `Person`; relación N:M con `Student`. |
 | `Employee` | Personal del centro. | Vinculado a `Person`. |
 | `FamilyUnit` | Unidad familiar. | Agrupa tutores y alumnos. |
-| `Enrollment` | Matrícula de un alumno en un curso académico y grupo. | Entidad bisagra entre alumno y estructura académica. |
+| `Enrollment` | Matrícula de un alumno en un curso académico y curso de etapa y, cuando se asigna, grupo (`ADR-071`). | Entidad bisagra entre alumno y estructura académica. |
 | `Group` / `Course` / `Subject` | Estructura académica. | Siempre por `AcademicYear`. |
 | `AuditLog` | Registro inmutable de operaciones. | Append-only. |
 | `ModuleSubscription` | Módulos activos por tenant. | Controla visibilidad y APIs. |
@@ -3022,7 +3022,8 @@ erDiagram
     COURSE ||--o{ GROUP : contiene
     COURSE ||--o{ SUBJECT : imparte
     STUDENT ||--o{ ENROLLMENT : matricula
-    ENROLLMENT }o--|| GROUP : asignado_a
+    ENROLLMENT }o--o| GROUP : asignado_a
+    COURSE ||--o{ ENROLLMENT : matricula_en
     ENROLLMENT ||--o{ GRADE : genera
     ENROLLMENT ||--o{ ATTENDANCE : registra
     ENROLLMENT ||--o{ INVOICE_LINE : origina
@@ -3276,6 +3277,7 @@ Del `028` en adelante, cada decisión vive en `docs/adr/` (`ADR-026`).
 | `ADR-068` | **Autorizados de recogida y entrega de menores** (entrada de `1.14b`, `REQ-FAM-UNIT-005` y `REQ-PRL-004`; **resuelve `OPEN-068-01` a `-04`**; concreta `ADR-032` sin sustituirlo; no sustituye ningún ADR). **Estado: `ACEPTADA`** (2026-10-29; el usuario aprueba D1 a D4 con su recomendación, `OPEN-FAM-UNIT-27`, `-28`, `-29` y `-36`, los criterios de `-34` y `-35` y la partición `1.14b-a` a `-d`; y, el mismo día, `OPEN-068-05` a `-08`, `OPEN-FAM-UNIT-26` y `-30` y las ampliaciones `L1`, `L2`, `L5`, `L7` a `L10`). El proceso de puerta vive en un módulo nuevo `prl` (`depends_on ['fam_unit']`) que lee la lista solo por `FamUnit\Domain\AuthorizedPickupList` (consulta en origen, sin caché, sin eventos, fallo en cerrado); los terceros son personas de `Core` creadas o reutilizadas por documento con `Core\Domain\PersonRegistrar`, que nunca sobrescribe, y `PersonDirectory` gana búsqueda por nombre; ficheros privados en `App\Support\Files` (tipo real, recodificado con `gd` sin metadatos, prefijo de tenant del contexto, URL firmada); auditoría de lectura con `AuditRecorder::recordRead`, una fila `read` por consulta de lista escrita por `fam_unit` antes de devolver los datos. **Aprobadas también el 2026-10-29**: `OPEN-068-05` a `-08` (`PersonDirectory::findByDocument`/`contactDetailsByIds`, universo de `studentsMatching`, `PersonRegistrar::correctUnaccounted`, instante siempre del servidor) y las ampliaciones `L1`, `L2`, `L5`, `L7` a `L10` (`AR-10` 5→6, `terms_versions.kind` 3→4, extensiones `gd` y `exif`, entre otras). Sigue abierta `OPEN-FAM-UNIT-45` (transporte) |
 | `ADR-069` | **Codex como primer revisor del pipeline, con reparto de la revisión por tipo de comprobación** (transversal, proceso de revisión; **sustituye parcialmente `ADR-050 §5.5`** entero, la fila de `ADR-049 §7.1` de `ADR-050 §6` y, de `ADR-049 §7.1`, solo la frase «nunca en lugar de ninguno»; no toca `ADR-049 §5`, `§7.2` ni `§9`, ni `ADR-050 §5.3`; Codex sigue fuera de `CLAUDE.md §10`). **Estado: `ACEPTADA`** (2026-11-02; condición de uso `OPEN-069-01` confirmada por el usuario el 2026-11-02 (entrenamiento desactivado en su cuenta de OpenAI; declaración no verificable); `OPEN-069-03`, `-04` y `-05` resueltas; abiertas `-02` y `-06`). Datos: las revisiones de `1.14b-a` costaron 402 k + 272 k tokens; `security-reviewer`, el 43 %; Codex no se ha usado desde `ADR-050`. Codex revisa primero y es obligatorio en todo paso con código, con un contexto fijo pasado a `adversarial-review`; la checklist de seguridad se reparte: Codex se encarga de lo que no depende del proyecto (inyección, validación, carreras, transacciones, regresiones, tests) y `security-reviewer` de las convenciones (tenant/RLS, permisos y ámbitos, IDOR, ficheros, categoría especial, sesión/CSRF, auditoría, conformidad con los ADR). Paso crítico u ordinario según lo que toca el diff, no según el dominio (por dominio, menos del 20 % de los pasos serían ordinarios); en los ordinarios, `security-reviewer` solo si Codex trae un Crítico o Alto aceptado o no está disponible. `db-reviewer` en toda migración y `doc-precheck` + `doc-reviewer`, sin cambios. Las correcciones de Medios y Bajos las verifica Codex. **Codex no implementa** (`rescue` sigue prohibido). Medición en `docs/metricas-agentes.md` (escapes, precisión, ahorro) y revisión al 6.º paso o el 2027-01-31; cualquier escape Crítico o Alto en un paso ordinario suspende el régimen en el acto; se vuelve a `ADR-050` si Codex no está disponible o si se retira por `§5.3` (incluida la llegada de datos reales en H0). Preguntas abiertas: `OPEN-069-01` a `-06` |
 | `ADR-070` | **El texto legal de `terms_versions` es texto plano** (issue #481, `REQ-FAM-UNIT-003`/`-004`/`-005` y `REQ-FAM-PORTAL`; complementa `ADR-066` sin sustituirlo; no sustituye ningún ADR). **Estado: `ACEPTADA`** (2026-11-05, decisión de fondo aprobada por el usuario). `title`, `body` y sus `*_translations` son texto plano en todos los `kind`, sin HTML ni Markdown. `TermsVersionService` rechaza el marcado (`/<\s*[a-zA-Z!\/?]/u`) en `create`, `update` y `publish` con `422 fam_unit.terms.markup_not_allowed` por idioma; no lo limpia. El frontend lo pinta solo como texto (sin `v-html`, con `whitespace-pre-line`) y el futuro servicio HTML→PDF lo escapa antes de incrustarlo. No hay migración: no existían textos con marcado. Se descartan el HTML saneado y el Markdown. `OPEN-070-01` resuelta (2026-11-05): las referencias de carácter no se rechazan y `pre-line` queda confirmado |
+| `ADR-071` | **Grupo opcional en la matrícula** (entrada de `1.15-b`, `REQ-ALUM-001`/`-003`, `OPEN-ALUM-11` = B; no sustituye ningún ADR). **Estado: `ACEPTADA`** (2026-11-09, aprobada por el usuario). `ENROLLMENT }o--o| GROUP`: el curso de etapa es obligatorio y el grupo, opcional (FK `MATCH SIMPLE`); se añade `COURSE ||--o{ ENROLLMENT` a `§16.2`. Una matrícula sin grupo no la ve nadie por el ámbito `grupo` (`INV-002`; prohibido `OR group_id IS NULL`) y es válida sin límite de tiempo; dos vetos de borrado independientes (por grupo y por curso de etapa). «Antiguo alumno» no es un estado, se deriva; sus usos futuros se resuelven en `1.23b`. Fichero: `docs/adr/ADR-071-grupo-opcional-en-la-matricula.md`. |
 
 ### Decisiones abiertas vivas
 
@@ -3364,6 +3366,7 @@ Se mantendrá una matriz de trazabilidad (generada automáticamente desde las re
 
 | Versión | Fecha | Autor | Descripción |
 |---------|-------|-------|-------------|
+| 3.2.25 | 2026-11-09 | Product Owner | `ADR-071` (grupo opcional en la matrícula, `OPEN-ALUM-11` = B) aplicado: `§16.1`/`§16.2` (`ENROLLMENT }o--o| GROUP`, `COURSE ||--o{ ENROLLMENT`), fila de `ADR-071` en `§18` y «Depende de» de `REQ-ALUM` (`§5.6` e índice) = `CORE, CURSO, ACAD, FAM-UNIT` (`OPEN-ALUM-28` = A). |
 | 3.2.24 | 2026-11-02 | Product Owner | `ADR-069` (Codex como primer revisor del pipeline, con reparto de la revisión por tipo de comprobación) aplicado: `CLAUDE.md` 2.10.0, skill `revision-con-codex` con `contexto-codex.md`, agentes `security-reviewer`/`db-reviewer`/`spec-writer`, `PLAN-IMPLEMENTACION.md` 2.3.19, `SECURITY.md` 0.3.17 y `PRIVACY.md` 0.3.12. Condición `OPEN-069-01` confirmada por el usuario el 2026-11-02: régimen de `ADR-069` activo. Sin cambios en los requisitos de las secciones 1-17. |
 | 3.2.16 | 2026-10-10 | Product Owner | `ADR-061` (actualización de PostgreSQL 17 a 18) aceptado y aplicado en la rama `chore/postgres-18`: imágenes `postgres:18` en desarrollo, prodlike, Quadlet y CI, volumen nuevo `postgres-cluster` montado en `/var/lib/postgresql`, `CA-058-02` actualizado a la lista de clases de PostgreSQL 18. Sustituye solo la fila de `ADR-037` que nombra `postgres-data.volume`; `ADR-001` («PostgreSQL 17+») intacto. Sin cambios en los requisitos de las secciones 1-17. |
 | 3.2.17 | 2026-10-10 | Product Owner | `ADR-062` (contenido del centro traducible, columna `jsonb` `<campo>_translations`) y `ADR-063` (ámbitos `grupo`, `clase` y `departamento`: `1.11` no registra ninguno; enmienda `ADR-044 §3`) propuestos con la especificación de `REQ-ACAD-001` (paso `1.11`). Sin cambios en los requisitos de las secciones 1-17. |

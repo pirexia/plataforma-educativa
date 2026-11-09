@@ -153,4 +153,5 @@ Los datos personales del alumno los audita `Core` en la persona. Lectura: fila `
 - **Fotografía**: sin obligación de conservación; purga física al dar de baja al alumno o al vencer el plazo que fije `1.23b` (propuesta a ratificar allí, como `OPEN-FAM-UNIT-37`).
 - **Solicitudes de cambio de grupo**: siguen a la matrícula.
 - **Baja lógica** (`INV-004`): las cuatro tablas.
+- **Antiguo alumno** (`ADR-071`, `OPEN-071-02`): no es un estado ni una columna; se deriva (sin matrícula `activa` y con alguna en `baja` o en un curso `cerrado`/`archivado`). Un uso futuro que dependa de ello (p. ej., bonificación a hermanos) exige que el plazo de conservación de `1.23b` (`OPEN-13`) no borre el hecho de haber sido alumno; el contacto de antiguos alumnos requiere consentimiento propio (`REQ-CRM-004`).
 - **Respuesta de idempotencia del alta** (pendiente, #558): `idempotency_keys.response_body` guarda 24 h la respuesta `201` de `POST /students`, que incluye datos de un menor (nombre, fecha de nacimiento, documento enmascarado). Deuda conocida de la tabla de `Core`, no de `alum`; se trata en el issue #558.
