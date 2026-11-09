@@ -6,9 +6,9 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
-## 2026-11-09 · `docs(landing)`: ADR-074 rediseño de la landing (`PROPUESTA`, #579)
+## 2026-11-09 · `docs(landing)`: ADR-074 rediseño de la landing (`ACEPTADA`, #579)
 
-- `ADR-074` (`PROPUESTA`): inglés en `/` y resto de idiomas bajo `/es/`, `/de/`, `/fr/`; `DEFAULT_LANG`, `BASE_LANG` y `LEGAL_LANG` (es-ES) separados; capturas reales del demo con datos sintéticos; AVIF/WebP con `sharp` aislada; carrusel y efectos solo con CSS; `OPEN-074-01` a `-07` pendientes del usuario. Requisitos 3.2.28.
+- `ADR-074` (`ACEPTADA`): inglés en `/` y resto de idiomas bajo `/es/`, `/de/`, `/fr/`; `DEFAULT_LANG`, `BASE_LANG` y `LEGAL_LANG` (es-ES) separados; capturas reales del demo con datos sintéticos; AVIF/WebP con `sharp` aislada; carrusel y efectos solo con CSS; `OPEN-074-01` a `-07` resueltas con la recomendación (usuario, 2026-11-09). Requisitos 3.2.28.
 
 ## 2026-11-09 · `feat(landing)`: datos legales y correo de la landing (`ADR-073`, #579)
 
