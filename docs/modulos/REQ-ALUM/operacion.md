@@ -47,7 +47,7 @@ Sin métricas propias. La cifra de `CA-ALUM-060` (sobrecoste del disparador en `
 | `platform:sync-registry` aborta | `acad` o `fam_unit` no registrados | Desplegar en orden |
 | Exportación `pendiente` indefinida | *Worker* parado | `RUNBOOK.md`, arranque del perfil `worker` |
 | Foto no visible | S3 caído o credenciales | §2; la ficha sigue funcionando |
-| Datos de un menor en `idempotency_keys.response_body` durante 24 h tras el alta | Respuesta `201` de `POST /students` guardada por la idempotencia de `Core` | Conocido, sin acción operativa; seguimiento en #ISSUE-IDEMP |
+| Datos de un menor en `idempotency_keys.response_body` durante 24 h tras el alta | Respuesta `201` de `POST /students` guardada por la idempotencia de `Core` | Conocido, sin acción operativa; seguimiento en #558 |
 
 ## 7. Impacto en copias de seguridad y restauración
 

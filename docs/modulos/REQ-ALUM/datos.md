@@ -153,4 +153,4 @@ Los datos personales del alumno los audita `Core` en la persona. Lectura: fila `
 - **Fotografía**: sin obligación de conservación; purga física al dar de baja al alumno o al vencer el plazo que fije `1.23b` (propuesta a ratificar allí, como `OPEN-FAM-UNIT-37`).
 - **Solicitudes de cambio de grupo**: siguen a la matrícula.
 - **Baja lógica** (`INV-004`): las cuatro tablas.
-- **Respuesta de idempotencia del alta** (pendiente, #ISSUE-IDEMP): `idempotency_keys.response_body` guarda 24 h la respuesta `201` de `POST /students`, que incluye datos de un menor (nombre, fecha de nacimiento, documento enmascarado). Deuda conocida de la tabla de `Core`, no de `alum`; se trata en el issue #ISSUE-IDEMP.
+- **Respuesta de idempotencia del alta** (pendiente, #558): `idempotency_keys.response_body` guarda 24 h la respuesta `201` de `POST /students`, que incluye datos de un menor (nombre, fecha de nacimiento, documento enmascarado). Deuda conocida de la tabla de `Core`, no de `alum`; se trata en el issue #558.

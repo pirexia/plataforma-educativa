@@ -348,7 +348,7 @@ Pest en `apps/api/tests/Feature/Alum/` (concurrencia en `tests/Concurrency/`), V
 - **CA-ALUM-008** — *Dado* `PATCH` del nombre y la fecha de nacimiento de un alumno **con** usuario, *entonces* `200`, `Core` corrige la persona y lo audita; *y* un `PATCH` que intenta cambiar correo de acceso, contraseña o estado del usuario ⇒ `422` y nada cambia (`RN-ALUM-10`).
 - **CA-ALUM-009** — *Dado* un alta cuyo documento coincide con una persona viva del centro (alumno, tutor o personal), *entonces* `422 alum.validation.person_exists` con cuerpo **idéntico** en los tres casos, sin nombre ni `public_id`, y no se crea nada (`RN-ALUM-09`).
 - **CA-ALUM-019** — Idempotencia de `POST /students` (`RN-ALUM-27`): sin `Idempotency-Key` ⇒ `400 urn:pge:error:malformed`; con una clave que no es ULID ⇒ `400`; reintento con la misma clave y el mismo cuerpo ⇒ la respuesta original `201` con `Idempotency-Replayed: true` y una sola persona; misma clave con otro cuerpo ⇒ `409`.
-- **CA-ALUM-032** — *(condicionado a `OPEN-ALUM-31` = A)* *Dado* un sujeto con `alumno.crear` y sin `familia.actualizar`, *cuando* da de alta un alumno con `family_unit`, *entonces* `403` y no se crea nada; *y* sin `family_unit`, `201`.
+- **CA-ALUM-032** — *(`OPEN-ALUM-31` = A, resuelta el 2026-11-09)* *Dado* un sujeto con `alumno.crear` y sin `familia.actualizar`, *cuando* da de alta un alumno con `family_unit`, *entonces* `403` y no se crea nada; *y* sin `family_unit`, `201`.
 
 ### 11.2 Ámbitos
 
