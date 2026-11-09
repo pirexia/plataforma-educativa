@@ -110,6 +110,7 @@ test('_pending_translation en es-ES: error', () => {
 
 test('claves pendientes de traducción: aviso en desarrollo, error en --publish', () => {
   const root = makeSite()
+  editJson(root, 'locales/en.json', (d) => (d._pending_translation = true))
   const dev = run(root, { skipDist: true })
   assert.ok(dev.warnings.some((w) => /en\.json: traducción pendiente/.test(w)))
   assert.ok(!has(dev, /traducción pendiente/))
