@@ -34,8 +34,12 @@ class AlumServiceProvider extends ServiceProvider implements DeclaresModuleRegis
             'alum_enrollment' => Enrollment::class,
         ]);
 
-        // permisos.md §3.1 (`ADR-044 §3.4`): `unidad_familiar` sobre `alumno`. `grupo` llega con 1.15-b.
-        $this->app->make(ScopeResolverRegistry::class)->register(new AlumnoUnidadFamiliarScopeResolver);
+        // permisos.md §3.1 (`ADR-044 §3.4`): cuatro resolutores de 1.15-a/1.15-b (`GroupChangeRequest` llega con 1.15-c).
+        $resolvers = $this->app->make(ScopeResolverRegistry::class);
+        $resolvers->register(new AlumnoUnidadFamiliarScopeResolver);
+        $resolvers->register(new AlumnoGrupoScopeResolver);
+        $resolvers->register(new MatriculaGrupoScopeResolver);
+        $resolvers->register(new MatriculaUnidadFamiliarScopeResolver);
 
         // RN-ALUM-26, RN-ACAD-21 (CA-ALUM-027): dos vetos independientes. El de curso de etapa cuenta también las
         // matrículas sin grupo.

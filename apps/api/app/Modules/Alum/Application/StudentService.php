@@ -237,12 +237,68 @@ final class StudentService
         return ApiException::validation($errors, $e->detailKey, $e->detailParams);
     }
 
-    /** `RN-ALUM-05`: baja lógica; no borra la persona ni su pertenencia. Sin matrículas en `1.15-a` la baja siempre cabe. */
+    /**
+     * `RN-ALUM-05` (completa en `1.15-b`): baja lógica; no borra la persona ni su pertenencia. Un alumno con alguna
+     * matrícula `activa` viva no se da de baja ⇒ `409 has_active_enrollments`. La comprobación se hace con la fila del
+     * alumno bloqueada `FOR UPDATE`; el alta de matrícula la bloquea `FOR SHARE`, así que no se cruzan.
+     */
     public function delete(string $publicId): void
     {
         DB::transaction(function () use ($publicId): void {
-            Student::query()->where('public_id', $publicId)->lockForUpdate()->firstOrFail()->delete();
+            $student = Student::query()->where('public_id', $publicId)->lockForUpdate()->firstOrFail();
+
+            // Perezoso: `EnrollmentService` depende de este servicio (sin dependencia circular de construcción).
+            if (app(EnrollmentService::class)->hasActiveEnrollments((int) $student->id)) {
+                throw AlumErrors::conflict('student', 'alum.conflict.has_active_enrollments');
+            }
+
+            $student->delete();
         });
+    }
+
+    /**
+     * Alumno vivo por `public_id` bloqueado `FOR SHARE` hasta el final de la transacción (`funcional.md §4.2`): si otra
+     * conexión lo está borrando sin confirmar, espera y, al confirmar, devuelve `null`. Exige transacción abierta.
+     */
+    public function lockAliveForShare(string $publicId): ?Student
+    {
+        return Student::query()->where('public_id', $publicId)->sharedLock()->first();
+    }
+
+    /** Id interno de un alumno vivo por su `public_id`; `null` si no existe o es de otro centro. */
+    public function idByPublicId(string $publicId): ?int
+    {
+        $id = Student::query()->where('public_id', $publicId)->value('id');
+
+        return $id === null ? null : (int) $id;
+    }
+
+    /**
+     * Alumnos (incluidos los dados de baja: una matrícula vive aunque el alumno se dé de baja después de anularla) por
+     * id interno, indexados por id.
+     *
+     * @param  list<int>  $ids
+     * @return array<int, Student>
+     */
+    public function byIds(array $ids): array
+    {
+        if ($ids === []) {
+            return [];
+        }
+
+        return Student::withTrashed()->whereIn('id', $ids)->get()->keyBy(static fn (Student $s): int => (int) $s->id)->all();
+    }
+
+    /**
+     * Subconsulta (`SELECT id`) de los alumnos vivos de esas personas, para los resolutores de `matricula`
+     * (`RN-ALUM-62`): los resolutores no consultan `Student` directamente (`AR-10`).
+     *
+     * @param  list<int>  $personIds
+     * @return Builder<Student>
+     */
+    public function idsQueryOfPersons(array $personIds): Builder
+    {
+        return Student::query()->whereIn('person_id', $personIds)->select('id');
     }
 
     /** `RN-ALUM-06`: solo si la persona sigue viva y no tiene otra faceta de alumno viva; si no, `409 cannot_restore`. */
