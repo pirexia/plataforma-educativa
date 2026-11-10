@@ -3,6 +3,7 @@
 namespace App\Modules\Acad\Infrastructure;
 
 use App\Modules\Acad\Application\StaffDirectory;
+use App\Modules\Acad\Domain\GroupDirectory;
 use App\Modules\Acad\Domain\Models\AcademicPeriod;
 use App\Modules\Acad\Domain\Models\Course;
 use App\Modules\Acad\Domain\Models\EducationLevel;
@@ -21,6 +22,8 @@ use App\Modules\Acad\Domain\Models\Timetable;
 use App\Modules\Acad\Domain\Models\TimetableFrame;
 use App\Modules\Acad\Domain\Models\TimetableSession;
 use App\Modules\Acad\Domain\ReservasPropiosScopeResolver;
+use App\Modules\Acad\Domain\StructureDeletionVetoRegistry;
+use App\Modules\Acad\Domain\TeachingMembership;
 use App\Modules\Curso\Domain\AcademicYearDateChangeRegistry;
 use App\Modules\Curso\Domain\AcademicYearRolloverRegistry;
 use App\Support\Authorization\ScopeResolverRegistry;
@@ -49,6 +52,15 @@ class AcadServiceProvider extends ServiceProvider implements DeclaresModuleRegis
     {
         // Memoiza por petición los usuarios resueltos (RN-ACAD-92).
         $this->app->scoped(StaffDirectory::class);
+
+        // RN-ACAD-21: registro de vetos de borrado (vacío hasta que un módulo registra el suyo).
+        $this->app->singleton(StructureDeletionVetoRegistry::class, InMemoryStructureDeletionVetoRegistry::class);
+
+        // §7.2 y §18.7 (1.15-b-t1a): interfaces para `ALUM`, memoizadas por petición.
+        $this->app->scoped(EloquentGroupDirectory::class);
+        $this->app->bind(GroupDirectory::class, static fn ($app): GroupDirectory => $app->make(EloquentGroupDirectory::class));
+        $this->app->scoped(EloquentTeachingMembership::class);
+        $this->app->bind(TeachingMembership::class, static fn ($app): TeachingMembership => $app->make(EloquentTeachingMembership::class));
     }
 
     public function boot(): void
