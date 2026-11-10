@@ -172,5 +172,6 @@ return [
         'timetable_frames' => 'timetable frames',
         'timetable_sessions' => 'timetable sessions',
         'facility_bookings' => 'facility bookings',
+        'enrollments' => 'enrolments',
     ],
 ];

@@ -7,6 +7,7 @@ use App\Modules\Acad\Domain\Models\Course;
 use App\Modules\Acad\Domain\Models\EducationLevel;
 use App\Modules\Acad\Domain\Models\Group;
 use App\Modules\Acad\Domain\Models\Subject;
+use App\Modules\Acad\Domain\StructureEntity;
 use App\Support\Api\ValidationErrorBag;
 use App\Support\I18n\TranslationsValidator;
 use Illuminate\Support\Facades\DB;
@@ -23,6 +24,7 @@ final class CourseService
     public function __construct(
         private readonly StructureYears $years,
         private readonly TranslationsValidator $translations,
+        private readonly StructureVetoes $vetoes,
     ) {}
 
     /** Detalle: `404` si no existe o es de otro centro; `404` también si su curso es de solo lectura sin `curso_historico.leer` (`RN-ACAD-08`). */
@@ -110,6 +112,9 @@ final class CourseService
             if (Subject::query()->where('course_id', $course->id)->exists()) {
                 $dependents[] = 'subjects';
             }
+
+            // RN-ACAD-21: vetos de otros módulos (p. ej. matrículas vivas, RN-ALUM-26).
+            $dependents = [...$dependents, ...$this->vetoes->dependents(StructureEntity::Course, $course->id)];
 
             if ($dependents !== []) {
                 throw StructureErrors::hasDependents('course', $course->code, $dependents);
