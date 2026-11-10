@@ -82,12 +82,19 @@ test('RN-ALUM-62 INV-002: un sujeto con unidad_familiar sin faceta de tutor, sin
     Alum::call($c['tenant'], $c['tutor'], 'post', '/students', Alum::body(), ['Idempotency-Key' => (string) Str::ulid()])->assertForbidden();
 });
 
-test('RN-ALUM-62 PermissionResolver: alumno.leer con un ámbito que el permiso no admite (grupo en 1.15-a) se rechaza al crear el rol', function (): void {
+test('RN-ALUM-61 PermissionResolver: alumno.leer admite el ámbito grupo desde 1.15-b (ampliación compatible) y un ámbito que el permiso no admite sigue rechazándose al crear el rol', function (): void {
     [$tenant, $admin] = Alum::setup('alum-062b');
 
     resetSessionState();
     test()->actingAs($admin)->postJson(coreApiUrl($tenant->slug, '/roles'), [
         'code' => 'rol_grupo', 'name' => 'Rol grupo',
         'permissions' => [['code' => 'alumno.leer', 'effect' => 'allow', 'scope' => 'grupo']],
+    ])->assertCreated();
+
+    // `alumno.crear` solo admite `todos`: con `grupo` se rechaza.
+    resetSessionState();
+    test()->actingAs($admin)->postJson(coreApiUrl($tenant->slug, '/roles'), [
+        'code' => 'rol_crear_grupo', 'name' => 'Rol crear grupo',
+        'permissions' => [['code' => 'alumno.crear', 'effect' => 'allow', 'scope' => 'grupo']],
     ])->assertUnprocessable();
 });

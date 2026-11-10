@@ -270,7 +270,7 @@ final class EnrollmentService
                     throw AlumErrors::invalid('enrolled_on', 'alum.validation.withdrawn_before_enrolled');
                 }
 
-                $enrollment->enrolled_on = $enrolledOn;
+                $enrollment->setAttribute('enrolled_on', $enrolledOn);
             }
 
             if ($hasGroup && $enrollment->group_id === null && $newGroupId !== null) {
@@ -312,7 +312,7 @@ final class EnrollmentService
             }
 
             $enrollment->status = 'baja';
-            $enrollment->withdrawn_on = $on;
+            $enrollment->setAttribute('withdrawn_on', $on);
             $enrollment->withdrawal_reason = $reason;
             $enrollment->save();
 
@@ -542,7 +542,7 @@ final class EnrollmentService
         $value = $this->requiredString($input, $key);
         $parsed = CarbonImmutable::createFromFormat('!Y-m-d', $value);
 
-        if ($parsed === false || $parsed->format('Y-m-d') !== $value) {
+        if ($parsed === null || $parsed->format('Y-m-d') !== $value) {
             throw AlumErrors::invalid($key, 'alum.validation.date_invalid');
         }
 
