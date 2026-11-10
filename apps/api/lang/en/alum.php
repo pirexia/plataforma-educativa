@@ -7,6 +7,7 @@ return [
     'permissions' => [
         'resources' => [
             'alumno' => 'Students, record and photograph',
+            'matricula' => 'Enrolment, groups and change requests',
         ],
     ],
     'validation' => [

@@ -7,6 +7,7 @@ return [
     'permissions' => [
         'resources' => [
             'alumno' => 'Schülerschaft, Akte und Foto',
+            'matricula' => 'Einschreibung, Gruppen und Wechselanträge',
         ],
     ],
     'validation' => [

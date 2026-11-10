@@ -7,6 +7,7 @@ return [
     'permissions' => [
         'resources' => [
             'alumno' => 'Alumnado, ficha y fotografía',
+            'matricula' => 'Matrícula, grupos y solicitudes de cambio',
         ],
     ],
     'validation' => [

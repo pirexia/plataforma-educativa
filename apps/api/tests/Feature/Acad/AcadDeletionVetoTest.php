@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\DB;
 use Tests\Support\AcadApiHelpers as Api;
 
 // RN-ACAD-21 (vetos de borrado de otros módulos), RN-ALUM-26, CA-ALUM-027,
-// INV-007, INV-015. El doble de test hace de `alum` (T1b registra el real).
+// INV-007, INV-015. Los dobles de test se suman a los vetos reales de `alum` (1.15-b T1b; sus pruebas, en `tests/Feature/Alum/EnrollmentDeletionVetoTest.php`).
 
 afterEach(function (): void {
     DB::connection('pgsql_platform')->table('tenants')->delete();
@@ -49,15 +49,16 @@ function vetoDelete(object $tenant, object $admin, string $path)
     return test()->actingAs($admin)->deleteJson(Api::url($tenant, $path));
 }
 
-test('RN-ACAD-21: el registro de vetos de borrado es un singleton, vacío por defecto', function (): void {
+test('RN-ACAD-21: el registro de vetos de borrado es un singleton y solo trae los dos vetos de alum (grupo y curso de etapa)', function (): void {
     $registry = app(StructureDeletionVetoRegistry::class);
 
-    expect($registry->all())->toBe([])
+    expect(array_map(fn (StructureDeletionVeto $v): array => [$v->moduleCode(), $v->appliesTo()], $registry->all()))
+        ->toBe([['alum', StructureEntity::Group], ['alum', StructureEntity::Course]])
         ->and(app(StructureDeletionVetoRegistry::class))->toBe($registry);
 
     $registry->register(vetoDouble('alum', StructureEntity::Group));
 
-    expect($registry->all())->toHaveCount(1);
+    expect($registry->all())->toHaveCount(3);
 });
 
 test('CA-ALUM-027 RN-ALUM-26 RN-ACAD-21: un veto de curso de etapa bloquea su borrado con enrollments y no el del grupo; son independientes', function (): void {

@@ -14,10 +14,11 @@ use Illuminate\Console\Command;
 /**
  * REQ-ALUM/permisos.md §4 (1.15-a, `CA-ALUM-014a`): siembra de `alumno.*` en los centros que ya existían.
  * `tenant:provision-defaults` solo corre en el alta de un centro nuevo; sin este comando, el personal de un centro existente
- * ve un `403` al gestionar alumnado. Se vuelve a ejecutar tras `1.15-b` (`matricula.*`, ámbito `grupo`).
+ * ve un `403` al gestionar alumnado. Con `1.15-b` añade `matricula.*` y el ámbito `grupo`.
  *
  * Concede, en cada centro vivo, exactamente las concesiones de `ProvisionTenantDefaults::ALUM_PERMISSION_GRANTS`
- * (ámbito `todos`) y `ALUM_PERMISSION_UNIDAD_FAMILIAR_GRANTS` (ámbito `unidad_familiar`, `tutor_legal`) a los roles
+ * (ámbito `todos`), `ALUM_PERMISSION_UNIDAD_FAMILIAR_GRANTS` (ámbito `unidad_familiar`, `tutor_legal`) y
+ * `ALUM_PERMISSION_GRUPO_GRANTS` (ámbito `grupo`, `docente` y `tutor_grupo`) a los roles
  * predefinidos que no tengan **esa concesión** (por código; una concesión previa con otro ámbito no se toca) y **no
  * toca roles personalizados**. Idempotente. Escritura por el modelo (`RN-PERM-19`), nunca por `attach()`/`sync()`,
  * para que quede auditada (issue #165).
@@ -40,7 +41,7 @@ class GrantAlumPermissionsCommand extends Command
 
     public function handle(): int
     {
-        $required = collect([...ProvisionTenantDefaults::ALUM_PERMISSION_GRANTS, ...ProvisionTenantDefaults::ALUM_PERMISSION_UNIDAD_FAMILIAR_GRANTS])->flatten()->unique()->values()->all();
+        $required = collect([...ProvisionTenantDefaults::ALUM_PERMISSION_GRANTS, ...ProvisionTenantDefaults::ALUM_PERMISSION_UNIDAD_FAMILIAR_GRANTS, ...ProvisionTenantDefaults::ALUM_PERMISSION_GRUPO_GRANTS])->flatten()->unique()->values()->all();
         $retired = $this->retiredPermissionCodes($required);
         $missing = array_values(array_diff($required, $this->registeredPermissionCodes($required), $retired));
 
@@ -60,7 +61,7 @@ class GrantAlumPermissionsCommand extends Command
 
         $this->eachTenant(function (Tenant $tenant): void {
             AuditActor::actingAs('console', function () use ($tenant): void {
-                foreach (['todos' => ProvisionTenantDefaults::ALUM_PERMISSION_GRANTS, 'unidad_familiar' => ProvisionTenantDefaults::ALUM_PERMISSION_UNIDAD_FAMILIAR_GRANTS] as $scope => $grants) {
+                foreach (['todos' => ProvisionTenantDefaults::ALUM_PERMISSION_GRANTS, 'unidad_familiar' => ProvisionTenantDefaults::ALUM_PERMISSION_UNIDAD_FAMILIAR_GRANTS, 'grupo' => ProvisionTenantDefaults::ALUM_PERMISSION_GRUPO_GRANTS] as $scope => $grants) {
                     foreach ($grants as $roleCode => $permissionCodes) {
                         $role = Role::query()->where('code', $roleCode)->first();
 
