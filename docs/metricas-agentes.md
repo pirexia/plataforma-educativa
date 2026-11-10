@@ -155,7 +155,7 @@ Solo cuota de OpenAI; no se mide en tokens de Claude. Registrar por revisión: p
 | 1.15-b T1a | implementer | acad vetos, GroupDirectory, groupIdsFor | 131752 | 37 | 16.3 | 3561 | 743/743 ficheros afectados |
 | 1.15-b T1b | explorer | briefing | 174599 | 42 | 3.8 | 4157 | |
 | 1.15-b T1b | implementer | enrollments, vetos alum, permisos, medición #382 | 243629 | 131 | 63.7 | 1860 | 2 rojos a propósito hasta T2 |
+| 1.15-b T2 | explorer | briefing | 165181 | 49 | 4.4 | | |
+| 1.15-b T2a | implementer | CourseDirectory, EnrollmentService, 3 resolutores | 239281 | 52 | 73.9 | | |
 
 Medias por tipo de `1.15-a` sin recalcular: el paso `1.15` no está cerrado (faltan `-b`..`-d`); se recalculan al cerrar `1.15`.
-| 2026-11-10 | 1.15-b T2 | explorer · briefing | 165181 | 49 | 4,4 min |
-| 2026-11-10 | 1.15-b T2a | implementer | 239281 | 52 | 73,9 min |
