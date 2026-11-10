@@ -3,6 +3,7 @@
 namespace App\Modules\Acad\Infrastructure;
 
 use App\Modules\Acad\Application\StaffDirectory;
+use App\Modules\Acad\Domain\CourseDirectory;
 use App\Modules\Acad\Domain\GroupDirectory;
 use App\Modules\Acad\Domain\Models\AcademicPeriod;
 use App\Modules\Acad\Domain\Models\Course;
@@ -59,6 +60,8 @@ class AcadServiceProvider extends ServiceProvider implements DeclaresModuleRegis
         // §7.2 y §18.7 (1.15-b-t1a): interfaces para `ALUM`, memoizadas por petición.
         $this->app->scoped(EloquentGroupDirectory::class);
         $this->app->bind(GroupDirectory::class, static fn ($app): GroupDirectory => $app->make(EloquentGroupDirectory::class));
+        $this->app->scoped(EloquentCourseDirectory::class);
+        $this->app->bind(CourseDirectory::class, static fn ($app): CourseDirectory => $app->make(EloquentCourseDirectory::class));
         $this->app->scoped(EloquentTeachingMembership::class);
         $this->app->bind(TeachingMembership::class, static fn ($app): TeachingMembership => $app->make(EloquentTeachingMembership::class));
     }
