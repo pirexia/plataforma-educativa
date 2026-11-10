@@ -151,5 +151,7 @@ Solo cuota de OpenAI; no se mide en tokens de Claude. Registrar por revisión: p
 | 1.15-a cierre | verificador | suite completa (2.ª) | 30364 | 12 | 8.4 | 2530 | 2250+67 en verde |
 | 1.15-a cierre | implementer | spec E2E real alum | 106808 | 25 | 3.6 | 4272 | |
 | 1.15-a cierre | verificador | E2E real alum | n/d | n/d | n/d | n/d | 3/3 verde; cifras no recibidas |
+| 1.15-b T1a | explorer | briefing | 137516 | 42 | 3.0 | 3189 | experimental (punto 2 de §2) |
+| 1.15-b T1a | implementer | acad vetos, GroupDirectory, groupIdsFor | 131752 | 37 | 16.3 | 3561 | 743/743 ficheros afectados |
 
 Medias por tipo de `1.15-a` sin recalcular: el paso `1.15` no está cerrado (faltan `-b`..`-d`); se recalculan al cerrar `1.15`.
