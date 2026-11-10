@@ -35,7 +35,7 @@ Sin tareas programadas (el planificador #453 sigue sin desplegar; nada en `1.15`
 
 ## 5. Métricas y alertas
 
-Sin métricas propias. La cifra de `CA-ALUM-060` (sobrecoste del disparador en `enrollments`) se anota en `CHANGELOG.md`.
+Sin métricas propias. Cifra de `CA-ALUM-060` (`#382`, `1.15-b` T1b; sobrecoste del disparador `academic_year_write_guard` en `enrollments`, medida con `AcademicYearWriteGuardOverheadTest`: 3 corridas, mediana de 5 repeticiones, 20.000 filas por sentencia y 1.000 sentencias, frente a una tabla de control idéntica sin disparador): inserción masiva **+40,5 %, +58,6 % y +54,2 %** (con disparador 1,56 s, 1,32 s y 1,29 s; sin él 1,11 s, 0,83 s y 0,83 s); fila a fila **-9,0 %, +5,0 % y -1,5 %** (1,05-1,07 s frente a 1,02-1,17 s: ruido). Por debajo de `1.10` (+182 % a +195 %) y de `CA-ACAD-023` (+85 % a +104 %); sin hallazgo. No es umbral de aprobado. Se repite en `CHANGELOG.md`.
 
 ## 6. Problemas conocidos y diagnóstico
 

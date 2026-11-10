@@ -6,6 +6,12 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-10 · `feat(alum)`: 1.15-b, tramo T1b, datos y permisos de matrícula (`REQ-ALUM-002`, `#382`)
+
+- `alum`: tabla `enrollments` (FK compuestas a curso de etapa del mismo curso académico y a grupo del curso de etapa, `CHECK` de estado y baja, único parcial de matrícula activa, disparador `academic_year_write_guard`), modelo `Enrollment` (alias `alum_enrollment`, política `Full`), `EnrollmentFactory`, y los dos vetos de borrado de `alum` sobre grupo y curso de etapa (`RN-ALUM-26`, `CA-ALUM-027` en lo que ejecuta `acad`).
+- Permisos: catálogo `matricula.*` (diez códigos de `alum`), `grupo` como ámbito de `alumno.leer`, siembra por rol (`docente` y `tutor_grupo` con `grupo`) y `alum:grant-permissions` ampliado. `core`: `kind` `alum_enrollments` en el `CHECK` de `data_exports`.
+- **Cifra de #382 / `CA-ALUM-060`** (`AcademicYearWriteGuardOverheadTest` sobre la tabla real `enrollments` frente a una tabla de control sin disparador; 3 corridas, mediana de 5 repeticiones, 20.000 filas por sentencia y 1.000 sentencias): inserción masiva **+40,5 %, +58,6 % y +54,2 %** (con disparador 1,56 s, 1,32 s y 1,29 s; sin él 1,11 s, 0,83 s y 0,83 s); fila a fila **-9,0 %, +5,0 % y -1,5 %** (ruido). Por debajo de `1.10` (+182 % a +195 %) y de `CA-ACAD-023`: no hay hallazgo que abrir.
+
 ## 2026-11-10 · `feat(landing)`: rediseño, tramo T4, carrusel con script propio (`ADR-075`, #579)
 
 - `apps/landing`: `src/js/carousel.js` (≈ 5 KiB, sin dependencias): flechas, puntos sincronizados con el scroll, avance automático cada 6 s con vuelta, botón de pausa cuya etiqueta alterna Pausar/Reanudar, sin `aria-pressed` (refinamiento de accesibilidad del detalle de ADR-075 §2: la APG desaconseja combinarlos) (WCAG 2.2.2), pausa con puntero, foco de teclado y pestaña oculta, sin avance con `prefers-reduced-motion: reduce`, compatible con `dir="rtl"`. La pantalla de acceso (`sign-in`) pasa a ser la primera diapositiva y la imagen sin `loading="lazy"`. Cinco claves `home.carousel.{prev,next,goto,pause,resume}` y `home.carousel.hint` reescrita, en los cuatro idiomas. La landing deja de ser «sin JavaScript» para ser «sin JavaScript necesario».
