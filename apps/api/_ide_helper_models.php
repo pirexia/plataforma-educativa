@@ -1266,6 +1266,58 @@ namespace App\Modules\Acad\Domain\Models{
 
 namespace App\Modules\Alum\Domain\Models{
 /**
+ * REQ-ALUM/datos.md §1.2, §4 (1.15-b, `REQ-ALUM-002`). Matrícula: alumno en un curso académico, un curso de etapa y,
+ * opcionalmente, un grupo. «Matrícula viva» = `deleted_at IS NULL` (incluye `baja`).
+ *
+ * ADR-035: `Full` (fechas, estado e ids no son identificadores personales). Escrituras por instancia, nunca masivas
+ * (AR-15). Los demás módulos no usan este modelo (AR-01).
+ *
+ * @property int $id
+ * @property int $tenant_id
+ * @property string $public_id
+ * @property int $student_id
+ * @property int $academic_year_id
+ * @property int $course_id
+ * @property int|null $group_id
+ * @property string $status
+ * @property \Illuminate\Support\Carbon $enrolled_on
+ * @property \Illuminate\Support\Carbon|null $withdrawn_on
+ * @property string|null $withdrawal_reason
+ * @property int|null $created_by
+ * @property int|null $updated_by
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Enrollment newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Enrollment newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Enrollment onlyTrashed()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Enrollment query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Enrollment whereAcademicYearId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Enrollment whereCourseId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Enrollment whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Enrollment whereCreatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Enrollment whereDeletedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Enrollment whereEnrolledOn($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Enrollment whereGroupId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Enrollment whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Enrollment wherePublicId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Enrollment whereStatus($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Enrollment whereStudentId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Enrollment whereTenantId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Enrollment whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Enrollment whereUpdatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Enrollment whereWithdrawalReason($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Enrollment whereWithdrawnOn($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Enrollment withTrashed(bool $withTrashed = true)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Enrollment withoutTrashed()
+ * @mixin \Eloquent
+ */
+	#[\AllowDynamicProperties]
+	class IdeHelperEnrollment {}
+}
+
+namespace App\Modules\Alum\Domain\Models{
+/**
  * REQ-ALUM/datos.md §1.1, §4 (1.15-a, `REQ-ALUM-001`). Alumno: faceta de `people` (`ADR-034 §1`).
  *
  * @property int $id
