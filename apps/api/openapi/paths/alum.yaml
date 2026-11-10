@@ -1,6 +1,7 @@
-# REQ-ALUM (paso 1.15-a), docs/modulos/REQ-ALUM/api.md §1. Convenciones de ADR-038.
-# `1.15-a`: alumnado (listado, alta, ficha, corrección, baja y restauración) sin matrículas, sin foto y con los ámbitos
-# `todos` y `unidad_familiar`. Matrícula, cambio de grupo y fotografía (`1.15-b` y `1.15-c`) se documentan con su entrega.
+# REQ-ALUM (pasos 1.15-a y 1.15-b), docs/modulos/REQ-ALUM/api.md §1 y §2. Convenciones de ADR-038.
+# `1.15-a`: alumnado (listado, alta, ficha, corrección, baja y restauración). `1.15-b`: matrícula (listado, alta, detalle,
+# edición, baja y anulación), ámbito `grupo` y los filtros de matrícula de `GET /students`. La exportación de la lista de
+# clase (`1.15-b` T2c), el cambio de grupo y la fotografía (`1.15-c`) se documentan con su entrega.
 paths:
   /api/v1/students:
     get:
@@ -11,8 +12,11 @@ paths:
         alumnos con un vínculo **activo** del sujeto (RN-ALUM-62, sin caché entre peticiones, RN-ALUM-63); lo no
         alcanzado no aparece. Paginación por página (defecto 25, máximo 100). Orden por `name` (defecto, nombre visible)
         o `created_at`, desempate por `id`. `q` busca por prefijo de nombre o apellidos (mínimo 2 caracteres) solo entre
-        los alumnos del ámbito del sujeto. `include_deleted=true` exige `alumno.eliminar` (si no, `403`). Los filtros por
-        curso, grupo y estado de matrícula y la matrícula vigente llegan con `1.15-b`.
+        los alumnos del ámbito del sujeto. `include_deleted=true` exige `alumno.eliminar` (si no, `403`). Desde `1.15-b`,
+        `course`, `group` y `enrollment_status` filtran a los alumnos con matrícula viva en `academic_year` (por defecto el
+        curso activo) que cumpla todos los dados; `academic_year` solo no filtra. Un `academic_year` inexistente, o de un
+        curso cerrado sin `curso_historico.leer`, es `404` (RN-ALUM-23); un `course` o `group` que no resuelve a algo de
+        ese curso da lista vacía.
       tags: ['Alum / Alumnado']
       security: [{ SessionCookie: [] }]
       parameters:
@@ -24,6 +28,10 @@ paths:
           in: query
           description: Incluye los alumnos dados de baja (con `deleted_at`). Solo con `alumno.eliminar`.
           schema: { type: boolean }
+        - { name: academic_year, in: query, description: '`public_id` del curso académico (por defecto el activo). Solo filtra combinado con `course`, `group` o `enrollment_status`.', schema: { $ref: '../components.yaml#/components/schemas/PublicId' } }
+        - { name: course, in: query, description: '`public_id` del curso de etapa.', schema: { $ref: '../components.yaml#/components/schemas/PublicId' } }
+        - { name: group, in: query, description: '`public_id` del grupo.', schema: { $ref: '../components.yaml#/components/schemas/PublicId' } }
+        - { name: enrollment_status, in: query, description: 'Estado de la matrícula en el curso.', schema: { $ref: '../components.yaml#/components/schemas/EnrollmentStatus' } }
         - { $ref: '../components.yaml#/components/parameters/StudentSortParam' }
         - { $ref: '../components.yaml#/components/parameters/PageParam' }
         - { $ref: '../components.yaml#/components/parameters/PerPageParam' }
@@ -42,6 +50,7 @@ paths:
                   meta: { $ref: '../components.yaml#/components/schemas/PageMeta' }
         '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
         '403': { description: 'Sin el permiso (`403`), filtro `include_deleted` sin `alumno.eliminar` o módulo `alum` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { description: 'Con `academic_year` inexistente o de un curso cerrado sin `curso_historico.leer`.', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
         '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
     post:
       operationId: createStudent
@@ -90,8 +99,9 @@ paths:
       description: >
         Permiso `alumno.leer`, ámbito `todos` o `unidad_familiar`. Fuera de ámbito o inexistente (o de otro centro):
         `404` idéntico (RN-ALUM-64). Nombres por partes, fecha de nacimiento e idioma de la persona (de `Core`); el
-        documento de identidad va **enmascarado**, nunca completo. Sin `enrollments[]` (`1.15-b`), `emergency_contact`,
-        `guardians[]` ni `photo`.
+        documento de identidad va **enmascarado**, nunca completo. `enrollments[]` (desde `1.15-b`) lista las matrículas vivas
+        del alumno con la forma de `Enrollment`; las de un curso cerrado que el sujeto no puede leer se omiten (RN-ALUM-23).
+        Sin `emergency_contact`, `guardians[]` ni `photo`.
       tags: ['Alum / Alumnado']
       security: [{ SessionCookie: [] }]
       responses:
@@ -134,7 +144,7 @@ paths:
       summary: Da de baja al alumno
       description: >
         Permiso `alumno.eliminar`, ámbito `todos`. Baja lógica (RN-ALUM-05): no borra la persona ni su pertenencia a la
-        unidad familiar. Hasta `1.15-b` no hay matrículas que impidan la baja.
+        unidad familiar. Con alguna matrícula `activa` viva ⇒ `409 alum.conflict.has_active_enrollments` (RN-ALUM-05, desde `1.15-b`).
       tags: ['Alum / Alumnado']
       security: [{ SessionCookie: [] }]
       responses:
@@ -142,6 +152,7 @@ paths:
         '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
         '403': { description: 'Sin el permiso (`403`) o módulo `alum` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
         '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../components.yaml#/components/responses/Conflict' }
 
   /api/v1/students/{publicId}/restore:
     parameters:
@@ -167,3 +178,164 @@ paths:
         '403': { description: 'Sin el permiso (`403`) o módulo `alum` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
         '404': { $ref: '../components.yaml#/components/responses/NotFound' }
         '409': { $ref: '../components.yaml#/components/responses/Conflict' }
+
+  /api/v1/enrollments:
+    get:
+      operationId: listEnrollments
+      summary: Lista las matrículas de un curso académico
+      description: >
+        Permiso `matricula.leer`, ámbito `todos`, `grupo` o `unidad_familiar`; lo no alcanzado no aparece (RN-ALUM-60,
+        RN-ALUM-62). `academic_year` es obligatorio (si falta, `422 alum.validation.required`); un curso inexistente, o
+        cerrado sin `curso_historico.leer`, es `404` (RN-ALUM-23). Un `course`, `group` o `student` que no resuelve a nada
+        del curso da lista vacía. Orden por `name` (nombre visible del alumno, defecto) o `enrolled_on`, desempate por `id`.
+      tags: ['Alum / Matrícula']
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - { name: academic_year, in: query, required: true, description: '`public_id` del curso académico.', schema: { $ref: '../components.yaml#/components/schemas/PublicId' } }
+        - { name: course, in: query, description: '`public_id` del curso de etapa.', schema: { $ref: '../components.yaml#/components/schemas/PublicId' } }
+        - { name: group, in: query, description: '`public_id` del grupo (lista de clase).', schema: { $ref: '../components.yaml#/components/schemas/PublicId' } }
+        - { name: student, in: query, description: '`public_id` del alumno.', schema: { $ref: '../components.yaml#/components/schemas/PublicId' } }
+        - { name: status, in: query, schema: { $ref: '../components.yaml#/components/schemas/EnrollmentStatus' } }
+        - { $ref: '../components.yaml#/components/parameters/EnrollmentSortParam' }
+        - { $ref: '../components.yaml#/components/parameters/PageParam' }
+        - { $ref: '../components.yaml#/components/parameters/PerPageParam' }
+      responses:
+        '200':
+          description: Página de resultados
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '../components.yaml#/components/schemas/Enrollment' }
+                  meta: { $ref: '../components.yaml#/components/schemas/PageMeta' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `alum` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+    post:
+      operationId: createEnrollment
+      summary: Matricula a un alumno
+      description: >
+        Permiso `matricula.crear`, ámbito `todos`. `group` es opcional (RN-ALUM-20, OPEN-ALUM-11 = B). Sin `Idempotency-Key`:
+        el índice único de RN-ALUM-21 convierte el reintento en `422 already_enrolled` (RN-ALUM-27). Curso académico, curso de
+        etapa o grupo inexistentes, de otro centro o ilegibles son indistinguibles (RN-ALUM-24). En un curso `cerrado` o
+        `archivado`, `409 urn:pge:error:academic-year-closed` (RN-ALUM-23).
+      tags: ['Alum / Matrícula']
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '../components.yaml#/components/schemas/EnrollmentCreate' }
+      responses:
+        '201':
+          description: Matrícula creada. Cabecera `Location` con su URL.
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/Enrollment' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `alum` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '409': { $ref: '../components.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+
+  /api/v1/enrollments/{publicId}:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    get:
+      operationId: getEnrollment
+      summary: Detalle de una matrícula
+      description: >
+        Permiso `matricula.leer`, ámbito `todos`, `grupo` o `unidad_familiar`. Fuera de ámbito, inexistente, de otro centro o
+        de un curso cerrado sin `curso_historico.leer`: `404` idéntico (RN-ALUM-23, RN-ALUM-64).
+      tags: ['Alum / Matrícula']
+      security: [{ SessionCookie: [] }]
+      responses:
+        '200':
+          description: La matrícula
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/Enrollment' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `alum` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+    patch:
+      operationId: updateEnrollment
+      summary: Edita la fecha de matrícula o asigna el primer grupo
+      description: >
+        Permiso `matricula.actualizar`, ámbito `todos`. Solo `enrolled_on` y `group` (este último solo si la matrícula no
+        tiene grupo: cambiarlo es `422 group_change_requires_request`, RN-ALUM-28). `student`, `academic_year` y `course`
+        son inmutables: su sola presencia en el cuerpo, aunque coincidan, es `422 alum.validation.immutable`. El `404` va
+        antes que cualquier `422`.
+      tags: ['Alum / Matrícula']
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '../components.yaml#/components/schemas/EnrollmentUpdate' }
+      responses:
+        '200':
+          description: La matrícula editada
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/Enrollment' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `alum` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../components.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+    delete:
+      operationId: annulEnrollment
+      summary: Anula una matrícula creada por error
+      description: >
+        Permiso `matricula.eliminar`, ámbito `todos`. Borrado lógico (RN-ALUM-25): deja de aparecer en listas y ficha y el
+        alumno puede matricularse de nuevo en ese curso. `409 alum.conflict.has_dependents` cuando un consumidor registre
+        veto (ninguno en `1.15`). En un curso cerrado, `409 urn:pge:error:academic-year-closed`.
+      tags: ['Alum / Matrícula']
+      security: [{ SessionCookie: [] }]
+      responses:
+        '204': { description: Anulada }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `alum` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../components.yaml#/components/responses/Conflict' }
+
+  /api/v1/enrollments/{publicId}/withdrawal:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    post:
+      operationId: withdrawEnrollment
+      summary: Da de baja una matrícula
+      description: >
+        Permiso `matricula.actualizar`, ámbito `todos`. La matrícula pasa a `baja` con `withdrawn_on` (no anterior a
+        `enrolled_on`) y `withdrawal_reason` del vocabulario (RN-ALUM-22). Sobre una matrícula ya en `baja`
+        `409 alum.conflict.already_withdrawn`, también ante el reintento de la misma petición (sin `Idempotency-Key`,
+        RN-ALUM-27). En un curso cerrado, `409 urn:pge:error:academic-year-closed`.
+      tags: ['Alum / Matrícula']
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '../components.yaml#/components/schemas/EnrollmentWithdrawal' }
+      responses:
+        '200':
+          description: La matrícula en baja
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/Enrollment' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `alum` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../components.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }

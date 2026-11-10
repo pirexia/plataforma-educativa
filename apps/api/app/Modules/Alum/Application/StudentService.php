@@ -58,16 +58,25 @@ final class StudentService
      * Página del listado, acotada por ámbito. `q` (prefijo de nombre o apellidos, mínimo 2 caracteres: lo valida la
      * petición) se resuelve con `PersonDirectory::searchByNameAmong()` sobre las personas del ámbito del sujeto. El
      * nombre no vive en `alum`, así que `sort=name` ordena en memoria tras leer los nombres de `Core` (conjuntos
-     * acotados por centro, `api.md §5`).
+     * acotados por centro, `api.md §5`). `$enrollmentFilters` (`academic_year`, `course`, `group`, `enrollment_status`,
+     * desde `1.15-b`) los resuelve `EnrollmentService::studentIdsMatching()`.
      *
+     * @param  array{academic_year?: ?string, course?: ?string, group?: ?string, enrollment_status?: ?string}  $enrollmentFilters
      * @return LengthAwarePaginator<int, Student>
      */
-    public function page(PermissionDecision $decision, User $subject, ?string $q, bool $includeDeleted, string $sort, int $page, int $perPage): LengthAwarePaginator
+    public function page(PermissionDecision $decision, User $subject, ?string $q, bool $includeDeleted, string $sort, int $page, int $perPage, array $enrollmentFilters = []): LengthAwarePaginator
     {
         $query = $this->scopedQuery->constrain(Student::query(), 'alumno', $decision, $subject);
 
         if ($includeDeleted) {
             $query->withTrashed();
+        }
+
+        // Perezoso: `EnrollmentService` depende de este servicio (sin dependencia circular de construcción).
+        $enrolled = app(EnrollmentService::class)->studentIdsMatching($subject, $enrollmentFilters);
+
+        if ($enrolled !== null) {
+            $query->whereIn('id', $enrolled);
         }
 
         if ($q !== null && $q !== '') {
@@ -129,6 +138,15 @@ final class StudentService
 
             $student->setAttribute('person_view', $view);
         }
+    }
+
+    /**
+     * Pone en la ficha, como atributo efímero `enrollments_view`, sus matrículas vivas de cursos legibles para el sujeto
+     * (`enrollments[]`, `RN-ALUM-23`).
+     */
+    public function attachEnrollments(Student $student, User $subject): void
+    {
+        $student->setAttribute('enrollments_view', app(EnrollmentService::class)->forStudent((int) $student->id, $subject));
     }
 
     /**

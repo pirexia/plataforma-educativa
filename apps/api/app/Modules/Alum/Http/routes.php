@@ -10,6 +10,7 @@
 // ordena antes de `resolve-tenant` (500 real).
 
 use App\Http\Middleware\RequireAuthenticatedUser;
+use App\Modules\Alum\Http\Controllers\EnrollmentsController;
 use App\Modules\Alum\Http\Controllers\StudentsController;
 use Illuminate\Support\Facades\Route;
 
@@ -22,4 +23,13 @@ Route::middleware([RequireAuthenticatedUser::class, 'module-enabled:alum'])->gro
     Route::patch('/students/{publicId}', [StudentsController::class, 'update'])->middleware('permission:alumno.actualizar')->name('alum.students.update');
     Route::delete('/students/{publicId}', [StudentsController::class, 'destroy'])->middleware('permission:alumno.eliminar')->name('alum.students.destroy');
     Route::post('/students/{publicId}/restore', [StudentsController::class, 'restore'])->middleware('permission:alumno.eliminar')->name('alum.students.restore');
+
+    // api.md §2 (1.15-b): matrícula. Sin `Idempotency-Key` (`RN-ALUM-27`): el índice único de `RN-ALUM-21` y la transición
+    // de estado hacen seguro el reintento.
+    Route::get('/enrollments', [EnrollmentsController::class, 'index'])->middleware('permission:matricula.leer')->name('alum.enrollments.index');
+    Route::post('/enrollments', [EnrollmentsController::class, 'store'])->middleware('permission:matricula.crear')->name('alum.enrollments.store');
+    Route::get('/enrollments/{publicId}', [EnrollmentsController::class, 'show'])->middleware('permission:matricula.leer')->name('alum.enrollments.show');
+    Route::patch('/enrollments/{publicId}', [EnrollmentsController::class, 'update'])->middleware('permission:matricula.actualizar')->name('alum.enrollments.update');
+    Route::post('/enrollments/{publicId}/withdrawal', [EnrollmentsController::class, 'withdraw'])->middleware('permission:matricula.actualizar')->name('alum.enrollments.withdraw');
+    Route::delete('/enrollments/{publicId}', [EnrollmentsController::class, 'destroy'])->middleware('permission:matricula.eliminar')->name('alum.enrollments.destroy');
 });

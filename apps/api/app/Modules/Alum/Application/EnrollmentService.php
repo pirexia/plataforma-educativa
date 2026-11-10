@@ -8,6 +8,7 @@ use App\Modules\Acad\Domain\GroupDirectory;
 use App\Modules\Acad\Domain\TeachingMembership;
 use App\Modules\Alum\Domain\Models\Enrollment;
 use App\Modules\Core\Domain\PersonDirectory;
+use App\Modules\Curso\Domain\AcademicYearContext;
 use App\Modules\Curso\Domain\AcademicYearDirectory;
 use App\Modules\Curso\Domain\AcademicYearReadAccess;
 use App\Modules\Curso\Domain\AcademicYearReadOnlyException;
@@ -56,6 +57,7 @@ final class EnrollmentService
         private readonly AcademicYearReadAccess $readAccess,
         private readonly TeachingMembership $membership,
         private readonly PersonDirectory $people,
+        private readonly AcademicYearContext $yearContext,
     ) {}
 
     /** Detalle sin acotar por ámbito (escrituras, que exigen ámbito `todos`): `404` si no existe o es de otro centro. */
@@ -139,6 +141,105 @@ final class EnrollmentService
                 'display_name' => $ref === null ? '' : $ref->displayName,
             ]);
         }
+    }
+
+    /**
+     * Pone en cada matrícula los atributos efímeros con los que `EnrollmentResource` la presenta: `student_view`
+     * (alumno), `year_view`, `course_view` y `group_view` (resúmenes de `curso` y `acad`, memoizados por petición).
+     *
+     * @param  iterable<Enrollment>  $enrollments
+     */
+    public function attachViews(iterable $enrollments): void
+    {
+        $list = [];
+
+        foreach ($enrollments as $enrollment) {
+            $list[] = $enrollment;
+        }
+
+        $this->attachStudents($list);
+
+        $years = $this->years->findManyById(array_values(array_unique(array_map(static fn (Enrollment $e): int => (int) $e->academic_year_id, $list))));
+
+        foreach ($list as $enrollment) {
+            $year = $years[(int) $enrollment->academic_year_id] ?? null;
+            $course = $this->courses->findById((int) $enrollment->course_id);
+            $group = $enrollment->group_id === null ? null : $this->groups->findById((int) $enrollment->group_id);
+
+            $enrollment->setAttribute('year_view', ['public_id' => $year?->publicId, 'code' => $year?->code]);
+            $enrollment->setAttribute('course_view', [
+                'public_id' => $course?->publicId,
+                'code' => $course?->code,
+                'name_translations' => $course === null ? [] : $course->nameTranslations,
+            ]);
+            $enrollment->setAttribute('group_view', $group === null ? null : [
+                'public_id' => $group->publicId,
+                'code' => $group->code,
+                'name' => $group->name,
+            ]);
+        }
+    }
+
+    /**
+     * Matrículas vivas de un alumno para su ficha (`enrollments[]`, `api.md §1`): las de cursos que el sujeto no puede
+     * leer se omiten (`RN-ALUM-23`). Orden: curso académico más reciente primero (por fecha de matrícula descendente).
+     *
+     * @return list<Enrollment>
+     */
+    public function forStudent(int $studentId, User $subject): array
+    {
+        $enrollments = Enrollment::query()->where('student_id', $studentId)->orderByDesc('enrolled_on')->orderByDesc('id')->get()->all();
+        $years = $this->years->findManyById(array_values(array_unique(array_map(static fn (Enrollment $e): int => (int) $e->academic_year_id, $enrollments))));
+
+        $readable = array_values(array_filter($enrollments, function (Enrollment $e) use ($years, $subject): bool {
+            $year = $years[(int) $e->academic_year_id] ?? null;
+
+            return $year !== null && $this->readAccess->canRead($year, $subject);
+        }));
+
+        $this->attachViews($readable);
+
+        return $readable;
+    }
+
+    /**
+     * Filtros de matrícula de `GET /students` (`api.md §1`, desde `1.15-b`): `academic_year` (`public_id`; por defecto el
+     * del `AcademicYearContext`), `course`, `group` y `enrollment_status`. Devuelve la subconsulta `SELECT student_id` de
+     * las matrículas vivas que cumplen todos, o `null` si no hay ni `course`, ni `group`, ni `enrollment_status` (el
+     * `academic_year` solo no filtra). Un `academic_year` explícito inexistente o ilegible (curso cerrado sin
+     * `curso_historico.leer`) ⇒ `404` (`RN-ALUM-23`). Sin curso activo ni `academic_year`, o con un `course`/`group` que no
+     * resuelve a algo de ese curso, la subconsulta no devuelve nada.
+     *
+     * @param  array{academic_year?: ?string, course?: ?string, group?: ?string, enrollment_status?: ?string}  $filters
+     * @return Builder<Enrollment>|null
+     */
+    public function studentIdsMatching(User $subject, array $filters): ?Builder
+    {
+        $yearPublicId = $filters['academic_year'] ?? null;
+        $year = null;
+
+        if ($yearPublicId !== null && $yearPublicId !== '') {
+            $year = $this->years->findByPublicId($yearPublicId) ?? throw ApiException::notFound();
+            $this->readAccess->assertCanRead($year, $subject);
+        }
+
+        $filtered = ($filters['course'] ?? null) !== null || ($filters['group'] ?? null) !== null || ($filters['enrollment_status'] ?? null) !== null;
+
+        if (! $filtered) {
+            return null;
+        }
+
+        $year ??= $this->yearContext->active();
+        $query = Enrollment::query()->select('student_id');
+
+        if ($year === null) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        $query->where('academic_year_id', $year->id);
+        $this->applyFilters($query, $year, ['course' => $filters['course'] ?? null, 'group' => $filters['group'] ?? null, 'status' => $filters['enrollment_status'] ?? null]);
+
+        return $query;
     }
 
     /**

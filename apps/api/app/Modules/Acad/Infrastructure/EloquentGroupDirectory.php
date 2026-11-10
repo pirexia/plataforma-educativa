@@ -50,7 +50,7 @@ final class EloquentGroupDirectory implements GroupDirectory
             return null;
         }
 
-        $summary = new GroupSummary($group->id, $group->public_id, $group->academic_year_id, $course->id, $level->id, (string) $level->regime);
+        $summary = new GroupSummary($group->id, $group->public_id, $group->academic_year_id, $course->id, $level->id, (string) $level->regime, (string) $group->code, (string) $group->name);
         $this->byId[$tenantId][$summary->id] = $summary;
         $this->byPublicId[$tenantId][$summary->publicId] = $summary;
 
