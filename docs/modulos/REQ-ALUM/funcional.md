@@ -26,7 +26,7 @@
 | **Matrícula** | `Enrollment` / `enrollments` | Un alumno en un curso académico, un curso de etapa y, si ya lo tiene, un grupo (`§16.1`, `§16.3` regla 4; grupo opcional por `OPEN-ALUM-11` = B). Eje del que colgarán asistencia, calificaciones y facturación |
 | **Lista de clase** | — (consulta) | Las matrículas activas de un grupo (`REQ-ALUM-003`) |
 | **Solicitud de cambio de grupo** | `GroupChangeRequest` / `group_change_requests` | Petición de mover una matrícula a otro grupo del mismo curso de etapa, con su aprobación, rechazo o cancelación (`REQ-ALUM-003`; `OPEN-ALUM-13` = A) |
-| **Fotografía del alumno** | `StudentPhoto` / `student_photos` | Imagen de la ficha (`REQ-ALUM-001`; **condicionada** a `OPEN-ALUM-08`, que sigue abierta). **No** es una publicación: `INV-014` rige publicar, no el uso interno |
+| **Fotografía del alumno** | `StudentPhoto` / `student_photos` | Imagen de la ficha (`REQ-ALUM-001`; entra en `1.15-c`, `OPEN-ALUM-08` = A, decisión del usuario 2026-11-11). **No** es una publicación: `INV-014` rige publicar, no el uso interno |
 
 Términos heredados sin cambio: **curso académico**, **etapa**, **curso de etapa**, **grupo** (`REQ-ACAD/funcional.md §0.1`); **unidad familiar**, **tutor**, **vínculo** (`REQ-FAM-UNIT/funcional.md §0.1`).
 
@@ -59,7 +59,7 @@ Reglas de nombre [DERIVADA]: código de módulo `alum`, prefijo de traducciones 
 | Matrícula | Alta, consulta, edición, baja con fecha y motivo, anulación de una matrícula errónea | `REQ-ALUM-002` (último estado del flujo: «matriculación») |
 | Listas de clase y exportación | Listado de matrículas por grupo; exportación CSV en cola (`ADR-054`/`ADR-055`) | `REQ-ALUM-003` |
 | Cambio de grupo con aprobación | Solicitud, aprobación, rechazo y cancelación (`OPEN-ALUM-13` = A) | `REQ-ALUM-003` |
-| Fotografía del alumno | Subida, sustitución, baja y descarga por URL firmada (**condicionada** a `OPEN-ALUM-08`) | `REQ-ALUM-001` |
+| Fotografía del alumno | Subida, sustitución, baja y descarga por URL firmada (`1.15-c`, `OPEN-ALUM-08` = A) | `REQ-ALUM-001` |
 | Resolutores de ámbito | `unidad_familiar` (`1.15-a`) y `grupo` (`1.15-b`) sobre `alumno` y `matricula` (`OPEN-ALUM-16` = A) | `RPERM-004`, `INV-002` |
 | En `acad` | Construcción de `TeachingMembership::groupIdsFor()` (`REQ-ACAD §18.7`) y `GroupDirectory` (`§7.2`), que tienen aquí su primer consumidor; registro de vetos de borrado (`RN-ACAD-21`). Todo en `1.15-b` | `ADR-063 §5.4`, `OPEN-ACAD-43` |
 | En `fam_unit` | **Nada que construir**: `FamilyUnitStudents` ya existe (`apps/api/app/Modules/FamUnit/Domain/FamilyUnitStudents.php`, implementada por `Application/FamilyUnitStudentService.php`, enlazada en `FamUnitServiceProvider`); `alum` la consume | `REQ-FAM-UNIT-001`, `§7.4` punto 2 |
@@ -157,7 +157,7 @@ Secretaría indica fecha de baja y motivo (`OPEN-ALUM-12`). La matrícula pasa a
 
 Listado de matrículas activas de un grupo (filtro `group`), con nombre del alumno. Exportación del mismo listado a CSV en cola, con los mismos filtros (`ADR-054 §8.2`), descargable por `data_exports` de `Core`.
 
-### 4.6 Fotografía (condicionada a `OPEN-ALUM-08`)
+### 4.6 Fotografía (`1.15-c`, `OPEN-ALUM-08` = A)
 
 Subida por `App\Support\Files` (`ADR-068`, precedente `pickup_photos`): tipo real, tamaño, sin EXIF, almacenamiento privado; descarga por URL firmada de caducidad corta tras comprobar el permiso (`ADR-013`). Una foto viva por alumno.
 
@@ -207,7 +207,7 @@ Subida por `App\Support\Files` (`ADR-068`, precedente `pickup_photos`): tipo rea
 | `RN-ALUM-45` | Motivo y nota de decisión: texto libre acotado (1-500), **no** se registran en `audit_logs.changes` (`ADR-035`) |
 | `RN-ALUM-46` | **Ámbito de las solicitudes**: con `grupo`, las solicitudes cuya matrícula (`enrollment_id`) está en un grupo de `groupIdsFor(u, academic_year_id)`; con `unidad_familiar`, **ninguna** (lista vacía y detalle `404`) [DERIVADA: son un trámite interno del centro; la familia ve el grupo resultante en la matrícula]. Fuera de ámbito ⇒ `404` (`RN-ALUM-64`) |
 
-### 5.4 Fotografía (condicionada a `OPEN-ALUM-08`, `1.15-c`)
+### 5.4 Fotografía (`1.15-c`, `OPEN-ALUM-08` = A)
 
 | ID | Regla |
 |----|-------|
@@ -403,7 +403,7 @@ Pest en `apps/api/tests/Feature/Alum/` (concurrencia en `tests/Concurrency/`), V
 - **CA-ALUM-039** — **Ámbito de solicitudes, listado y detalle** (`RN-ALUM-46`): *dado* un docente de G1 con `matricula.leer` de ámbito `grupo`, *cuando* lista solicitudes, *entonces* solo ve las de matrículas de G1, y el detalle de una de G2 es `404`; *y* un tutor legal con ámbito `unidad_familiar` recibe lista vacía y `404` en el detalle de una solicitud de su hijo.
 - **CA-ALUM-018c** — Aislamiento entre tenants de solicitudes (y de fotos, si `-08` = A).
 
-### 11.6 Fotografía (`1.15-c`, condicionada a `OPEN-ALUM-08`)
+### 11.6 Fotografía (`1.15-c`, `OPEN-ALUM-08` = A)
 
 - **CA-ALUM-056** — Fichero que no es JPEG/PNG por su contenido o que supera el tamaño ⇒ `422` y nada se guarda; una imagen válida queda sin EXIF (`RN-ALUM-51`).
 - **CA-ALUM-057** — Subir otra foto da de baja la anterior en la misma transacción (`RN-ALUM-50`).
@@ -440,19 +440,20 @@ Pest en `apps/api/tests/Feature/Alum/` (concurrencia en `tests/Concurrency/`), V
 
 **ADR de `1.15-b`**: `ADR-071` (`ACEPTADA`, 2026-11-09) formaliza `OPEN-ALUM-11` = B en `§16.1`/`§16.2` (C4); aplicado en la versión 3.2.25. Un «antiguo alumno» no es un estado: se deriva (`datos.md §6`, `OPEN-071-02` = A).
 
-**Antes de datos reales**: las de `REQ-FAM-UNIT §13`; catálogo de base legal (`OPEN-13`); plazo de conservación en `1.23b` (`datos.md §6`); DPO sobre la fotografía si `-08` = A.
+**Antes de datos reales**: las de `REQ-FAM-UNIT §13`; catálogo de base legal (`OPEN-13`); plazo de conservación en `1.23b` (`datos.md §6`); DPO sobre la fotografía (`-08` = A, 2026-11-11: la fotografía se implementa en `1.15-c`, pero no se usa con datos reales hasta el visto bueno del DPO).
 
 ---
 
 ## 14. Preguntas abiertas
 
-### 14.1 Resueltas por el usuario (2026-11-06)
+### 14.1 Resueltas por el usuario (2026-11-06; `OPEN-ALUM-08`, 2026-11-11)
 
 | ID | Pregunta | Decisión |
 |----|----------|----------|
 | `OPEN-ALUM-01` | Alcance de `1.15` | **A** · Núcleo: alumnado, ficha compuesta, matrícula, listas, exportación, cambio de grupo y foto (esta, sujeta a `-08`); lo demás diferido |
 | `OPEN-ALUM-02` | Historial médico y alergias | **A** · Diferido a `REQ-SALUD`, tras ADR de cifrado a nivel de campo |
 | `OPEN-ALUM-03` | Preinscripción, admisión, lista de espera | **A** · Diferido a `REQ-OFE`; `1.15` solo matrícula directa |
+| `OPEN-ALUM-08` | Fotografía del alumno | **A** · En `1.15-c` con `App\Support\Files` y auditoría de lectura (decisión del usuario, 2026-11-11). Condición previa a datos reales: DPO |
 | `OPEN-ALUM-11` | Grupo en la matrícula | **B** · Curso de etapa obligatorio, grupo opcional (requiere ADR, C4) |
 | `OPEN-ALUM-13` | Cambio de grupo | **A** · Solicitud + aprobación (`matricula.aprobar`), sin autoaprobación; aprueban por defecto `direccion` y `administrador_centro` |
 | `OPEN-ALUM-16` | Ámbitos | **A** · `['todos','grupo','unidad_familiar']`; sin `clase` ni `propios` |
@@ -467,7 +468,6 @@ Pest en `apps/api/tests/Feature/Alum/` (concurrencia en `tests/Concurrency/`), V
 | `OPEN-ALUM-05` | Documentación adjunta | Diferir a `REQ-DOC`; sin antivirus (#45) no se aceptan documentos de identidad de menores |
 | `OPEN-ALUM-06` | Becas y ayudas | Diferir a `REQ-BEC` |
 | `OPEN-ALUM-07` | Historial académico | La ficha muestra las matrículas del centro; calificaciones e incidencias por interfaz de `CALIF`/`CONV`; centros anteriores, tras `H0` (`ADR-018`), sin inventar campos |
-| `OPEN-ALUM-08` | Fotografía del alumno | **A** · En `1.15-c` con `App\Support\Files` y auditoría de lectura; **B** · diferir. Recomiendo **A** (MUST, primitiva existente). Condición previa a datos reales: DPO |
 | `OPEN-ALUM-09` | Contactos de emergencia | Leer de `fam_unit` (`is_emergency_contact`) y teléfonos de `Core` |
 | `OPEN-ALUM-10` | Autorizaciones legales en la ficha | La SPA llama a `GET /image-consents` de `fam_unit`; las demás, `REQ-AUT` |
 | `OPEN-ALUM-12` | Estados y motivos de baja | `activa`/`baja`; `traslado`, `baja_voluntaria`, `otro` [DERIVADA] |

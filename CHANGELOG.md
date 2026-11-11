@@ -6,6 +6,11 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-11 · `feat(alum)`: 1.15-c, tramo T1, datos de cambio de grupo y fotografía (`REQ-ALUM-003`, `#602`)
+
+- `alum`: `UNIQUE (tenant_id, academic_year_id, id)` en `enrollments` (`CONCURRENTLY` + `USING INDEX`, #602); tablas `group_change_requests` (FK compuestas a matrícula y grupos del mismo curso académico, `decided_by` con FK compuesta, `CHECK` de estado, decisión y no autoaprobación, único parcial de pendiente por matrícula, disparador `academic_year_write_guard`) y `student_photos` (una viva por alumno, `image/jpeg` e `image/png`); modelos `GroupChangeRequest` y `StudentPhoto` (política `Selective`, alias `alum_group_change_request` y `alum_student_photo`) y sus factorías. Sin servicios, rutas ni interfaz (T2).
+- `docs/modulos/REQ-ALUM`: `OPEN-ALUM-08` = A (decisión del usuario, 2026-11-11): la fotografía entra en `1.15-c`; se retira «condicionada».
+
 ## 2026-11-11 · `feat(alum)`: 1.15-b, cierre de la matrícula, vetos y acotación por `matricula.leer` (`REQ-ALUM-002`, `#598`, `#599`, `#601`)
 
 - `acad`: vetos de `GroupDirectory` y `TeachingMembership::groupIdsFor` (T1a) y `CourseDirectory`.

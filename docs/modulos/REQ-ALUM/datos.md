@@ -1,6 +1,6 @@
 # REQ-ALUM · Modelo de datos
 
-> **Estado**: **APROBADA** (2026-11-06) junto con `funcional.md` (ver su cabecera); lo marcado [DERIVADA] o dependiente de un `OPEN-ALUM` no bloqueante sigue como propuesta. Solo `student_photos` sigue *condicionada* (`OPEN-ALUM-08`); `group_change_requests` entra por `OPEN-ALUM-13` = A. El ADR que formaliza `OPEN-ALUM-11` = B en `§16` es `ADR-071` (`ACEPTADA`, 2026-11-09; `funcional.md` C4). Migraciones con `db-reviewer` obligatorio. **Implementada en `1.15-a`: `students`; en `1.15-b` T1b: `enrollments`** (el resto sigue sin implementar).
+> **Estado**: **APROBADA** (2026-11-06) junto con `funcional.md` (ver su cabecera); lo marcado [DERIVADA] o dependiente de un `OPEN-ALUM` no bloqueante sigue como propuesta. `student_photos` entra en `1.15-c` por `OPEN-ALUM-08` = A (usuario, 2026-11-11) y `group_change_requests` por `OPEN-ALUM-13` = A. El ADR que formaliza `OPEN-ALUM-11` = B en `§16` es `ADR-071` (`ACEPTADA`, 2026-11-09; `funcional.md` C4). Migraciones con `db-reviewer` obligatorio. **Implementada en `1.15-a`: `students`; en `1.15-b` T1b: `enrollments`; en `1.15-c` T1: `enrollments_tenant_year_id_unique`, `group_change_requests` y `student_photos`** (modelos, factorías y alias del *morph map*; servicios, rutas e interfaz llegan en T2 y siguientes).
 
 Todas las tablas son **de tenant**, creadas con `TenantMigration::tenantTable()` (o `tenantTableAppendOnly()` donde se dice), que aporta `id bigint`, `tenant_id`, RLS `ENABLE` + `FORCE` con la política estándar, `UNIQUE (tenant_id, id)` y `created_at`/`updated_at`/`deleted_at` (`TIMESTAMPTZ`), `created_by`/`updated_by` (`ADR-033`, `ADR-034 §6`/`§7`, `INV-005`). Solo se listan las columnas propias. Toda clave foránea a otra tabla de tenant es **compuesta** `(tenant_id, …)` con `TenantMigration::tenantForeignId()`. Las tablas con `academic_year_id` la declaran con `tenantForeignId($blueprint, 'academic_year_id', 'academic_years')`, que engancha el disparador `academic_year_write_guard` (`ADR-057`, `AR-13`); **ninguna** usa `CASCADE`, `SET NULL` ni `SET DEFAULT` (solo `NO ACTION`). Sin `ENUM`: `text` + `CHECK` (`AR-04`). `public_id` `character(26)` ULID con índice único propio (`AR-05`). Todo es aditivo (*expand*): ninguna tabla existente pierde ni renombra columnas.
 
@@ -61,11 +61,11 @@ La fila de la matrícula **no** se mueve entre cursos académicos: el *rollover*
 | `decided_at` | `TIMESTAMPTZ` | Sí | — | |
 | `decision_note` | `text` | Sí | — | `CHECK (decision_note IS NULL OR length(decision_note) <= 500)`; no se audita su valor |
 
-**Nota para `1.15-c` (db-reviewer, issue #602)**: la FK compuesta `(tenant_id, academic_year_id, enrollment_id)` → `enrollments (tenant_id, academic_year_id, id)` exige crear `UNIQUE (tenant_id, academic_year_id, id)` en `enrollments` en la migración de `1.15-c` (patrón `courses_tenant_year_id_unique`). No se crea en `1.15-b`.
+**Implementado (`1.15-c` T1, issue #602)**: la FK compuesta `(tenant_id, academic_year_id, enrollment_id)` → `enrollments (tenant_id, academic_year_id, id)` exige crear `UNIQUE (tenant_id, academic_year_id, id)` en `enrollments` en la migración de `1.15-c` (patrón `courses_tenant_year_id_unique`). No se crea en `1.15-b`.
 
 Restricciones: `UNIQUE (tenant_id, enrollment_id) WHERE status = 'pendiente' AND deleted_at IS NULL` (`RN-ALUM-41`); `CHECK ((status = 'pendiente' AND decided_by IS NULL AND decided_at IS NULL) OR (status <> 'pendiente' AND decided_by IS NOT NULL AND decided_at IS NOT NULL))` (toda transición registra autor e instante, también `rechazada` y `cancelada`); `CHECK (status <> 'aprobada' OR decided_by <> requested_by)` (`RN-ALUM-44`: la prohibición de autoría propia es **solo** para aprobar; cancelar o rechazar la propia solicitud se admite). Que ambos grupos sean del curso de etapa de la matrícula lo valida el servicio bajo el `FOR UPDATE` de la matrícula (el motor necesitaría desnormalizar `course_id`; se deja a `db-reviewer` si lo prefiere en el motor).
 
-### 1.4 `student_photos` · `1.15-c` · *condicionada a `OPEN-ALUM-08`*
+### 1.4 `student_photos` · `1.15-c` (`OPEN-ALUM-08` = A)
 
 Misma forma que `pickup_photos` de `fam_unit` (`REQ-FAM-UNIT/datos.md §8`, `ADR-068`), sin compartir tabla (`INV-007`):
 
@@ -91,7 +91,7 @@ erDiagram
     courses ||--o{ enrollments : "curso de etapa (acad)"
     groups |o--o{ enrollments : "grupo opcional (acad)"
     enrollments ||--o{ group_change_requests : "cambio de grupo"
-    students ||--o| student_photos : "condicionada"
+    students ||--o| student_photos : "foto (1.15-c)"
     people ||--o{ family_unit_students : "pertenencia (fam_unit, sin cambios)"
 ```
 
@@ -115,6 +115,8 @@ erDiagram
 **Implementado (`1.15-b` T1b)**: la FK compuesta a `groups` `(tenant_id, course_id, group_id)` se cubre con el índice no único `enrollments_tenant_course_group_idx` (`AR-16`); **no** se creó el `UNIQUE (tenant_id, course_id, group_id, id)` opcional de §1.2, que solo hará falta cuando `group_change_requests` (`1.15-c`) apunte a la matrícula (decide `db-reviewer`; si se crea, el índice no único sobra).
 
 **Implementado (`1.15-b`, revisión de `db-reviewer`)**: la FK a `academic_years` se declara con `tenantForeignId(…, withIndex: false)`; el índice `(tenant_id, academic_year_id, course_id)` la cubre por su prefijo (`AR-16`) y el automático `enrollments__academic_year_id_tenant_idx` era redundante. La migración `create_enrollments` se editó (tabla aún sin desplegar); un entorno de desarrollo ya migrado conserva el índice sobrante hasta recrear la base.
+
+**Implementado (`1.15-c` T1)**: `enrollments_tenant_year_id_unique` `(tenant_id, academic_year_id, id)` se crea con `CONCURRENTLY` + `USING INDEX` (migración `2026_11_11_100100`), y es nominal en la lista de excepciones de `SchemaInvariantsTest`. El `UNIQUE (tenant_id, course_id, group_id, id)` opcional de §1.2 **no** se crea. Ningún índice de la tabla de arriba cubre las FK compuestas de `group_change_requests` hacia la matrícula, los dos grupos y `decided_by` (`AR-16`): se añaden índices no únicos con prefijo `(tenant_id, academic_year_id, enrollment_id)`, `(tenant_id, academic_year_id, from_group_id)`, `(tenant_id, academic_year_id, to_group_id)` y `(tenant_id, decided_by)`; la FK a `academic_years` la cubre el de la bandeja por su prefijo. `student_photos` conserva el índice completo `(tenant_id, student_id)` de `tenantForeignId()` junto al único parcial (un índice parcial no sirve para comprobar la FK). Diferencia intencionada con `pickup_photos`: `content_type` (no `mime_type`), `byte_size bigint` y solo `image/jpeg` e `image/png` (`RN-ALUM-51`).
 
 Índices de FK no listados: los añade `tenantForeignId()` o los pide `AR-16` (#407); `db-reviewer` comprueba redundancias (precedente `REQ-FAM-UNIT §15`, D-12).
 

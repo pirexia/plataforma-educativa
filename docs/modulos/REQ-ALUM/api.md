@@ -91,7 +91,7 @@ Errores comunes: `401`; `403` sin permiso; `403 urn:pge:error:module-disabled`; 
 | `POST /group-change-requests/{public_id}/rejection` | `matricula.aprobar` · `todos` | `decision_note` obligatoria [DERIVADA]; el solicitante puede rechazar la suya. `409 request_closed` |
 | `POST /group-change-requests/{public_id}/cancellation` | `matricula.actualizar` · `todos` | Solo `pendiente`; registra quién cancela en `decided_by` (`RN-ALUM-42`). `409 request_closed` |
 
-## 4. Fotografía (`1.15-c`, condicionado a `OPEN-ALUM-08`)
+## 4. Fotografía (`1.15-c`, `OPEN-ALUM-08` = A)
 
 | Verbo y ruta | Permiso · ámbito | Notas |
 |--------------|------------------|-------|
