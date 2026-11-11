@@ -3,8 +3,8 @@
     "nav": {
       "students": "Élèves",
       "backToStudents": "Retour aux élèves",
-      "classList": "Listas de clase",
-      "groupChanges": "Cambios de grupo"
+      "classList": "Listes de classe",
+      "groupChanges": "Changements de groupe"
     },
     "common": {
       "dash": "—",
@@ -66,15 +66,15 @@
         "pendiente": "Pendiente"
       },
       "withdrawalReason": {
-        "traslado": "Traslado",
-        "baja_voluntaria": "Baja voluntaria",
-        "otro": "Otro"
+        "traslado": "Transfert",
+        "baja_voluntaria": "Retrait volontaire",
+        "otro": "Autre"
       },
       "groupChangeStatus": {
-        "pendiente": "Pendiente",
-        "aprobada": "Aprobada",
-        "rechazada": "Rechazada",
-        "cancelada": "Cancelada"
+        "pendiente": "En attente",
+        "aprobada": "Approuvée",
+        "rechazada": "Refusée",
+        "cancelada": "Annulée"
       }
     },
     "students": {
@@ -183,108 +183,108 @@
       "caption": "Consentimiento de imagen del alumno"
     },
     "enrollments": {
-      "title": "Matrículas",
-      "caption": "Matrículas del alumno",
-      "empty": "El alumno no tiene matrículas.",
-      "create": "Matricular",
-      "createTitle": "Matricular al alumno",
-      "createDescription": "Matrícula en el curso académico seleccionado. El grupo es opcional y puede asignarse después.",
-      "course": "Curso",
-      "coursePlaceholder": "Elija un curso",
-      "group": "Grupo",
-      "noGroup": "Sin grupo",
-      "academicYear": "Curso académico",
-      "status": "Estado",
-      "enrolledOn": "Fecha de matrícula",
-      "withdrawnOn": "Fecha de baja",
-      "withdrawalReason": "Motivo de la baja",
-      "reasonPlaceholder": "Elija un motivo",
-      "withdraw": "Dar de baja la matrícula",
-      "withdrawTitle": "Dar de baja la matrícula",
-      "withdrawDescription": "La matrícula de {course} pasa a baja y se conserva entera. No se puede revertir.",
-      "withdrawConfirm": "Dar de baja",
-      "cancel": "Anular matrícula",
-      "created": "La matrícula se ha creado.",
-      "withdrawn": "La matrícula se ha dado de baja.",
-      "cancelled": "La matrícula se ha anulado.",
-      "optionsLoadError": "No se han podido cargar los cursos y grupos.",
-      "groupsLoadError": "No se han podido cargar los grupos.",
+      "title": "Inscriptions",
+      "caption": "Inscriptions de l'élève",
+      "empty": "L'élève n'a aucune inscription.",
+      "create": "Inscrire",
+      "createTitle": "Inscrire l'élève",
+      "createDescription": "Inscription à l'année scolaire sélectionnée. Le groupe est facultatif et peut être attribué plus tard.",
+      "course": "Niveau",
+      "coursePlaceholder": "Choisissez un niveau",
+      "group": "Groupe",
+      "noGroup": "Sans groupe",
+      "academicYear": "Année scolaire",
+      "status": "Statut",
+      "enrolledOn": "Date d'inscription",
+      "withdrawnOn": "Date de retrait",
+      "withdrawalReason": "Motif du retrait",
+      "reasonPlaceholder": "Choisissez un motif",
+      "withdraw": "Retirer l'inscription",
+      "withdrawTitle": "Retirer l'inscription",
+      "withdrawDescription": "L'inscription en {course} passe au statut retirée et est conservée intégralement. Cette opération est irréversible.",
+      "withdrawConfirm": "Retirer",
+      "cancel": "Annuler l'inscription",
+      "created": "L'inscription a été créée.",
+      "withdrawn": "L'inscription a été retirée.",
+      "cancelled": "L'inscription a été annulée.",
+      "optionsLoadError": "Les niveaux et les groupes n'ont pas pu être chargés.",
+      "groupsLoadError": "Les groupes n'ont pas pu être chargés.",
       "confirmCancel": {
-        "title": "Anular la matrícula de {course}",
-        "description": "La anulación borra la matrícula como si no hubiera existido (por ejemplo, si se creó por error). Para un traslado o una baja use «Dar de baja la matrícula».",
-        "confirm": "Anular matrícula de {course}"
+        "title": "Annuler l'inscription en {course}",
+        "description": "L'annulation supprime l'inscription comme si elle n'avait jamais existé (par exemple, si elle a été créée par erreur). Pour un transfert ou un retrait, utilisez « Retirer l'inscription ».",
+        "confirm": "Annuler l'inscription en {course}"
       }
     },
     "groupChange": {
-      "request": "Solicitar cambio de grupo",
-      "title": "Solicitar cambio de grupo",
-      "description": "Solicitud para mover a {student} desde el grupo {group} a otro grupo de su mismo curso. Debe aprobarla otra persona con permiso.",
-      "toGroup": "Grupo de destino",
-      "toGroupPlaceholder": "Elija un grupo",
-      "toGroupHint": "Solo se ofrecen los grupos del mismo curso.",
-      "noGroups": "No hay otros grupos en este curso.",
-      "reason": "Motivo",
-      "reasonHint": "Obligatorio, hasta {max} caracteres.",
-      "submit": "Enviar solicitud",
-      "requested": "La solicitud de cambio de grupo se ha enviado."
+      "request": "Demander un changement de groupe",
+      "title": "Demander un changement de groupe",
+      "description": "Demande de déplacer {student} du groupe {group} vers un autre groupe du même niveau. Elle doit être approuvée par une autre personne disposant de l'autorisation nécessaire.",
+      "toGroup": "Groupe de destination",
+      "toGroupPlaceholder": "Choisissez un groupe",
+      "toGroupHint": "Seuls les groupes du même niveau sont proposés.",
+      "noGroups": "Il n'y a pas d'autre groupe dans ce niveau.",
+      "reason": "Motif",
+      "reasonHint": "Obligatoire, jusqu'à {max} caractères.",
+      "submit": "Envoyer la demande",
+      "requested": "La demande de changement de groupe a été envoyée."
     },
     "classList": {
-      "title": "Listas de clase",
-      "intro": "Matrículas del curso académico elegido. Filtre por curso, grupo y estado; el curso y el grupo son opcionales.",
-      "caption": "Lista de clase",
-      "readOnlyYear": "El curso académico seleccionado es de solo lectura: se puede exportar la lista, pero no solicitar cambios de grupo.",
+      "title": "Listes de classe",
+      "intro": "Inscriptions de l'année scolaire sélectionnée. Filtrez par niveau, groupe et statut ; le niveau et le groupe sont facultatifs.",
+      "caption": "Liste de classe",
+      "readOnlyYear": "L'année scolaire sélectionnée est en lecture seule : la liste peut être exportée, mais aucune demande de changement de groupe ne peut être formulée.",
       "empty": {
-        "title": "No hay matrículas que mostrar",
-        "text": "Pruebe con otros filtros u otro curso académico."
+        "title": "Aucune inscription à afficher",
+        "text": "Essayez d'autres filtres ou une autre année scolaire."
       }
     },
     "groupChanges": {
-      "title": "Solicitudes de cambio de grupo",
-      "intro": "Solicitudes del curso académico elegido. Las solicita la secretaría desde la ficha o la lista de clase; aquí se aprueban, se rechazan o se cancelan.",
-      "caption": "Solicitudes de cambio de grupo",
-      "readOnlyYear": "El curso académico seleccionado es de solo lectura: no se pueden aprobar, rechazar ni cancelar solicitudes.",
-      "noYear": "No hay un curso académico activo ni elegido: seleccione uno para ver sus solicitudes.",
+      "title": "Demandes de changement de groupe",
+      "intro": "Demandes de l'année scolaire sélectionnée. Elles sont formulées par le secrétariat depuis la fiche ou la liste de classe ; ici, elles sont approuvées, refusées ou annulées.",
+      "caption": "Demandes de changement de groupe",
+      "readOnlyYear": "L'année scolaire sélectionnée est en lecture seule : aucune demande ne peut être approuvée, refusée ou annulée.",
+      "noYear": "Aucune année scolaire active ou sélectionnée : choisissez-en une pour voir ses demandes.",
       "empty": {
-        "title": "No hay solicitudes que mostrar",
-        "text": "Pruebe con otros filtros u otro curso académico."
+        "title": "Aucune demande à afficher",
+        "text": "Essayez d'autres filtres ou une autre année scolaire."
       },
       "filters": {
-        "status": "Estado",
-        "group": "Grupo (origen o destino)"
+        "status": "Statut",
+        "group": "Groupe (d'origine ou de destination)"
       },
       "columns": {
-        "student": "Alumno",
-        "fromGroup": "Grupo de origen",
-        "toGroup": "Grupo de destino",
-        "reason": "Motivo",
-        "status": "Estado",
-        "requestedBy": "Solicitada por",
-        "createdAt": "Fecha de solicitud",
-        "decisionNote": "Nota de la decisión"
+        "student": "Élève",
+        "fromGroup": "Groupe d'origine",
+        "toGroup": "Groupe de destination",
+        "reason": "Motif",
+        "status": "Statut",
+        "requestedBy": "Demandée par",
+        "createdAt": "Date de la demande",
+        "decisionNote": "Note de la décision"
       },
-      "note": "Nota",
-      "noteHintOptional": "Opcional, hasta {max} caracteres.",
-      "noteHintRequired": "Obligatoria, hasta {max} caracteres.",
+      "note": "Note",
+      "noteHintOptional": "Facultatif, jusqu'à {max} caractères.",
+      "noteHintRequired": "Obligatoire, jusqu'à {max} caractères.",
       "approve": {
-        "title": "Aprobar la solicitud",
-        "description": "Se moverá a {student} del grupo {from} al grupo {to}. No puede aprobarla quien la solicitó.",
-        "submit": "Aprobar",
-        "action": "Aprobar",
-        "done": "La solicitud se ha aprobado."
+        "title": "Approuver la demande",
+        "description": "Le changement de groupe de {student} (du groupe {from} au groupe {to}) sera effectué. La personne qui a formulé la demande ne peut pas l'approuver.",
+        "submit": "Approuver",
+        "action": "Approuver",
+        "done": "La demande a été approuvée."
       },
       "reject": {
-        "title": "Rechazar la solicitud",
-        "description": "Se rechazará el cambio de {student} del grupo {from} al grupo {to}. Indique el motivo del rechazo.",
-        "submit": "Rechazar",
-        "action": "Rechazar",
-        "done": "La solicitud se ha rechazado."
+        "title": "Refuser la demande",
+        "description": "Le changement de groupe de {student} (du groupe {from} au groupe {to}) sera refusé. Indiquez le motif du refus.",
+        "submit": "Refuser",
+        "action": "Refuser",
+        "done": "La demande a été refusée."
       },
       "cancel": {
-        "title": "Cancelar la solicitud",
-        "description": "Se cancelará el cambio de {student} del grupo {from} al grupo {to}.",
-        "submit": "Cancelar solicitud",
-        "action": "Cancelar",
-        "done": "La solicitud se ha cancelado."
+        "title": "Annuler la demande",
+        "description": "Le changement de groupe de {student} (du groupe {from} au groupe {to}) sera annulé.",
+        "submit": "Annuler la demande",
+        "action": "Annuler",
+        "done": "La demande a été annulée."
       }
     }
   }
