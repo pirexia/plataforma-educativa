@@ -18,7 +18,7 @@ defaults:
 jobs:
   test:
     name: Tests (Pest)
-    runs-on: ubuntu-24.04  # fijada: ubuntu-latest (suite «resolute») falla resolviendo security.ubuntu.com en apt (#609)
+    runs-on: ubuntu-latest
     # ADR-033 §10: PostgreSQL real, no SQLite. RLS es la barrera primaria y
     # SQLite no la tiene: un test de aislamiento sobre SQLite daría verde
     # con las políticas ausentes.
@@ -96,7 +96,7 @@ jobs:
         env:
           PGPASSWORD: ci-postgres
         run: |
-          sudo apt-get -o Acquire::Retries=5 update -qq && sudo apt-get -o Acquire::Retries=5 install -y -qq postgresql-client
+          sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
           psql -h 127.0.0.1 -U plataforma -d plataforma_test \
             -v owner_password=ci-tenancy-owner \
             -v app_password=ci-tenancy-app \
@@ -286,7 +286,7 @@ jobs:
   # comportamiento, no de texto de plantilla.
   make-module:
     name: Generador de módulos (make:module)
-    runs-on: ubuntu-24.04  # fijada por #609
+    runs-on: ubuntu-latest
     # Mismos servicios que "test": hay que migrar y correr tests de tenant.
     services:
       postgres:
@@ -350,7 +350,7 @@ jobs:
         env:
           PGPASSWORD: ci-postgres
         run: |
-          sudo apt-get -o Acquire::Retries=5 update -qq && sudo apt-get -o Acquire::Retries=5 install -y -qq postgresql-client
+          sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
           psql -h 127.0.0.1 -U plataforma -d plataforma_test \
             -v owner_password=ci-tenancy-owner \
             -v app_password=ci-tenancy-app \
