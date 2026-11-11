@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 /*
- * ADR-076 §5 (CA-076-05, INV-001): conformidad de PrivateObjectStore contra un servidor S3 REAL (Garage en desarrollo y
+ * ADR-076 §5 (INV-001): conformidad de PrivateObjectStore contra un servidor S3 REAL (Garage en desarrollo y
  * CI; el proveedor de producción en staging). Grupo `storage-conformance`, fuera de `composer test`
  * (`composer test:conformance`).
  *
