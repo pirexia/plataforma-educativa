@@ -277,6 +277,133 @@ jobs:
 
       - run: composer analyse
 
+  # ADR-076 §5: conformidad del almacén contra un S3 real (Garage). Corre en todo
+  # PR y en push a develop (sin filtro `paths:`, decisión del usuario). No entra
+  # en `composer test`. Garage no puede ser un `services:` porque necesita
+  # garage.toml montado y el servicio arranca antes del checkout: se lanza con
+  # `docker run` y se inicializa con infra/garage/init.sh (CONTAINER_CLI=docker).
+  # Los secretos se generan en este job, se enmascaran y mueren con el runner.
+  storage-conformance:
+    name: Conformidad del almacén (Garage)
+    runs-on: ubuntu-24.04  # fijada por #609
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: plataforma_test
+          POSTGRES_USER: plataforma
+          POSTGRES_PASSWORD: ci-postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U plataforma"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_USERNAME: plataforma_app
+      DB_PASSWORD: ci-tenancy-app
+      DB_OWNER_USERNAME: plataforma_owner
+      DB_OWNER_PASSWORD: ci-tenancy-owner
+      DB_PLATFORM_USERNAME: plataforma_platform
+      DB_PLATFORM_PASSWORD: ci-tenancy-platform
+      REDIS_HOST: 127.0.0.1
+      SESSION_LIFETIME: "480"  # ver job "test" (issue #132)
+      # Misma versión y digest que compose.yaml (lista de manifiestos). Renovate
+      # los sube juntos: ver el gestor personalizado de renovate.json.
+      # renovate: datasource=docker depName=docker.io/dxflrs/garage
+      GARAGE_IMAGE: docker.io/dxflrs/garage:v2.5.0@sha256:677e5b758e4425a325b811c425c026bf35a4bf42f7ddbaa773de3f4fd779a5a5
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: pdo_pgsql, pgsql, zip, intl, mbstring, redis, gd, exif
+          coverage: none
+
+      - uses: actions/cache@v6
+        with:
+          path: apps/api/vendor
+          key: composer-${{ runner.os }}-${{ hashFiles('apps/api/composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-
+
+      # Ver comentario del job "test": .env antes de composer install (issue #132).
+      - run: cp .env.example .env
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: php artisan key:generate
+
+      - name: Provisionar esquema y roles de tenancy (ADR-033)
+        working-directory: .
+        env:
+          PGPASSWORD: ci-postgres
+        run: |
+          sudo apt-get -o Acquire::Retries=5 update -qq && sudo apt-get -o Acquire::Retries=5 install -y -qq postgresql-client
+          psql -h 127.0.0.1 -U plataforma -d plataforma_test \
+            -v owner_password=ci-tenancy-owner \
+            -v app_password=ci-tenancy-app \
+            -v platform_password=ci-tenancy-platform \
+            -v dbname=plataforma_test \
+            -f infra/containers/postgres/init/01-tenancy.sql.tpl
+
+      - name: Generar secretos efímeros de Garage
+        working-directory: .
+        run: |
+          rpc="$(openssl rand -hex 32)"
+          admin="$(openssl rand -hex 32)"
+          key_id="GK$(openssl rand -hex 12)"
+          secret="$(openssl rand -hex 32)"
+          for v in "$rpc" "$admin" "$key_id" "$secret"; do echo "::add-mask::$v"; done
+          {
+            echo "GARAGE_RPC_SECRET=$rpc"
+            echo "GARAGE_ADMIN_TOKEN=$admin"
+            echo "GARAGE_ACCESS_KEY_ID=$key_id"
+            echo "GARAGE_SECRET_ACCESS_KEY=$secret"
+            echo "GARAGE_BUCKET=plataforma-ci"
+          } >> "$GITHUB_ENV"
+
+      - name: Arrancar e inicializar Garage
+        working-directory: .
+        env:
+          CONTAINER_CLI: docker
+        run: |
+          docker run -d --name plataforma-garage \
+            -e GARAGE_RPC_SECRET -e GARAGE_ADMIN_TOKEN \
+            -v "$GITHUB_WORKSPACE/infra/garage/garage.toml:/etc/garage.toml:ro" \
+            -p 127.0.0.1:3900:3900 \
+            "$GARAGE_IMAGE"
+          bash infra/garage/init.sh
+
+      # AWS_URL_SIGNING_ENDPOINT distinto de AWS_ENDPOINT (127.0.0.1 frente a
+      # localhost, ambos alcanzan el mismo Garage) para ejercitar el punto 6 de §5.
+      - name: Test de conformidad (composer test:conformance)
+        env:
+          STORAGE_CONFORMANCE_ENABLED: "1"
+          AWS_ACCESS_KEY_ID: ${{ env.GARAGE_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ env.GARAGE_SECRET_ACCESS_KEY }}
+          AWS_BUCKET: ${{ env.GARAGE_BUCKET }}
+          AWS_DEFAULT_REGION: garage
+          AWS_ENDPOINT: http://127.0.0.1:3900
+          AWS_URL_SIGNING_ENDPOINT: http://localhost:3900
+          AWS_URL: ""
+          AWS_USE_PATH_STYLE_ENDPOINT: "true"
+        run: composer test:conformance
+
+      - name: Registro de Garage si falla
+        if: failure()
+        run: docker logs plataforma-garage 2>&1 | tail -50
+
   # ADR-056 §3.5, CA-056-34 y CA-056-35: prueba de extremo a extremo del
   # generador `php artisan make:module`. Genera un módulo de prueba con y sin
   # `--entity`, ejecuta `php -l` sobre lo generado, migra y revierte, corre el
