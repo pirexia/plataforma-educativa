@@ -1,7 +1,7 @@
 name: plataforma-educativa
 
 # Perfil reducido (ADR-030): por defecto PostgreSQL, Redis, api y web.
-# MinIO y Garage (ADR-076) se levantan a demanda con: podman compose --profile full up -d
+# Garage (S3 de desarrollo, ADR-076) y el worker se levantan a demanda con: podman compose --profile full up -d
 #
 # El servicio de renderizado PDF queda pendiente de elegir motor concreto
 # (ver paso 1.17); no se define aquí para no fijar una dependencia sin
@@ -16,7 +16,6 @@ volumes:
   # PostgreSQL 18 (ADR-061): montaje en /var/lib/postgresql (PGDATA = 18/docker).
   postgres-cluster:
   redis-data:
-  minio-data:
   garage-data:
 
 services:
@@ -112,17 +111,20 @@ services:
       # apps/api/.env, no editable desde esta sesión (bloqueo de
       # permisos). TODO: mover cuando sea editable.
       AUTH_SAML_ALLOW_INSECURE_METADATA: "true"
-      # 1.14b-a (ADR-068 §5.3, ADR-013): almacenamiento privado S3 compatible (MinIO, perfil `full`). `PrivateObjectStore`
-      # rechaza un disco `local` en `production` y `staging` (ajuste del 2026-11-02): el perfil reducido de desarrollo
-      # (APP_ENV=local, sin MinIO) usa el disco local por defecto; con el perfil `full` se arranca con
-      # `FILESYSTEM_DISK=s3 podman compose --profile full up -d` y hay que crear el *bucket* `plataforma` una vez (SYSADMIN.md). Pertenece a apps/api/.env, no editable desde esta sesión (bloqueo
-      # de permisos): mismo patrón de parche temporal que las variables de arriba. TODO: mover cuando sea editable.
+      # Almacenamiento privado S3 compatible (ADR-013, ADR-068 §5.3, ADR-076): Garage en desarrollo, CI y E2E (perfil `full`).
+      # `PrivateObjectStore` rechaza un disco `local` en `production` y `staging`: el perfil reducido de desarrollo
+      # (APP_ENV=local, sin Garage) usa el disco local por defecto; con el perfil `full` se arranca con
+      # `FILESYSTEM_DISK=s3 podman compose --profile full up -d` y se inicializa Garage una vez con `infra/garage/init.sh`
+      # (SYSADMIN.md). Los scripts de E2E real lo hacen solos. Credenciales y bucket vienen de `.env` sin valor de reserva
+      # (ADR-076 §4); región igual a `s3_region` de infra/garage/garage.toml. `AWS_URL_SIGNING_ENDPOINT` es el endpoint
+      # que alcanza el navegador (la firma SigV4 incluye `Host`); `AWS_ENDPOINT`, el de la red de contenedores.
       FILESYSTEM_DISK: ${FILESYSTEM_DISK:-local}
-      AWS_ENDPOINT: "http://minio:9000"
-      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minioadmin}
-      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
-      AWS_DEFAULT_REGION: us-east-1
-      AWS_BUCKET: plataforma
+      AWS_ENDPOINT: "http://plataforma-garage:3900"
+      AWS_URL_SIGNING_ENDPOINT: "http://127.0.0.1:3900"
+      AWS_ACCESS_KEY_ID: ${GARAGE_ACCESS_KEY_ID:?falta GARAGE_ACCESS_KEY_ID en .env}
+      AWS_SECRET_ACCESS_KEY: ${GARAGE_SECRET_ACCESS_KEY:?falta GARAGE_SECRET_ACCESS_KEY en .env}
+      AWS_DEFAULT_REGION: garage
+      AWS_BUCKET: ${GARAGE_BUCKET:?falta GARAGE_BUCKET en .env}
       AWS_USE_PATH_STYLE_ENDPOINT: "true"
     volumes:
       - ./apps/api:/var/www/html:Z
@@ -165,7 +167,7 @@ services:
     # Discrepancia declarada con producción (revisión M-1): en desarrollo el
     # worker comparte apps/api/.env con la API (un único fichero de desarrollo,
     # sin secretos reales), así que ve DB_OWNER_*; en producción usa
-    # plataforma-worker.env, que no lleva BACKOFFICE_*/MINIO_*.
+    # plataforma-worker.env, que no lleva BACKOFFICE_*.
     env_file: apps/api/.env
     environment:
       DB_HOST: postgres
@@ -174,17 +176,20 @@ services:
       QUEUE_CONNECTION: database
       TENANCY_BASE_DOMAIN: plataforma.test
       DB_QUEUE_RETRY_AFTER: "180"
-      # 1.14b-a (ADR-068 §5.3, ADR-013): almacenamiento privado S3 compatible (MinIO, perfil `full`). `PrivateObjectStore`
-      # rechaza un disco `local` en `production` y `staging` (ajuste del 2026-11-02): el perfil reducido de desarrollo
-      # (APP_ENV=local, sin MinIO) usa el disco local por defecto; con el perfil `full` se arranca con
-      # `FILESYSTEM_DISK=s3 podman compose --profile full up -d` y hay que crear el *bucket* `plataforma` una vez (SYSADMIN.md). Pertenece a apps/api/.env, no editable desde esta sesión (bloqueo
-      # de permisos): mismo patrón de parche temporal que las variables de arriba. TODO: mover cuando sea editable.
+      # Almacenamiento privado S3 compatible (ADR-013, ADR-068 §5.3, ADR-076): Garage en desarrollo, CI y E2E (perfil `full`).
+      # `PrivateObjectStore` rechaza un disco `local` en `production` y `staging`: el perfil reducido de desarrollo
+      # (APP_ENV=local, sin Garage) usa el disco local por defecto; con el perfil `full` se arranca con
+      # `FILESYSTEM_DISK=s3 podman compose --profile full up -d` y se inicializa Garage una vez con `infra/garage/init.sh`
+      # (SYSADMIN.md). Los scripts de E2E real lo hacen solos. Credenciales y bucket vienen de `.env` sin valor de reserva
+      # (ADR-076 §4); región igual a `s3_region` de infra/garage/garage.toml. `AWS_URL_SIGNING_ENDPOINT` es el endpoint
+      # que alcanza el navegador (la firma SigV4 incluye `Host`); `AWS_ENDPOINT`, el de la red de contenedores.
       FILESYSTEM_DISK: ${FILESYSTEM_DISK:-local}
-      AWS_ENDPOINT: "http://minio:9000"
-      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minioadmin}
-      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
-      AWS_DEFAULT_REGION: us-east-1
-      AWS_BUCKET: plataforma
+      AWS_ENDPOINT: "http://plataforma-garage:3900"
+      AWS_URL_SIGNING_ENDPOINT: "http://127.0.0.1:3900"
+      AWS_ACCESS_KEY_ID: ${GARAGE_ACCESS_KEY_ID:?falta GARAGE_ACCESS_KEY_ID en .env}
+      AWS_SECRET_ACCESS_KEY: ${GARAGE_SECRET_ACCESS_KEY:?falta GARAGE_SECRET_ACCESS_KEY en .env}
+      AWS_DEFAULT_REGION: garage
+      AWS_BUCKET: ${GARAGE_BUCKET:?falta GARAGE_BUCKET en .env}
       AWS_USE_PATH_STYLE_ENDPOINT: "true"
     command:
       - php
@@ -300,26 +305,9 @@ services:
       retries: 10
       start_period: 15s
 
-  minio:
-    image: docker.io/minio/minio:latest
-    container_name: plataforma-minio
-    restart: unless-stopped
-    command: server /data --console-address ":9001"
-    env_file: .env
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?falta MINIO_ROOT_USER en .env}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?falta MINIO_ROOT_PASSWORD en .env}
-    volumes:
-      - minio-data:/data:Z
-    ports:
-      - "127.0.0.1:9000:9000"
-      - "127.0.0.1:9001:9001"
-    profiles: ["full"]
-
   # ADR-076 §6: servidor S3 de desarrollo, CI y E2E (un nodo, solo datos
   # sintéticos). La imagen no trae shell: se inicializa con
-  # infra/garage/init.sh, que corre en el host. Se añade junto a MinIO, que
-  # retira S-1b.
+  # infra/garage/init.sh, que corre en el host.
   garage:
     image: docker.io/dxflrs/garage:v2.5.0@sha256:677e5b758e4425a325b811c425c026bf35a4bf42f7ddbaa773de3f4fd779a5a5
     container_name: plataforma-garage
