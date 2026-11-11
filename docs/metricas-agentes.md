@@ -171,5 +171,12 @@ Solo cuota de OpenAI; no se mide en tokens de Claude. Registrar por revisión: p
 | S-1a T1 | explorer | briefing | 127956 | 27 | 1.9 | | |
 | S-1a T1 | implementer | experimento Garage, servicio, `garage.toml` e `init.sh` | 92845 | 43 | 5.3 | | |
 | S-1a T2 | implementer | config `s3`, endpoint de firma, tope de TTL y tests (sin explorer propio: se reutilizó el briefing del T1) | 73604 | 7 | 1.0 | | Telemetría baja pero el trabajo es real: contrastado con el diff y Pest/Pint/Larastan por `verificador` |
+| S-1a T3 | implementer | test de conformidad, job de CI y documentación (briefing del T1 reutilizado) | 137057 | 35 | 4.4 | | |
+| S-1a cierre | verificador | T2: Pest afectados, Pint, Larastan | 27024 | 6 | 0.4 | | |
+| S-1a cierre | verificador | suite completa en `e2b856c` | 38462 | 18 | 10.9 | | |
+| S-1a cierre | verificador | correcciones y conformidad real contra Garage | 30981 | 9 | 0.9 | | |
+| S-1a cierre | security-reviewer | revisión (paso crítico) | 83538 | 12 | 1.2 | | |
+| S-1a cierre | doc-precheck | pasada mecánica | 109729 | 29 | 1.7 | | |
+| S-1a cierre | doc-reviewer | revisión | 105753 | 13 | 1.4 | | |
 
 Medias por tipo de `1.15-a` sin recalcular: el paso `1.15` no está cerrado (faltan `-b`..`-d`); se recalculan al cerrar `1.15`.
