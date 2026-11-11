@@ -3,7 +3,9 @@
 namespace App\Modules\Alum\Http\Controllers;
 
 use App\Modules\Alum\Application\AlumErrors;
+use App\Modules\Alum\Application\StudentPhotoService;
 use App\Modules\Alum\Application\StudentService;
+use App\Modules\Alum\Domain\Models\Student;
 use App\Modules\Alum\Http\Requests\IndexStudentsRequest;
 use App\Modules\Alum\Http\Requests\StoreStudentRequest;
 use App\Modules\Alum\Http\Requests\UpdateStudentRequest;
@@ -71,21 +73,23 @@ class StudentsController extends AlumController
             ->header('Location', url("/api/v1/students/{$student->public_id}"));
     }
 
-    public function show(Request $request, string $publicId, StudentService $service): StudentResource
+    public function show(Request $request, string $publicId, StudentService $service, StudentPhotoService $photos): StudentResource
     {
         $student = $service->findScoped($publicId, $this->decision($request), $this->actor($request));
         $service->attachPeople([$student], true);
         $service->attachEnrollments($student, $this->actor($request));
+        $this->attachPhoto($student, $photos);
 
         return new StudentResource($student);
     }
 
-    public function update(UpdateStudentRequest $request, string $publicId, StudentService $service): StudentResource
+    public function update(UpdateStudentRequest $request, string $publicId, StudentService $service, StudentPhotoService $photos): StudentResource
     {
         $service->find($publicId);
         $student = $service->update($publicId, $request->payload());
         $service->attachPeople([$student], true);
         $service->attachEnrollments($student, $this->actor($request));
+        $this->attachPhoto($student, $photos);
 
         return new StudentResource($student);
     }
@@ -97,12 +101,19 @@ class StudentsController extends AlumController
         return response()->noContent();
     }
 
-    public function restore(Request $request, string $publicId, StudentService $service): StudentResource
+    public function restore(Request $request, string $publicId, StudentService $service, StudentPhotoService $photos): StudentResource
     {
         $student = $service->restore($publicId);
         $service->attachPeople([$student], true);
         $service->attachEnrollments($student, $this->actor($request));
+        $this->attachPhoto($student, $photos);
 
         return new StudentResource($student);
+    }
+
+    /** `has_photo` de la ficha (solo el booleano, nunca la URL: `api.md §1`). */
+    private function attachPhoto(Student $student, StudentPhotoService $photos): void
+    {
+        $student->setAttribute('has_photo_view', isset($photos->liveStudentIds([(int) $student->id])[(int) $student->id]));
     }
 }

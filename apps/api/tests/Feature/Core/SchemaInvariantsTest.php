@@ -57,6 +57,8 @@ test('toda restricción única sobre tabla con borrado lógico es parcial, salvo
         'courses_tenant_year_id_unique',
         'groups_tenant_year_id_unique',
         'groups_tenant_course_id_unique',
+        // 1.15-c (REQ-ALUM/datos.md §1.3, #602): destino de la FK compuesta de group_change_requests hacia la matrícula.
+        'enrollments_tenant_year_id_unique',
         'subjects_tenant_course_id_unique',
         'academic_periods_tenant_year_id_unique',
         'grading_scales_tenant_year_id_type_unique',

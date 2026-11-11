@@ -34,13 +34,31 @@ return [
         'withdrawn_before_enrolled' => 'La fecha de baja no puede ser anterior a la fecha de matrícula.',
         'export_query_not_allowed' => 'No se puede exportar con una búsqueda: usa solo los filtros del listado.',
         'status_invalid' => 'El estado debe ser activa o baja.',
+        'request_already_pending' => 'La matrícula ya tiene una solicitud de cambio de grupo pendiente.',
+        'reason_invalid' => 'El motivo debe tener entre 1 y 500 caracteres, sin caracteres de control.',
+        'decision_note_required' => 'Al rechazar una solicitud hay que indicar el motivo del rechazo.',
+        'decision_note_invalid' => 'La nota de la decisión debe tener entre 1 y 500 caracteres, sin caracteres de control.',
+        'enrollment_not_active' => 'Solo se puede solicitar el cambio de grupo de una matrícula activa.',
+        'enrollment_without_group' => 'La matrícula no tiene grupo asignado: se le asigna uno directamente, sin solicitud.',
+    ],
+    'photo' => [
+        'file_required' => 'Hay que adjuntar una imagen en el campo «file».',
+        'type_unsupported' => 'Solo se admiten fotografías en formato JPEG o PNG.',
+        'invalid_image' => 'El contenido del fichero no coincide con una imagen JPEG o PNG válida, o supera las dimensiones máximas admitidas.',
+        'too_large' => 'La imagen supera el tamaño máximo admitido.',
     ],
     'errors' => [
+        'photo_read_rate_limited' => 'Has alcanzado el límite de consultas de fotografías de alumnos. Inténtalo de nuevo en unos :minutes minutos.',
         'export_rate_limited' => 'Has alcanzado el límite de exportaciones de matrículas. Inténtalo de nuevo en unos :minutes minutos.',
     ],
     'conflict' => [
         'cannot_restore' => 'No se puede restaurar este alumno: la persona ya no existe o ya tiene otra ficha de alumno.',
         'already_withdrawn' => 'La matrícula ya está dada de baja.',
         'has_active_enrollments' => 'No se puede dar de baja a un alumno con matrículas activas.',
+        'request_closed' => 'La solicitud ya está resuelta y no admite más cambios.',
+        'enrollment_changed' => 'La matrícula ha cambiado desde que se hizo la solicitud: ya no está activa o ya no está en el grupo de origen.',
+    ],
+    'forbidden' => [
+        'self_approval' => 'No puedes aprobar una solicitud que has hecho tú.',
     ],
 ];

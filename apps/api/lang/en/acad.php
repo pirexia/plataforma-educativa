@@ -173,5 +173,6 @@ return [
         'timetable_sessions' => 'timetable sessions',
         'facility_bookings' => 'facility bookings',
         'enrollments' => 'enrolments',
+        'group_change_requests' => 'group change requests',
     ],
 ];

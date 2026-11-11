@@ -7,7 +7,7 @@
 | Fase | 1 · paso **1.15** del plan (bloque D, Personas) |
 | Depende de | Documento (3.2.25): `CORE, CURSO, ACAD, FAM-UNIT`, igual que lo real: `CORE` (esencial), `CURSO` (esencial; la matrícula lleva `academic_year_id`), `ACAD` (grupos y cursos de etapa) y `FAM-UNIT` (pertenencia del alumno a su unidad). **Aprobado** (`OPEN-ALUM-28` = A, 2026-11-06): `depends_on: ['curso', 'acad', 'fam_unit']`. Aplicado en el documento de requisitos 3.2.25 |
 | Esencial | `essential: false`: consecuencia de `OPEN-ALUM-28` = A, porque un esencial no puede depender de `acad` ni de `fam_unit`, que no lo son (`ADR-045`) |
-| Estado | **APROBADA** (2026-11-06); lo marcado [DERIVADA] o dependiente de un `OPEN-ALUM` no bloqueante sigue como propuesta. Decisiones del usuario: `OPEN-ALUM-01` = A, `-02` = A, `-03` = A, `-11` = B, `-13` = A, `-16` = A, `-19` = A, `-28` = A. Corregida el mismo día con los hallazgos de `doc-reviewer` (un Alto, siete Medios, Bajos). Quedan abiertas las no bloqueantes de §14.2 (`OPEN-ALUM-31` resuelta A el 2026-11-09). `1.15-a` implementada (T1+T2); `1.15-b` implementada, revisada (security-reviewer, db-reviewer, doc-reviewer) y con E2E real 11/11 (2026-11-11); pendiente PR y cierre; `1.15-c`/`-d` sin implementar |
+| Estado | **APROBADA** (2026-11-06); lo marcado [DERIVADA] o dependiente de un `OPEN-ALUM` no bloqueante sigue como propuesta. Decisiones del usuario: `OPEN-ALUM-01` = A, `-02` = A, `-03` = A, `-11` = B, `-13` = A, `-16` = A, `-19` = A, `-28` = A. Corregida el mismo día con los hallazgos de `doc-reviewer` (un Alto, siete Medios, Bajos). Quedan abiertas las no bloqueantes de §14.2 (`OPEN-ALUM-31` resuelta A el 2026-11-09). `1.15-a` implementada (T1+T2); `1.15-b` mezclada (PR #604, 2026-11-11); `1.15-c` implementada (T1, T2a, T2b), revisiones aplicadas, pendiente de PR y cierre; `1.15-d` sin implementar |
 | Clasificación del paso: crítico | Ver §2 |
 | Decisiones vinculantes de partida | `ADR-004`, `ADR-013`, `ADR-015`, `ADR-016`, `ADR-020`, `ADR-021`, `ADR-029`, `ADR-032`, `ADR-033`, `ADR-034 §1`/`§4`/`§6`, `ADR-035`, `ADR-038` (incluido `§8`, idempotencia), `ADR-044` (enmendado por `ADR-063`), `ADR-045`, `ADR-048`, `ADR-053`, `ADR-054`, `ADR-055`, `ADR-056`, `ADR-057`/`ADR-058`, `ADR-062`, `ADR-063`, `ADR-066`, `ADR-068`, `ADR-069 §4.2`; contratos ya aprobados de `REQ-ACAD/funcional.md §7.2` y `§18.7`, `REQ-FAM-UNIT/funcional.md §7.1`/`§7.4`, `REQ-CURSO/funcional.md §7.1` |
 
@@ -26,7 +26,7 @@
 | **Matrícula** | `Enrollment` / `enrollments` | Un alumno en un curso académico, un curso de etapa y, si ya lo tiene, un grupo (`§16.1`, `§16.3` regla 4; grupo opcional por `OPEN-ALUM-11` = B). Eje del que colgarán asistencia, calificaciones y facturación |
 | **Lista de clase** | — (consulta) | Las matrículas activas de un grupo (`REQ-ALUM-003`) |
 | **Solicitud de cambio de grupo** | `GroupChangeRequest` / `group_change_requests` | Petición de mover una matrícula a otro grupo del mismo curso de etapa, con su aprobación, rechazo o cancelación (`REQ-ALUM-003`; `OPEN-ALUM-13` = A) |
-| **Fotografía del alumno** | `StudentPhoto` / `student_photos` | Imagen de la ficha (`REQ-ALUM-001`; **condicionada** a `OPEN-ALUM-08`, que sigue abierta). **No** es una publicación: `INV-014` rige publicar, no el uso interno |
+| **Fotografía del alumno** | `StudentPhoto` / `student_photos` | Imagen de la ficha (`REQ-ALUM-001`; entra en `1.15-c`, `OPEN-ALUM-08` = A, decisión del usuario 2026-11-11). **No** es una publicación: `INV-014` rige publicar, no el uso interno |
 
 Términos heredados sin cambio: **curso académico**, **etapa**, **curso de etapa**, **grupo** (`REQ-ACAD/funcional.md §0.1`); **unidad familiar**, **tutor**, **vínculo** (`REQ-FAM-UNIT/funcional.md §0.1`).
 
@@ -59,13 +59,13 @@ Reglas de nombre [DERIVADA]: código de módulo `alum`, prefijo de traducciones 
 | Matrícula | Alta, consulta, edición, baja con fecha y motivo, anulación de una matrícula errónea | `REQ-ALUM-002` (último estado del flujo: «matriculación») |
 | Listas de clase y exportación | Listado de matrículas por grupo; exportación CSV en cola (`ADR-054`/`ADR-055`) | `REQ-ALUM-003` |
 | Cambio de grupo con aprobación | Solicitud, aprobación, rechazo y cancelación (`OPEN-ALUM-13` = A) | `REQ-ALUM-003` |
-| Fotografía del alumno | Subida, sustitución, baja y descarga por URL firmada (**condicionada** a `OPEN-ALUM-08`) | `REQ-ALUM-001` |
+| Fotografía del alumno | Subida, sustitución, baja y descarga por URL firmada (`1.15-c`, `OPEN-ALUM-08` = A) | `REQ-ALUM-001` |
 | Resolutores de ámbito | `unidad_familiar` (`1.15-a`) y `grupo` (`1.15-b`) sobre `alumno` y `matricula` (`OPEN-ALUM-16` = A) | `RPERM-004`, `INV-002` |
 | En `acad` | Construcción de `TeachingMembership::groupIdsFor()` (`REQ-ACAD §18.7`) y `GroupDirectory` (`§7.2`), que tienen aquí su primer consumidor; registro de vetos de borrado (`RN-ACAD-21`). Todo en `1.15-b` | `ADR-063 §5.4`, `OPEN-ACAD-43` |
 | En `fam_unit` | **Nada que construir**: `FamilyUnitStudents` ya existe (`apps/api/app/Modules/FamUnit/Domain/FamilyUnitStudents.php`, implementada por `Application/FamilyUnitStudentService.php`, enlazada en `FamUnitServiceProvider`); `alum` la consume | `REQ-FAM-UNIT-001`, `§7.4` punto 2 |
 | En `Core` | Ampliaciones aditivas de `Core\Domain` aprobadas (`OPEN-ALUM-19` = A): lectura de `people.birth_date` (la columna ya existe) y corrección de datos de una persona con usuario | `INV-007` |
 | Medición `#382` | `AcademicYearWriteGuardOverheadTest` repetido sobre `enrollments`, cifra en `CHANGELOG.md` | `ADR-057`, `CA-057-09` |
-| Pantallas de personal | Listado y ficha de alumnado, matrícula, lista de clase, solicitudes de cambio de grupo y, si `-08` = A, foto (§10) | `INV-006` |
+| Pantallas de personal | Listado y ficha de alumnado, matrícula, lista de clase, solicitudes de cambio de grupo y foto (§10) | `INV-006` |
 
 ### 1.2 Entregas [DERIVADA]
 
@@ -99,10 +99,10 @@ Ver §15. `1.15-a` alumnado (sin matrículas) y ámbito `unidad_familiar`; `1.15
 
 **Clasificación del paso: crítico.** Basta cualquiera de estas:
 
-- Migraciones que **crean tablas** con RLS (`students`, `enrollments`, `group_change_requests` y, si `-08` = A, `student_photos`).
+- Migraciones que **crean tablas** con RLS (`students`, `enrollments`, `group_change_requests` y `student_photos`).
 - *Endpoints*, permisos y **resolutores de ámbito nuevos**, y entrada nueva en el mapa cerrado de `AR-10`.
 - *Endpoints* que **leen y escriben datos personales de menores**.
-- **Ficheros** (fotografía, si `-08` = A).
+- **Ficheros** (fotografía).
 - Ampliación de interfaces públicas que sostienen autorización (`TeachingMembership`, `Core\Domain`).
 
 Revisión: Codex primero (si no está disponible, respaldo de `ADR-050`), `security-reviewer` con su columna, `db-reviewer` (hay migraciones), `doc-precheck` + `doc-reviewer`. La sesión comprueba la clasificación contra el diff.
@@ -152,14 +152,15 @@ Secretaría indica fecha de baja y motivo (`OPEN-ALUM-12`). La matrícula pasa a
 2. Quien tiene `matricula.aprobar` y **no** es el solicitante la aprueba; cualquier titular de `matricula.aprobar` puede rechazarla con nota. Al aprobar, en la misma transacción se cambia el grupo y se cierra la solicitud.
 3. Quien tiene `matricula.actualizar` puede cancelar una solicitud pendiente; queda registrado quién y cuándo.
 4. Una matrícula sin grupo recibe su **primer** grupo con `PATCH` directo, sin solicitud (asignar no es cambiar) [DERIVADA].
+5. **Implementación (`1.15-c` T2a)**: `GroupChangeService`; el cambio de grupo de la matrícula es un método público aditivo de `EnrollmentService` (`moveToGroup`, único camino sancionado, `AR-10`; `update` sigue prohibiéndolo). Bloqueo: curso académico `FOR SHARE` → matrícula `FOR UPDATE` → solicitud `FOR UPDATE`, en el mismo orden para solicitar, aprobar, rechazar y cancelar. `decision_note` es **obligatoria al rechazar** (1-500) y opcional al aprobar y cancelar (si viene, 1-500) [DERIVADA, decisión aprobada]. Anulada la matrícula con una solicitud pendiente, aprobar da `409 enrollment_changed`; rechazar y cancelar siguen siendo posibles.
 
 ### 4.5 Lista de clase y exportación
 
 Listado de matrículas activas de un grupo (filtro `group`), con nombre del alumno. Exportación del mismo listado a CSV en cola, con los mismos filtros (`ADR-054 §8.2`), descargable por `data_exports` de `Core`.
 
-### 4.6 Fotografía (condicionada a `OPEN-ALUM-08`)
+### 4.6 Fotografía (`1.15-c`, `OPEN-ALUM-08` = A)
 
-Subida por `App\Support\Files` (`ADR-068`, precedente `pickup_photos`): tipo real, tamaño, sin EXIF, almacenamiento privado; descarga por URL firmada de caducidad corta tras comprobar el permiso (`ADR-013`). Una foto viva por alumno.
+Subida por `App\Support\Files` (`ADR-068`, precedente `pickup_photos`): tipo real, tamaño, sin EXIF, almacenamiento privado; descarga por URL firmada de caducidad corta tras comprobar el permiso (`ADR-013`). La ficha (`GET /students/{id}`) devuelve solo `has_photo` (booleano; decisión del usuario 2026-11-11): la URL sale únicamente de `GET /students/{id}/photo`, que audita cada lectura. Dar de baja al alumno **purga** su foto viva (objeto y fila). Servicio: `StudentPhotoService`. Una foto viva por alumno.
 
 ---
 
@@ -189,8 +190,8 @@ Subida por `App\Support\Files` (`ADR-068`, precedente `pickup_photos`): tipo rea
 | `RN-ALUM-22` | Estados (`OPEN-ALUM-12`): `activa` y `baja`. `baja` exige `withdrawn_on` (≥ `enrolled_on`) y `withdrawal_reason` ∈ {`traslado`, `baja_voluntaria`, `otro`} [DERIVADA]; `CHECK` en el motor. Baja sobre una matrícula ya en `baja` ⇒ `409 alum.conflict.already_withdrawn`. `baja → activa` no existe |
 | `RN-ALUM-23` | Alta y edición solo en curso `activo` o `planificacion`; en `cerrado`/`archivado`, `409 academic-year-closed` (`ADR-057`). Toda lectura invoca `AcademicYearReadAccess`: sin `curso_historico.leer`, `404` en listado **y** detalle (`RN-CURSO-25`, `-33`) |
 | `RN-ALUM-24` | Curso de etapa, grupo o curso académico del **cuerpo** ilegible o inexistente ⇒ `422 alum.validation.parent_not_found` (o `academic_year_not_found`), indistinguible (precedente `REQ-ACAD §16`, S-3) |
-| `RN-ALUM-25` | **Anulación** (`DELETE`): borrado lógico de una matrícula creada por error, sujeto al registro de vetos de `alum` (§7.2; sin consumidores en `1.15`, siempre se permite) |
-| `RN-ALUM-26` | `alum` registra en el registro de vetos de `acad` (`RN-ACAD-21`) que **un grupo o un curso de etapa con matrículas vivas no se borra** ⇒ `409 acad.conflict.has_dependents` con `enrollments` en `params.dependents`. El registro se construye **antes** de la FK a `groups` |
+| `RN-ALUM-25` | **Anulación** (`DELETE`): borrado lógico de una matrícula creada por error, sujeto al registro de vetos de `alum` (§7.2; sin consumidores en `1.15-c`, siempre se permite) |
+| `RN-ALUM-26` | `alum` registra en el registro de vetos de `acad` (`RN-ACAD-21`) que **un grupo o un curso de etapa con matrículas vivas no se borra** ⇒ `409 acad.conflict.has_dependents` con `enrollments` en `params.dependents`. El registro se construye **antes** de la FK a `groups`. Desde `1.15-c` el grupo tiene además el veto de `RN-ALUM-47` (`group_change_requests`) |
 | `RN-ALUM-27` | **Idempotencia** (`INV-011` concretada por `ADR-038 §8`). Mecanismo existente del producto: *middleware* `RequireIdempotencyKey` y tabla `idempotency_keys`; contrato de `§8.2` sin cambios (ULID del cliente, formato inválido o ausencia donde es obligatoria ⇒ `400 urn:pge:error:malformed`; reintento con mismo cuerpo ⇒ respuesta original con `Idempotency-Replayed: true`; mismo cuerpo distinto o primera aún en curso ⇒ `409`; retención 24 h). Dónde, por el criterio de `§8.1`: **`POST /students` obligatoria** (crea una persona sin unicidad natural: el documento es opcional; condición 4). **`POST /enrollments` no la lleva**: el índice único de `RN-ALUM-21` convierte el reintento en `422 already_enrolled`, que es el resultado correcto (el «no deliberado» de `§8.1`; `INV-011` cita «matrículas» como ejemplo y `ADR-038 §8.1` lo concreta como criterio). **`POST /enrollments/{id}/withdrawal`** y **`POST /group-change-requests`** tampoco: el reintento choca con `409 already_withdrawn` o `422 request_already_pending`. `POST /enrollments/exports` sigue lo que haga la exportación de `Core` |
 | `RN-ALUM-28` | `PATCH` cambia `enrolled_on` y asigna un **primer** grupo a una matrícula sin grupo. Cambiar un grupo ya asignado ⇒ `422 alum.validation.group_change_requires_request`. Curso académico, curso de etapa y alumno son inmutables ⇒ `422 alum.validation.immutable` |
 | `RN-ALUM-29` | La fecha de matrícula cae dentro del curso académico (bordes incluidos), leída con `AcademicYearSharedLock` en la transacción (precedente `RN-ACAD-57`) ⇒ `422 alum.validation.date_outside_academic_year` |
@@ -206,13 +207,14 @@ Subida por `App\Support\Files` (`ADR-068`, precedente `pickup_photos`): tipo rea
 | `RN-ALUM-44` | El solicitante no puede **aprobar** su propia solicitud ⇒ `403` (sí rechazarla o cancelarla). `CHECK` en el motor solo para `aprobada` (`datos.md §1.3`) |
 | `RN-ALUM-45` | Motivo y nota de decisión: texto libre acotado (1-500), **no** se registran en `audit_logs.changes` (`ADR-035`) |
 | `RN-ALUM-46` | **Ámbito de las solicitudes**: con `grupo`, las solicitudes cuya matrícula (`enrollment_id`) está en un grupo de `groupIdsFor(u, academic_year_id)`; con `unidad_familiar`, **ninguna** (lista vacía y detalle `404`) [DERIVADA: son un trámite interno del centro; la familia ve el grupo resultante en la matrícula]. Fuera de ámbito ⇒ `404` (`RN-ALUM-64`) |
+| `RN-ALUM-47` | **Veto de borrado de grupo** (`1.15-c T2a`, decisión del usuario 2026-11-11 = B; `RN-ACAD-21`): `alum` registra un tercer veto, sobre grupos, que cuenta las solicitudes de cambio de grupo `pendiente` vivas con ese grupo de **origen o destino** (`from_group_id` o `to_group_id`) ⇒ `409 acad.conflict.has_dependents` con `group_change_requests` en `params.dependents` (`acad.dependents.group_change_requests`). Las resueltas (`aprobada`, `rechazada`, `cancelada`) no vetan. No aplica al curso de etapa (sus matrículas ya lo vetan, `RN-ALUM-26`). Es independiente del de matrículas: un grupo con ambas devuelve `enrollments` y `group_change_requests`, por ese orden |
 
-### 5.4 Fotografía (condicionada a `OPEN-ALUM-08`, `1.15-c`)
+### 5.4 Fotografía (`1.15-c`, `OPEN-ALUM-08` = A)
 
 | ID | Regla |
 |----|-------|
 | `RN-ALUM-50` | Una foto viva por alumno; subir otra da de baja la anterior en la misma transacción |
-| `RN-ALUM-51` | Validación y almacenamiento por `App\Support\Files` (`ADR-068 §5.3`): tipo real JPEG/PNG, tamaño máximo de la primitiva, EXIF eliminado, *bucket* privado, URL firmada de caducidad corta tras comprobar permiso (`ADR-013`) |
+| `RN-ALUM-51` | Validación y almacenamiento por `App\Support\Files` (`ADR-068 §5.3`): tipo real JPEG/PNG, tamaño máximo `alum.photo.max_bytes` (5 MB, `config/alum.php`), EXIF eliminado, *bucket* privado, URL firmada de caducidad corta tras comprobar permiso (`ADR-013`) |
 | `RN-ALUM-52` | Toda respuesta con URL de foto registra una fila `read` por consulta con `AuditRecorder::recordRead` (precedente `OPEN-068-04` = A) |
 | `RN-ALUM-53` | La foto **no** se publica desde este módulo; toda publicación futura consulta `ImageConsentPolicy` (`INV-014`) |
 
@@ -238,6 +240,7 @@ Subida por `App\Support\Files` (`ADR-068`, precedente `pickup_photos`): tipo rea
 | Tutor con el vínculo revocado | No alcanza al alumno: `404` |
 | Matrícula en un curso en `planificacion` sin grupos | Se admite sin grupo (`OPEN-ALUM-11` = B) |
 | Grupo borrado con matrículas vivas | `409` (`RN-ALUM-26`) |
+| Grupo borrado con solicitudes de cambio de grupo `pendiente` (origen o destino) | `409` (`RN-ALUM-47`) |
 | Alumno borrado entre la lectura y el alta de su matrícula | `FOR SHARE` de la faceta en la transacción; grupo y curso de etapa vivos también con `FOR SHARE` (`lockAliveForShare`, `RN-ALUM-26`); `422 alum.validation.student_not_found` [DERIVADA, lección de `RN-PRL-12`] |
 | Dos altas simultáneas de matrícula para el mismo alumno y curso | Una `201`, otra `422 already_enrolled` |
 | Curso cerrado con una solicitud pendiente | Aprobar ⇒ `409 academic-year-closed`; la solicitud sigue pendiente |
@@ -324,7 +327,7 @@ Propuesta [DERIVADA en nombres y rutas]. `src/data-table`, shadcn-vue, `docs/des
 | Nombre | Ruta | `meta.permissions` | Menú | Contenido |
 |--------|------|--------------------|------|-----------|
 | `alum-students` | `/alumnado` | `['alumno.leer']` | Sí | Listado con filtros curso académico, curso de etapa, grupo, estado de matrícula y búsqueda por nombre; alta en diálogo con `alumno.crear`; `meta.academicYearScoped: true` |
-| `alum-student-detail` | `/alumnado/:publicId` | `['alumno.leer']` | No | Ficha: datos personales; tutores y contacto de emergencia (de `fam_unit`, con `vinculo_tutor.leer`); estado de imagen (API de `fam_unit`, `OPEN-ALUM-10`); matrículas; foto con subida, sustitución y baja con `alumno.actualizar` (si `-08` = A) |
+| `alum-student-detail` | `/alumnado/:publicId` | `['alumno.leer']` | No | Ficha: datos personales; tutores y contacto de emergencia (de `fam_unit`, con `vinculo_tutor.leer`); estado de imagen (API de `fam_unit`, `OPEN-ALUM-10`); matrículas; foto (`has_photo` de la ficha; la URL firmada se pide a `GET /students/{id}/photo` solo al mostrarla) con subida, sustitución y baja con `alumno.actualizar` (`OPEN-ALUM-08` = A) |
 | `alum-class-list` | `/alumnado/listas` | `['matricula.leer']` | Sí | Lista de clase por grupo; exportar con `matricula.exportar` |
 | `alum-group-changes` | `/alumnado/cambios-de-grupo` | `['matricula.leer']` | Sí | Solicitudes; aprobar o rechazar con `matricula.aprobar`; solicitar y cancelar con `matricula.actualizar` |
 
@@ -374,7 +377,7 @@ Pest en `apps/api/tests/Feature/Alum/` (concurrencia en `tests/Concurrency/`), V
 - **CA-ALUM-024** *(implementado en `1.15-b`)* — *Dado* una baja sin `withdrawn_on`, con fecha anterior a la matrícula o con motivo fuera del vocabulario, *entonces* `422`, y el `CHECK` del motor lo rechaza por SQL directo (`RN-ALUM-22`).
 - **CA-ALUM-025** *(implementado en `1.15-b`)* — **Curso cerrado, escritura**: matricular o editar en un curso `cerrado` ⇒ `409 urn:pge:error:academic-year-closed` (`RN-ALUM-23`).
 - **CA-ALUM-026** *(implementado en `1.15-b`)* — **Curso cerrado, lectura en listado y detalle** (`RN-CURSO-33`): sin `curso_historico.leer`, listado de matrículas de un curso `cerrado`/`archivado` y detalle por `public_id` ⇒ `404`; con él, los datos. Igual para `GET /students?academic_year=<cerrado>`, y esas matrículas no aparecen en la ficha.
-- **CA-ALUM-027** *(implementado en `1.15-b`)* — Borrar en `acad` un grupo o un curso de etapa con matrículas vivas ⇒ `409 acad.conflict.has_dependents` con `enrollments` (`RN-ALUM-26`).
+- **CA-ALUM-027** *(implementado en `1.15-b`)* — Borrar en `acad` un grupo o un curso de etapa con matrículas vivas ⇒ `409 acad.conflict.has_dependents` con `enrollments` (`RN-ALUM-26`). *(`1.15-c` T2a)* Un grupo con solicitudes de cambio de grupo `pendiente`, de origen o de destino, ⇒ `409` con `group_change_requests`; resueltas, se borra (`RN-ALUM-47`).
 - **CA-ALUM-028** *(implementado en `1.15-b`)* — `PATCH` que cambia el grupo de una matrícula con grupo ⇒ `422 group_change_requires_request`; sobre una matrícula sin grupo, asigna el primero con `200` (`RN-ALUM-28`).
 - **CA-ALUM-029** *(implementado en `1.15-b`)* — Fecha de matrícula fuera del curso ⇒ `422 date_outside_academic_year` (`RN-ALUM-29`).
 - **CA-ALUM-030** *(implementado en `1.15-b`)* — *Dado* un alumno borrado por otra conexión sin confirmar, *cuando* se matricula, *entonces* espera y, al confirmar, `422 alum.validation.student_not_found` sin fila.
@@ -401,9 +404,9 @@ Pest en `apps/api/tests/Feature/Alum/` (concurrencia en `tests/Concurrency/`), V
 - **CA-ALUM-037** — *Dado* una solicitud pendiente, *cuando* el propio solicitante la cancela, *entonces* `200`, estado `cancelada`, `decided_by` = el solicitante y `decided_at` rellenado; *y* cuando otro titular de `matricula.aprobar` la rechaza con nota, `rechazada` con su autoría (`RN-ALUM-42`).
 - **CA-ALUM-038** — *Dado* una solicitud `aprobada`, `rechazada` o `cancelada`, *cuando* se intenta aprobar, rechazar o cancelar, *entonces* `409 alum.conflict.request_closed` y nada cambia (`RN-ALUM-42`).
 - **CA-ALUM-039** — **Ámbito de solicitudes, listado y detalle** (`RN-ALUM-46`): *dado* un docente de G1 con `matricula.leer` de ámbito `grupo`, *cuando* lista solicitudes, *entonces* solo ve las de matrículas de G1, y el detalle de una de G2 es `404`; *y* un tutor legal con ámbito `unidad_familiar` recibe lista vacía y `404` en el detalle de una solicitud de su hijo.
-- **CA-ALUM-018c** — Aislamiento entre tenants de solicitudes (y de fotos, si `-08` = A).
+- **CA-ALUM-018c** — Aislamiento entre tenants de solicitudes (y de fotos).
 
-### 11.6 Fotografía (`1.15-c`, condicionada a `OPEN-ALUM-08`)
+### 11.6 Fotografía (`1.15-c`, `OPEN-ALUM-08` = A)
 
 - **CA-ALUM-056** — Fichero que no es JPEG/PNG por su contenido o que supera el tamaño ⇒ `422` y nada se guarda; una imagen válida queda sin EXIF (`RN-ALUM-51`).
 - **CA-ALUM-057** — Subir otra foto da de baja la anterior en la misma transacción (`RN-ALUM-50`).
@@ -413,13 +416,13 @@ Pest en `apps/api/tests/Feature/Alum/` (concurrencia en `tests/Concurrency/`), V
 
 - **CA-ALUM-060** *(`1.15-b`)* — *(`#382`, `ADR-057`, `CA-057-09`)* `AcademicYearWriteGuardOverheadTest` con 20.000 inserciones en `enrollments`, con y sin disparador, mismo método que `1.10`; cifra en `CHANGELOG.md` junto a la de `1.10` (+182 % a +195 %) y la de `CA-ACAD-023`. No es umbral de aprobado.
 - **CA-ALUM-061** *(`1.15-b` y `-c`)* — `AR-13` ve el disparador en `enrollments` y `group_change_requests`, sin acciones referenciales.
-- **CA-ALUM-062** *(`1.15-a` para `Student`, `1.15-b` para `Enrollment`, `1.15-c` para `GroupChangeRequest`)* — `AR-01`/`AR-02`: `alum` no importa `Domain\Models` de otros módulos ni `Core` fuera de `Core\Domain`; `AR-08`: ninguna regla compara roles; `AR-10`: cada modelo solo por su servicio sancionado.
+- **CA-ALUM-062** *(`1.15-a` para `Student`, `1.15-b` para `Enrollment`, `1.15-c` para `GroupChangeRequest`, `StudentPhoto` y `StudentPhotoService`)* — `AR-01`/`AR-02`: `alum` no importa `Domain\Models` de otros módulos ni `Core` fuera de `Core\Domain`; `AR-08`: ninguna regla compara roles; `AR-10`: cada modelo solo por su servicio sancionado.
 - **CA-ALUM-063** *(`1.15-a`)* — *Dado* `alum` descontratado, *entonces* toda ruta de `alum` responde `403 module-disabled`.
 - **CA-ALUM-064** *(cada entrega)* — Paridad de claves en los cuatro idiomas (`AR-12`, `TranslationParityTest`, `lint:i18n`).
 
 ### 11.8 Interfaz y E2E (`1.15-d`)
 
-- **CA-ALUM-070** — Vitest: el listado lleva los filtros a la URL sin `q`; la ficha oculta las secciones de `fam_unit` sin sus permisos; sin acciones de escritura con un curso de solo lectura (`RN-ACAD-42`); si `-08` = A, la subida de foto muestra el error de tipo o tamaño.
+- **CA-ALUM-070** — Vitest: el listado lleva los filtros a la URL sin `q`; la ficha oculta las secciones de `fam_unit` sin sus permisos; sin acciones de escritura con un curso de solo lectura (`RN-ACAD-42`); la subida de foto muestra el error de tipo o tamaño.
 - **CA-ALUM-071** — Accesibilidad: etiquetas, errores asociados, foco en diálogos, 320 px sin desplazamiento horizontal (WCAG 2.2 AA).
 - **CA-ALUM-072** — **E2E contra la API real** (`CLAUDE.md §3`): secretaría da de alta un alumno en una unidad familiar, lo matricula, ve la lista de clase y exporta; un docente con asignación en ese grupo ve al alumno y otro sin asignación no. Lo ejecuta `verificador`; S3/MinIO real se declara probado o no.
 
@@ -440,19 +443,20 @@ Pest en `apps/api/tests/Feature/Alum/` (concurrencia en `tests/Concurrency/`), V
 
 **ADR de `1.15-b`**: `ADR-071` (`ACEPTADA`, 2026-11-09) formaliza `OPEN-ALUM-11` = B en `§16.1`/`§16.2` (C4); aplicado en la versión 3.2.25. Un «antiguo alumno» no es un estado: se deriva (`datos.md §6`, `OPEN-071-02` = A).
 
-**Antes de datos reales**: las de `REQ-FAM-UNIT §13`; catálogo de base legal (`OPEN-13`); plazo de conservación en `1.23b` (`datos.md §6`); DPO sobre la fotografía si `-08` = A.
+**Antes de datos reales**: las de `REQ-FAM-UNIT §13`; catálogo de base legal (`OPEN-13`); plazo de conservación en `1.23b` (`datos.md §6`); DPO sobre la fotografía (`-08` = A, 2026-11-11: la fotografía se implementa en `1.15-c`, pero no se usa con datos reales hasta el visto bueno del DPO).
 
 ---
 
 ## 14. Preguntas abiertas
 
-### 14.1 Resueltas por el usuario (2026-11-06)
+### 14.1 Resueltas por el usuario (2026-11-06; `OPEN-ALUM-08`, 2026-11-11)
 
 | ID | Pregunta | Decisión |
 |----|----------|----------|
-| `OPEN-ALUM-01` | Alcance de `1.15` | **A** · Núcleo: alumnado, ficha compuesta, matrícula, listas, exportación, cambio de grupo y foto (esta, sujeta a `-08`); lo demás diferido |
+| `OPEN-ALUM-01` | Alcance de `1.15` | **A** · Núcleo: alumnado, ficha compuesta, matrícula, listas, exportación, cambio de grupo y foto (esta, con `-08` = A); lo demás diferido |
 | `OPEN-ALUM-02` | Historial médico y alergias | **A** · Diferido a `REQ-SALUD`, tras ADR de cifrado a nivel de campo |
 | `OPEN-ALUM-03` | Preinscripción, admisión, lista de espera | **A** · Diferido a `REQ-OFE`; `1.15` solo matrícula directa |
+| `OPEN-ALUM-08` | Fotografía del alumno | **A** · En `1.15-c` con `App\Support\Files` y auditoría de lectura (decisión del usuario, 2026-11-11). Condición previa a datos reales: DPO |
 | `OPEN-ALUM-11` | Grupo en la matrícula | **B** · Curso de etapa obligatorio, grupo opcional (requiere ADR, C4) |
 | `OPEN-ALUM-13` | Cambio de grupo | **A** · Solicitud + aprobación (`matricula.aprobar`), sin autoaprobación; aprueban por defecto `direccion` y `administrador_centro` |
 | `OPEN-ALUM-16` | Ámbitos | **A** · `['todos','grupo','unidad_familiar']`; sin `clase` ni `propios` |
@@ -467,7 +471,6 @@ Pest en `apps/api/tests/Feature/Alum/` (concurrencia en `tests/Concurrency/`), V
 | `OPEN-ALUM-05` | Documentación adjunta | Diferir a `REQ-DOC`; sin antivirus (#45) no se aceptan documentos de identidad de menores |
 | `OPEN-ALUM-06` | Becas y ayudas | Diferir a `REQ-BEC` |
 | `OPEN-ALUM-07` | Historial académico | La ficha muestra las matrículas del centro; calificaciones e incidencias por interfaz de `CALIF`/`CONV`; centros anteriores, tras `H0` (`ADR-018`), sin inventar campos |
-| `OPEN-ALUM-08` | Fotografía del alumno | **A** · En `1.15-c` con `App\Support\Files` y auditoría de lectura; **B** · diferir. Recomiendo **A** (MUST, primitiva existente). Condición previa a datos reales: DPO |
 | `OPEN-ALUM-09` | Contactos de emergencia | Leer de `fam_unit` (`is_emergency_contact`) y teléfonos de `Core` |
 | `OPEN-ALUM-10` | Autorizaciones legales en la ficha | La SPA llama a `GET /image-consents` de `fam_unit`; las demás, `REQ-AUT` |
 | `OPEN-ALUM-12` | Estados y motivos de baja | `activa`/`baja`; `traslado`, `baja_voluntaria`, `otro` [DERIVADA] |
@@ -499,9 +502,9 @@ Pest en `apps/api/tests/Feature/Alum/` (concurrencia en `tests/Concurrency/`), V
 | | T2 | Servicios y *endpoints* | `StudentService`, alta transaccional con `FamilyUnitStudents` (existente) y la comprobación de `OPEN-ALUM-31`, idempotencia de `POST /students`, ficha sin matrículas, resolutor `unidad_familiar` de `alumno`, *endpoints* de `api.md §1` sin los filtros de matrícula, OpenAPI, `lang` | `CA-ALUM-001` a `-003`, `-004a`, `-005` a `-009`, `-012`, `-018a`, `-019`, `-032` | ~50-70 |
 | **`1.15-b`** · matrícula, `grupo`, listas y exportación | T1 | Datos y permisos | Registro de vetos y `GroupDirectory` en `acad`; `TeachingMembership::groupIdsFor()`; migración `enrollments`; catálogo de `matricula`; `grupo` añadido a `alumno.leer`; siembra de `matricula.*` y de los `grupo`; `kind` de `data_exports`; medición `#382` | `CA-ALUM-014b`, `-017`, `-021` (motor), `-024` (motor), `-027`, `-060`, `-061`, `-062` (`Enrollment`) | ~50-70 |
 | | T2 | Servicios y *endpoints* | `EnrollmentService` (bloqueo, fechas), baja, anulación, resolutores `grupo` de `alumno` y `matricula` y `unidad_familiar` de `matricula`, `RN-ALUM-05` completa, filtros de matrícula y `enrollments[]` en `GET /students`, listas, exportación en cola, OpenAPI | `CA-ALUM-004`, `-010`, `-011`, `-013`, `-015`, `-016`, `-018b`, `-020` a `-031`, `-033` a `-036`, `-040` a `-042` | ~60-80 |
-| **`1.15-c`** · cambio de grupo y foto (foto sujeta a `-08`) | T1 | Datos | Migraciones `group_change_requests` y, si `-08` = A, `student_photos` | `CA-ALUM-052` (motor), `-061`, `-062` (`GroupChangeRequest`) | ~25-40 |
+| **`1.15-c`** · cambio de grupo y foto | T1 | Datos | Migraciones `group_change_requests` y `student_photos` | `CA-ALUM-052` (motor), `-061`, `-062` (`GroupChangeRequest`) | ~25-40 |
 | | T2 | Servicios y *endpoints* | Solicitud, aprobación, rechazo, cancelación, resolutor `grupo` de solicitudes; foto con `App\Support\Files` y `recordRead` | `CA-ALUM-018c`, `-037` a `-039`, `-050` a `-058` | ~45-65 |
-| **`1.15-d`** · pantallas y E2E | T1 | UI alumnado | Módulo web (*shell*, `api`, `types`, `locales`), `/alumnado`, ficha, subida de foto si `-08` = A | `CA-ALUM-070`, `-071` (parte) | ~40-55 |
+| **`1.15-d`** · pantallas y E2E | T1 | UI alumnado | Módulo web (*shell*, `api`, `types`, `locales`), `/alumnado`, ficha, subida de foto | `CA-ALUM-070`, `-071` (parte) | ~40-55 |
 | | T2 | UI matrícula | Matrículas en la ficha, lista de clase con exportación, solicitudes de cambio de grupo | `CA-ALUM-070`, `-071` | ~35-50 |
 | | T3 | E2E (escribir y depurar *specs*) | `apps/web/e2e/alum-*.spec.ts` contra la API real | `CA-ALUM-072` | ~25-40 |
 

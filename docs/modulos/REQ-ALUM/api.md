@@ -8,7 +8,7 @@ Errores comunes: `401`; `403` sin permiso; `403 urn:pge:error:module-disabled`; 
 
 **Idempotencia** (`ADR-038 §8`, `RN-ALUM-27`): mecanismo existente, *middleware* `RequireIdempotencyKey` y tabla `idempotency_keys`, con el contrato de `§8.2` sin cambios (ULID del cliente; formato inválido o ausencia donde es obligatoria ⇒ `400 urn:pge:error:malformed`; reintento con mismo cuerpo ⇒ respuesta original con `Idempotency-Replayed: true`; cuerpo distinto o primera aún en curso ⇒ `409`; retención 24 h). Obligatoria **solo** en `POST /students` (`§8.1` condición 4). Las demás escrituras están protegidas por unicidad natural o por su transición de estado y no llevan la cabecera (`§8.1`, «no» deliberado).
 
-**Entregas**: `1.15-a` sirve `§1` **sin** los filtros `course`, `group`, `enrollment_status`, sin la matrícula vigente en el listado y sin `enrollments[]` en la ficha, y con `alumno.leer` de ámbitos `todos` y `unidad_familiar`; `1.15-b` añade todo eso y el ámbito `grupo` (`funcional.md §1.2`).
+**Entregas**: `1.15-a` sirve `§1` **sin** los filtros `course`, `group`, `enrollment_status`, sin la matrícula vigente en el listado y sin `enrollments[]` en la ficha, y con `alumno.leer` de ámbitos `todos` y `unidad_familiar`; `1.15-b` añade todo eso y el ámbito `grupo` (`funcional.md §1.2`); `1.15-c` añade las solicitudes de cambio de grupo (`§3`) y la fotografía del alumno (`§4`, con `has_photo` en la ficha).
 
 ---
 
@@ -32,7 +32,7 @@ Errores comunes: `401`; `403` sin permiso; `403 urn:pge:error:module-disabled`; 
 
 ### `GET /students/{public_id}`
 - **Permiso**: `alumno.leer` · `todos`, `unidad_familiar` en `1.15-a` (`grupo` desde `1.15-b`)
-- **Respuesta 200**: ficha. En `1.15-a`: `public_id`, `person.public_id`, `display_name`, `given_name`, `family_name_1`, `family_name_2`, `birth_date`, `locale`, `document_type`, `document_number`, `created_at`, `updated_at` (y `deleted_at` en una baja). **`document_number` va enmascarado** (solo los últimos cuatro caracteres a la vista, `•••••1234`; un número de cuatro o menos, entero oculto): la API de alumnado nunca devuelve el documento completo (decisión del 2026-11-09). Los datos de la persona se leen de `Core` (`PersonDirectory`); `alum` no los guarda (`RN-ALUM-02`). Desde `1.15-b`, `enrollments[]` (las de cursos ilegibles se omiten, `RN-ALUM-23`) se acota por el ámbito de `matricula.leer`: sin ese permiso sale `[]`; `emergency_contact` y `guardians[]` **solo** si el sujeto tiene `vinculo_tutor.leer` con un ámbito que alcance al alumno (se leen de `FamilyMembership`; si no, el campo no aparece) [DERIVADA: no ampliar por la puerta de `alum` lo que `fam_unit` protege]; `photo` (`OPEN-ALUM-08`) con URL firmada.
+- **Respuesta 200**: ficha. En `1.15-a`: `public_id`, `person.public_id`, `display_name`, `given_name`, `family_name_1`, `family_name_2`, `birth_date`, `locale`, `document_type`, `document_number`, `created_at`, `updated_at` (y `deleted_at` en una baja). **`document_number` va enmascarado** (solo los últimos cuatro caracteres a la vista, `•••••1234`; un número de cuatro o menos, entero oculto): la API de alumnado nunca devuelve el documento completo (decisión del 2026-11-09). Los datos de la persona se leen de `Core` (`PersonDirectory`); `alum` no los guarda (`RN-ALUM-02`). Desde `1.15-b`, `enrollments[]` (las de cursos ilegibles se omiten, `RN-ALUM-23`) se acota por el ámbito de `matricula.leer`: sin ese permiso sale `[]`; `emergency_contact` y `guardians[]` **solo** si el sujeto tiene `vinculo_tutor.leer` con un ámbito que alcance al alumno (se leen de `FamilyMembership`; si no, el campo no aparece) [DERIVADA: no ampliar por la puerta de `alum` lo que `fam_unit` protege]; `has_photo` (`1.15-c`, `OPEN-ALUM-08`, decisión del usuario 2026-11-11): **solo el booleano**; la URL firmada **no** va en la ficha, solo en `GET /students/{public_id}/photo` (§4).
 - **Errores**: `404` si no existe, es de otro centro, está dado de baja o el sujeto no lo alcanza (idéntico, `RN-ALUM-64`).
 
 ### `PATCH /students/{public_id}`
@@ -76,7 +76,7 @@ Errores comunes: `401`; `403` sin permiso; `403 urn:pge:error:module-disabled`; 
 
 ### `DELETE /enrollments/{public_id}`
 - **Permiso**: `matricula.eliminar` · `todos` (anulación, `RN-ALUM-25`)
-- **Errores**: `409 alum.conflict.has_dependents` cuando un consumidor registre veto (ninguno en `1.15`).
+- **Errores**: `409 alum.conflict.has_dependents` cuando un consumidor registre veto (ninguno en `1.15-b`). Las solicitudes de cambio de grupo no impiden anular una matrícula; ver `RN-ALUM-47` para el veto sobre grupos.
 
 ## 3. Cambio de grupo (`1.15-c`, `OPEN-ALUM-13` = A)
 
@@ -91,13 +91,24 @@ Errores comunes: `401`; `403` sin permiso; `403 urn:pge:error:module-disabled`; 
 | `POST /group-change-requests/{public_id}/rejection` | `matricula.aprobar` · `todos` | `decision_note` obligatoria [DERIVADA]; el solicitante puede rechazar la suya. `409 request_closed` |
 | `POST /group-change-requests/{public_id}/cancellation` | `matricula.actualizar` · `todos` | Solo `pendiente`; registra quién cancela en `decided_by` (`RN-ALUM-42`). `409 request_closed` |
 
-## 4. Fotografía (`1.15-c`, condicionado a `OPEN-ALUM-08`)
+**Implementación (`1.15-c` T2a)** [DERIVADA donde se indica]:
+- **Cuerpos**: `POST /group-change-requests` → `enrollment` y `to_group` (`public_id`) y `reason` (1-500, obligatorio); `approval`, `rejection` y `cancellation` → `decision_note` (1-500; **obligatoria** solo en `rejection`, opcional en las otras dos). Los textos se recortan, sin caracteres de control salvo salto de línea y tabulador (`INV-010`).
+- **Recurso** [DERIVADA: la especificación no fijaba su forma]: `public_id`, `enrollment {public_id, student {public_id, display_name}}`, `academic_year {public_id, code}`, `from_group` y `to_group {public_id, code, name}`, `reason`, `status`, `requested_by` y `decided_by` (`{public_id, display_name}` o `null`), `decided_at`, `decision_note`, `created_at`, `updated_at`. Listado paginado por página, la más reciente primero (desempate por `id`). `201` con `Location`.
+- **Errores `422`** (`alum.validation.*`): `request_already_pending` (en `enrollment`), `group_not_in_course` (en `to_group`; también destino igual al origen), `parent_not_found` (grupo inexistente o ilegible), `enrollment_not_active`, `enrollment_without_group`, `reason_invalid`, `decision_note_required`, `decision_note_invalid`, `required`. Matrícula o solicitud inexistente, de otro centro, ilegible o fuera de ámbito: `404`.
+- **Errores `409`** (`alum.conflict.*`): `request_closed` (en `request`), `enrollment_changed` (en `enrollment`; aprobar con la matrícula en baja, anulada o ya no en el grupo de origen); y `urn:pge:error:academic-year-closed` (curso cerrado; `404` si el actor no puede leerlo, #598). **`403 alum.forbidden.self_approval`**: el solicitante intenta aprobar la suya.
+- **Veto de grupos** (`RN-ALUM-47`): `DELETE /groups/{id}` en `acad` ⇒ `409 acad.conflict.has_dependents` con `group_change_requests` si hay solicitudes `pendiente` de origen o destino.
+
+## 4. Fotografía (`1.15-c`, `OPEN-ALUM-08` = A)
 
 | Verbo y ruta | Permiso · ámbito | Notas |
 |--------------|------------------|-------|
-| `PUT /students/{public_id}/photo` | `alumno.actualizar` · `todos` | `multipart/form-data`; sustituye (`RN-ALUM-50`); `422` tipo o tamaño |
-| `DELETE /students/{public_id}/photo` | `alumno.actualizar` · `todos` | `204` |
-| `GET /students/{public_id}/photo` | `alumno.leer` · `todos`, `grupo`, `unidad_familiar` | Devuelve URL firmada de caducidad corta, nunca el binario por la API; registra `read` (`RN-ALUM-52`) |
+| `PUT /students/{public_id}/photo` | `alumno.actualizar` · `todos` | `multipart/form-data`, campo `file`; sustituye (`RN-ALUM-50`); `200 {"has_photo": true}`; `422` tipo o tamaño |
+| `DELETE /students/{public_id}/photo` | `alumno.actualizar` · `todos` | `204`; idempotente (sin foto también `204`) |
+| `GET /students/{public_id}/photo` | `alumno.leer` · `todos`, `grupo`, `unidad_familiar` | `200 {"url", "expires_at"}` (URL firmada de 5 minutos, `Cache-Control: no-store`), nunca el binario por la API; registra `read` (`RN-ALUM-52`) |
+
+- **Errores `422`** (`alum.photo.*`, en `errors.file`; **todos** son `422`, no `413` ni `415` como en `fam_unit`: `CA-ALUM-056`): `file_required` (sin fichero), `type_unsupported` (tipo real distinto de JPEG o PNG: SVG, HEIC, WebP...), `invalid_image` (el contenido no coincide con la extensión, no se puede leer o supera los píxeles de entrada o las dimensiones) y `too_large` (supera `alum.photo.max_bytes`, 5 MB). Alumno inexistente, de otro centro o dado de baja: `404` antes que cualquier `422`. Con el almacenamiento caído, `PUT` es `503` con `Retry-After` y no escribe nada.
+- **`GET`**: `404` idéntico para alumno fuera de ámbito, inexistente, de otro centro, dado de baja o **sin foto** (`RN-ALUM-64`), sin fila `read`. Límite de **300 lecturas por centro y usuario y hora** (`alum.photo.read_rate_limit`): superado, `429` con `Retry-After` y `alum.errors.photo_read_rate_limited`. La fila `read` (`alum_student_photo`, contexto `purpose`, `entries` y `student` con el ULID del alumno; sin nombre ni clave de objeto) se escribe **antes** de devolver la URL.
+- La imagen guardada es una **nueva** (EXIF aplicado y descartado, lado mayor <= 1024 px, sin metadatos), en `tenants/<centro>/alum/student-photos/<ULID>.<ext>`. El original no se guarda.
 
 ## 5. Paginación, filtrado y ordenación
 

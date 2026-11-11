@@ -49,16 +49,16 @@ function vetoDelete(object $tenant, object $admin, string $path)
     return test()->actingAs($admin)->deleteJson(Api::url($tenant, $path));
 }
 
-test('RN-ACAD-21: el registro de vetos de borrado es un singleton y solo trae los dos vetos de alum (grupo y curso de etapa)', function (): void {
+test('RN-ACAD-21: el registro de vetos de borrado es un singleton y solo trae los tres vetos de alum (matrículas de grupo y de curso de etapa, y solicitudes de cambio de grupo, RN-ALUM-47)', function (): void {
     $registry = app(StructureDeletionVetoRegistry::class);
 
     expect(array_map(fn (StructureDeletionVeto $v): array => [$v->moduleCode(), $v->appliesTo()], $registry->all()))
-        ->toBe([['alum', StructureEntity::Group], ['alum', StructureEntity::Course]])
+        ->toBe([['alum', StructureEntity::Group], ['alum', StructureEntity::Course], ['alum', StructureEntity::Group]])
         ->and(app(StructureDeletionVetoRegistry::class))->toBe($registry);
 
     $registry->register(vetoDouble('alum', StructureEntity::Group));
 
-    expect($registry->all())->toHaveCount(3);
+    expect($registry->all())->toHaveCount(4);
 });
 
 test('CA-ALUM-027 RN-ALUM-26 RN-ACAD-21: un veto de curso de etapa bloquea su borrado con enrollments y no el del grupo; son independientes', function (): void {

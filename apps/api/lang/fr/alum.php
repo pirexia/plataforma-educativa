@@ -34,13 +34,31 @@ return [
         'withdrawn_before_enrolled' => 'La date de radiation ne peut pas être antérieure à la date d\'inscription.',
         'export_query_not_allowed' => 'Une exportation ne peut pas utiliser de recherche : utilisez uniquement les filtres de la liste.',
         'status_invalid' => 'Le statut doit être activa ou baja.',
+        'request_already_pending' => 'L\'inscription a déjà une demande de changement de groupe en attente.',
+        'reason_invalid' => 'Le motif doit comporter entre 1 et 500 caractères, sans caractères de contrôle.',
+        'decision_note_required' => 'Il faut indiquer le motif du refus lorsque vous rejetez une demande.',
+        'decision_note_invalid' => 'La note de décision doit comporter entre 1 et 500 caractères, sans caractères de contrôle.',
+        'enrollment_not_active' => 'Le changement de groupe ne peut être demandé que pour une inscription active.',
+        'enrollment_without_group' => 'L\'inscription n\'a pas de groupe : attribuez-lui-en un directement, sans demande.',
+    ],
+    'photo' => [
+        'file_required' => 'Une image doit être jointe dans le champ « file ».',
+        'type_unsupported' => 'Seules les photographies au format JPEG ou PNG sont acceptées.',
+        'invalid_image' => 'Le contenu du fichier n’est pas une image JPEG ou PNG valide, ou il dépasse les dimensions maximales autorisées.',
+        'too_large' => 'L’image dépasse la taille maximale autorisée.',
     ],
     'errors' => [
+        'photo_read_rate_limited' => 'Vous avez atteint la limite de consultations de photographies d’élèves. Veuillez réessayer dans environ :minutes minutes.',
         'export_rate_limited' => 'Vous avez atteint la limite d\'exportations d\'inscriptions. Réessayez dans environ :minutes minutes.',
     ],
     'conflict' => [
         'cannot_restore' => 'Cet élève ne peut pas être restauré : la personne n\'existe plus ou possède déjà une autre fiche d\'élève.',
         'already_withdrawn' => 'L\'inscription est déjà radiée.',
         'has_active_enrollments' => 'Un élève ayant des inscriptions actives ne peut pas être radié.',
+        'request_closed' => 'La demande est déjà traitée et ne peut plus être modifiée.',
+        'enrollment_changed' => 'L\'inscription a changé depuis la demande : elle n\'est plus active ou n\'est plus dans le groupe d\'origine.',
+    ],
+    'forbidden' => [
+        'self_approval' => 'Vous ne pouvez pas approuver une demande que vous avez faite vous-même.',
     ],
 ];

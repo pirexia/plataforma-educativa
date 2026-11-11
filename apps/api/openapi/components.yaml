@@ -2108,10 +2108,11 @@ components:
     Student:
       type: object
       description: >
-        REQ-ALUM/api.md §1: ficha del alumno (con `enrollments[]` desde `1.15-b`; sin `emergency_contact`, `guardians[]` ni
-        `photo`). Los datos de la persona vienen de `Core`. **`document_number` va enmascarado** (solo los cuatro últimos
+        REQ-ALUM/api.md §1: ficha del alumno (con `enrollments[]` desde `1.15-b` y `has_photo` desde `1.15-c`; sin `emergency_contact`
+        ni `guardians[]`). **Nunca lleva la URL de la fotografía**: solo el booleano `has_photo`; la URL firmada sale únicamente de
+        `GET /students/{publicId}/photo`. Los datos de la persona vienen de `Core`. **`document_number` va enmascarado** (solo los cuatro últimos
         caracteres a la vista): la API de alumnado nunca devuelve el documento completo.
-      required: [public_id, person, display_name, given_name, family_name_1, family_name_2, birth_date, locale, document_type, document_number, enrollments, created_at, updated_at]
+      required: [public_id, person, display_name, given_name, family_name_1, family_name_2, birth_date, locale, document_type, document_number, has_photo, enrollments, created_at, updated_at]
       properties:
         public_id: { $ref: '#/components/schemas/PublicId' }
         person:
@@ -2138,6 +2139,9 @@ components:
         document_number:
           description: Número **enmascarado** (`•••••1234`), o `null`.
           type: [string, 'null']
+        has_photo:
+          description: '`true` si el alumno tiene una fotografía viva (`1.15-c`, `RN-ALUM-50`). Solo el booleano, nunca la URL.'
+          type: boolean
         enrollments:
           type: array
           description: >
@@ -2230,6 +2234,92 @@ components:
       properties:
         withdrawn_on: { type: string, format: date, description: 'No anterior a `enrolled_on`.' }
         withdrawal_reason: { type: string, enum: [traslado, baja_voluntaria, otro] }
+
+    GroupChangeRequestStatus:
+      type: string
+      description: Estado de la solicitud de cambio de grupo (RN-ALUM-42). Enumerado **extensible**.
+      enum: [pendiente, aprobada, rechazada, cancelada]
+      x-extensible-enum: true
+
+    GroupChangeRequest:
+      type: object
+      description: >
+        REQ-ALUM/api.md §3. Solicitud de cambio de grupo de una matrícula (RN-ALUM-40 a -46). `enrollment`, `academic_year`,
+        `from_group`, `to_group`, `requested_by` y `decided_by` son resúmenes. `decided_by` y `decided_at` son `null` mientras
+        está `pendiente`; en `cancelada`, `decided_by` es quien cancela. `reason` y `decision_note` no se registran en la
+        auditoría (RN-ALUM-45).
+      required: [public_id, enrollment, academic_year, from_group, to_group, reason, status, requested_by, decided_by, decided_at, decision_note, created_at, updated_at]
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        enrollment:
+          type: object
+          required: [public_id, student]
+          properties:
+            public_id: { $ref: '#/components/schemas/PublicId' }
+            student:
+              type: object
+              required: [public_id, display_name]
+              properties:
+                public_id: { $ref: '#/components/schemas/PublicId' }
+                display_name: { type: string, description: 'Nombre visible; vacío si la persona está dada de baja.' }
+        academic_year:
+          type: object
+          required: [public_id, code]
+          properties:
+            public_id: { $ref: '#/components/schemas/PublicId' }
+            code: { type: string, example: '2026-2027' }
+        from_group: { $ref: '#/components/schemas/GroupChangeRequestGroup' }
+        to_group: { $ref: '#/components/schemas/GroupChangeRequestGroup' }
+        reason: { type: string, minLength: 1, maxLength: 500 }
+        status: { $ref: '#/components/schemas/GroupChangeRequestStatus' }
+        requested_by: { $ref: '#/components/schemas/GroupChangeRequestUser' }
+        decided_by: { $ref: '#/components/schemas/GroupChangeRequestUser' }
+        decided_at:
+          oneOf:
+            - { type: string, format: date-time }
+            - { type: 'null' }
+        decision_note: { type: [string, 'null'], maxLength: 500 }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    GroupChangeRequestGroup:
+      description: Resumen del grupo (`GroupDirectory`).
+      type: object
+      required: [public_id, code, name]
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        code: { type: string }
+        name: { type: string }
+
+    GroupChangeRequestUser:
+      description: Usuario que solicita o decide, o `null` (`decided_by` de una solicitud `pendiente`). `display_name` vacío si fue borrado.
+      oneOf:
+        - type: object
+          required: [public_id, display_name]
+          properties:
+            public_id: { $ref: '#/components/schemas/PublicId' }
+            display_name: { type: string }
+        - { type: 'null' }
+
+    GroupChangeRequestCreate:
+      type: object
+      required: [enrollment, to_group, reason]
+      properties:
+        enrollment: { allOf: [{ $ref: '#/components/schemas/PublicId' }], description: 'Matrícula `activa` y con grupo.' }
+        to_group: { allOf: [{ $ref: '#/components/schemas/PublicId' }], description: 'Distinto del grupo actual y del mismo curso de etapa (RN-ALUM-40).' }
+        reason: { type: string, minLength: 1, maxLength: 500 }
+
+    GroupChangeRequestDecision:
+      type: object
+      description: Aprobar y cancelar. El cuerpo es opcional.
+      properties:
+        decision_note: { type: string, minLength: 1, maxLength: 500 }
+
+    GroupChangeRequestRejection:
+      type: object
+      required: [decision_note]
+      properties:
+        decision_note: { type: string, minLength: 1, maxLength: 500, description: 'Obligatoria al rechazar.' }
 
     StudentCreate:
       type: object
@@ -2627,6 +2717,21 @@ components:
       properties:
         url: { type: string, format: uri }
         expires_at: { type: string, format: date-time }
+
+    StudentPhotoUrl:
+      type: object
+      description: 'URL firmada de caducidad corta (5 minutos por defecto) de la fotografía de un alumno, generada en cada respuesta y nunca cacheable (RN-ALUM-51, RN-ALUM-52).'
+      required: [url, expires_at]
+      properties:
+        url: { type: string, format: uri }
+        expires_at: { type: string, format: date-time }
+
+    StudentPhotoStored:
+      type: object
+      description: 'Respuesta de `PUT /students/{publicId}/photo`: la fotografía queda guardada (RN-ALUM-50).'
+      required: [has_photo]
+      properties:
+        has_photo: { type: boolean, enum: [true] }
 
     PickupAuthorization:
       type: object

@@ -516,6 +516,84 @@ final class EnrollmentService
         });
     }
 
+    /**
+     * 1.15-c (`RN-ALUM-40`, `-43`, `AR-10`): matrícula sobre la que se solicita o decide un cambio de grupo, para `GroupChangeService`
+     * (escrituras, ámbito `todos`). Como las demás escrituras: `404` si no existe, es de otro centro o su curso académico no es
+     * legible para el actor (`RN-ALUM-23`, `-64`).
+     */
+    public function findForGroupChange(string $publicId, User $actor): Enrollment
+    {
+        return $this->findWritable($publicId, $actor);
+    }
+
+    /**
+     * 1.15-c: orden de bloqueo de las escrituras de matrícula para el cambio de grupo, el mismo que `update`: curso académico
+     * `FOR SHARE` (cerrado ⇒ `AcademicYearReadOnlyException`) y matrícula `FOR UPDATE`, releída. Solo dentro de una
+     * transacción. La matrícula es `null` si ya no está viva (anulada): quien aprueba lo trata como `enrollment_changed`;
+     * rechazar o cancelar una solicitud pendiente sigue siendo posible.
+     *
+     * @return array{0: AcademicYearSummary, 1: ?Enrollment}
+     */
+    public function lockForGroupChange(int $enrollmentId, int $yearId): array
+    {
+        $year = $this->lockedYear($yearId);
+
+        if ($year->isReadOnly()) {
+            throw new AcademicYearReadOnlyException($year);
+        }
+
+        return [$year, Enrollment::query()->whereKey($enrollmentId)->lockForUpdate()->first()];
+    }
+
+    /**
+     * 1.15-c (`RN-ALUM-43`, `AR-10`): **único camino sancionado** para cambiar el grupo de una matrícula que ya lo tiene
+     * (`update` sigue prohibiéndolo, `RN-ALUM-28`). `$locked` es la matrícula ya bloqueada `FOR UPDATE` por
+     * `lockForGroupChange()` en la transacción del llamador. Si ya no está `activa` o ya no está en `$fromGroupId` ⇒
+     * `409 alum.conflict.enrollment_changed` y no se escribe nada; el grupo de destino debe seguir vivo (`FOR SHARE`) y ser del
+     * curso de etapa de la matrícula.
+     */
+    public function moveToGroup(Enrollment $locked, int $fromGroupId, int $toGroupId): void
+    {
+        if ($locked->status !== 'activa' || $locked->group_id === null || (int) $locked->group_id !== $fromGroupId) {
+            throw AlumErrors::conflict('enrollment', 'alum.conflict.enrollment_changed');
+        }
+
+        $this->assertStructureAlive((int) $locked->course_id, $toGroupId);
+
+        $destination = $this->groups->findById($toGroupId);
+
+        if ($destination === null || $destination->courseId !== (int) $locked->course_id) {
+            throw AlumErrors::invalid('to_group', 'alum.validation.group_not_in_course');
+        }
+
+        $locked->group_id = $toGroupId;
+        $locked->save();
+    }
+
+    /**
+     * 1.15-c: matrículas por id interno (sin ámbito: el llamador ya acotó las solicitudes que las referencian), para
+     * presentar las solicitudes de cambio de grupo.
+     *
+     * @param  list<int>  $ids
+     * @return array<int, Enrollment>
+     */
+    public function byIds(array $ids): array
+    {
+        return $ids === [] ? [] : Enrollment::query()->withTrashed()->whereIn('id', $ids)->get()->keyBy('id')->all();
+    }
+
+    /**
+     * 1.15-c (`RN-ALUM-46`): subconsulta (`SELECT id`) de las matrículas vivas cuyo grupo está en `$groupIds`, para el resolutor
+     * `grupo` de las solicitudes de cambio de grupo (la matrícula de la solicitud, sea cual sea su estado).
+     *
+     * @param  list<int>  $groupIds
+     * @return Builder<Enrollment>
+     */
+    public function idsQueryInGroups(array $groupIds): Builder
+    {
+        return Enrollment::query()->whereIn('group_id', $groupIds)->select('id');
+    }
+
     /** `RN-ALUM-05`: ¿tiene el alumno alguna matrícula `activa` viva? */
     public function hasActiveEnrollments(int $studentId): bool
     {

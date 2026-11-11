@@ -6,6 +6,7 @@ use App\Models\Person;
 use App\Models\User;
 use App\Support\Tenancy\Tenant;
 use App\Support\Tenancy\TenantContext;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -49,6 +50,16 @@ final class AlumTestHelpers
         resetSessionState();
 
         return test()->actingAs($actor)->json(strtoupper($method), coreApiUrl($tenant->slug, $path), $body, $headers);
+    }
+
+    /** `PUT /students/{id}/photo` multipart con el campo `file` (`$bytes` por defecto, un JPEG pequeño válido). */
+    public static function putPhoto(object $tenant, User $actor, string $studentPublicId, ?string $bytes = null, string $name = 'foto.jpg'): TestResponse
+    {
+        resetSessionState();
+
+        return test()->actingAs($actor)->call('PUT', coreApiUrl($tenant->slug, "/students/{$studentPublicId}/photo"), [], [], [
+            'file' => UploadedFile::fake()->createWithContent($name, $bytes ?? ImageFixtures::jpeg()),
+        ], ['HTTP_ACCEPT' => 'application/json']);
     }
 
     /** Cuerpo válido de alta; `$overrides` lo completa o lo sustituye. */

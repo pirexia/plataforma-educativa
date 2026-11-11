@@ -3,9 +3,13 @@
 use App\Models\AuditLog;
 use App\Modules\Acad\Application\FacilityBookingService;
 use App\Modules\Acad\Domain\Models\FacilityBooking;
+use App\Modules\Alum\Application\GroupChangeService;
+use App\Modules\Alum\Application\StudentPhotoService;
 use App\Modules\Alum\Application\StudentService;
 use App\Modules\Alum\Domain\Models\Enrollment;
+use App\Modules\Alum\Domain\Models\GroupChangeRequest;
 use App\Modules\Alum\Domain\Models\Student;
+use App\Modules\Alum\Domain\Models\StudentPhoto;
 use App\Modules\Core\Infrastructure\EloquentAuditQuery;
 use App\Modules\Core\Infrastructure\EloquentExportRequestService;
 use App\Modules\Core\Infrastructure\Jobs\GenerateAuditLogExport;
@@ -127,22 +131,29 @@ function scopedResourceMap(): array
         // admite `unidad_familiar`. Un solo modelo y un solo servicio sancionado (`StudentService`, T2 de 1.15-a: hasta
         // entonces el test de existencia de ficheros del mapa falla a propósito, `funcional.md §15`). 1.15-b y 1.15-c
         // añaden `matricula` (`Enrollment`, `GroupChangeRequest`).
+        // 1.15-c (T2b, `OPEN-ALUM-08` = A): `StudentPhoto` y su servicio sancionado `StudentPhotoService` (AR-10: la lectura se
+        // acota con `ScopedQuery` sobre `Student` y la foto se busca después por `student_id`).
         'alumno' => [
-            'models' => [Student::class],
+            'models' => [Student::class, StudentPhoto::class],
             'files' => [
                 'Modules/Alum/Application/StudentService.php',
+                'Modules/Alum/Application/StudentPhotoService.php',
             ],
         ],
         // 1.15-b (REQ-ALUM/permisos.md §3.1, ampliación del mapa con la especificación, funcional.md §15): `matricula.leer`
         // admite `grupo` y `unidad_familiar`. `Enrollment` y dos ficheros sancionados: `EnrollmentService` (T2, ya
         // construido: el test de existencia de ficheros del mapa lo comprueba) y el
         // veto de borrado de `acad` (RN-ALUM-26), que cuenta matrículas vivas del centro entero, sin ámbito de actor.
-        // `GroupChangeRequest` entra con 1.15-c.
+        // 1.15-c (T2a, ampliación del mapa con la especificación): `GroupChangeRequest` y sus dos ficheros sancionados,
+        // `GroupChangeService` (listado y detalle con `ScopedQuery`, `RN-ALUM-46`) y el veto de grupos con solicitudes
+        // pendientes (`RN-ALUM-47`, cuenta las del centro entero, sin ámbito de actor).
         'matricula' => [
-            'models' => [Enrollment::class],
+            'models' => [Enrollment::class, GroupChangeRequest::class],
             'files' => [
                 'Modules/Alum/Application/EnrollmentService.php',
                 'Modules/Alum/Infrastructure/EnrollmentStructureDeletionVeto.php',
+                'Modules/Alum/Application/GroupChangeService.php',
+                'Modules/Alum/Infrastructure/GroupChangeRequestStructureDeletionVeto.php',
             ],
         ],
     ];
@@ -268,9 +279,11 @@ foreach ([FamilyUnitService::class, GuardianService::class, FamilyUnitStudentSer
         ->toUse(ScopedQuery::class);
 }
 
-arch('AR-10 CA-056-11 CA-ALUM-062: el fichero sancionado StudentService usa ScopedQuery')
-    ->expect(StudentService::class)
-    ->toUse(ScopedQuery::class);
+foreach ([StudentService::class, StudentPhotoService::class, GroupChangeService::class] as $sanctionedClass) {
+    arch("AR-10 CA-056-11 CA-ALUM-062: el fichero sancionado {$sanctionedClass} usa ScopedQuery")
+        ->expect($sanctionedClass)
+        ->toUse(ScopedQuery::class);
+}
 
 test('AR-10 CA-056-11: las clases sancionadas de los arch() coinciden con los ficheros del mapa', function (): void {
     $toPath = static fn (string $c): string => str_replace('\\', '/', substr($c, strlen('App\\'))).'.php';
@@ -281,7 +294,7 @@ test('AR-10 CA-056-11: las clases sancionadas de los arch() coinciden con los fi
         ->and(array_map($toPath, [GuardianLinkService::class]))->toBe(scopedResourceMap()['vinculo_tutor']['files'])
         ->and(array_map($toPath, [ImageConsentService::class]))->toBe(scopedResourceMap()['consentimiento_imagen']['files'])
         ->and(array_map($toPath, [PickupListService::class]))->toBe(scopedResourceMap()['autorizado_recogida']['files'])
-        ->and(array_map($toPath, [StudentService::class]))->toBe(scopedResourceMap()['alumno']['files']);
+        ->and(array_map($toPath, [StudentService::class, StudentPhotoService::class]))->toBe(scopedResourceMap()['alumno']['files']);
 });
 
 test('AR-10 CA-056-14 control negativo: la función detecta consulta no sancionada y no detecta ::class, escrituras ni comentarios', function (): void {

@@ -11,6 +11,8 @@
 
 use App\Http\Middleware\RequireAuthenticatedUser;
 use App\Modules\Alum\Http\Controllers\EnrollmentsController;
+use App\Modules\Alum\Http\Controllers\GroupChangeRequestsController;
+use App\Modules\Alum\Http\Controllers\StudentPhotosController;
 use App\Modules\Alum\Http\Controllers\StudentsController;
 use Illuminate\Support\Facades\Route;
 
@@ -24,6 +26,11 @@ Route::middleware([RequireAuthenticatedUser::class, 'module-enabled:alum'])->gro
     Route::delete('/students/{publicId}', [StudentsController::class, 'destroy'])->middleware('permission:alumno.eliminar')->name('alum.students.destroy');
     Route::post('/students/{publicId}/restore', [StudentsController::class, 'restore'])->middleware('permission:alumno.eliminar')->name('alum.students.restore');
 
+    // api.md §4 (1.15-c): fotografía del alumno. Sin `Idempotency-Key`: el `PUT` sustituye y el `DELETE` es idempotente.
+    Route::put('/students/{publicId}/photo', [StudentPhotosController::class, 'put'])->middleware('permission:alumno.actualizar')->name('alum.students.photo.put');
+    Route::get('/students/{publicId}/photo', [StudentPhotosController::class, 'show'])->middleware('permission:alumno.leer')->name('alum.students.photo.show');
+    Route::delete('/students/{publicId}/photo', [StudentPhotosController::class, 'destroy'])->middleware('permission:alumno.actualizar')->name('alum.students.photo.destroy');
+
     // api.md §2 (1.15-b): matrícula. Sin `Idempotency-Key` (`RN-ALUM-27`): el índice único de `RN-ALUM-21` y la transición
     // de estado hacen seguro el reintento.
     // La exportación se declara antes que las rutas con `{publicId}` (`api.md §6`).
@@ -34,4 +41,13 @@ Route::middleware([RequireAuthenticatedUser::class, 'module-enabled:alum'])->gro
     Route::patch('/enrollments/{publicId}', [EnrollmentsController::class, 'update'])->middleware('permission:matricula.actualizar')->name('alum.enrollments.update');
     Route::post('/enrollments/{publicId}/withdrawal', [EnrollmentsController::class, 'withdraw'])->middleware('permission:matricula.actualizar')->name('alum.enrollments.withdraw');
     Route::delete('/enrollments/{publicId}', [EnrollmentsController::class, 'destroy'])->middleware('permission:matricula.eliminar')->name('alum.enrollments.destroy');
+
+    // api.md §3 (1.15-c): solicitudes de cambio de grupo. Sin `Idempotency-Key`: el único de solicitud pendiente
+    // (`RN-ALUM-41`) y las transiciones de estado hacen seguro el reintento.
+    Route::get('/group-change-requests', [GroupChangeRequestsController::class, 'index'])->middleware('permission:matricula.leer')->name('alum.group-change-requests.index');
+    Route::post('/group-change-requests', [GroupChangeRequestsController::class, 'store'])->middleware('permission:matricula.actualizar')->name('alum.group-change-requests.store');
+    Route::get('/group-change-requests/{publicId}', [GroupChangeRequestsController::class, 'show'])->middleware('permission:matricula.leer')->name('alum.group-change-requests.show');
+    Route::post('/group-change-requests/{publicId}/approval', [GroupChangeRequestsController::class, 'approve'])->middleware('permission:matricula.aprobar')->name('alum.group-change-requests.approve');
+    Route::post('/group-change-requests/{publicId}/rejection', [GroupChangeRequestsController::class, 'reject'])->middleware('permission:matricula.aprobar')->name('alum.group-change-requests.reject');
+    Route::post('/group-change-requests/{publicId}/cancellation', [GroupChangeRequestsController::class, 'cancel'])->middleware('permission:matricula.actualizar')->name('alum.group-change-requests.cancel');
 });

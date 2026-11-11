@@ -5,6 +5,7 @@ namespace App\Modules\Alum\Infrastructure;
 use App\Models\User;
 use App\Modules\Alum\Application\StudentService;
 use App\Modules\Alum\Domain\Models\Enrollment;
+use App\Modules\Alum\Domain\Models\GroupChangeRequest;
 use App\Modules\Core\Domain\PersonDirectory;
 use App\Modules\FamUnit\Domain\FamilyMembership;
 use App\Support\Authorization\Contracts\ScopeResolver;
@@ -18,8 +19,8 @@ use Illuminate\Database\Eloquent\Builder;
  * `AlumnoUnidadFamiliarScopeResolver`. Sujeto sin persona, sin faceta de tutor o sin vínculos activos ⇒ ninguna fila.
  * Sin caché entre peticiones. Un modelo inesperado también falla en cerrado.
  *
- * Sobre `GroupChangeRequest` (1.15-c) este ámbito resolverá a conjunto vacío (`RN-ALUM-46`): hoy cualquier modelo que
- * no sea `Enrollment` ya da vacío.
+ * Sobre `GroupChangeRequest` (1.15-c) este ámbito resuelve a conjunto vacío (`RN-ALUM-46`, [DERIVADA]: trámite interno del
+ * centro; la familia ve el grupo resultante en la matrícula): lista vacía y detalle `404`.
  *
  * No consulta `Student` (`AR-10`): pide la subconsulta de alumnos al servicio sancionado, de forma perezosa.
  */
@@ -44,6 +45,11 @@ final class MatriculaUnidadFamiliarScopeResolver implements ScopeResolver
     public function constrain(Builder $query, User $subject): Builder
     {
         $model = $query->getModel();
+
+        // `RN-ALUM-46`: explícito, no un efecto del «modelo inesperado».
+        if ($model instanceof GroupChangeRequest) {
+            return $query->whereRaw('1 = 0');
+        }
 
         if (! $model instanceof Enrollment) {
             return $query->whereRaw('1 = 0');

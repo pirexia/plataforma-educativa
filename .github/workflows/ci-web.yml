@@ -68,7 +68,7 @@ jobs:
 
   e2e:
     name: Tests e2e (Playwright)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # fijada por #609
     steps:
       - uses: actions/checkout@v7
 

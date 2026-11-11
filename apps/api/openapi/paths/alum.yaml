@@ -1,7 +1,7 @@
-# REQ-ALUM (pasos 1.15-a y 1.15-b), docs/modulos/REQ-ALUM/api.md §1 y §2. Convenciones de ADR-038.
+# REQ-ALUM (pasos 1.15-a, 1.15-b y 1.15-c), docs/modulos/REQ-ALUM/api.md §1 a §4. Convenciones de ADR-038.
 # `1.15-a`: alumnado (listado, alta, ficha, corrección, baja y restauración). `1.15-b`: matrícula (listado, alta, detalle,
 # edición, baja y anulación), ámbito `grupo` y los filtros de matrícula de `GET /students`. La exportación de la lista de
-# clase (`1.15-b` T2c), el cambio de grupo y la fotografía (`1.15-c`) se documentan con su entrega.
+# clase (`1.15-b` T2c). `1.15-c`: solicitudes de cambio de grupo (api.md §3) y fotografía del alumno (api.md §4).
 paths:
   /api/v1/students:
     get:
@@ -102,7 +102,7 @@ paths:
         `404` idéntico (RN-ALUM-64). Nombres por partes, fecha de nacimiento e idioma de la persona (de `Core`); el
         documento de identidad va **enmascarado**, nunca completo. `enrollments[]` (desde `1.15-b`) lista las matrículas vivas
         del alumno con la forma de `Enrollment`; las de un curso cerrado que el sujeto no puede leer se omiten (RN-ALUM-23). El ámbito de `matricula.leer` acota `enrollments[]`: sin ese permiso sale `[]`.
-        Sin `emergency_contact`, `guardians[]` ni `photo`.
+        Sin `emergency_contact` ni `guardians[]`. Con `has_photo` (booleano; desde `1.15-c`): la URL de la fotografía **no** va en la ficha, solo en `GET /students/{publicId}/photo`.
       tags: ['Alum / Alumnado']
       security: [{ SessionCookie: [] }]
       responses:
@@ -179,6 +179,83 @@ paths:
         '403': { description: 'Sin el permiso (`403`) o módulo `alum` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
         '404': { $ref: '../components.yaml#/components/responses/NotFound' }
         '409': { $ref: '../components.yaml#/components/responses/Conflict' }
+
+  /api/v1/students/{publicId}/photo:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    put:
+      operationId: putStudentPhoto
+      summary: Sube o sustituye la fotografía del alumno
+      description: >
+        Permiso `alumno.actualizar`, ámbito `todos`. `multipart/form-data` con el campo `file`. La imagen se valida y se
+        **reprocesa en el servidor** (RN-ALUM-51, ADR-068 §5.3): solo JPEG o PNG por su contenido real (nunca SVG, HEIC ni WebP).
+        Todos los rechazos son `422` con el código en `errors.file`: `alum.photo.file_required`, `alum.photo.type_unsupported`,
+        `alum.photo.invalid_image` (el contenido no coincide con la extensión, no se puede leer o supera las dimensiones de
+        entrada) y `alum.photo.too_large` (5 MB por defecto, `config/alum.php`). Lo que se guarda es una imagen **nueva**
+        (orientación EXIF aplicada y descartada, lado mayor <= 1024 px, sin EXIF, XMP, IPTC ni perfiles) en el *bucket* privado bajo
+        `tenants/<centro>/alum/student-photos/<ULID>.<ext>`; el original no se guarda. Una fotografía viva por alumno: sustituir da
+        de baja la anterior en la misma transacción (RN-ALUM-50). Si el almacenamiento no responde, `503` sin escribir nada.
+        Prohibido cualquier tratamiento automatizado de la imagen. Alumno inexistente, de otro centro o dado de baja: `404`
+        (antes que cualquier `422`).
+      tags: ['Alum / Alumnado']
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        '200':
+          description: La fotografía queda guardada
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/StudentPhotoStored' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `alum` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+        '503': { description: 'Almacenamiento no disponible: no se escribe nada (`503`, `Retry-After`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+    get:
+      operationId: getStudentPhotoUrl
+      summary: URL firmada de la fotografía del alumno
+      description: >
+        Permiso `alumno.leer`, ámbito `todos`, `grupo` o `unidad_familiar`. Devuelve una URL **firmada de caducidad corta** (5
+        minutos por defecto), generada en cada respuesta, con `Cache-Control: no-store`; nunca el binario por la API. **Auditada**
+        (`read` sobre la fotografía, sin nombre ni clave de objeto, RN-ALUM-52) antes de devolver la URL y con **límite** de
+        lecturas (300 por centro y usuario y hora): superado, `429` con `Retry-After`. Alumno fuera de ámbito, inexistente, de
+        otro centro, dado de baja o sin fotografía: `404` idéntico (RN-ALUM-64) y sin fila de lectura.
+      tags: ['Alum / Alumnado']
+      security: [{ SessionCookie: [] }]
+      responses:
+        '200':
+          description: URL firmada
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/StudentPhotoUrl' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `alum` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '429': { $ref: '../components.yaml#/components/responses/TooManyRequests' }
+    delete:
+      operationId: deleteStudentPhoto
+      summary: Elimina la fotografía del alumno
+      description: >
+        Permiso `alumno.actualizar`, ámbito `todos`. Baja lógica de la fotografía viva; el objeto del *bucket* se borra al confirmar
+        la transacción y solo un fallo de borrado queda para el barrido de huérfanos (#606, `operacion.md`). Idempotente: sin fotografía también es `204`. Alumno inexistente: `404`.
+      tags: ['Alum / Alumnado']
+      security: [{ SessionCookie: [] }]
+      responses:
+        '204': { description: Fotografía dada de baja }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `alum` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
 
   /api/v1/enrollments:
     get:
@@ -381,6 +458,194 @@ paths:
           content:
             application/json:
               schema: { $ref: '../components.yaml#/components/schemas/Enrollment' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `alum` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../components.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+
+  # REQ-ALUM (paso 1.15-c, T2a), solicitudes de cambio de grupo (api.md §3).
+  /api/v1/group-change-requests:
+    get:
+      operationId: listGroupChangeRequests
+      summary: Lista las solicitudes de cambio de grupo de un curso académico
+      description: >
+        Permiso `matricula.leer`, ámbito `todos` o `grupo`; con `grupo`, las solicitudes cuya matrícula está en un grupo del
+        sujeto, y con `unidad_familiar` ninguna: lista vacía (RN-ALUM-46). `academic_year` es obligatorio (si falta,
+        `422 alum.validation.required`); un curso inexistente, o cerrado sin `curso_historico.leer`, es `404` (RN-ALUM-23).
+        `group` filtra por grupo de origen o de destino; uno que no resuelve a nada del curso da lista vacía. Orden: la más
+        reciente primero, desempate por `id`.
+      tags: ['Alum / Matrícula']
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - { name: academic_year, in: query, required: true, description: '`public_id` del curso académico.', schema: { $ref: '../components.yaml#/components/schemas/PublicId' } }
+        - { name: status, in: query, schema: { $ref: '../components.yaml#/components/schemas/GroupChangeRequestStatus' } }
+        - { name: group, in: query, description: '`public_id` del grupo de origen o de destino.', schema: { $ref: '../components.yaml#/components/schemas/PublicId' } }
+        - { $ref: '../components.yaml#/components/parameters/PageParam' }
+        - { $ref: '../components.yaml#/components/parameters/PerPageParam' }
+      responses:
+        '200':
+          description: Página de resultados
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '../components.yaml#/components/schemas/GroupChangeRequest' }
+                  meta: { $ref: '../components.yaml#/components/schemas/PageMeta' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `alum` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+    post:
+      operationId: createGroupChangeRequest
+      summary: Solicita el cambio de grupo de una matrícula
+      description: >
+        Permiso `matricula.actualizar`, ámbito `todos`. La matrícula debe estar `activa` y con grupo (`422
+        alum.validation.enrollment_not_active`, `enrollment_without_group`); el destino, distinto del origen, vivo y del mismo
+        curso de etapa (`422 group_not_in_course`, RN-ALUM-40). Con otra solicitud pendiente de la matrícula, `422
+        request_already_pending` (RN-ALUM-41). `reason` obligatorio, de 1 a 500 caracteres (`422 reason_invalid`); no se
+        registra en la auditoría (RN-ALUM-45). Matrícula inexistente, de otro centro o ilegible: `404`; grupo inexistente o
+        ilegible: `422 parent_not_found` (RN-ALUM-24). Sin `Idempotency-Key`: el único de solicitud pendiente protege el
+        reintento. En un curso cerrado, `409 urn:pge:error:academic-year-closed`.
+      tags: ['Alum / Matrícula']
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '../components.yaml#/components/schemas/GroupChangeRequestCreate' }
+      responses:
+        '201':
+          description: Solicitud creada en estado `pendiente`. Cabecera `Location` con su URL.
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/GroupChangeRequest' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `alum` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../components.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+
+  /api/v1/group-change-requests/{publicId}:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    get:
+      operationId: getGroupChangeRequest
+      summary: Detalle de una solicitud de cambio de grupo
+      description: >
+        Permiso `matricula.leer`, ámbito `todos` o `grupo`. Una solicitud fuera de ámbito, de otro centro, inexistente o de un
+        curso cerrado ilegible, y cualquiera con `unidad_familiar`, es `404` (RN-ALUM-46, RN-ALUM-64).
+      tags: ['Alum / Matrícula']
+      security: [{ SessionCookie: [] }]
+      responses:
+        '200':
+          description: La solicitud
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/GroupChangeRequest' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `alum` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+
+  /api/v1/group-change-requests/{publicId}/approval:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    post:
+      operationId: approveGroupChangeRequest
+      summary: Aprueba una solicitud de cambio de grupo
+      description: >
+        Permiso `matricula.aprobar`, ámbito `todos`. En una transacción, con la matrícula bloqueada: si sigue `activa` y en el
+        grupo de origen, cambia el grupo y cierra la solicitud; si no, `409 alum.conflict.enrollment_changed` y no se escribe
+        nada (RN-ALUM-43). El solicitante no puede aprobar la suya: `403 alum.forbidden.self_approval` (RN-ALUM-44). Una solicitud
+        ya resuelta: `409 alum.conflict.request_closed` (RN-ALUM-42). `decision_note` opcional, de 1 a 500 caracteres. En un curso
+        cerrado, `409 urn:pge:error:academic-year-closed`.
+      tags: ['Alum / Matrícula']
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '../components.yaml#/components/schemas/GroupChangeRequestDecision' }
+      responses:
+        '200':
+          description: La solicitud resuelta
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/GroupChangeRequest' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `alum` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../components.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+
+  /api/v1/group-change-requests/{publicId}/rejection:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    post:
+      operationId: rejectGroupChangeRequest
+      summary: Rechaza una solicitud de cambio de grupo
+      description: >
+        Permiso `matricula.aprobar`, ámbito `todos`. `decision_note` **obligatoria**, de 1 a 500 caracteres (`422
+        alum.validation.decision_note_required`). El solicitante puede rechazar la suya (RN-ALUM-44). Una solicitud ya
+        resuelta: `409 alum.conflict.request_closed` (RN-ALUM-42). No se registra la nota en la auditoría (RN-ALUM-45).
+      tags: ['Alum / Matrícula']
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '../components.yaml#/components/schemas/GroupChangeRequestRejection' }
+      responses:
+        '200':
+          description: La solicitud resuelta
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/GroupChangeRequest' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `alum` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../components.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+
+  /api/v1/group-change-requests/{publicId}/cancellation:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    post:
+      operationId: cancelGroupChangeRequest
+      summary: Cancela una solicitud de cambio de grupo
+      description: >
+        Permiso `matricula.actualizar`, ámbito `todos`. Solo una solicitud `pendiente`; `decided_by` es quien cancela, que
+        puede ser el solicitante (RN-ALUM-42). Una ya resuelta: `409 alum.conflict.request_closed`. `decision_note` opcional,
+        de 1 a 500 caracteres.
+      tags: ['Alum / Matrícula']
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '../components.yaml#/components/schemas/GroupChangeRequestDecision' }
+      responses:
+        '200':
+          description: La solicitud resuelta
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/GroupChangeRequest' }
         '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
         '403': { description: 'Sin el permiso (`403`) o módulo `alum` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
         '404': { $ref: '../components.yaml#/components/responses/NotFound' }

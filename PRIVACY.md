@@ -204,6 +204,20 @@ La revisión de código se apoya en Codex, servicio de **OpenAI**, que recibe el
 | Base legal e información al tercero (art. 6 y 14) | **Sin resolver** (`OPEN-FAM-UNIT-36`): condición previa a datos reales. Con datos de `REQ-SEED` no bloquea |
 | Copias de seguridad | Restaurar a un punto anterior a una retirada o revocación devolvería a alguien a la lista de un menor (`OPEN-FAM-UNIT-21`, `1.26`) |
 
+### 2.14 Fotografía del alumno (`REQ-ALUM-001`, paso 1.15-c, `OPEN-ALUM-08` = A)
+
+`alum` guarda **una fotografía viva por alumno** (`student_photos`, en un *bucket* privado). Es un dato identificativo de un **menor**, no de categoría especial; el tratamiento automatizado de la imagen (reconocimiento facial, comparación) no existe ni se admite. Mismo patrón que `pickup_photos` (§2.11).
+
+| Aspecto | Decisión |
+|---------|----------|
+| Minimización | Imagen **reprocesada** en el servidor: solo JPEG y PNG (tipo real por contenido), sin EXIF (incluida la geolocalización), XMP, IPTC ni perfiles; el original no se conserva |
+| Acceso | *Bucket* privado bajo el prefijo del centro; se sirve solo por **URL firmada de 5 minutos** a quien tiene `alumno.leer` con alcance sobre ese alumno; la API no expone la clave del objeto |
+| Auditoría | Alta, sustitución y baja en `audit_logs` (`Selective`: sin clave de objeto); cada **lectura** escribe una fila `read` sin nombre ni clave, con límite de **300 lecturas por hora** por centro y usuario |
+| Retención | Sustituir o dar de baja la foto borra su objeto del *bucket* al confirmar la transacción (la fila histórica soft-deleted permanece sin objeto; su purga física se decide en `1.23b`); dar de baja al alumno **purga** la fotografía viva (fila y objeto). Un fallo de borrado deja un objeto huérfano hasta el barrido #606 |
+| Base legal | Por definir con el catálogo de base legal (`OPEN-13`). **Condición previa a datos reales: visto bueno del DPO** (`REQ-ALUM/funcional.md`, `OPEN-ALUM-08`); hasta entonces solo datos de `REQ-SEED` |
+| Solicitudes de cambio de grupo (#607) | Los campos de texto libre `reason` y `decision_note` de las solicitudes de cambio de grupo **no deben contener datos de salud ni de convivencia** (categoría especial): no tienen el tratamiento de esos datos. Advertencia pendiente de control técnico (#607) |
+| Copias de seguridad | Sin particularidad respecto a §2.9; se anota para `REQ-BKP` (`1.26`) |
+
 ## 3. Registro de Actividades de Tratamiento (RAT) — plantilla
 
 Se completa cuando exista entidad jurídica responsable del tratamiento (`OPEN-07`). Estructura prevista:
