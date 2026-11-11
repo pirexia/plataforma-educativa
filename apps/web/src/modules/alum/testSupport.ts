@@ -96,6 +96,8 @@ export function page<T>(rows: T[]) {
 export function makeRouter(name: string, component: Component) {
   const routes = [
     ['alum-students', '/alumnado'],
+    ['alum-class-list', '/alumnado/listas'],
+    ['alum-group-changes', '/alumnado/cambios-de-grupo'],
     ['alum-student-detail', '/alumnado/:publicId'],
   ].map(([routeName, routePath]) => ({
     path: routePath!,

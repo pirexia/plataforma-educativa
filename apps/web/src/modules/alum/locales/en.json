@@ -2,7 +2,9 @@
   "alum": {
     "nav": {
       "students": "Students",
-      "backToStudents": "Back to students"
+      "backToStudents": "Back to students",
+      "classList": "Listas de clase",
+      "groupChanges": "Cambios de grupo"
     },
     "common": {
       "dash": "—",
@@ -67,6 +69,12 @@
         "traslado": "Traslado",
         "baja_voluntaria": "Baja voluntaria",
         "otro": "Otro"
+      },
+      "groupChangeStatus": {
+        "pendiente": "Pendiente",
+        "aprobada": "Aprobada",
+        "rechazada": "Rechazada",
+        "cancelada": "Cancelada"
       }
     },
     "students": {
@@ -219,6 +227,65 @@
       "reasonHint": "Obligatorio, hasta {max} caracteres.",
       "submit": "Enviar solicitud",
       "requested": "La solicitud de cambio de grupo se ha enviado."
+    },
+    "classList": {
+      "title": "Listas de clase",
+      "intro": "Matrículas del curso académico elegido. Filtre por curso, grupo y estado; el curso y el grupo son opcionales.",
+      "caption": "Lista de clase",
+      "readOnlyYear": "El curso académico seleccionado es de solo lectura: se puede exportar la lista, pero no solicitar cambios de grupo.",
+      "empty": {
+        "title": "No hay matrículas que mostrar",
+        "text": "Pruebe con otros filtros u otro curso académico."
+      }
+    },
+    "groupChanges": {
+      "title": "Solicitudes de cambio de grupo",
+      "intro": "Solicitudes del curso académico elegido. Las solicita la secretaría desde la ficha o la lista de clase; aquí se aprueban, se rechazan o se cancelan.",
+      "caption": "Solicitudes de cambio de grupo",
+      "readOnlyYear": "El curso académico seleccionado es de solo lectura: no se pueden aprobar, rechazar ni cancelar solicitudes.",
+      "noYear": "No hay un curso académico activo ni elegido: seleccione uno para ver sus solicitudes.",
+      "empty": {
+        "title": "No hay solicitudes que mostrar",
+        "text": "Pruebe con otros filtros u otro curso académico."
+      },
+      "filters": {
+        "status": "Estado",
+        "group": "Grupo (origen o destino)"
+      },
+      "columns": {
+        "student": "Alumno",
+        "fromGroup": "Grupo de origen",
+        "toGroup": "Grupo de destino",
+        "reason": "Motivo",
+        "status": "Estado",
+        "requestedBy": "Solicitada por",
+        "createdAt": "Fecha de solicitud",
+        "decisionNote": "Nota de la decisión"
+      },
+      "note": "Nota",
+      "noteHintOptional": "Opcional, hasta {max} caracteres.",
+      "noteHintRequired": "Obligatoria, hasta {max} caracteres.",
+      "approve": {
+        "title": "Aprobar la solicitud",
+        "description": "Se moverá a {student} del grupo {from} al grupo {to}. No puede aprobarla quien la solicitó.",
+        "submit": "Aprobar",
+        "action": "Aprobar",
+        "done": "La solicitud se ha aprobado."
+      },
+      "reject": {
+        "title": "Rechazar la solicitud",
+        "description": "Se rechazará el cambio de {student} del grupo {from} al grupo {to}. Indique el motivo del rechazo.",
+        "submit": "Rechazar",
+        "action": "Rechazar",
+        "done": "La solicitud se ha rechazado."
+      },
+      "cancel": {
+        "title": "Cancelar la solicitud",
+        "description": "Se cancelará el cambio de {student} del grupo {from} al grupo {to}.",
+        "submit": "Cancelar solicitud",
+        "action": "Cancelar",
+        "done": "La solicitud se ha cancelado."
+      }
     }
   }
 }

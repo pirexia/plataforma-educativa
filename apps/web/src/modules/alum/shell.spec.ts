@@ -18,6 +18,8 @@ describe('REQ-ALUM-001 (1.15-d T1): rutas de alumnado y entradas de navegación'
 
   it.each([
     ['alum-students', '/alumnado', ['alumno.leer']],
+    ['alum-class-list', '/alumnado/listas', ['matricula.leer']],
+    ['alum-group-changes', '/alumnado/cambios-de-grupo', ['matricula.leer']],
     ['alum-student-detail', '/alumnado/:publicId', ['alumno.leer']],
   ])('%s es %s, layout app y exige exactamente %j (nunca [])', (name, path, permissions) => {
     const route = routeOf(name)
@@ -27,15 +29,29 @@ describe('REQ-ALUM-001 (1.15-d T1): rutas de alumnado y entradas de navegación'
     expect(route.meta.permissions).toEqual(permissions)
   })
 
-  it('el listado lleva el selector de curso académico y la ficha no', () => {
+  it('el listado, la lista de clase y las solicitudes llevan el selector de curso académico y la ficha no', () => {
     expect(routeOf('alum-students').meta.academicYearScoped).toBe(true)
+    expect(routeOf('alum-class-list').meta.academicYearScoped).toBe(true)
+    expect(routeOf('alum-group-changes').meta.academicYearScoped).toBe(true)
     expect(routeOf('alum-student-detail').meta.academicYearScoped).toBeFalsy()
   })
 
-  it('declara solo la entrada «Alumnado», ligada a una ruta con permiso', () => {
-    expect(shell.navigation.map((entry) => entry.route)).toEqual(['alum-students'])
-    expect(shell.navigation.map((entry) => entry.labelKey)).toEqual(['alum.nav.students'])
-    expect(shell.navigation.map((entry) => entry.section)).toEqual(['administracion'])
+  it('declara las entradas de menú, ligadas a rutas con permiso, todas en administración', () => {
+    expect(shell.navigation.map((entry) => entry.route)).toEqual([
+      'alum-students',
+      'alum-class-list',
+      'alum-group-changes',
+    ])
+    expect(shell.navigation.map((entry) => entry.labelKey)).toEqual([
+      'alum.nav.students',
+      'alum.nav.classList',
+      'alum.nav.groupChanges',
+    ])
+    expect(shell.navigation.map((entry) => entry.section)).toEqual([
+      'administracion',
+      'administracion',
+      'administracion',
+    ])
   })
 
   it('no declara rutas con permissions [] ni bloques de panel', () => {
@@ -50,5 +66,10 @@ describe('REQ-ALUM-001 (1.15-d T1): rutas de alumnado y entradas de navegación'
   it('/alumnado/:publicId se resuelve a la ficha', () => {
     expect(router.resolve('/alumnado').name).toBe('alum-students')
     expect(router.resolve('/alumnado/01JB0000000000000000000001').name).toBe('alum-student-detail')
+  })
+
+  it('los segmentos fijos ganan al paramétrico (RN-ALUM-42..47)', () => {
+    expect(router.resolve('/alumnado/listas').name).toBe('alum-class-list')
+    expect(router.resolve('/alumnado/cambios-de-grupo').name).toBe('alum-group-changes')
   })
 })
