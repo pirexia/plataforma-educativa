@@ -79,6 +79,8 @@ Misma forma que `pickup_photos` de `fam_unit` (`REQ-FAM-UNIT/datos.md §8`, `ADR
 
 Restricciones: `UNIQUE (tenant_id, student_id) WHERE deleted_at IS NULL` (`RN-ALUM-50`). Sin `academic_year_id`.
 
+**Implementado (`1.15-c` T2b)**: área del *bucket* `alum/student-photos` (`tenants/<centro>/alum/student-photos/<ULID>.<ext>`); `StudentPhotoService` es el único que consulta la tabla (`AR-10`). La baja del alumno purga la foto viva (fila y objeto, `forceDelete`); sustituir o `DELETE` solo dan de baja la fila y dejan el objeto para un barrido de huérfanos aún no implementado (`operacion.md`).
+
 ---
 
 ## 2. Relaciones

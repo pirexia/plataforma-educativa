@@ -32,7 +32,7 @@ Errores comunes: `401`; `403` sin permiso; `403 urn:pge:error:module-disabled`; 
 
 ### `GET /students/{public_id}`
 - **Permiso**: `alumno.leer` · `todos`, `unidad_familiar` en `1.15-a` (`grupo` desde `1.15-b`)
-- **Respuesta 200**: ficha. En `1.15-a`: `public_id`, `person.public_id`, `display_name`, `given_name`, `family_name_1`, `family_name_2`, `birth_date`, `locale`, `document_type`, `document_number`, `created_at`, `updated_at` (y `deleted_at` en una baja). **`document_number` va enmascarado** (solo los últimos cuatro caracteres a la vista, `•••••1234`; un número de cuatro o menos, entero oculto): la API de alumnado nunca devuelve el documento completo (decisión del 2026-11-09). Los datos de la persona se leen de `Core` (`PersonDirectory`); `alum` no los guarda (`RN-ALUM-02`). Desde `1.15-b`, `enrollments[]` (las de cursos ilegibles se omiten, `RN-ALUM-23`) se acota por el ámbito de `matricula.leer`: sin ese permiso sale `[]`; `emergency_contact` y `guardians[]` **solo** si el sujeto tiene `vinculo_tutor.leer` con un ámbito que alcance al alumno (se leen de `FamilyMembership`; si no, el campo no aparece) [DERIVADA: no ampliar por la puerta de `alum` lo que `fam_unit` protege]; `photo` (`OPEN-ALUM-08`) con URL firmada.
+- **Respuesta 200**: ficha. En `1.15-a`: `public_id`, `person.public_id`, `display_name`, `given_name`, `family_name_1`, `family_name_2`, `birth_date`, `locale`, `document_type`, `document_number`, `created_at`, `updated_at` (y `deleted_at` en una baja). **`document_number` va enmascarado** (solo los últimos cuatro caracteres a la vista, `•••••1234`; un número de cuatro o menos, entero oculto): la API de alumnado nunca devuelve el documento completo (decisión del 2026-11-09). Los datos de la persona se leen de `Core` (`PersonDirectory`); `alum` no los guarda (`RN-ALUM-02`). Desde `1.15-b`, `enrollments[]` (las de cursos ilegibles se omiten, `RN-ALUM-23`) se acota por el ámbito de `matricula.leer`: sin ese permiso sale `[]`; `emergency_contact` y `guardians[]` **solo** si el sujeto tiene `vinculo_tutor.leer` con un ámbito que alcance al alumno (se leen de `FamilyMembership`; si no, el campo no aparece) [DERIVADA: no ampliar por la puerta de `alum` lo que `fam_unit` protege]; `has_photo` (`1.15-c`, `OPEN-ALUM-08`, decisión del usuario 2026-11-11): **solo el booleano**; la URL firmada **no** va en la ficha, solo en `GET /students/{public_id}/photo` (§4).
 - **Errores**: `404` si no existe, es de otro centro, está dado de baja o el sujeto no lo alcanza (idéntico, `RN-ALUM-64`).
 
 ### `PATCH /students/{public_id}`
@@ -102,9 +102,13 @@ Errores comunes: `401`; `403` sin permiso; `403 urn:pge:error:module-disabled`; 
 
 | Verbo y ruta | Permiso · ámbito | Notas |
 |--------------|------------------|-------|
-| `PUT /students/{public_id}/photo` | `alumno.actualizar` · `todos` | `multipart/form-data`; sustituye (`RN-ALUM-50`); `422` tipo o tamaño |
-| `DELETE /students/{public_id}/photo` | `alumno.actualizar` · `todos` | `204` |
-| `GET /students/{public_id}/photo` | `alumno.leer` · `todos`, `grupo`, `unidad_familiar` | Devuelve URL firmada de caducidad corta, nunca el binario por la API; registra `read` (`RN-ALUM-52`) |
+| `PUT /students/{public_id}/photo` | `alumno.actualizar` · `todos` | `multipart/form-data`, campo `file`; sustituye (`RN-ALUM-50`); `200 {"has_photo": true}`; `422` tipo o tamaño |
+| `DELETE /students/{public_id}/photo` | `alumno.actualizar` · `todos` | `204`; idempotente (sin foto también `204`) |
+| `GET /students/{public_id}/photo` | `alumno.leer` · `todos`, `grupo`, `unidad_familiar` | `200 {"url", "expires_at"}` (URL firmada de 5 minutos, `Cache-Control: no-store`), nunca el binario por la API; registra `read` (`RN-ALUM-52`) |
+
+- **Errores `422`** (`alum.photo.*`, en `errors.file`; **todos** son `422`, no `413` ni `415` como en `fam_unit`: `CA-ALUM-056`): `file_required` (sin fichero), `type_unsupported` (tipo real distinto de JPEG o PNG: SVG, HEIC, WebP...), `invalid_image` (el contenido no coincide con la extensión, no se puede leer o supera los píxeles de entrada o las dimensiones) y `too_large` (supera `alum.photo.max_bytes`, 5 MB). Alumno inexistente, de otro centro o dado de baja: `404` antes que cualquier `422`. Con el almacenamiento caído, `PUT` es `503` con `Retry-After` y no escribe nada.
+- **`GET`**: `404` idéntico para alumno fuera de ámbito, inexistente, de otro centro, dado de baja o **sin foto** (`RN-ALUM-64`), sin fila `read`. Límite de **300 lecturas por centro y usuario y hora** (`alum.photo.read_rate_limit`): superado, `429` con `Retry-After` y `alum.errors.photo_read_rate_limited`. La fila `read` (`alum_student_photo`, contexto `purpose`, `entries` y `student` con el ULID del alumno; sin nombre ni clave de objeto) se escribe **antes** de devolver la URL.
+- La imagen guardada es una **nueva** (EXIF aplicado y descartado, lado mayor <= 1024 px, sin metadatos), en `tenants/<centro>/alum/student-photos/<ULID>.<ext>`. El original no se guarda.
 
 ## 5. Paginación, filtrado y ordenación
 

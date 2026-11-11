@@ -160,7 +160,7 @@ Listado de matrículas activas de un grupo (filtro `group`), con nombre del alum
 
 ### 4.6 Fotografía (`1.15-c`, `OPEN-ALUM-08` = A)
 
-Subida por `App\Support\Files` (`ADR-068`, precedente `pickup_photos`): tipo real, tamaño, sin EXIF, almacenamiento privado; descarga por URL firmada de caducidad corta tras comprobar el permiso (`ADR-013`). Una foto viva por alumno.
+Subida por `App\Support\Files` (`ADR-068`, precedente `pickup_photos`): tipo real, tamaño, sin EXIF, almacenamiento privado; descarga por URL firmada de caducidad corta tras comprobar el permiso (`ADR-013`). La ficha (`GET /students/{id}`) devuelve solo `has_photo` (booleano; decisión del usuario 2026-11-11): la URL sale únicamente de `GET /students/{id}/photo`, que audita cada lectura. Dar de baja al alumno **purga** su foto viva (objeto y fila). Servicio: `StudentPhotoService`. Una foto viva por alumno.
 
 ---
 
@@ -327,7 +327,7 @@ Propuesta [DERIVADA en nombres y rutas]. `src/data-table`, shadcn-vue, `docs/des
 | Nombre | Ruta | `meta.permissions` | Menú | Contenido |
 |--------|------|--------------------|------|-----------|
 | `alum-students` | `/alumnado` | `['alumno.leer']` | Sí | Listado con filtros curso académico, curso de etapa, grupo, estado de matrícula y búsqueda por nombre; alta en diálogo con `alumno.crear`; `meta.academicYearScoped: true` |
-| `alum-student-detail` | `/alumnado/:publicId` | `['alumno.leer']` | No | Ficha: datos personales; tutores y contacto de emergencia (de `fam_unit`, con `vinculo_tutor.leer`); estado de imagen (API de `fam_unit`, `OPEN-ALUM-10`); matrículas; foto con subida, sustitución y baja con `alumno.actualizar` (si `-08` = A) |
+| `alum-student-detail` | `/alumnado/:publicId` | `['alumno.leer']` | No | Ficha: datos personales; tutores y contacto de emergencia (de `fam_unit`, con `vinculo_tutor.leer`); estado de imagen (API de `fam_unit`, `OPEN-ALUM-10`); matrículas; foto (`has_photo` de la ficha; la URL firmada se pide a `GET /students/{id}/photo` solo al mostrarla) con subida, sustitución y baja con `alumno.actualizar` (`OPEN-ALUM-08` = A) |
 | `alum-class-list` | `/alumnado/listas` | `['matricula.leer']` | Sí | Lista de clase por grupo; exportar con `matricula.exportar` |
 | `alum-group-changes` | `/alumnado/cambios-de-grupo` | `['matricula.leer']` | Sí | Solicitudes; aprobar o rechazar con `matricula.aprobar`; solicitar y cancelar con `matricula.actualizar` |
 

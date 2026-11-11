@@ -4,14 +4,14 @@
 
 ## 1. Variables de entorno
 
-Ninguna nueva en `.env`. Configuración del módulo en `config/alum.php`, que hoy solo contiene `export.rate_limit` (§6). Previsto, sin implementar [DERIVADA]: longitud mínima de `q` (2) y tope de filas de la lista de clase servidas sin paginar (si la SPA lo pide). La caducidad de la URL firmada de la foto y el tamaño máximo son los de `App\Support\Files` (`ADR-068`), no propios.
+Ninguna nueva en `.env`. Configuración del módulo en `config/alum.php`, que contiene `export.rate_limit` (§6) y `photo` (`1.15-c`): `max_bytes` 5 MB, `max_dimension` 1024 px de lado mayor tras reprocesar, `max_input_pixels` 12 MP de entrada, `signed_url_ttl_minutes` 5 y `read_rate_limit` 300 lecturas por hora por centro y usuario (mismos valores que `fam_unit.pickup.photo`, sin leer esa clave: `INV-007`; [DERIVADA], revisables). Previsto, sin implementar [DERIVADA]: longitud mínima de `q` (2) y tope de filas de la lista de clase servidas sin paginar (si la SPA lo pide). La subida va por `App\Support\Files` (`ADR-068`) con la política de `alum.photo`. **Pendiente, sin implementar (no está en la especificación)**: job de barrido de objetos huérfanos de `alum/student-photos` (los de fotos sustituidas o dadas de baja con `DELETE`; la baja del alumno sí borra su objeto); hasta entonces esos objetos quedan en el *bucket* sin referencia.
 
 ## 2. Servicios externos de los que depende
 
 | Servicio | Para qué | Si no responde |
 |----------|----------|----------------|
 | PostgreSQL | Todo | Caída del módulo, como el resto |
-| Almacenamiento S3 (MinIO en desarrollo) | Fotografía (`OPEN-ALUM-08` = A) | La ficha se sirve sin foto (`photo.url = null` con indicador de no disponible); subir responde `503`. Nada más depende de S3 [DERIVADA, precedente `OPEN-FAM-UNIT-47`] |
+| Almacenamiento S3 (MinIO en desarrollo) | Fotografía (`OPEN-ALUM-08` = A) | La ficha se sirve igual (`has_photo` sale de la base de datos, no de S3); subir responde `503` sin escribir nada. Nada más depende de S3 [DERIVADA, precedente `OPEN-FAM-UNIT-47`] |
 | *Worker* de colas (`worker`, conexión `database`) | Exportación de listas de clase | La solicitud queda `pendiente` en `data_exports` hasta que el *worker* vuelva |
 
 ## 3. Despliegue: registro de módulos y permisos (`ADR-034 §5`)
@@ -50,6 +50,7 @@ Sin métricas propias. Cifra de `CA-ALUM-060` (`#382`, `1.15-b` T1b; sobrecoste 
 | Exportación `pendiente` indefinida | *Worker* parado | `RUNBOOK.md`, arranque del perfil `worker` |
 | `429` al pedir la exportación de matrículas | Límite de tasa por centro y usuario (`config/alum.php`, `export.rate_limit`: 10 por hora) | Esperar el `Retry-After`; ajustar la configuración solo si el uso legítimo lo exige |
 | Exportación `fallida` con `core.export.generation_failed` | Al ejecutarse, el solicitante ya no tiene `matricula.exportar`, el módulo está descontratado o el curso académico dejó de ser legible para él | Repetir la petición con un usuario con permiso |
+| `429` al pedir la foto de alumnos | Límite de lecturas por centro y usuario (`config/alum.php`, `photo.read_rate_limit`: 300 por hora) | Esperar el `Retry-After`; ajustar solo si el uso legítimo lo exige |
 | Foto no visible | S3 caído o credenciales | §2; la ficha sigue funcionando |
 | Borrado de un grupo o de un curso de etapa sin `409` con `alum` deshabilitado en el centro | El veto de `alum` no se ejecuta con el módulo deshabilitado (`Acad/Application/StructureVetoes.php`, coherente con `RN-CURSO-60`); al reactivarlo pueden quedar matrículas huérfanas (#597) | Sin acción operativa hasta la decisión (propuesta pendiente, ADR); seguimiento en #597 |
 | Datos de un menor en `idempotency_keys.response_body` durante 24 h tras el alta | Respuesta `201` de `POST /students` guardada por la idempotencia de `Core` | Conocido, sin acción operativa; seguimiento en #558 |

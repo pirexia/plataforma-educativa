@@ -66,7 +66,7 @@ Sujeto sin asignación docente o sin faceta de tutor ⇒ conjunto vacío (denieg
 
 **`TeachingMembership`**: especificada y aprobada en `REQ-ACAD/funcional.md §18.7` (`1.12`, 2026-10-17), **no construida** (`OPEN-ACAD-43`). `alum` es su primer consumidor y la construye en `1.15-b` dentro de `acad`, con el resolutor `grupo`. Con eso se cumple el plazo de `ADR-063 §5.4` (asignación docente especificada) y la condición del issue #471: **ningún módulo de alumnado da `todos` a `docente`** (`RN-ALUM-65`, `CA-ALUM-014a`/`-014b`).
 
-**Mapa cerrado de `AR-10`** (ampliación que requiere aprobación expresa del usuario, como `OPEN-ACAD-42`): `alumno` → `Student` (servicio sancionado `StudentService`; `StudentPhoto`, si `-08` = A, por el mismo servicio); `matricula` → `Enrollment` (`EnrollmentService`) y `GroupChangeRequest` (`GroupChangeService`). El test no ve accesos por relación ni `DB::table()`: lo cubren `CA-ALUM-010` a `-016`, `-012` y `-039` (listado **y** detalle).
+**Mapa cerrado de `AR-10`** (ampliación que requiere aprobación expresa del usuario, como `OPEN-ACAD-42`): `alumno` → `Student` (servicios sancionados `StudentService` y `StudentPhotoService`; `StudentPhoto` se consulta solo en este último, con el alumno acotado antes por `ScopedQuery`); `matricula` → `Enrollment` (`EnrollmentService`) y `GroupChangeRequest` (`GroupChangeService`). El test no ve accesos por relación ni `DB::table()`: lo cubren `CA-ALUM-010` a `-016`, `-012` y `-039` (listado **y** detalle).
 
 Reglas que no son permiso y se comprueban además: curso cerrado (`RN-ALUM-23`, `AcademicYearReadAccess`), autoaprobación (`RN-ALUM-44`), y la visibilidad de tutores en la ficha, que exige además `vinculo_tutor.leer` (`api.md §1`).
 

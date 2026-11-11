@@ -6,6 +6,14 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-11 · `feat(alum)`: 1.15-c, tramo T2b, fotografía del alumno (`REQ-ALUM-001`)
+
+- `alum`: `StudentPhotoService` (subir/sustituir, baja y URL firmada) y tres endpoints `/students/{id}/photo` (`PUT` y `DELETE` con `alumno.actualizar`, `GET` con `alumno.leer` acotado por ámbito); `ImageSanitizer` solo JPEG y PNG, errores `422 alum.photo.*`, `recordRead` con alias `alum_student_photo`, límite de 300 lecturas por hora, `config/alum.php` clave `photo`.
+- La ficha devuelve solo `has_photo` (decisión del usuario 2026-11-11); la baja del alumno purga su foto viva. Sin job de huérfanos (pendiente, `operacion.md`).
+- `AR-10` ampliado a `StudentPhoto` y `StudentPhotoService`; textos en es-ES, en, de y fr; OpenAPI (22 operaciones de `alum`).
+- Documentación: `REQ-ALUM` (`api.md §1` y `§4`, `funcional.md §4.6`, `operacion.md`, `permisos.md`).
+- Tests: `CA-ALUM-018c`, `-056` a `-058` (`StudentPhotosApiTest`), `-063` (22 rutas).
+
 ## 2026-11-11 · `feat(alum)`: 1.15-c, tramo T2a, solicitudes de cambio de grupo (`REQ-ALUM-003`)
 
 - `alum`: `GroupChangeService` y seis endpoints `/group-change-requests` (listado, alta, detalle, aprobación, rechazo, cancelación; `matricula.leer`/`actualizar`/`aprobar`); `EnrollmentService::moveToGroup()` como único camino sancionado para cambiar el grupo de una matrícula (`RN-ALUM-43`); resolutores `grupo` (por la matrícula) y `unidad_familiar` (vacío, explícito) de `matricula` también para `GroupChangeRequest` (`RN-ALUM-46`). `decision_note` obligatoria al rechazar.
