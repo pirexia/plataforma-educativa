@@ -4,7 +4,7 @@
 
 ## 1. Variables de entorno
 
-Ninguna nueva en `.env`. Configuración del módulo en `config/alum.php` [DERIVADA]: longitud mínima de `q` (2) y tope de filas de la lista de clase servidas sin paginar (si la SPA lo pide). La caducidad de la URL firmada de la foto y el tamaño máximo son los de `App\Support\Files` (`ADR-068`), no propios.
+Ninguna nueva en `.env`. Configuración del módulo en `config/alum.php`, que hoy solo contiene `export.rate_limit` (§6). Previsto, sin implementar [DERIVADA]: longitud mínima de `q` (2) y tope de filas de la lista de clase servidas sin paginar (si la SPA lo pide). La caducidad de la URL firmada de la foto y el tamaño máximo son los de `App\Support\Files` (`ADR-068`), no propios.
 
 ## 2. Servicios externos de los que depende
 
@@ -16,7 +16,7 @@ Ninguna nueva en `.env`. Configuración del módulo en `config/alum.php` [DERIVA
 
 ## 3. Despliegue: registro de módulos y permisos (`ADR-034 §5`)
 
-1. Migraciones (`php artisan migrate --database=pgsql_owner`), en este orden: (a) `students` (`1.15-a`); (b) `enrollments` (`1.15-b`); (c) `group_change_requests` y, si `OPEN-ALUM-08` = A, `student_photos` (`1.15-c`). Los únicos de destino de las FK compuestas en `acad` ya existen (`datos.md §1.2`): no hay migración de `acad` ni de `Core`. Todas aditivas (*expand*); compatibles con la versión anterior, que no las conoce.
+1. Migraciones (`php artisan migrate --database=pgsql_owner`), en este orden: (a) `students` (`1.15-a`); (b) `enrollments` (`1.15-b`); (c) `group_change_requests` y, si `OPEN-ALUM-08` = A, `student_photos` (`1.15-c`). Los únicos de destino de las FK compuestas en `acad` ya existen (`datos.md §1.2`): no hay migración de `acad`. De `Core` solo la ampliación del `CHECK` de `data_exports.kind` con `alum_enrollments`, migración `2026_11_10_100200_widen_data_exports_kind_for_enrollments`. Todas aditivas (*expand*); compatibles con la versión anterior, que no las conoce.
 2. `php artisan platform:sync-registry`: añade el módulo `alum` (`depends_on ['curso','acad','fam_unit']`) y sus permisos (diez en total; cuatro en `1.15-a`: `alumno.leer`, `.crear`, `.actualizar`, `.eliminar`). **Aborta** si algún código de `depends_on` no existe o hay ciclo: comprobar que `acad` y `fam_unit` están desplegados. Recordatorio de `RMOD-006`: el comando informa y no contrata; un centro con `alum` contratado y sin `acad` o `fam_unit` queda señalado.
 3. `php artisan alum:grant-permissions` para los centros existentes (siembra de `permisos.md §4`), idempotente; se ejecuta tras `1.15-a` (solo `alumno.*`) y de nuevo tras `1.15-b` (`matricula.*` y concesiones `grupo`).
 4. Contratar `alum` por centro desde el *backoffice* (`REQ-BO-002`); exige `acad` y `fam_unit` contratados.
@@ -50,6 +50,7 @@ Sin métricas propias. Cifra de `CA-ALUM-060` (`#382`, `1.15-b` T1b; sobrecoste 
 | `429` al pedir la exportación de matrículas | Límite de tasa por centro y usuario (`config/alum.php`, `export.rate_limit`: 10 por hora) | Esperar el `Retry-After`; ajustar la configuración solo si el uso legítimo lo exige |
 | Exportación `fallida` con `core.export.generation_failed` | Al ejecutarse, el solicitante ya no tiene `matricula.exportar`, el módulo está descontratado o el curso académico dejó de ser legible para él | Repetir la petición con un usuario con permiso |
 | Foto no visible | S3 caído o credenciales | §2; la ficha sigue funcionando |
+| Borrado de un grupo o de un curso de etapa sin `409` con `alum` deshabilitado en el centro | El veto de `alum` no se ejecuta con el módulo deshabilitado (`Acad/Application/StructureVetoes.php`, coherente con `RN-CURSO-60`); al reactivarlo pueden quedar matrículas huérfanas (#597) | Sin acción operativa hasta la decisión (propuesta pendiente, ADR); seguimiento en #597 |
 | Datos de un menor en `idempotency_keys.response_body` durante 24 h tras el alta | Respuesta `201` de `POST /students` guardada por la idempotencia de `Core` | Conocido, sin acción operativa; seguimiento en #558 |
 
 ## 7. Impacto en copias de seguridad y restauración

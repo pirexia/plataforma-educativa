@@ -61,6 +61,8 @@ La fila de la matrícula **no** se mueve entre cursos académicos: el *rollover*
 | `decided_at` | `TIMESTAMPTZ` | Sí | — | |
 | `decision_note` | `text` | Sí | — | `CHECK (decision_note IS NULL OR length(decision_note) <= 500)`; no se audita su valor |
 
+**Nota para `1.15-c` (db-reviewer, issue #602)**: la FK compuesta `(tenant_id, academic_year_id, enrollment_id)` → `enrollments (tenant_id, academic_year_id, id)` exige crear `UNIQUE (tenant_id, academic_year_id, id)` en `enrollments` en la migración de `1.15-c` (patrón `courses_tenant_year_id_unique`). No se crea en `1.15-b`.
+
 Restricciones: `UNIQUE (tenant_id, enrollment_id) WHERE status = 'pendiente' AND deleted_at IS NULL` (`RN-ALUM-41`); `CHECK ((status = 'pendiente' AND decided_by IS NULL AND decided_at IS NULL) OR (status <> 'pendiente' AND decided_by IS NOT NULL AND decided_at IS NOT NULL))` (toda transición registra autor e instante, también `rechazada` y `cancelada`); `CHECK (status <> 'aprobada' OR decided_by <> requested_by)` (`RN-ALUM-44`: la prohibición de autoría propia es **solo** para aprobar; cancelar o rechazar la propia solicitud se admite). Que ambos grupos sean del curso de etapa de la matrícula lo valida el servicio bajo el `FOR UPDATE` de la matrícula (el motor necesitaría desnormalizar `course_id`; se deja a `db-reviewer` si lo prefiere en el motor).
 
 ### 1.4 `student_photos` · `1.15-c` · *condicionada a `OPEN-ALUM-08`*
