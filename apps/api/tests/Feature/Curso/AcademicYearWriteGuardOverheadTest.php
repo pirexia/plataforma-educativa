@@ -2,6 +2,7 @@
 
 use App\Modules\Acad\Domain\Models\Course;
 use App\Modules\Acad\Domain\Models\EducationLevel;
+use App\Modules\Acad\Domain\Models\Group;
 use App\Modules\Curso\Domain\AcademicYearStatus;
 use App\Support\Tenancy\Tenant;
 use App\Support\Tenancy\TenantContext;
@@ -208,4 +209,128 @@ test('CA-ACAD-023 CA-057-09 #382: sobrecarga medida del disparador en la tabla r
     $leftovers = ProbeTables::dropAndReportLeftovers(['subjects_control'], $tablesBefore);
 
     expect($with)->toBe($without)->and($with)->toBe($corridas * $repetitions * ($bulk + $single))->and($leftovers)->toBe([]);
+});
+
+/**
+ * CA-ALUM-060 (REQ-ALUM, 1.15-b, issue #382, CA-057-09): la misma medición con la tabla REAL `enrollments` (dos claves
+ * foráneas compuestas, tres `CHECK`, un único parcial y tres índices más) frente a una tabla de control idéntica cuya
+ * columna de curso NO se llama `academic_year_id` (sin disparador). Mismo método que `CA-ACAD-023`: tres corridas, cada
+ * una mediana de cinco repeticiones; 20.000 filas en una sentencia y 1.000 sentencias por repetición (variables
+ * `CURSO_OVERHEAD_BULK` y `CURSO_OVERHEAD_SINGLE`). El único parcial de matrícula activa (`RN-ALUM-21`) obliga a no
+ * repetir alumno dentro de una tabla: se parte de un grupo de alumnos y se vacía la tabla (fuera de la medida) tras
+ * cada repetición. No es umbral de aprobado.
+ */
+test('CA-ALUM-060 CA-057-09 #382: sobrecarga medida del disparador en la tabla real enrollments, masiva y fila a fila, frente a una tabla de control sin disparador', function (): void {
+    $owner = DB::connection('pgsql_owner');
+    $tablesBefore = ProbeTables::snapshot();
+    $owner->statement('DROP TABLE IF EXISTS enrollments_control');
+
+    TenantMigration::tenantTable('enrollments_control', function (Blueprint $table): void {
+        $table->ulid('public_id')->unique();
+        TenantMigration::tenantForeignId($table, 'student_id', 'students');
+        TenantMigration::tenantForeignId($table, 'year_ref', 'academic_years');
+        $table->foreignId('course_id');
+        $table->foreignId('group_id')->nullable();
+        $table->text('status')->default('activa');
+        $table->date('enrolled_on');
+        $table->date('withdrawn_on')->nullable();
+        $table->text('withdrawal_reason')->nullable();
+        $table->foreign(['tenant_id', 'year_ref', 'course_id'], 'enrollments_control_year_course_foreign')->references(['tenant_id', 'academic_year_id', 'id'])->on('courses');
+        $table->foreign(['tenant_id', 'course_id', 'group_id'], 'enrollments_control_course_group_foreign')->references(['tenant_id', 'course_id', 'id'])->on('groups');
+        $table->index(['tenant_id', 'year_ref', 'course_id'], 'enrollments_control_year_course_idx');
+        $table->index(['tenant_id', 'course_id', 'group_id'], 'enrollments_control_course_group_idx');
+    });
+    $owner->statement("ALTER TABLE enrollments_control ADD CONSTRAINT enrollments_control_status_check CHECK (status IN ('activa', 'baja'))");
+    $owner->statement("ALTER TABLE enrollments_control ADD CONSTRAINT enrollments_control_reason_check CHECK (withdrawal_reason IN ('traslado', 'baja_voluntaria', 'otro'))");
+    $owner->statement("ALTER TABLE enrollments_control ADD CONSTRAINT enrollments_control_status_withdrawal_check CHECK ((status = 'activa' AND withdrawn_on IS NULL AND withdrawal_reason IS NULL) OR (status = 'baja' AND withdrawn_on IS NOT NULL AND withdrawal_reason IS NOT NULL AND withdrawn_on >= enrolled_on))");
+    $owner->statement("CREATE UNIQUE INDEX enrollments_control_year_student_active_unique ON enrollments_control (tenant_id, year_ref, student_id) WHERE status = 'activa' AND deleted_at IS NULL");
+    $owner->statement('CREATE INDEX enrollments_control_group_status_idx ON enrollments_control (tenant_id, group_id, status) WHERE deleted_at IS NULL');
+
+    $year = CursoTestHelpers::year($this->tenant, '2025-2026', AcademicYearStatus::Activo);
+    $bulk = (int) (getenv('CURSO_OVERHEAD_BULK') ?: 20000);
+    $single = (int) (getenv('CURSO_OVERHEAD_SINGLE') ?: 1000);
+
+    app(TenantContext::class)->runFor($this->tenant->id, function () use ($year, $bulk): void {
+        $level = EducationLevel::create(['academic_year_id' => $year->id, 'code' => 'ESO', 'name_translations' => ['es-ES' => 'ESO'], 'stage' => 'eso', 'regime' => 'publico', 'position' => 1]);
+        $course = Course::create(['academic_year_id' => $year->id, 'education_level_id' => $level->id, 'code' => '1ESO', 'name_translations' => ['es-ES' => '1'], 'position' => 1]);
+        $group = Group::create(['academic_year_id' => $year->id, 'course_id' => $course->id, 'code' => 'A', 'name' => 'Grupo A', 'position' => 1]);
+        $this->courseId = $course->id;
+        $this->groupId = $group->id;
+
+        // Grupo de alumnos ficticios (REQ-SEED-005: sin datos reales), en dos sentencias.
+        DB::statement("insert into people (public_id, given_name, family_name_1) select lpad(g::text, 26, '0'), 'Alumno' || g, 'Ficticio' from generate_series(1, ?) g", [$bulk]);
+        DB::statement("insert into students (public_id, person_id) select lpad(p.id::text, 26, '0'), p.id from people p");
+        $this->studentIds = '{'.implode(',', DB::table('students')->orderBy('id')->pluck('id')->all()).'}';
+    });
+
+    $corridas = 3;
+    $repetitions = 5;
+
+    app(TenantContext::class)->enter($this->tenant->id);
+
+    $median = static function (array $values): float {
+        sort($values);
+
+        return $values[intdiv(count($values), 2)];
+    };
+
+    $perRun = ['bulk' => [], 'single' => []];
+    $serial = 0;
+
+    for ($corrida = 0; $corrida < $corridas; $corrida++) {
+        $acc = ['bulk' => ['con' => [], 'sin' => []], 'single' => ['con' => [], 'sin' => []]];
+
+        for ($rep = 0; $rep < $repetitions; $rep++) {
+            $order = ($corrida + $rep) % 2 === 0 ? ['con', 'sin'] : ['sin', 'con'];
+
+            foreach ($order as $variant) {
+                [$table, $column] = $variant === 'con' ? ['enrollments', 'academic_year_id'] : ['enrollments_control', 'year_ref'];
+                $serial++;
+
+                $acc['bulk'][$variant][] = timed(fn () => DB::statement(
+                    "insert into {$table} (public_id, student_id, {$column}, course_id, group_id, enrolled_on) select lpad((?::bigint * 1000000 + s.n)::text, 26, '0'), s.id, ?, ?, ?, date '2025-09-08' from unnest(?::bigint[]) with ordinality as s(id, n)",
+                    [$serial, $year->id, $this->courseId, $this->groupId, $this->studentIds],
+                ));
+                DB::table($table)->delete();
+
+                $firstStudents = array_slice(array_map('intval', explode(',', trim($this->studentIds, '{}'))), 0, $single);
+                $acc['single'][$variant][] = timed(function () use ($table, $column, $year, $firstStudents, $serial): void {
+                    foreach ($firstStudents as $n => $studentId) {
+                        DB::table($table)->insert([
+                            'public_id' => str_pad((string) ($serial * 1000000 + 500000 + $n), 26, '0', STR_PAD_LEFT),
+                            'student_id' => $studentId, $column => $year->id, 'course_id' => $this->courseId, 'group_id' => $this->groupId, 'enrolled_on' => '2025-09-08',
+                        ]);
+                    }
+                });
+                DB::table($table)->delete();
+            }
+        }
+
+        foreach (['bulk', 'single'] as $mode) {
+            $con = $median($acc[$mode]['con']);
+            $sin = $median($acc[$mode]['sin']);
+            $perRun[$mode][] = [$con, $sin, ($con - $sin) / $sin * 100];
+        }
+    }
+
+    $lines = ["CA-ALUM-060 sobrecarga del disparador en enrollments ({$corridas} corridas, mediana de {$repetitions} repeticiones)"];
+
+    foreach (['bulk' => "masiva ({$bulk} filas por sentencia)", 'single' => "fila a fila ({$single} sentencias)"] as $mode => $label) {
+        foreach ($perRun[$mode] as $i => [$con, $sin, $pct]) {
+            $lines[] = sprintf('  %s, corrida %d: con disparador %.4fs, sin disparador %.4fs, sobrecarga %+.1f %%', $label, $i + 1, $con, $sin, $pct);
+        }
+    }
+
+    fwrite(STDERR, "\n".implode("\n", $lines)."\n");
+
+    // Ambas vías quedan vacías tras la última repetición; se afirma que la última inserción real escribió lo mismo.
+    DB::table('enrollments')->insert(['public_id' => str_pad('9', 26, '0', STR_PAD_LEFT), 'student_id' => explode(',', trim($this->studentIds, '{}'))[0], 'academic_year_id' => $year->id, 'course_id' => $this->courseId, 'group_id' => $this->groupId, 'enrolled_on' => '2025-09-08']);
+    DB::table('enrollments_control')->insert(['public_id' => str_pad('9', 26, '0', STR_PAD_LEFT), 'student_id' => explode(',', trim($this->studentIds, '{}'))[0], 'year_ref' => $year->id, 'course_id' => $this->courseId, 'group_id' => $this->groupId, 'enrolled_on' => '2025-09-08']);
+
+    $with = DB::table('enrollments')->count();
+    $without = DB::table('enrollments_control')->count();
+
+    $leftovers = ProbeTables::dropAndReportLeftovers(['enrollments_control'], $tablesBefore);
+
+    expect($with)->toBe($without)->and($with)->toBe(1)->and($leftovers)->toBe([]);
 });

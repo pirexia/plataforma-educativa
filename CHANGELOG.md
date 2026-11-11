@@ -6,6 +6,30 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-11 · `feat(alum)`: 1.15-b, cierre de la matrícula, vetos y acotación por `matricula.leer` (`REQ-ALUM-002`, `#598`, `#599`, `#601`)
+
+- `acad`: vetos de `GroupDirectory` y `TeachingMembership::groupIdsFor` (T1a) y `CourseDirectory`.
+- `alum`: `EnrollmentService`, resolutores `grupo` y `unidad_familiar`, endpoints de matrícula y `enrollments[]` y `enrollment` del listado acotados por `matricula.leer`; `GET /students` responde `403 filter_forbidden` a los filtros `course`, `group` y `enrollment_status` sin `matricula.leer` (M1); `enrollment` es `null` sin filtro de curso o año.
+- Concurrencia: grupo y curso de etapa vivos bloqueados con `FOR SHARE` (`lockAliveForShare`, `RN-ALUM-26`) (M2); fallo en cerrado sin `public_id` del centro.
+- Base de datos: índice redundante quitado de `enrollments`; `findManyById` para las lecturas por lotes (#601).
+- `core`: tope de filas de exportación `core.export_max_rows` y `404` sin `curso_historico.leer` en las escrituras y lecturas de curso cerrado (#598, #599).
+- Infraestructura: `QUEUE_CONNECTION=database` fijado en `api` y `worker` de `compose.yaml` en desarrollo, porque un `redis` heredado del `.env` encolaba sin consumidor.
+- Tests: `CA-ALUM-040` (recuento de consultas de la lista de clase sin N+1) y la suite de matrícula de T1a a T2c.
+- **E2E real 11/11** (`npm run test:e2e:real`, 2026-11-11).
+
+## 2026-11-11 · `feat(alum)`: 1.15-b, tramo T2c, exportación de matrículas y cierre de la API (`REQ-ALUM-002`)
+
+- `alum`: `POST /enrollments/exports` (`matricula.exportar`, solo `todos`): `202`, en cola `default` (`GenerateEnrollmentsExport`, permiso y módulo recomprobados al ejecutar) sobre `data_exports` con `kind = alum_enrollments`; CSV de esquema cerrado (`api.md §6`, sin documento de identidad), auditado como `exported` con los filtros; `422 alum.validation.export_query_not_allowed` con `q`. Límite de tasa por centro y usuario (`config/alum.php`, 10 por hora; `429` con `Retry-After`; patrón de `ConsentRateLimit`, decisión del usuario del 2026-11-11). Ruta declarada antes de las paramétricas.
+- `EnrollmentService`: consulta común del listado y la exportación (`filteredQuery`), `assertExportable()` y `exportBatches()` (lotes de 500 por id). OpenAPI: `exportEnrollments` con `404`, `422` y `429`. Claves `alum.validation.export_query_not_allowed` y `.status_invalid` y `alum.errors.export_rate_limited` en es/en/de/fr.
+- Documentación: `REQ-ALUM` (`api.md §6`, `operacion.md`, estado y `CA-ALUM-041`/`-042`; `CA-ALUM-030` con el prefijo de `api.md §2`), `REQ-ACAD §7.2` (`CourseDirectory`, y `code`/`name` en `GroupSummary`, aditivo).
+- Tests (`EnrollmentsExportTest`): `CA-ALUM-041`, `-042`, `-018b`, 429, cola `default`, fallo en cerrado por permiso o módulo retirados.
+
+## 2026-11-10 · `feat(alum)`: 1.15-b, tramo T1b, datos y permisos de matrícula (`REQ-ALUM-002`, `#382`)
+
+- `alum`: tabla `enrollments` (FK compuestas a curso de etapa del mismo curso académico y a grupo del curso de etapa, `CHECK` de estado y baja, único parcial de matrícula activa, disparador `academic_year_write_guard`), modelo `Enrollment` (alias `alum_enrollment`, política `Full`), `EnrollmentFactory`, y los dos vetos de borrado de `alum` sobre grupo y curso de etapa (`RN-ALUM-26`, `CA-ALUM-027` en lo que ejecuta `acad`).
+- Permisos: catálogo `matricula.*` (diez códigos de `alum`), `grupo` como ámbito de `alumno.leer`, siembra por rol (`docente` y `tutor_grupo` con `grupo`) y `alum:grant-permissions` ampliado. `core`: `kind` `alum_enrollments` en el `CHECK` de `data_exports`.
+- **Cifra de #382 / `CA-ALUM-060`** (`AcademicYearWriteGuardOverheadTest` sobre la tabla real `enrollments` frente a una tabla de control sin disparador; 3 corridas, mediana de 5 repeticiones, 20.000 filas por sentencia y 1.000 sentencias): inserción masiva **+40,5 %, +58,6 % y +54,2 %** (con disparador 1,56 s, 1,32 s y 1,29 s; sin él 1,11 s, 0,83 s y 0,83 s); fila a fila **-9,0 %, +5,0 % y -1,5 %** (ruido). Por debajo de `1.10` (+182 % a +195 %) y de `CA-ACAD-023`: no hay hallazgo que abrir.
+
 ## 2026-11-10 · `feat(landing)`: rediseño, tramo T4, carrusel con script propio (`ADR-075`, #579)
 
 - `apps/landing`: `src/js/carousel.js` (≈ 5 KiB, sin dependencias): flechas, puntos sincronizados con el scroll, avance automático cada 6 s con vuelta, botón de pausa cuya etiqueta alterna Pausar/Reanudar, sin `aria-pressed` (refinamiento de accesibilidad del detalle de ADR-075 §2: la APG desaconseja combinarlos) (WCAG 2.2.2), pausa con puntero, foco de teclado y pestaña oculta, sin avance con `prefers-reduced-motion: reduce`, compatible con `dir="rtl"`. La pantalla de acceso (`sign-in`) pasa a ser la primera diapositiva y la imagen sin `loading="lazy"`. Cinco claves `home.carousel.{prev,next,goto,pause,resume}` y `home.carousel.hint` reescrita, en los cuatro idiomas. La landing deja de ser «sin JavaScript» para ser «sin JavaScript necesario».

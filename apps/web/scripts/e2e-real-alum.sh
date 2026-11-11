@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Ejecuta el e2e de alumnado (REQ-ALUM, 1.15-a, CA-ALUM-009/012/018a) contra la API real: `alum-students-real.spec.ts` (HTTP real con
+# Ejecuta los e2e de alumnado (REQ-ALUM, 1.15-a CA-ALUM-009/012/018a y 1.15-b CA-ALUM-020 a -042) contra la API real: `alum-students-real.spec.ts` y
+# `alum-enrollments-real.spec.ts` (HTTP real con
 # cookie de sesión y CSRF, sin navegador: las pantallas son de 1.15-d). Prepara DOS centros sintéticos con `alum` y `fam_unit`
 # contratados y un tutor con el rol `tutor_legal` (apps/api/tests/Support/e2e-real-tenant.php setup <slug> alum), lanza Playwright
 # con sus credenciales y los retira al terminar, también si falla (mismo método y garantías que `e2e-real-api.sh`: solo
@@ -82,4 +83,4 @@ prepare A "$SLUG_A"
 prepare B "$SLUG_B"
 export E2E_REAL_API=1
 
-npx playwright test e2e/alum-students-real.spec.ts --workers=1 "$@"
+npx playwright test e2e/alum-students-real.spec.ts e2e/alum-enrollments-real.spec.ts --workers=1 "$@"

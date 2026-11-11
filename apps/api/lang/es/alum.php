@@ -7,6 +7,7 @@ return [
     'permissions' => [
         'resources' => [
             'alumno' => 'Alumnado, ficha y fotografía',
+            'matricula' => 'Matrícula, grupos y solicitudes de cambio',
         ],
     ],
     'validation' => [
@@ -19,8 +20,27 @@ return [
         'field_not_editable' => 'Este dato no se puede cambiar por esta vía.',
         'no_changes' => 'No se ha indicado ningún dato que cambiar.',
         'filter_forbidden' => 'No tienes permiso para usar este filtro.',
+        'student_not_found' => 'El alumno indicado no existe.',
+        'parent_not_found' => 'El curso, el grupo o la estructura indicados no existen.',
+        'academic_year_not_found' => 'El curso académico indicado no existe.',
+        'course_not_in_academic_year' => 'El curso indicado no pertenece al curso académico.',
+        'group_not_in_course' => 'El grupo indicado no pertenece al curso.',
+        'already_enrolled' => 'El alumno ya tiene una matrícula activa en este curso académico.',
+        'date_outside_academic_year' => 'La fecha debe estar dentro del curso académico.',
+        'date_invalid' => 'La fecha debe tener el formato AAAA-MM-DD y ser una fecha real.',
+        'group_change_requires_request' => 'Cambiar el grupo de una matrícula que ya lo tiene exige una solicitud de cambio de grupo.',
+        'immutable' => 'Este dato de la matrícula no se puede cambiar.',
+        'withdrawal_reason_invalid' => 'El motivo de la baja debe ser traslado, baja voluntaria u otro.',
+        'withdrawn_before_enrolled' => 'La fecha de baja no puede ser anterior a la fecha de matrícula.',
+        'export_query_not_allowed' => 'No se puede exportar con una búsqueda: usa solo los filtros del listado.',
+        'status_invalid' => 'El estado debe ser activa o baja.',
+    ],
+    'errors' => [
+        'export_rate_limited' => 'Has alcanzado el límite de exportaciones de matrículas. Inténtalo de nuevo en unos :minutes minutos.',
     ],
     'conflict' => [
         'cannot_restore' => 'No se puede restaurar este alumno: la persona ya no existe o ya tiene otra ficha de alumno.',
+        'already_withdrawn' => 'La matrícula ya está dada de baja.',
+        'has_active_enrollments' => 'No se puede dar de baja a un alumno con matrículas activas.',
     ],
 ];

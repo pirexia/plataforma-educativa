@@ -23,6 +23,7 @@ use App\Modules\Acad\Domain\Models\TimeSlot;
 use App\Modules\Acad\Domain\Models\Timetable;
 use App\Modules\Acad\Domain\Models\TimetableFrame;
 use App\Modules\Acad\Domain\Models\TimetableSession;
+use App\Modules\Alum\Domain\Models\Enrollment;
 use App\Modules\Alum\Domain\Models\Student;
 use App\Modules\Auth\Domain\Models\IdentityProvider;
 use App\Modules\Auth\Domain\Models\MfaReset;
@@ -86,6 +87,7 @@ test('todo modelo de tenant núcleo está en el morph map', function (): void {
 // GradingScale/GradingScaleValue (1.11d-b) se suman en Full:
 // estructura académica del centro, sin datos personales (RN-ACAD-09).
 // Guardian y FamilyUnitStudent (1.14-a) en Full: solo ids internos y la unidad, sin dato personal (REQ-FAM-UNIT/datos.md §4).
+// Enrollment (1.15-b, REQ-ALUM/datos.md §4) en Full: fechas, estado e ids, sin identificadores personales.
 // TermsVersion (1.14-b, REQ-FAM-UNIT/datos.md §4) en Full: textos legales del centro, sin datos personales; ImageConsentDecision NO entra
 // aquí, es Selective (IP, agente de usuario y claves foráneas a alumno y tutor se redactan como identificadores, ADR-035).
 // FacilityBooking (1.12-b) también en Full: un espacio, una fecha y una hora; `created_by` es un identificador interno (datos.md §9.6).
@@ -117,7 +119,7 @@ test('todo modelo del morph map es Auditable y el conjunto Full coincide con ADR
         AcademicYearReopening::class, YearRollover::class, YearRolloverItem::class,
         Facility::class, Timetable::class, TeachingAssignment::class, GroupTutor::class,
         TimetableFrame::class, TimeSlot::class, TimetableSession::class, FacilityBooking::class,
-        Guardian::class, FamilyUnitStudent::class, TermsVersion::class, Student::class,
+        Guardian::class, FamilyUnitStudent::class, TermsVersion::class, Student::class, Enrollment::class,
     ]);
 });
 

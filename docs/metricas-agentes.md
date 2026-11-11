@@ -151,5 +151,22 @@ Solo cuota de OpenAI; no se mide en tokens de Claude. Registrar por revisión: p
 | 1.15-a cierre | verificador | suite completa (2.ª) | 30364 | 12 | 8.4 | 2530 | 2250+67 en verde |
 | 1.15-a cierre | implementer | spec E2E real alum | 106808 | 25 | 3.6 | 4272 | |
 | 1.15-a cierre | verificador | E2E real alum | n/d | n/d | n/d | n/d | 3/3 verde; cifras no recibidas |
+| 1.15-b T1a | explorer | briefing | 137516 | 42 | 3.0 | 3189 | experimental (punto 2 de §2) |
+| 1.15-b T1a | implementer | acad vetos, GroupDirectory, groupIdsFor | 131752 | 37 | 16.3 | 3561 | 743/743 ficheros afectados |
+| 1.15-b T1b | explorer | briefing | 174599 | 42 | 3.8 | 4157 | |
+| 1.15-b T1b | implementer | enrollments, vetos alum, permisos, medición #382 | 243629 | 131 | 63.7 | 1860 | 2 rojos a propósito hasta T2 |
+| 1.15-b T2 | explorer | briefing | 165181 | 49 | 4.4 | | |
+| 1.15-b T2a | implementer | CourseDirectory, EnrollmentService, 3 resolutores | 239281 | 52 | 73.9 | | |
+| 1.15-b T2b | explorer | briefing | 120649 | 32 | 2.1 | | |
+| 1.15-b T2b | implementer | endpoints matrícula, filtros GET /students, enrollments[], concurrencia | 217558 | 42 | 13.8 | | 98/98 informado; la sesión reejecutó 95/95 |
+| 1.15-b T2b | implementer (reanudación) | ámbito matricula.leer en enrollments[] y enrollment en StudentSummary (delta) | 14482 | 11 | 8.7 | | 97/97 reejecutado por la sesión |
+
+| 1.15-b T2c | implementer | exportación, OpenAPI, docs, CHANGELOG | 194256 | 53 | 9.3 | | 350/350 informado |
+| 1.15-b cierre | implementer (reanudaciones) | correcciones A-F (M1, M2, índice, E2E spec), import, test CA-040, #598/#599/#601 (delta acumulado) | 128385 | 76 | | | duración acumulada con esperas, no fiable |
+| 1.15-b cierre | db-reviewer | revisión | 84472 | 11 | 1.4 | | |
+| 1.15-b cierre | security-reviewer | revisión (paso crítico) | 149271 | 23 | 3.2 | | |
+| 1.15-b cierre | doc-precheck | pasada mecánica | 103288 | 11 | 1.4 | | |
+| 1.15-b cierre | doc-reviewer | revisión | 135882 | 40 | 2.9 | | |
+| 1.15-b cierre | janitor | 7 issues + correcciones documentales | 225083 | 37 | 7.4 | | |
 
 Medias por tipo de `1.15-a` sin recalcular: el paso `1.15` no está cerrado (faltan `-b`..`-d`); se recalculan al cerrar `1.15`.

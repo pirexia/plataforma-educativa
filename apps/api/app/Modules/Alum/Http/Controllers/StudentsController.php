@@ -41,8 +41,10 @@ class StudentsController extends AlumController
             $request->sortParam(),
             max(1, $request->integer('page', 1)),
             $request->integer('per_page', 25),
+            $request->enrollmentFilters(),
         );
         $service->attachPeople($page->items(), false);
+        $service->attachCurrentEnrollments($page->items(), $actor, $request->enrollmentFilters());
 
         return PagePaginatedResponse::make($page, StudentSummaryResource::class);
     }
@@ -61,6 +63,7 @@ class StudentsController extends AlumController
 
         $student = $service->create($payload, $familyUnit);
         $service->attachPeople([$student], true);
+        $service->attachEnrollments($student, $this->actor($request));
 
         return (new StudentResource($student))
             ->response()
@@ -72,6 +75,7 @@ class StudentsController extends AlumController
     {
         $student = $service->findScoped($publicId, $this->decision($request), $this->actor($request));
         $service->attachPeople([$student], true);
+        $service->attachEnrollments($student, $this->actor($request));
 
         return new StudentResource($student);
     }
@@ -81,6 +85,7 @@ class StudentsController extends AlumController
         $service->find($publicId);
         $student = $service->update($publicId, $request->payload());
         $service->attachPeople([$student], true);
+        $service->attachEnrollments($student, $this->actor($request));
 
         return new StudentResource($student);
     }
@@ -92,10 +97,11 @@ class StudentsController extends AlumController
         return response()->noContent();
     }
 
-    public function restore(string $publicId, StudentService $service): StudentResource
+    public function restore(Request $request, string $publicId, StudentService $service): StudentResource
     {
         $student = $service->restore($publicId);
         $service->attachPeople([$student], true);
+        $service->attachEnrollments($student, $this->actor($request));
 
         return new StudentResource($student);
     }

@@ -172,5 +172,6 @@ return [
         'timetable_frames' => 'Stundenplanrahmen',
         'timetable_sessions' => 'Unterrichtsstunden',
         'facility_bookings' => 'Raumreservierungen',
+        'enrollments' => 'Einschreibungen',
     ],
 ];

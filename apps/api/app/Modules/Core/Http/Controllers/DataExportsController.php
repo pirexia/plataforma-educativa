@@ -31,6 +31,8 @@ class DataExportsController extends Controller
         'users' => 'usuario.exportar',
         // REQ-FAM-UNIT/api.md §4 (1.14-b): el informe de consentimientos de imagen lo genera `fam_unit`.
         'image_consents' => 'consentimiento_imagen.exportar',
+        // REQ-ALUM/permisos.md §2 (1.15-b): la lista de clase y la exportación de matrículas las genera `alum`.
+        'alum_enrollments' => 'matricula.exportar',
     ];
 
     public function __construct(private readonly PermissionResolver $permissions) {}

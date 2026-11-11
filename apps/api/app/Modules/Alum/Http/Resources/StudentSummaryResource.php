@@ -7,7 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
- * REQ-ALUM/api.md §1, `GET /students` (1.15-a): alumno resumido, sin matrícula vigente (llega con `1.15-b`). Los datos de
+ * REQ-ALUM/api.md §1, `GET /students` (1.15-a): alumno resumido con su matrícula vigente en el curso pedido (`enrollment`, `null` si no hay filtro de curso o año, no hay matrícula o falta `matricula.leer`). Los datos de
  * la persona los pone `StudentService::attachPeople()` (vienen de `Core`; `alum` no los guarda, `RN-ALUM-02`).
  * `deleted_at` solo aparece en un alumno dado de baja (listado con `include_deleted`).
  *
@@ -28,6 +28,7 @@ class StudentSummaryResource extends JsonResource
             'person' => ['public_id' => $view['person_public_id'] ?? null],
             'display_name' => $view['display_name'] ?? '',
             'birth_date' => $view['birth_date'] ?? null,
+            'enrollment' => $this->getAttribute('enrollment_view') === null ? null : new EnrollmentResource($this->getAttribute('enrollment_view')),
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
             'deleted_at' => $this->when($this->trashed(), fn () => $this->deleted_at),

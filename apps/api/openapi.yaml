@@ -30,6 +30,7 @@ tags:
   - name: Acad / Horarios
   - name: Acad / Reservas
   - name: Alum / Alumnado
+  - name: Alum / Matrícula
   - name: FamUnit / Unidades familiares
   - name: FamUnit / Tutores
   - name: FamUnit / Vínculos
@@ -414,6 +415,15 @@ paths:
     $ref: "openapi/paths/alum.yaml#/paths/~1api~1v1~1students~1{publicId}"
   /api/v1/students/{publicId}/restore:
     $ref: "openapi/paths/alum.yaml#/paths/~1api~1v1~1students~1{publicId}~1restore"
+  # REQ-ALUM (paso 1.15-b), matrícula: listado, alta, detalle, edición, baja y anulación.
+  /api/v1/enrollments:
+    $ref: "openapi/paths/alum.yaml#/paths/~1api~1v1~1enrollments"
+  /api/v1/enrollments/exports:
+    $ref: "openapi/paths/alum.yaml#/paths/~1api~1v1~1enrollments~1exports"
+  /api/v1/enrollments/{publicId}:
+    $ref: "openapi/paths/alum.yaml#/paths/~1api~1v1~1enrollments~1{publicId}"
+  /api/v1/enrollments/{publicId}/withdrawal:
+    $ref: "openapi/paths/alum.yaml#/paths/~1api~1v1~1enrollments~1{publicId}~1withdrawal"
 
   # REQ-FAM-UNIT (pasos 1.14-a, 1.14-b, 1.14-c y 1.14b-a), unidades familiares, tutores, alumnado, vínculos, revocación,
   # consentimiento de imagen, textos legales y autorizados de recogida. apps/api/openapi/paths/fam-unit.yaml

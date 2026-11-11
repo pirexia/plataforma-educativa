@@ -4,6 +4,7 @@ use App\Models\AuditLog;
 use App\Modules\Acad\Application\FacilityBookingService;
 use App\Modules\Acad\Domain\Models\FacilityBooking;
 use App\Modules\Alum\Application\StudentService;
+use App\Modules\Alum\Domain\Models\Enrollment;
 use App\Modules\Alum\Domain\Models\Student;
 use App\Modules\Core\Infrastructure\EloquentAuditQuery;
 use App\Modules\Core\Infrastructure\EloquentExportRequestService;
@@ -132,6 +133,18 @@ function scopedResourceMap(): array
                 'Modules/Alum/Application/StudentService.php',
             ],
         ],
+        // 1.15-b (REQ-ALUM/permisos.md §3.1, ampliación del mapa con la especificación, funcional.md §15): `matricula.leer`
+        // admite `grupo` y `unidad_familiar`. `Enrollment` y dos ficheros sancionados: `EnrollmentService` (T2, ya
+        // construido: el test de existencia de ficheros del mapa lo comprueba) y el
+        // veto de borrado de `acad` (RN-ALUM-26), que cuenta matrículas vivas del centro entero, sin ámbito de actor.
+        // `GroupChangeRequest` entra con 1.15-c.
+        'matricula' => [
+            'models' => [Enrollment::class],
+            'files' => [
+                'Modules/Alum/Application/EnrollmentService.php',
+                'Modules/Alum/Infrastructure/EnrollmentStructureDeletionVeto.php',
+            ],
+        ],
     ];
 }
 
@@ -203,7 +216,7 @@ test('AR-10 CA-056-11 CA-056-15: cada recurso del mapa sigue teniendo un permiso
     $stale = array_values(array_diff(array_keys(scopedResourceMap()), array_keys($scoped)));
 
     expect($stale)->toBe([], 'entradas del mapa de AR-10 que ya no hacen falta, retirarlas: '.implode(', ', $stale))
-        ->and(array_keys(scopedResourceMap()))->toBe(['auditoria', 'reservas', 'familia', 'vinculo_tutor', 'consentimiento_imagen', 'autorizado_recogida', 'alumno']);
+        ->and(array_keys(scopedResourceMap()))->toBe(['auditoria', 'reservas', 'familia', 'vinculo_tutor', 'consentimiento_imagen', 'autorizado_recogida', 'alumno', 'matricula']);
 });
 
 test('AR-10 CA-056-11: ningún fichero de app/ fuera de los sancionados hace una consulta estática sobre el modelo de un recurso con ámbito', function (): void {

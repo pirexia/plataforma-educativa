@@ -172,5 +172,6 @@ return [
         'timetable_frames' => 'cadres d’emploi du temps',
         'timetable_sessions' => 'séances d’emploi du temps',
         'facility_bookings' => 'réservations d’espaces',
+        'enrollments' => 'inscriptions',
     ],
 ];

@@ -362,7 +362,7 @@ test('api.md §1: el listado pagina, ordena por nombre (defecto) o created_at, b
 
     expect($page->json('meta'))->toBe(['current_page' => 2, 'per_page' => 2, 'total' => 3, 'last_page' => 2])
         ->and(array_column($page->json('data'), 'display_name'))->toBe(['Zoe Alfa'])
-        ->and(array_keys($page->json('data.0')))->toBe(['public_id', 'person', 'display_name', 'birth_date', 'created_at', 'updated_at']);
+        ->and(array_keys($page->json('data.0')))->toBe(['public_id', 'person', 'display_name', 'birth_date', 'enrollment', 'created_at', 'updated_at']);
 
     foreach (['?q=a', '?per_page=101', '?sort=foto', '?page=0', '?include_deleted=quizas'] as $bad) {
         Alum::call($tenant, $admin, 'get', "/students{$bad}")->assertUnprocessable();

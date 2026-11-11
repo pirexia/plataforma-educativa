@@ -9,6 +9,7 @@ use App\Modules\Acad\Domain\Models\GroupSubject;
 use App\Modules\Acad\Domain\Models\GroupTutor;
 use App\Modules\Acad\Domain\Models\Subgroup;
 use App\Modules\Acad\Domain\Models\TeachingAssignment;
+use App\Modules\Acad\Domain\StructureEntity;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -19,7 +20,7 @@ final class GroupService
 {
     use WritesStructure;
 
-    public function __construct(private readonly StructureYears $years) {}
+    public function __construct(private readonly StructureYears $years, private readonly StructureVetoes $vetoes) {}
 
     /** Detalle: `404` si no existe o es de otro centro; `404` también si su curso es de solo lectura sin `curso_historico.leer` (`RN-ACAD-08`). */
     public function find(string $publicId, User $actor): Group
@@ -101,6 +102,9 @@ final class GroupService
             if (TeachingAssignment::query()->where('group_id', $group->id)->exists()) {
                 $dependents[] = 'teaching_assignments';
             }
+
+            // RN-ACAD-21: vetos de otros módulos (p. ej. matrículas vivas, RN-ALUM-26).
+            $dependents = [...$dependents, ...$this->vetoes->dependents(StructureEntity::Group, $group->id)];
 
             if ($dependents !== []) {
                 throw StructureErrors::hasDependents('group', $group->code, $dependents);

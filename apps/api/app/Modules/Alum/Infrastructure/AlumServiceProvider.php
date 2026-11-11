@@ -2,6 +2,10 @@
 
 namespace App\Modules\Alum\Infrastructure;
 
+use App\Modules\Acad\Domain\StructureDeletionVetoRegistry;
+use App\Modules\Acad\Domain\StructureEntity;
+use App\Modules\Alum\Application\EnrollmentService;
+use App\Modules\Alum\Domain\Models\Enrollment;
 use App\Modules\Alum\Domain\Models\Student;
 use App\Support\Authorization\ScopeResolverRegistry;
 use App\Support\Modules\DeclaresModuleRegistry;
@@ -18,7 +22,8 @@ class AlumServiceProvider extends ServiceProvider implements DeclaresModuleRegis
 {
     public function register(): void
     {
-        //
+        // Memoiza por petición `groupIdsOf()` (RN-ALUM-63: nunca entre peticiones; el contenedor olvida lo `scoped()`).
+        $this->app->scoped(EnrollmentService::class);
     }
 
     public function boot(): void
@@ -28,10 +33,21 @@ class AlumServiceProvider extends ServiceProvider implements DeclaresModuleRegis
         // ADR-034 §3: `audit_logs` guarda el alias, nunca el FQCN.
         Relation::enforceMorphMap([
             'alum_student' => Student::class,
+            'alum_enrollment' => Enrollment::class,
         ]);
 
-        // permisos.md §3.1 (`ADR-044 §3.4`): `unidad_familiar` sobre `alumno`. `grupo` llega con 1.15-b.
-        $this->app->make(ScopeResolverRegistry::class)->register(new AlumnoUnidadFamiliarScopeResolver);
+        // permisos.md §3.1 (`ADR-044 §3.4`): cuatro resolutores de 1.15-a/1.15-b (`GroupChangeRequest` llega con 1.15-c).
+        $resolvers = $this->app->make(ScopeResolverRegistry::class);
+        $resolvers->register(new AlumnoUnidadFamiliarScopeResolver);
+        $resolvers->register(new AlumnoGrupoScopeResolver);
+        $resolvers->register(new MatriculaGrupoScopeResolver);
+        $resolvers->register(new MatriculaUnidadFamiliarScopeResolver);
+
+        // RN-ALUM-26, RN-ACAD-21 (CA-ALUM-027): dos vetos independientes. El de curso de etapa cuenta también las
+        // matrículas sin grupo.
+        $vetoes = $this->app->make(StructureDeletionVetoRegistry::class);
+        $vetoes->register(new EnrollmentStructureDeletionVeto(StructureEntity::Group));
+        $vetoes->register(new EnrollmentStructureDeletionVeto(StructureEntity::Course));
     }
 
     public function moduleDescriptor(): array
@@ -47,20 +63,27 @@ class AlumServiceProvider extends ServiceProvider implements DeclaresModuleRegis
 
     public function declaredPermissions(): array
     {
-        // permisos.md §2 (1.15-a): solo `alumno`; `matricula` llega con 1.15-b. `leer` admite `unidad_familiar` (el
-        // tutor lee a sus alumnos; `grupo` se añade en 1.15-b con su resolutor); el resto, solo `todos`. Ninguno es de
-        // categoría especial ni hay `exportar`/`importar` sobre `alumno`.
+        // permisos.md §2 (1.15-b): diez códigos. `leer` de `alumno` y de `matricula` admite `grupo` (resolutor de `alum`
+        // sobre `TeachingMembership`, RN-ACAD-98) y `unidad_familiar`; el resto, solo `todos`. Ninguno es de categoría
+        // especial. Sin `alumno.exportar` ni `*.importar` (§2.1).
         $permissions = [];
 
-        foreach (['leer', 'crear', 'actualizar', 'eliminar'] as $action) {
-            $permissions[] = [
-                'code' => "alumno.{$action}",
-                'resource' => 'alumno',
-                'action' => $action,
-                'is_special_category' => false,
-                'resource_label_key' => 'alum.permissions.resources.alumno',
-                'applicable_scopes' => $action === 'leer' ? ['todos', 'unidad_familiar'] : ['todos'],
-            ];
+        $catalog = [
+            'alumno' => ['leer', 'crear', 'actualizar', 'eliminar'],
+            'matricula' => ['leer', 'crear', 'actualizar', 'eliminar', 'aprobar', 'exportar'],
+        ];
+
+        foreach ($catalog as $resource => $actions) {
+            foreach ($actions as $action) {
+                $permissions[] = [
+                    'code' => "{$resource}.{$action}",
+                    'resource' => $resource,
+                    'action' => $action,
+                    'is_special_category' => false,
+                    'resource_label_key' => "alum.permissions.resources.{$resource}",
+                    'applicable_scopes' => $action === 'leer' ? ['todos', 'grupo', 'unidad_familiar'] : ['todos'],
+                ];
+            }
         }
 
         return $permissions;

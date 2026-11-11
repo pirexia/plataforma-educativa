@@ -7,6 +7,7 @@ return [
     'permissions' => [
         'resources' => [
             'alumno' => 'Students, record and photograph',
+            'matricula' => 'Enrolment, groups and change requests',
         ],
     ],
     'validation' => [
@@ -19,8 +20,27 @@ return [
         'field_not_editable' => 'This field cannot be changed this way.',
         'no_changes' => 'No data to change was provided.',
         'filter_forbidden' => 'You do not have permission to use this filter.',
+        'student_not_found' => 'The student provided does not exist.',
+        'parent_not_found' => 'The course, group or structure provided does not exist.',
+        'academic_year_not_found' => 'The academic year provided does not exist.',
+        'course_not_in_academic_year' => 'The course provided does not belong to the academic year.',
+        'group_not_in_course' => 'The group provided does not belong to the course.',
+        'already_enrolled' => 'The student already has an active enrolment in this academic year.',
+        'date_outside_academic_year' => 'The date must fall within the academic year.',
+        'date_invalid' => 'The date must use the YYYY-MM-DD format and be a real date.',
+        'group_change_requires_request' => 'Changing the group of an enrolment that already has one requires a group change request.',
+        'immutable' => 'This enrolment field cannot be changed.',
+        'withdrawal_reason_invalid' => 'The withdrawal reason must be transfer, voluntary withdrawal or other.',
+        'withdrawn_before_enrolled' => 'The withdrawal date cannot be earlier than the enrolment date.',
+        'export_query_not_allowed' => 'An export cannot use a search term: use only the list filters.',
+        'status_invalid' => 'The status must be activa or baja.',
+    ],
+    'errors' => [
+        'export_rate_limited' => 'You have reached the limit of enrollment exports. Try again in about :minutes minutes.',
     ],
     'conflict' => [
         'cannot_restore' => 'This student cannot be restored: the person no longer exists or already has another student record.',
+        'already_withdrawn' => 'The enrolment has already been withdrawn.',
+        'has_active_enrollments' => 'A student with active enrolments cannot be deactivated.',
     ],
 ];

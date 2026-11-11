@@ -71,6 +71,10 @@ services:
       # tenant, ADR-033 §9), pero nada fijaba CACHE_STORE para el
       # runtime real, solo phpunit.xml lo forzaba para los tests.
       CACHE_STORE: redis
+      # 1.15-b: la cola de hoy es el driver `database` (CLAUDE.md §1, config/queue.php); el worker
+      # consume esa conexión. Un `QUEUE_CONNECTION=redis` heredado de apps/api/.env encolaba en Redis
+      # sin consumidor y las exportaciones nunca completaban. Redis + Horizon: OPEN-BO-23.
+      QUEUE_CONNECTION: database
       # ADR-014: sin dominio real todavía (OPEN-08, bloqueante). Valor de
       # desarrollo para poder probar la resolución de tenant por subdominio
       # con curl -H "Host: <slug>.plataforma.test" sin depender de DNS.
@@ -166,6 +170,7 @@ services:
       DB_HOST: postgres
       REDIS_HOST: redis
       CACHE_STORE: redis
+      QUEUE_CONNECTION: database
       TENANCY_BASE_DOMAIN: plataforma.test
       DB_QUEUE_RETRY_AFTER: "180"
       # 1.14b-a (ADR-068 §5.3, ADR-013): almacenamiento privado S3 compatible (MinIO, perfil `full`). `PrivateObjectStore`

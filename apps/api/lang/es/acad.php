@@ -171,5 +171,6 @@ return [
         'timetable_frames' => 'marcos horarios',
         'timetable_sessions' => 'sesiones de horario',
         'facility_bookings' => 'reservas de espacios',
+        'enrollments' => 'matrículas',
     ],
 ];

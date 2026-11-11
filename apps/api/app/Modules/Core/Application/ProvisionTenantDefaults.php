@@ -305,29 +305,48 @@ final class ProvisionTenantDefaults implements TenantProvisioner
     ];
 
     /**
-     * REQ-ALUM/permisos.md §4 (1.15-a, `CA-ALUM-014a`): concesiones de `alumno.*` con ámbito `todos` a los roles predefinidos
-     * de gestión. `docente` y `tutor_grupo` no reciben nada hasta `1.15-b` (ámbito `grupo`, con su resolutor): ningún módulo de
-     * alumnado da `todos` a `docente` (`RN-ALUM-65`, `ADR-063 §5.4`). `matricula.*` llega con `1.15-b`. Ninguna regla de
-     * código compara estos códigos de rol (`RN-PERM-46`); la lee también `GrantAlumPermissionsCommand`.
-     *
-     * @var array<string, list<string>>
-     */
-    public const ALUM_PERMISSION_GRANTS = [
-        'administrador_centro' => ['alumno.leer', 'alumno.crear', 'alumno.actualizar', 'alumno.eliminar'],
-        'secretaria' => ['alumno.leer', 'alumno.crear', 'alumno.actualizar', 'alumno.eliminar'],
-        'direccion' => ['alumno.leer'],
-        'administrativo' => ['alumno.leer'],
-    ];
-
-    /**
-     * REQ-ALUM/permisos.md §4 (1.15-a, `CA-ALUM-014a`): `tutor_legal` lee a sus alumnos (`alumno.leer`, ámbito
-     * `unidad_familiar`). El ámbito lo resuelve `AlumnoUnidadFamiliarScopeResolver`. La lee también
+     * REQ-ALUM/permisos.md §4 (1.15-a `CA-ALUM-014a`, 1.15-b `CA-ALUM-014b`): concesiones de `alumno.*` y `matricula.*` con
+     * ámbito `todos` a los roles predefinidos de gestión. `docente` y `tutor_grupo` no reciben `todos` (`RN-ALUM-65`,
+     * `ADR-063 §5.4`): su ámbito es `grupo` (`ALUM_PERMISSION_GRUPO_GRANTS`). `secretaria` no recibe `matricula.aprobar`
+     * (solicita, no aprueba). Ninguna regla de código compara estos códigos de rol (`RN-PERM-46`); la lee también
      * `GrantAlumPermissionsCommand`.
      *
      * @var array<string, list<string>>
      */
+    public const ALUM_PERMISSION_GRANTS = [
+        'administrador_centro' => [
+            'alumno.leer', 'alumno.crear', 'alumno.actualizar', 'alumno.eliminar',
+            'matricula.leer', 'matricula.crear', 'matricula.actualizar', 'matricula.eliminar', 'matricula.aprobar', 'matricula.exportar',
+        ],
+        'secretaria' => [
+            'alumno.leer', 'alumno.crear', 'alumno.actualizar', 'alumno.eliminar',
+            'matricula.leer', 'matricula.crear', 'matricula.actualizar', 'matricula.eliminar', 'matricula.exportar',
+        ],
+        'direccion' => ['alumno.leer', 'matricula.leer', 'matricula.aprobar', 'matricula.exportar'],
+        'administrativo' => ['alumno.leer', 'matricula.leer'],
+    ];
+
+    /**
+     * REQ-ALUM/permisos.md §4 (1.15-a, 1.15-b, `CA-ALUM-014a`): `tutor_legal` lee a sus alumnos y sus matrículas
+     * (`alumno.leer`, `matricula.leer`, ámbito `unidad_familiar`). El ámbito lo resuelven los resolutores de `alum`. La lee
+     * también `GrantAlumPermissionsCommand`.
+     *
+     * @var array<string, list<string>>
+     */
     public const ALUM_PERMISSION_UNIDAD_FAMILIAR_GRANTS = [
-        'tutor_legal' => ['alumno.leer'],
+        'tutor_legal' => ['alumno.leer', 'matricula.leer'],
+    ];
+
+    /**
+     * REQ-ALUM/permisos.md §4 (1.15-b, `CA-ALUM-014b`): `docente` y `tutor_grupo` leen a los alumnos y las matrículas de sus
+     * grupos (ámbito `grupo`; la tutoría entra en `grupo`, `RN-ACAD-98`). Nunca `todos`. La lee también
+     * `GrantAlumPermissionsCommand`.
+     *
+     * @var array<string, list<string>>
+     */
+    public const ALUM_PERMISSION_GRUPO_GRANTS = [
+        'docente' => ['alumno.leer', 'matricula.leer'],
+        'tutor_grupo' => ['alumno.leer', 'matricula.leer'],
     ];
 
     /**
@@ -581,7 +600,7 @@ final class ProvisionTenantDefaults implements TenantProvisioner
             }
         }
 
-        foreach (['propios' => self::STRUCTURE_PERMISSION_PROPIOS_GRANTS, 'unidad_familiar' => array_merge_recursive(self::FAMILY_PERMISSION_UNIDAD_FAMILIAR_GRANTS, self::ALUM_PERMISSION_UNIDAD_FAMILIAR_GRANTS)] as $scope => $scopedGrants) {
+        foreach (['propios' => self::STRUCTURE_PERMISSION_PROPIOS_GRANTS, 'unidad_familiar' => array_merge_recursive(self::FAMILY_PERMISSION_UNIDAD_FAMILIAR_GRANTS, self::ALUM_PERMISSION_UNIDAD_FAMILIAR_GRANTS), 'grupo' => self::ALUM_PERMISSION_GRUPO_GRANTS] as $scope => $scopedGrants) {
             foreach ($scopedGrants as $roleCode => $permissionCodes) {
                 foreach ($permissionCodes as $permissionCode) {
                     PermissionRole::forceCreate([

@@ -7,6 +7,7 @@ return [
     'permissions' => [
         'resources' => [
             'alumno' => 'Élèves, dossier et photographie',
+            'matricula' => 'Inscription, groupes et demandes de changement',
         ],
     ],
     'validation' => [
@@ -19,8 +20,27 @@ return [
         'field_not_editable' => 'Cette information ne peut pas être modifiée par cette voie.',
         'no_changes' => 'Aucune donnée à modifier n\'a été indiquée.',
         'filter_forbidden' => 'Vous n\'avez pas l\'autorisation d\'utiliser ce filtre.',
+        'student_not_found' => 'L\'élève indiqué n\'existe pas.',
+        'parent_not_found' => 'Le cours, le groupe ou la structure indiqués n\'existent pas.',
+        'academic_year_not_found' => 'L\'année scolaire indiquée n\'existe pas.',
+        'course_not_in_academic_year' => 'Le cours indiqué n\'appartient pas à l\'année scolaire.',
+        'group_not_in_course' => 'Le groupe indiqué n\'appartient pas au cours.',
+        'already_enrolled' => 'L\'élève a déjà une inscription active pour cette année scolaire.',
+        'date_outside_academic_year' => 'La date doit être comprise dans l\'année scolaire.',
+        'date_invalid' => 'La date doit respecter le format AAAA-MM-JJ et être une date réelle.',
+        'group_change_requires_request' => 'Changer le groupe d\'une inscription qui en a déjà un nécessite une demande de changement de groupe.',
+        'immutable' => 'Cette donnée de l\'inscription ne peut pas être modifiée.',
+        'withdrawal_reason_invalid' => 'Le motif de radiation doit être transfert, départ volontaire ou autre.',
+        'withdrawn_before_enrolled' => 'La date de radiation ne peut pas être antérieure à la date d\'inscription.',
+        'export_query_not_allowed' => 'Une exportation ne peut pas utiliser de recherche : utilisez uniquement les filtres de la liste.',
+        'status_invalid' => 'Le statut doit être activa ou baja.',
+    ],
+    'errors' => [
+        'export_rate_limited' => 'Vous avez atteint la limite d\'exportations d\'inscriptions. Réessayez dans environ :minutes minutes.',
     ],
     'conflict' => [
         'cannot_restore' => 'Cet élève ne peut pas être restauré : la personne n\'existe plus ou possède déjà une autre fiche d\'élève.',
+        'already_withdrawn' => 'L\'inscription est déjà radiée.',
+        'has_active_enrollments' => 'Un élève ayant des inscriptions actives ne peut pas être radié.',
     ],
 ];

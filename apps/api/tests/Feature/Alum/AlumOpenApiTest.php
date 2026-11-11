@@ -3,10 +3,11 @@
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Symfony\Component\Yaml\Yaml;
+use Tests\Support\AlumEnrollmentHelpers;
 use Tests\Support\AlumTestHelpers as Alum;
 
-// CLAUDE.md §10 («el endpoint está documentado en OpenAPI»), REQ-ALUM/api.md §1, INV-006, INV-015, CA-ALUM-064. Los seis
-// endpoints de 1.15-a documentados, y solo ellos; sus referencias resuelven; los esquemas describen lo que la API
+// CLAUDE.md §10 («el endpoint está documentado en OpenAPI»), REQ-ALUM/api.md §1 y §2, INV-006, INV-015, CA-ALUM-064. Los
+// seis endpoints de 1.15-a y los siete de matrícula y exportación de 1.15-b documentados, y solo ellos; sus referencias resuelven; los esquemas describen lo que la API
 // devuelve de verdad.
 
 afterEach(function (): void {
@@ -29,7 +30,7 @@ function alumDocumentedOperations(): array
     return $documented;
 }
 
-test('REQ-ALUM-001 api.md §1: los 6 endpoints de 1.15-a están documentados en OpenAPI, enlazados desde openapi.yaml, y solo ellos', function (): void {
+test('REQ-ALUM-002 api.md §1 y §2: los 13 endpoints de 1.15-a y 1.15-b (T2b y T2c) están documentados en OpenAPI, enlazados desde openapi.yaml, y solo ellos', function (): void {
     $root = Yaml::parseFile(base_path('openapi.yaml'));
     $paths = Yaml::parseFile(base_path('openapi/paths/alum.yaml'))['paths'];
 
@@ -48,8 +49,8 @@ test('REQ-ALUM-001 api.md §1: los 6 endpoints de 1.15-a están documentados en 
 
     sort($registered);
 
-    expect(alumDocumentedOperations())->toHaveCount(6)->and($registered)->toBe(alumDocumentedOperations())
-        ->and($root['tags'])->toContain(['name' => 'Alum / Alumnado']);
+    expect(alumDocumentedOperations())->toHaveCount(13)->and($registered)->toBe(alumDocumentedOperations())
+        ->and($root['tags'])->toContain(['name' => 'Alum / Alumnado'])->toContain(['name' => 'Alum / Matrícula']);
 });
 
 test('REQ-ALUM-001 api.md §1: toda referencia $ref de alum.yaml resuelve en components.yaml y cada operación tiene identificador, etiqueta, cookie de sesión y las respuestas 401 y 403', function (): void {
@@ -98,6 +99,7 @@ test('REQ-ALUM-001 api.md §1 RN-ALUM-27: lista blanca de sort, Idempotency-Key 
     $paths = Yaml::parseFile(base_path('openapi/paths/alum.yaml'))['paths'];
 
     expect($components['parameters']['StudentSortParam']['schema']['enum'])->toBe(['name', '-name', 'created_at', '-created_at'])
+        ->and($components['parameters']['EnrollmentSortParam']['schema']['enum'])->toBe(['name', '-name', 'enrolled_on', '-enrolled_on'])
         ->and($components['parameters']['IdempotencyKeyHeader']['required'])->toBeTrue()
         ->and($paths['/api/v1/students']['post']['parameters'])->toContain(['$ref' => '../components.yaml#/components/parameters/IdempotencyKeyHeader'])
         ->and($components['schemas']['Student']['properties']['document_number']['description'])->toContain('enmascarado');
@@ -108,7 +110,10 @@ test('REQ-ALUM-001 api.md §1 RN-ALUM-27: lista blanca de sort, Idempotency-Key 
         }
     }
 
-    expect(json_encode($paths['/api/v1/students/{publicId}/restore']['post']))->not->toContain('IdempotencyKeyHeader');
+    // Sin `Idempotency-Key` en matrícula (RN-ALUM-27): ni el alta, ni la baja, ni el resto.
+    foreach (['/api/v1/enrollments', '/api/v1/enrollments/{publicId}/withdrawal', '/api/v1/students/{publicId}/restore'] as $uri) {
+        expect(json_encode($paths[$uri]['post']))->not->toContain('IdempotencyKeyHeader', $uri);
+    }
 });
 
 test('REQ-ALUM-001 api.md §1: los esquemas de OpenAPI describen exactamente las claves que la API devuelve (Student y StudentSummary, con y sin baja) y no filtran claves internas', function (): void {
@@ -142,4 +147,27 @@ test('REQ-ALUM-001 api.md §1: los esquemas de OpenAPI describen exactamente las
     }
 
     expect(json_encode($student))->not->toContain(Alum::dni(77777777));
+});
+
+test('REQ-ALUM-002 api.md §2: el esquema Enrollment describe exactamente las claves que la API devuelve (listado, detalle, alta y elemento de enrollments[] de la ficha) y los resúmenes anidados', function (): void {
+    $s = AlumEnrollmentHelpers::scenario('alum-openapi-enr');
+    $schemas = Yaml::parseFile(base_path('openapi/components.yaml'))['components']['schemas'];
+    $properties = array_keys($schemas['Enrollment']['properties']);
+    $created = Alum::call($s['tenant'], $s['admin'], 'post', '/enrollments', AlumEnrollmentHelpers::body($s))->assertCreated()->json();
+    $id = $created['public_id'];
+    $listed = Alum::call($s['tenant'], $s['admin'], 'get', "/enrollments?academic_year={$s['year']->public_id}")->assertOk()->json('data.0');
+    $ficha = Alum::call($s['tenant'], $s['admin'], 'get', "/students/{$s['students'][0]['public_id']}")->assertOk()->json();
+
+    expect($schemas['Enrollment']['required'])->toEqualCanonicalizing($properties)
+        ->and(array_keys($created))->toEqualCanonicalizing($properties)
+        ->and(array_keys($listed))->toEqualCanonicalizing($properties)
+        ->and(array_keys(Alum::call($s['tenant'], $s['admin'], 'get', "/enrollments/{$id}")->assertOk()->json()))->toEqualCanonicalizing($properties)
+        ->and(array_keys($ficha['enrollments'][0]))->toEqualCanonicalizing($properties)
+        ->and($schemas['Student']['properties']['enrollments']['items'])->toBe(['$ref' => '#/components/schemas/Enrollment'])
+        ->and(array_keys($created['student']))->toEqualCanonicalizing($schemas['Enrollment']['properties']['student']['required'])
+        ->and(array_keys($created['academic_year']))->toEqualCanonicalizing($schemas['Enrollment']['properties']['academic_year']['required'])
+        ->and(array_keys($created['course']))->toEqualCanonicalizing($schemas['Enrollment']['properties']['course']['required'])
+        ->and(array_keys($created['group']))->toEqualCanonicalizing($schemas['Enrollment']['properties']['group']['oneOf'][0]['required'])
+        ->and($schemas['EnrollmentStatus']['enum'])->toBe(['activa', 'baja'])
+        ->and(array_keys($created))->not->toContain('id', 'tenant_id', 'student_id', 'course_id', 'group_id', 'academic_year_id', 'created_by');
 });

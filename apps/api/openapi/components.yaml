@@ -2079,9 +2079,11 @@ components:
       type: object
       description: >
         REQ-ALUM/api.md §1, `GET /students` (1.15-a). Los datos de la persona vienen de `Core` (`alum` no los guarda,
-        RN-ALUM-02). Sin matrícula vigente hasta `1.15-b`. `deleted_at` solo aparece en un alumno dado de baja (listado con
+        RN-ALUM-02). `enrollment`: matrícula vigente en el curso pedido (`academic_year`, o el activo si hay filtro de
+        matrícula) con la forma de `Enrollment`, acotada por el ámbito de `matricula.leer`; `null` sin filtro de curso o año,
+        sin matrícula o sin ese permiso. `deleted_at` solo aparece en un alumno dado de baja (listado con
         `include_deleted`).
-      required: [public_id, person, display_name, birth_date, created_at, updated_at]
+      required: [public_id, person, display_name, birth_date, enrollment, created_at, updated_at]
       properties:
         public_id: { $ref: '#/components/schemas/PublicId' }
         person:
@@ -2095,6 +2097,10 @@ components:
           oneOf:
             - { type: string, format: date }
             - { type: 'null' }
+        enrollment:
+          oneOf:
+            - { $ref: '#/components/schemas/Enrollment' }
+            - { type: 'null' }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
         deleted_at: { type: string, format: date-time }
@@ -2102,10 +2108,10 @@ components:
     Student:
       type: object
       description: >
-        REQ-ALUM/api.md §1: ficha del alumno en `1.15-a` (sin `enrollments[]`, `emergency_contact`, `guardians[]` ni
+        REQ-ALUM/api.md §1: ficha del alumno (con `enrollments[]` desde `1.15-b`; sin `emergency_contact`, `guardians[]` ni
         `photo`). Los datos de la persona vienen de `Core`. **`document_number` va enmascarado** (solo los cuatro últimos
         caracteres a la vista): la API de alumnado nunca devuelve el documento completo.
-      required: [public_id, person, display_name, given_name, family_name_1, family_name_2, birth_date, locale, document_type, document_number, created_at, updated_at]
+      required: [public_id, person, display_name, given_name, family_name_1, family_name_2, birth_date, locale, document_type, document_number, enrollments, created_at, updated_at]
       properties:
         public_id: { $ref: '#/components/schemas/PublicId' }
         person:
@@ -2132,9 +2138,98 @@ components:
         document_number:
           description: Número **enmascarado** (`•••••1234`), o `null`.
           type: [string, 'null']
+        enrollments:
+          type: array
+          description: >
+            Matrículas vivas del alumno (`1.15-b`), con la forma de `GET /enrollments`, de la más reciente a la más
+            antigua. Las de un curso cerrado que el sujeto no puede leer se omiten (RN-ALUM-23).
+            El ámbito de `matricula.leer` acota la lista: sin ese permiso sale `[]`.
+          items: { $ref: '#/components/schemas/Enrollment' }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
         deleted_at: { type: string, format: date-time }
+
+    EnrollmentStatus:
+      type: string
+      description: Estado de la matrícula. Enumerado **extensible**.
+      enum: [activa, baja]
+      x-extensible-enum: true
+
+    Enrollment:
+      type: object
+      description: >
+        REQ-ALUM/api.md §2. Matrícula de un alumno en un curso académico, un curso de etapa y, opcionalmente, un grupo.
+        `student`, `academic_year`, `course` y `group` son resúmenes (los datos viven en `Core`, `curso` y `acad`).
+        `group` es `null` si la matrícula no tiene grupo (OPEN-ALUM-11 = B). También es la forma de cada elemento de
+        `enrollments[]` de la ficha del alumno.
+      required: [public_id, student, academic_year, course, group, status, enrolled_on, withdrawn_on, withdrawal_reason, created_at, updated_at]
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        student:
+          type: object
+          required: [public_id, display_name]
+          properties:
+            public_id: { $ref: '#/components/schemas/PublicId' }
+            display_name: { type: string, description: 'Nombre visible; vacío si la persona está dada de baja.' }
+        academic_year:
+          type: object
+          required: [public_id, code]
+          properties:
+            public_id: { $ref: '#/components/schemas/PublicId' }
+            code: { type: string, example: '2026-2027' }
+        course:
+          type: object
+          description: Curso de etapa.
+          required: [public_id, code, name_translations]
+          properties:
+            public_id: { $ref: '#/components/schemas/PublicId' }
+            code: { type: string, example: '1ESO' }
+            name_translations: { type: object, additionalProperties: { type: string }, description: 'Nombre por idioma.' }
+        group:
+          description: Resumen del grupo (`GroupDirectory`), o `null` si no tiene.
+          oneOf:
+            - type: object
+              required: [public_id, code, name]
+              properties:
+                public_id: { $ref: '#/components/schemas/PublicId' }
+                code: { type: string }
+                name: { type: string }
+            - { type: 'null' }
+        status: { $ref: '#/components/schemas/EnrollmentStatus' }
+        enrolled_on: { type: string, format: date }
+        withdrawn_on:
+          oneOf:
+            - { type: string, format: date }
+            - { type: 'null' }
+        withdrawal_reason:
+          description: Motivo de la baja (`traslado`, `baja_voluntaria`, `otro`), o `null`.
+          type: [string, 'null']
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    EnrollmentCreate:
+      type: object
+      required: [student, academic_year, course, enrolled_on]
+      properties:
+        student: { $ref: '#/components/schemas/PublicId' }
+        academic_year: { $ref: '#/components/schemas/PublicId' }
+        course: { allOf: [{ $ref: '#/components/schemas/PublicId' }], description: 'Curso de etapa; debe ser del curso académico.' }
+        group: { allOf: [{ $ref: '#/components/schemas/PublicId' }], description: 'Opcional; debe ser del curso de etapa.' }
+        enrolled_on: { type: string, format: date, description: 'Dentro del curso académico, bordes incluidos (RN-ALUM-29).' }
+
+    EnrollmentUpdate:
+      type: object
+      description: Al menos una clave. `student`, `academic_year` y `course` no se aceptan (`422 immutable`).
+      properties:
+        enrolled_on: { type: string, format: date }
+        group: { allOf: [{ $ref: '#/components/schemas/PublicId' }], description: 'Solo si la matrícula no tiene grupo (RN-ALUM-28).' }
+
+    EnrollmentWithdrawal:
+      type: object
+      required: [withdrawn_on, withdrawal_reason]
+      properties:
+        withdrawn_on: { type: string, format: date, description: 'No anterior a `enrolled_on`.' }
+        withdrawal_reason: { type: string, enum: [traslado, baja_voluntaria, otro] }
 
     StudentCreate:
       type: object
@@ -3032,6 +3127,14 @@ components:
       schema:
         type: string
         enum: [name, -name, created_at, -created_at]
+        default: name
+    EnrollmentSortParam:
+      name: sort
+      in: query
+      description: Prefijo "-" para descendente (ADR-038 §5.3). Lista blanca cerrada; desempate por `id`.
+      schema:
+        type: string
+        enum: [name, -name, enrolled_on, -enrolled_on]
         default: name
     FamUnitCreatedAtSortParam:
       name: sort

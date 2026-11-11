@@ -13,6 +13,7 @@ use App\Modules\Core\Domain\PersonRegistration;
 use App\Modules\FamUnit\Domain\FamilyUnitStudents;
 use App\Support\Api\ApiException;
 use App\Support\Authorization\PermissionDecision;
+use App\Support\Authorization\PermissionResolver;
 use App\Support\Authorization\ScopedQuery;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -38,6 +39,7 @@ final class StudentService
         private readonly PersonDirectory $people,
         private readonly PersonRegistrar $registrar,
         private readonly FamilyUnitStudents $familyUnitStudents,
+        private readonly PermissionResolver $permissions,
     ) {}
 
     /** Detalle sin acotar por ámbito (escrituras, que exigen ámbito `todos`): `404` si no existe o es de otro centro. */
@@ -58,16 +60,25 @@ final class StudentService
      * Página del listado, acotada por ámbito. `q` (prefijo de nombre o apellidos, mínimo 2 caracteres: lo valida la
      * petición) se resuelve con `PersonDirectory::searchByNameAmong()` sobre las personas del ámbito del sujeto. El
      * nombre no vive en `alum`, así que `sort=name` ordena en memoria tras leer los nombres de `Core` (conjuntos
-     * acotados por centro, `api.md §5`).
+     * acotados por centro, `api.md §5`). `$enrollmentFilters` (`academic_year`, `course`, `group`, `enrollment_status`,
+     * desde `1.15-b`) los resuelve `EnrollmentService::studentIdsMatching()`.
      *
+     * @param  array{academic_year?: ?string, course?: ?string, group?: ?string, enrollment_status?: ?string}  $enrollmentFilters
      * @return LengthAwarePaginator<int, Student>
      */
-    public function page(PermissionDecision $decision, User $subject, ?string $q, bool $includeDeleted, string $sort, int $page, int $perPage): LengthAwarePaginator
+    public function page(PermissionDecision $decision, User $subject, ?string $q, bool $includeDeleted, string $sort, int $page, int $perPage, array $enrollmentFilters = []): LengthAwarePaginator
     {
         $query = $this->scopedQuery->constrain(Student::query(), 'alumno', $decision, $subject);
 
         if ($includeDeleted) {
             $query->withTrashed();
+        }
+
+        // Perezoso: `EnrollmentService` depende de este servicio (sin dependencia circular de construcción).
+        $enrolled = app(EnrollmentService::class)->studentIdsMatching($subject, $this->permissions->decide($subject, 'matricula.leer'), $enrollmentFilters);
+
+        if ($enrolled !== null) {
+            $query->whereIn('id', $enrolled);
         }
 
         if ($q !== null && $q !== '') {
@@ -129,6 +140,27 @@ final class StudentService
 
             $student->setAttribute('person_view', $view);
         }
+    }
+
+    /**
+     * Pone en la ficha, como atributo efímero `enrollments_view`, sus matrículas vivas de cursos legibles para el sujeto
+     * (`enrollments[]`, `RN-ALUM-23`), acotadas por el ámbito de `matricula.leer` (sin el permiso, ninguna).
+     */
+    public function attachEnrollments(Student $student, User $subject): void
+    {
+        $student->setAttribute('enrollments_view', app(EnrollmentService::class)->forStudent((int) $student->id, $subject, $this->permissions->decide($subject, 'matricula.leer')));
+    }
+
+    /**
+     * Pone en cada alumno del listado su matrícula vigente (`enrollment_view`, `null` si no hay filtro de curso o año, no
+     * hay matrícula o el sujeto no tiene `matricula.leer`), acotada por el ámbito de ese permiso.
+     *
+     * @param  iterable<Student>  $students
+     * @param  array{academic_year?: ?string, course?: ?string, group?: ?string, enrollment_status?: ?string}  $filters
+     */
+    public function attachCurrentEnrollments(iterable $students, User $subject, array $filters): void
+    {
+        app(EnrollmentService::class)->attachCurrent($students, $subject, $this->permissions->decide($subject, 'matricula.leer'), $filters);
     }
 
     /**
@@ -237,12 +269,68 @@ final class StudentService
         return ApiException::validation($errors, $e->detailKey, $e->detailParams);
     }
 
-    /** `RN-ALUM-05`: baja lógica; no borra la persona ni su pertenencia. Sin matrículas en `1.15-a` la baja siempre cabe. */
+    /**
+     * `RN-ALUM-05` (completa en `1.15-b`): baja lógica; no borra la persona ni su pertenencia. Un alumno con alguna
+     * matrícula `activa` viva no se da de baja ⇒ `409 has_active_enrollments`. La comprobación se hace con la fila del
+     * alumno bloqueada `FOR UPDATE`; el alta de matrícula la bloquea `FOR SHARE`, así que no se cruzan.
+     */
     public function delete(string $publicId): void
     {
         DB::transaction(function () use ($publicId): void {
-            Student::query()->where('public_id', $publicId)->lockForUpdate()->firstOrFail()->delete();
+            $student = Student::query()->where('public_id', $publicId)->lockForUpdate()->firstOrFail();
+
+            // Perezoso: `EnrollmentService` depende de este servicio (sin dependencia circular de construcción).
+            if (app(EnrollmentService::class)->hasActiveEnrollments((int) $student->id)) {
+                throw AlumErrors::conflict('student', 'alum.conflict.has_active_enrollments');
+            }
+
+            $student->delete();
         });
+    }
+
+    /**
+     * Alumno vivo por `public_id` bloqueado `FOR SHARE` hasta el final de la transacción (`funcional.md §4.2`): si otra
+     * conexión lo está borrando sin confirmar, espera y, al confirmar, devuelve `null`. Exige transacción abierta.
+     */
+    public function lockAliveForShare(string $publicId): ?Student
+    {
+        return Student::query()->where('public_id', $publicId)->sharedLock()->first();
+    }
+
+    /** Id interno de un alumno vivo por su `public_id`; `null` si no existe o es de otro centro. */
+    public function idByPublicId(string $publicId): ?int
+    {
+        $id = Student::query()->where('public_id', $publicId)->value('id');
+
+        return $id === null ? null : (int) $id;
+    }
+
+    /**
+     * Alumnos (incluidos los dados de baja: una matrícula vive aunque el alumno se dé de baja después de anularla) por
+     * id interno, indexados por id.
+     *
+     * @param  list<int>  $ids
+     * @return array<int, Student>
+     */
+    public function byIds(array $ids): array
+    {
+        if ($ids === []) {
+            return [];
+        }
+
+        return Student::withTrashed()->whereIn('id', $ids)->get()->keyBy(static fn (Student $s): int => (int) $s->id)->all();
+    }
+
+    /**
+     * Subconsulta (`SELECT id`) de los alumnos vivos de esas personas, para los resolutores de `matricula`
+     * (`RN-ALUM-62`): los resolutores no consultan `Student` directamente (`AR-10`).
+     *
+     * @param  list<int>  $personIds
+     * @return Builder<Student>
+     */
+    public function idsQueryOfPersons(array $personIds): Builder
+    {
+        return Student::query()->whereIn('person_id', $personIds)->select('id');
     }
 
     /** `RN-ALUM-06`: solo si la persona sigue viva y no tiene otra faceta de alumno viva; si no, `409 cannot_restore`. */
