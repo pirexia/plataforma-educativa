@@ -169,3 +169,6 @@ export interface GroupChangeCreate {
 export interface GroupChangeDecision {
   decision_note?: string
 }
+
+/** Decisión sobre una solicitud `pendiente` (`approval`, `rejection`, `cancellation`; `RN-ALUM-42`). */
+export type GroupChangeDecisionMode = 'approve' | 'reject' | 'cancel'
