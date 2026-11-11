@@ -68,7 +68,7 @@ Sujeto sin asignación docente o sin faceta de tutor ⇒ conjunto vacío (denieg
 
 **Mapa cerrado de `AR-10`** (ampliación que requiere aprobación expresa del usuario, como `OPEN-ACAD-42`): `alumno` → `Student` (servicios sancionados `StudentService` y `StudentPhotoService`; `StudentPhoto` se consulta solo en este último, con el alumno acotado antes por `ScopedQuery`); `matricula` → `Enrollment` (`EnrollmentService` y `EnrollmentStructureDeletionVeto`) y `GroupChangeRequest` (`GroupChangeService` y `GroupChangeRequestStructureDeletionVeto`; los dos vetos cuentan del centro entero, sin ámbito de actor). El test no ve accesos por relación ni `DB::table()`: lo cubren `CA-ALUM-010` a `-016`, `-012` y `-039` (listado **y** detalle).
 
-Reglas que no son permiso y se comprueban además: curso cerrado (`RN-ALUM-23`, `AcademicYearReadAccess`), autoaprobación (`RN-ALUM-44`), y la visibilidad de tutores en la ficha, que exige además `vinculo_tutor.leer` (`api.md §1`).
+Reglas que no son permiso y se comprueban además: curso cerrado (`RN-ALUM-23`, `AcademicYearReadAccess`), autoaprobación (`RN-ALUM-44`), y los tutores en la pantalla de ficha: esta pide los vínculos a `GET /guardian-links?student_person=`, que exige `vinculo_tutor.leer`; la ficha de la API no lleva tutores (decisión del usuario 2026-11-11, issue #614).
 
 ## 4. Asignación en roles predefinidos (`OPEN-ALUM-18`, recomendación)
 

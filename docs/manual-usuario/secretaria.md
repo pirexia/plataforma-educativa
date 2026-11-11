@@ -1,6 +1,6 @@
 # Manual de secretaría
 
-> Estructura académica (`REQ-ACAD-001`, pasos `1.11-b`, `1.11d-a` y `1.11d-b`) y familias, consentimientos de imagen y condiciones de uso (`REQ-FAM-UNIT`, paso `1.14-d`). El resto de funciones de este perfil se documentan con cada módulo.
+> Estructura académica (`REQ-ACAD-001`, pasos `1.11-b`, `1.11d-a` y `1.11d-b`), alumnado y matrículas (`REQ-ALUM`, paso `1.15-d`) y familias, consentimientos de imagen y condiciones de uso (`REQ-FAM-UNIT`, paso `1.14-d`). El resto de funciones de este perfil se documentan con cada módulo.
 
 ## Estructura académica del centro
 
@@ -59,3 +59,31 @@ La pantalla de conserjería (entrega en la puerta) ya está disponible; cómo se
 ## Condiciones de uso del centro
 
 Las condiciones de uso las publica la administración del centro (`REQ-FAM-UNIT-003`); por defecto la Secretaría puede **consultar** las versiones de los textos legales (`GET /terms-versions`) pero no crearlas, editarlas ni publicarlas: esos botones no aparecen. En **Condiciones de uso** (`/configuracion/condiciones-de-uso`, en el menú lateral) ves las versiones de las condiciones y del texto de consentimiento de imagen de cada nivel: tipo, versión, título, estado (**«Borrador»**, **«Publicada»** o **«Retirada»**, siempre en texto) y fecha de publicación; filtras por tipo y por estado, y **«Leer»** abre el texto. Para saber si una familia ha aceptado la versión vigente, debajo aparece **«Aceptaciones»** (de la más reciente a la más antigua; muestra la fecha, la versión, el idioma en que se mostró y el identificador del usuario, sin IP ni dispositivo). Si una familia dice que «no puede entrar» y la aplicación le pide aceptar las condiciones, no es un fallo: debe leer y aceptar el texto (ver el manual de familias).
+
+## Alumnado y matrículas
+
+**Qué ves.** En **Alumnado** (`/alumnado`, en el menú lateral) ves el listado de alumnos del centro. Se filtra por **curso**, **grupo** y **estado de la matrícula**, y se busca por nombre; los filtros, el orden y la página quedan en la dirección de la página. El curso académico es el que eliges en el selector de la barra superior. **«Incluir bajas»** muestra también a los alumnos dados de baja, marcados con el texto «baja».
+
+**Dar de alta a un alumno.** **«Nuevo alumno»** abre un diálogo con nombre, apellidos, fecha de nacimiento, documento (tipo y número) e idioma. La **unidad familiar** es opcional: se busca por código y, si la eliges, el alumno se añade a ella (necesitas además poder modificar familias). Al guardar llegas a su ficha.
+
+**La ficha del alumno** (`/alumnado/…`) reúne:
+
+- **Datos personales.** El **documento sale enmascarado**: solo se ven los últimos cuatro caracteres y nunca el número completo. **«Corregir datos»** abre un diálogo en el que solo se envía lo que cambias; para conservar el documento actual, déjalo en blanco, y si escribes uno nuevo indica también el tipo. La pertenencia a la unidad familiar no se cambia aquí, sino en Familias.
+- **Fotografía.** **«Mostrar fotografía»** pide la imagen en ese momento (el enlace caduca en pocos minutos; si caduca, vuelve a pulsarlo). **«Subir fotografía»**, **«Sustituir»** y **«Quitar»** (este último pide confirmación) aparecen si puedes actualizar alumnos. Solo se admite JPEG o PNG de hasta 5 MB; el servidor reprocesa la imagen y descarta sus metadatos, y la pantalla avisa si el tipo o el tamaño no valen.
+- **Matrículas.** Las del alumno, con curso, grupo, estado y fechas (véase más abajo).
+- **Tutores y contacto de emergencia** y **Consentimiento de imagen.** No se cargan solos: pulsa **«Mostrar vínculos»** o **«Mostrar consentimientos»**. Es así a propósito: **consultarlos queda registrado en la auditoría** con tu usuario, y por eso solo se piden cuando los necesitas. Aparecen únicamente si tu rol puede leer vínculos de tutor o consentimientos de imagen. Cada estado se muestra siempre en texto («Activo», «Revocado», «Autorizo», «No autorizo», «Pendiente»), nunca solo con color.
+
+**Dar de baja a un alumno y restaurarlo.** **«Dar de baja»** (permiso de eliminar alumnos) pide confirmación. La baja es lógica: no borra a la persona ni su pertenencia a la familia, y no se permite si el alumno tiene una **matrícula activa** (dala de baja antes). Para recuperarlo, activa **«Incluir bajas»** en el listado y pulsa **«Restaurar»** en su fila.
+
+**Matricular.** En la sección de matrículas de la ficha, **«Matricular»** (permiso de crear matrículas) matricula al alumno en el **curso académico seleccionado**: eliges el curso y, opcionalmente, el grupo. **Límite conocido** (issue #621): una matrícula creada sin grupo no se puede completar después desde la pantalla, así que conviene elegir el grupo al matricular. En una matrícula de ese curso:
+
+- **«Dar de baja la matrícula»** (solo en una matrícula **activa**) pide la **fecha de baja** y el **motivo** (traslado, baja voluntaria u otro). La matrícula se conserva entera y **no se puede revertir**.
+- **«Anular matrícula»** (permiso de eliminar matrículas; se ofrece en cualquier estado de la matrícula dentro del curso escribible) la borra como si no hubiera existido; es para un error de alta. Para un traslado o una baja, usa la baja de la matrícula.
+
+**Lista de clase y exportación.** En **Listas de clase** (`/alumnado/listas`) ves las matrículas del curso elegido; el curso de etapa y el grupo son **opcionales**, y también se filtra por estado. **«Exportar»** (permiso de exportar matrículas) genera en segundo plano un CSV con los filtros activos; cuando está listo, aparece el enlace de descarga, que caduca. Hay un límite de peticiones de exportación por hora; si lo superas, espera el tiempo que indique el aviso.
+
+**Solicitar un cambio de grupo.** En la ficha (matrícula activa con grupo) o en la acción de cada fila de la lista de clase, **«Solicitar cambio de grupo»** abre un diálogo: eliges el **grupo de destino** (solo se ofrecen los del mismo curso) y escribes un **motivo**, obligatorio y de hasta 500 caracteres. Solo puede haber una solicitud pendiente por matrícula. La Secretaría **solicita, pero no aprueba**: la decisión la toma la Dirección. En **Cambios de grupo** (`/alumnado/cambios-de-grupo`) ves las solicitudes y su estado (Pendiente, Aprobada, Rechazada o Cancelada) y, con el permiso de actualizar matrículas, **«Cancelar»** una solicitud pendiente.
+
+**Con el curso cerrado.** Si el curso académico seleccionado es de **solo lectura** (cerrado o archivado), un aviso lo indica y desaparecen todas las acciones de escritura: alta de alumno, corrección, baja, restauración, matricular, baja y anulación de matrícula, y solicitar o cancelar cambios de grupo. **Sigues pudiendo consultar y exportar la lista de clase.** **Sin curso resuelto** (ni `?academic_year=` en la dirección ni curso activo) no se ofrece ninguna acción ni la exportación, y la lista de clase y los cambios de grupo avisan de que falta un curso académico: elige uno en el selector de la barra superior.
+
+**Almacenamiento de ficheros.** La fotografía y la descarga de la exportación dependen del almacenamiento de ficheros del centro. Si no está disponible, la ficha y la lista se siguen mostrando, pero subir la fotografía falla sin guardar nada; avisa a quien administra el sistema.

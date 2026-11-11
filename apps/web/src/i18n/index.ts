@@ -23,6 +23,10 @@ import famUnitEs from '@/modules/fam-unit/locales/es.json'
 import famUnitEn from '@/modules/fam-unit/locales/en.json'
 import famUnitDe from '@/modules/fam-unit/locales/de.json'
 import famUnitFr from '@/modules/fam-unit/locales/fr.json'
+import alumEs from '@/modules/alum/locales/es.json'
+import alumEn from '@/modules/alum/locales/en.json'
+import alumDe from '@/modules/alum/locales/de.json'
+import alumFr from '@/modules/alum/locales/fr.json'
 import prlEs from '@/modules/prl/locales/es.json'
 import prlEn from '@/modules/prl/locales/en.json'
 import prlDe from '@/modules/prl/locales/de.json'
@@ -100,10 +104,10 @@ export const i18n = createI18n({
   locale: resolveInitialLocale(),
   fallbackLocale: DEFAULT_LOCALE,
   messages: {
-    es: { ...es, ...coreEs, ...cursoEs, ...acadEs, ...authEs, ...famUnitEs, ...prlEs },
-    en: { ...en, ...coreEn, ...cursoEn, ...acadEn, ...authEn, ...famUnitEn, ...prlEn },
-    de: { ...de, ...coreDe, ...cursoDe, ...acadDe, ...authDe, ...famUnitDe, ...prlDe },
-    fr: { ...fr, ...coreFr, ...cursoFr, ...acadFr, ...authFr, ...famUnitFr, ...prlFr },
+    es: { ...es, ...coreEs, ...cursoEs, ...acadEs, ...authEs, ...famUnitEs, ...alumEs, ...prlEs },
+    en: { ...en, ...coreEn, ...cursoEn, ...acadEn, ...authEn, ...famUnitEn, ...alumEn, ...prlEn },
+    de: { ...de, ...coreDe, ...cursoDe, ...acadDe, ...authDe, ...famUnitDe, ...alumDe, ...prlDe },
+    fr: { ...fr, ...coreFr, ...cursoFr, ...acadFr, ...authFr, ...famUnitFr, ...alumFr, ...prlFr },
   },
 })
 

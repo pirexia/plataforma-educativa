@@ -1,6 +1,6 @@
 # Manual de dirección
 
-> Estructura académica (`REQ-ACAD-001`, pasos `1.11-b`, `1.11d-a` y `1.11d-b`) y conserjería (`REQ-PRL-004`, paso `1.14b-c2`). El resto de funciones de este perfil se documentan con cada módulo.
+> Estructura académica (`REQ-ACAD-001`, pasos `1.11-b`, `1.11d-a` y `1.11d-b`), conserjería (`REQ-PRL-004`, paso `1.14b-c2`) y aprobación de cambios de grupo (`REQ-ALUM`, paso `1.15-d`). El resto de funciones de este perfil se documentan con cada módulo.
 
 ## Estructura académica del centro
 
@@ -42,3 +42,17 @@
 **Llamada y cierre.** (`alerta_entrega.actualizar`: dirección y administración del centro sí; conserjería no, y a quien no lo tiene se le muestra «avisa a dirección».) Dirección registra en la alerta la hora de la llamada al tutor principal con **«Guardar la llamada»** y la cierra con **«Cerrar la alerta»**, eligiendo la resolución (no entregado, recogido por una persona autorizada, autorización puntual registrada u otra). Una alerta cerrada **no se puede reabrir** ni borrar. En **Alertas de entrega** filtras por estado y por fecha de apertura; el listado muestra nombres, no teléfonos, y su consulta también queda registrada.
 
 **Si algo falla.** Un aviso de «vuelve a intentarlo en N segundos» significa que has agotado el cupo de consultas: espera o pide a administración que lo restablezca. Algunos textos de seguridad están todavía solo en castellano hasta que una persona los traduzca.
+
+## Alumnado y cambios de grupo
+
+**Qué ves.** Por defecto, la Dirección consulta el alumnado (**Alumnado**, `/alumnado`, con la ficha de cada alumno: datos personales con el documento enmascarado, fotografía y matrículas) y las **Listas de clase** (`/alumnado/listas`), que además puede **exportar** en CSV (se genera en segundo plano y el enlace de descarga caduca). No da de alta ni corrige alumnos ni matrículas: eso es de Secretaría.
+
+**Aprobar o rechazar un cambio de grupo.** En **Cambios de grupo** (`/alumnado/cambios-de-grupo`) ves las solicitudes del curso elegido, con alumno, grupo de origen y de destino, motivo, estado, quién la solicitó y la fecha. Con el permiso de aprobar, en cada solicitud **pendiente** hay dos acciones:
+
+- **«Aprobar»** abre un diálogo con una nota opcional (hasta 500 caracteres). Al confirmar, la matrícula pasa al grupo de destino. **No puedes aprobar una solicitud que hayas hecho tú**: el servidor la rechaza con un aviso; la decide otra persona con permiso. Si entretanto la matrícula se dio de baja o cambió de grupo, la aprobación falla y no cambia nada.
+- **«Rechazar»** exige una **nota** (obligatoria, hasta 500 caracteres) con el motivo. La solicitud queda «Rechazada» con quién y cuándo.
+
+Quien tiene el permiso de actualizar matrículas puede **«Cancelar»** una solicitud pendiente (también la propia). Una solicitud ya decidida no admite más cambios. El motivo y la nota son texto libre y no se guardan en el registro de cambios de la auditoría.
+
+**Con el curso cerrado.** Si el curso seleccionado es de solo lectura, un aviso lo indica y desaparecen **Aprobar, Rechazar y Cancelar**; las solicitudes pendientes se siguen viendo y la lista de clase se puede exportar. **Sin curso resuelto** (ni `?academic_year=` en la dirección ni curso activo) no se ofrece ninguna acción ni la exportación, y la lista de clase y los cambios de grupo avisan de que falta un curso académico: elige uno en el selector de la barra superior.
+

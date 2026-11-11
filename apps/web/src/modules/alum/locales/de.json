@@ -1,0 +1,292 @@
+{
+  "alum": {
+    "nav": {
+      "students": "Schülerinnen und Schüler",
+      "backToStudents": "Zurück zu den Schülerinnen und Schülern",
+      "classList": "Klassenlisten",
+      "groupChanges": "Gruppenwechsel"
+    },
+    "common": {
+      "dash": "—",
+      "yes": "Ja",
+      "no": "Nein",
+      "loading": "Wird geladen…"
+    },
+    "errors": {
+      "unexpected": "Der Vorgang konnte nicht abgeschlossen werden. Bitte versuchen Sie es erneut."
+    },
+    "fields": {
+      "name": "Name",
+      "givenName": "Vorname",
+      "familyName1": "Erster Nachname",
+      "familyName2": "Zweiter Nachname",
+      "birthDate": "Geburtsdatum",
+      "documentType": "Dokumentart",
+      "documentNumber": "Dokumentnummer",
+      "locale": "Sprache",
+      "enrollment": "Einschreibung",
+      "createdAt": "Angelegt am",
+      "actions": "Aktionen"
+    },
+    "enums": {
+      "documentType": {
+        "dni": "DNI",
+        "nie": "NIE",
+        "pasaporte": "Reisepass"
+      },
+      "locale": {
+        "es-ES": "Spanisch",
+        "en": "Englisch",
+        "de": "Deutsch",
+        "fr": "Französisch"
+      },
+      "enrollmentStatus": {
+        "activa": "Aktiv",
+        "baja": "Zurückgezogen"
+      },
+      "relationship": {
+        "padre": "Vater",
+        "madre": "Mutter",
+        "tutor_legal": "Gesetzlicher Vertreter",
+        "abuelo": "Großvater/Großmutter",
+        "apoderado": "Bevollmächtigte/r",
+        "otro": "Andere/r"
+      },
+      "linkStatus": {
+        "activo": "Aktiv",
+        "revocado": "Widerrufen"
+      },
+      "consentLevel": {
+        "web": "Web del centro",
+        "redes_sociales": "Redes sociales"
+      },
+      "consentState": {
+        "autorizo": "Autorizo",
+        "no_autorizo": "No autorizo",
+        "pendiente": "Pendiente"
+      },
+      "withdrawalReason": {
+        "traslado": "Schulwechsel",
+        "baja_voluntaria": "Freiwilliger Rückzug",
+        "otro": "Sonstiges"
+      },
+      "groupChangeStatus": {
+        "pendiente": "Ausstehend",
+        "aprobada": "Genehmigt",
+        "rechazada": "Abgelehnt",
+        "cancelada": "Storniert"
+      }
+    },
+    "students": {
+      "title": "Schülerinnen und Schüler",
+      "intro": "Schülerinnen und Schüler der Einrichtung. Das Schuljahr ist das im Auswahlfeld der oberen Leiste gewählte.",
+      "caption": "Liste der Schülerinnen und Schüler",
+      "new": "Neue/r Schüler/in",
+      "unnamed": "Ohne Namen",
+      "deleted": "abgemeldet",
+      "restore": "Wiederherstellen",
+      "restored": "Die Schülerin bzw. der Schüler wurde wiederhergestellt.",
+      "empty": {
+        "title": "Es gibt keine Schüler/innen zum Anzeigen",
+        "text": "Legen Sie die erste Schülerin bzw. den ersten Schüler der Einrichtung an."
+      },
+      "filters": {
+        "course": "Jahrgang",
+        "group": "Gruppe",
+        "enrollmentStatus": "Status der Einschreibung",
+        "includeDeleted": "Abgemeldete einbeziehen"
+      },
+      "confirmRestore": {
+        "title": "{name} wiederherstellen",
+        "description": "Die Schülerin bzw. der Schüler erscheint danach wieder in der Liste. Wenn der Personendatensatz nicht mehr existiert oder bereits einen anderen Schülerdatensatz hat, verhindert das System die Wiederherstellung.",
+        "confirm": "{name} wiederherstellen"
+      }
+    },
+    "detail": {
+      "pageTitle": "Schülerdatensatz",
+      "personal": "Persönliche Daten",
+      "edit": "Daten korrigieren",
+      "delete": "Abmelden",
+      "saved": "Die Daten der Schülerin bzw. des Schülers wurden gespeichert.",
+      "deleted": "Die Schülerin bzw. der Schüler wurde abgemeldet.",
+      "readOnlyYear": "Das gewählte Schuljahr ist schreibgeschützt: Es können keine Änderungen vorgenommen werden.",
+      "confirmDelete": {
+        "title": "{name} abmelden",
+        "description": "Die Abmeldung ist logisch: Sie löscht weder die Person noch deren Zugehörigkeit zur Familieneinheit und kann rückgängig gemacht werden. Bei einer aktiven Einschreibung ist sie nicht zulässig.",
+        "confirm": "{name} abmelden"
+      }
+    },
+    "form": {
+      "close": "Schließen",
+      "cancel": "Abbrechen",
+      "create": "Anlegen",
+      "save": "Änderungen speichern",
+      "createTitle": "Neue/r Schüler/in",
+      "createDescription": "Persönliche Daten der Schülerin bzw. des Schülers. Die Familieneinheit ist optional.",
+      "editTitle": "Daten der Schülerin bzw. des Schülers korrigieren",
+      "editDescription": "Es werden nur die geänderten Daten übermittelt. Die Zugehörigkeit zur Familieneinheit wird unter Familien verwaltet.",
+      "none": "Nicht angegeben",
+      "localeDefault": "Sprache der Einrichtung",
+      "documentKeep": "Aktuelles Dokument: {masked}. Lassen Sie das Feld leer, um es zu behalten; wenn Sie ein neues eingeben, geben Sie auch die Art an."
+    },
+    "familyPicker": {
+      "legend": "Familieneinheit (optional)",
+      "hint": "Die Schülerin bzw. der Schüler wird der gewählten Familieneinheit hinzugefügt. Dafür ist die Berechtigung zum Ändern von Familien erforderlich.",
+      "search": "Nach Einheitscode suchen",
+      "loading": "Familieneinheiten werden gesucht…",
+      "empty": "Es gibt keine Familieneinheit mit diesem Code.",
+      "none": "Keine Familieneinheit",
+      "loadError": "Die Familieneinheiten konnten nicht geladen werden."
+    },
+    "photo": {
+      "title": "Foto",
+      "none": "Die Schülerin bzw. der Schüler hat kein Foto.",
+      "show": "Foto anzeigen",
+      "hide": "Foto ausblenden",
+      "loading": "Foto wird geladen…",
+      "expired": "Der Link zum Foto ist abgelaufen. Bitte zeigen Sie das Foto erneut an.",
+      "alt": "Foto von {student}",
+      "file": "Bilddatei",
+      "hint": "JPEG o PNG, hasta 5 MB. El servidor reprocesa la imagen y descarta sus metadatos.",
+      "tooLarge": "Die Datei überschreitet die zulässigen 5 MB.",
+      "wrongType": "Die Datei muss ein Bild im Format JPEG oder PNG sein.",
+      "submitUpload": "Foto hochladen",
+      "submitReplace": "Foto ersetzen",
+      "replace": "Ersetzen",
+      "remove": "Entfernen",
+      "saved": "Das Foto wurde gespeichert.",
+      "removed": "Das Foto wurde entfernt.",
+      "confirmRemove": {
+        "title": "Foto von {name} entfernen",
+        "description": "Das Foto steht danach nicht mehr zur Verfügung. Anschließend können Sie ein anderes hochladen.",
+        "confirm": "Foto von {name} entfernen"
+      }
+    },
+    "guardians": {
+      "title": "Erziehungsberechtigte und Notfallkontakt",
+      "hint": "Vínculos del alumno con sus tutores. Consultarlos queda registrado en la auditoría, por eso solo se piden al pulsar el botón.",
+      "show": "Verknüpfungen anzeigen",
+      "empty": "Die Schülerin bzw. der Schüler hat keine Verknüpfungen mit Erziehungsberechtigten.",
+      "relationship": "Beziehung",
+      "legal": "Gesetzliche Vertretung",
+      "emergency": "Notfallkontakt",
+      "status": "Status",
+      "caption": "Verknüpfungen der Erziehungsberechtigten der Schülerin bzw. des Schülers"
+    },
+    "consents": {
+      "title": "Consentimiento de imagen",
+      "show": "Mostrar consentimientos",
+      "empty": "No hay consentimientos de imagen registrados.",
+      "level": "Ámbito",
+      "state": "Estado",
+      "lastDecision": "Última decisión",
+      "caption": "Consentimiento de imagen del alumno"
+    },
+    "enrollments": {
+      "title": "Einschreibungen",
+      "caption": "Einschreibungen der Schülerin bzw. des Schülers",
+      "empty": "Die Schülerin bzw. der Schüler hat keine Einschreibungen.",
+      "create": "Einschreiben",
+      "createTitle": "Schülerin bzw. Schüler einschreiben",
+      "createDescription": "Einschreibung im gewählten Schuljahr. Die Gruppe ist optional.",
+      "course": "Jahrgang",
+      "coursePlaceholder": "Jahrgang wählen",
+      "group": "Gruppe",
+      "noGroup": "Ohne Gruppe",
+      "academicYear": "Schuljahr",
+      "status": "Status",
+      "enrolledOn": "Datum der Einschreibung",
+      "withdrawnOn": "Datum des Rückzugs",
+      "withdrawalReason": "Grund des Rückzugs",
+      "reasonPlaceholder": "Grund wählen",
+      "withdraw": "Einschreibung zurückziehen",
+      "withdrawTitle": "Einschreibung zurückziehen",
+      "withdrawDescription": "Die Einschreibung in {course} wird zurückgezogen und vollständig aufbewahrt. Dies kann nicht rückgängig gemacht werden.",
+      "withdrawConfirm": "Zurückziehen",
+      "cancel": "Einschreibung annullieren",
+      "created": "Die Einschreibung wurde angelegt.",
+      "withdrawn": "Die Einschreibung wurde zurückgezogen.",
+      "cancelled": "Die Einschreibung wurde annulliert.",
+      "optionsLoadError": "Die Jahrgänge und Gruppen konnten nicht geladen werden.",
+      "groupsLoadError": "Die Gruppen konnten nicht geladen werden.",
+      "confirmCancel": {
+        "title": "Einschreibung in {course} annullieren",
+        "description": "Die Annullierung löscht die Einschreibung, als hätte es sie nie gegeben (zum Beispiel, wenn sie irrtümlich angelegt wurde). Für einen Schulwechsel oder einen Rückzug verwenden Sie „Einschreibung zurückziehen“.",
+        "confirm": "Einschreibung in {course} annullieren"
+      }
+    },
+    "groupChange": {
+      "request": "Gruppenwechsel beantragen",
+      "title": "Gruppenwechsel beantragen",
+      "description": "Antrag, {student} aus der Gruppe {group} in eine andere Gruppe desselben Jahrgangs zu verschieben. Ihn muss eine andere Person mit entsprechender Berechtigung genehmigen.",
+      "toGroup": "Zielgruppe",
+      "toGroupPlaceholder": "Gruppe wählen",
+      "toGroupHint": "Es werden nur Gruppen desselben Jahrgangs angeboten.",
+      "noGroups": "In diesem Jahrgang gibt es keine weiteren Gruppen.",
+      "reason": "Grund",
+      "reasonHint": "Pflichtfeld, bis zu {max} Zeichen.",
+      "submit": "Antrag senden",
+      "requested": "Der Antrag auf Gruppenwechsel wurde gesendet."
+    },
+    "classList": {
+      "title": "Klassenlisten",
+      "intro": "Einschreibungen des gewählten Schuljahres. Filtern Sie nach Jahrgang, Gruppe und Status; Jahrgang und Gruppe sind optional.",
+      "caption": "Klassenliste",
+      "readOnlyYear": "Das gewählte Schuljahr ist schreibgeschützt: Die Liste kann exportiert werden, Gruppenwechsel können jedoch nicht beantragt werden.",
+      "empty": {
+        "title": "Es gibt keine Einschreibungen zum Anzeigen",
+        "text": "Probieren Sie andere Filter oder ein anderes Schuljahr."
+      },
+      "noYear": "Es gibt weder ein aktives noch ein gewähltes Schuljahr: Bitte wählen Sie eines aus, um die Klassenliste zu sehen."
+    },
+    "groupChanges": {
+      "title": "Anträge auf Gruppenwechsel",
+      "intro": "Anträge des gewählten Schuljahres. Das Sekretariat stellt sie über den Datensatz oder die Klassenliste; hier werden sie genehmigt, abgelehnt oder storniert.",
+      "caption": "Anträge auf Gruppenwechsel",
+      "readOnlyYear": "Das gewählte Schuljahr ist schreibgeschützt: Anträge können nicht genehmigt, abgelehnt oder storniert werden.",
+      "noYear": "Es ist kein aktives Schuljahr gewählt: Wählen Sie eines aus, um die Anträge anzuzeigen.",
+      "empty": {
+        "title": "Es gibt keine Anträge zum Anzeigen",
+        "text": "Probieren Sie andere Filter oder ein anderes Schuljahr."
+      },
+      "filters": {
+        "status": "Status",
+        "group": "Gruppe (Ausgangs- oder Zielgruppe)"
+      },
+      "columns": {
+        "student": "Schüler/in",
+        "fromGroup": "Ausgangsgruppe",
+        "toGroup": "Zielgruppe",
+        "reason": "Grund",
+        "status": "Status",
+        "requestedBy": "Beantragt von",
+        "createdAt": "Antragsdatum",
+        "decisionNote": "Begründung der Entscheidung"
+      },
+      "note": "Anmerkung",
+      "noteHintOptional": "Optional, bis zu {max} Zeichen.",
+      "noteHintRequired": "Pflichtfeld, bis zu {max} Zeichen.",
+      "approve": {
+        "title": "Antrag genehmigen",
+        "description": "{student} wird von der Gruppe {from} in die Gruppe {to} verschoben. Wer den Antrag gestellt hat, kann ihn nicht genehmigen.",
+        "submit": "Genehmigen",
+        "action": "Genehmigen",
+        "done": "Der Antrag wurde genehmigt."
+      },
+      "reject": {
+        "title": "Antrag ablehnen",
+        "description": "Der Wechsel von {student} von der Gruppe {from} in die Gruppe {to} wird abgelehnt. Geben Sie den Grund für die Ablehnung an.",
+        "submit": "Ablehnen",
+        "action": "Ablehnen",
+        "done": "Der Antrag wurde abgelehnt."
+      },
+      "cancel": {
+        "title": "Antrag stornieren",
+        "description": "Der Wechsel von {student} von der Gruppe {from} in die Gruppe {to} wird storniert.",
+        "submit": "Antrag stornieren",
+        "action": "Stornieren",
+        "done": "Der Antrag wurde storniert."
+      }
+    }
+  }
+}
