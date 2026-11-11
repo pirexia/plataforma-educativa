@@ -2,7 +2,7 @@
 
 namespace App\Modules\Core\Infrastructure;
 
-use Illuminate\Support\Facades\Storage;
+use App\Support\Files\PrivateObjectStore;
 
 /**
  * funcional.md §4.2/§4.8, operacion.md §5/§6: bucket privado, entrega
@@ -11,13 +11,15 @@ use Illuminate\Support\Facades\Storage;
  */
 final class BrandingAssetUrlSigner
 {
+    public function __construct(private readonly PrivateObjectStore $store) {}
+
     public function sign(?string $objectKey): ?string
     {
         if ($objectKey === null) {
             return null;
         }
 
-        return Storage::disk(config('filesystems.default'))->temporaryUrl(
+        return $this->store->temporaryUrl(
             $objectKey,
             now()->addMinutes((int) config('core.signed_url_ttl_minutes')),
         );

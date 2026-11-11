@@ -6,10 +6,10 @@ use App\Models\User;
 use App\Modules\Core\Domain\Models\DataExport;
 use App\Support\Api\ApiException;
 use App\Support\Authorization\PermissionResolver;
+use App\Support\Files\PrivateObjectStore;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
 
 /**
  * api.md §8 y §14.2. Primitiva compartida (funcional.md §7): estado y
@@ -79,7 +79,7 @@ class DataExportsController extends Controller
             throw ApiException::gone();
         }
 
-        $url = Storage::disk(config('filesystems.default'))->temporaryUrl(
+        $url = app(PrivateObjectStore::class)->temporaryUrl(
             $export->object_key,
             now()->addMinutes((int) config('core.signed_url_ttl_minutes')),
         );
