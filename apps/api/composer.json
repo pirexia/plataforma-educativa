@@ -66,6 +66,11 @@
             "@php artisan config:clear --ansi",
             "@php -d memory_limit=-1 vendor/bin/pest --testsuite=Concurrency @no_additional_args"
         ],
+        "test:conformance": [
+            "Composer\\Config::disableProcessTimeout",
+            "@php artisan config:clear --ansi",
+            "@php -d memory_limit=-1 vendor/bin/pest --testsuite=StorageConformance @no_additional_args"
+        ],
         "test:serie": [
             "Composer\\Config::disableProcessTimeout",
             "@php artisan config:clear --ansi",
