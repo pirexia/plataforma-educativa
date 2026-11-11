@@ -242,6 +242,52 @@ paths:
         '409': { $ref: '../components.yaml#/components/responses/Conflict' }
         '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
 
+  /api/v1/enrollments/exports:
+    post:
+      operationId: exportEnrollments
+      summary: Solicita la exportación de matrículas o lista de clase (CSV en cola)
+      description: >
+        Permiso `matricula.exportar`, solo ámbito `todos` (`grupo` no se admite en `1.15`, OPEN-ALUM-18). Genera en cola
+        (INV-012) un CSV con el esquema cerrado de api.md §6 (`enrollment_public_id`, `student_public_id`, `family_name`,
+        `given_name`, `birth_date`, `academic_year_code`, `course_code`, `group_name`, `status`, `enrolled_on`,
+        `withdrawn_on`, `withdrawal_reason`; sin documento de identidad), sobre la primitiva `data_exports` con
+        `kind = alum_enrollments`. Cuerpo: los filtros de `GET /enrollments` (`academic_year` obligatorio, `course`,
+        `group`, `status`), sin paginación, `sort` ni `q`: con `q`, `422 alum.validation.export_query_not_allowed`
+        (ADR-054 §8.2, §9); sin `academic_year`, `422 alum.validation.required`; un curso académico inexistente o
+        ilegible, `404` (RN-ALUM-23). La solicitud queda auditada como `exported` con los filtros. Límite por centro y
+        usuario (10 por hora por defecto, `config/alum.php`): superado, `429` con `Retry-After`. El estado y la descarga,
+        en `GET /data-exports/{publicId}`.
+      tags: ['Alum / Matrícula']
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [academic_year]
+              properties:
+                academic_year: { $ref: '../components.yaml#/components/schemas/PublicId' }
+                course: { $ref: '../components.yaml#/components/schemas/PublicId' }
+                group: { $ref: '../components.yaml#/components/schemas/PublicId' }
+                status: { $ref: '../components.yaml#/components/schemas/EnrollmentStatus' }
+      responses:
+        '202':
+          description: Solicitud aceptada, generación en cola
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [public_id, status]
+                properties:
+                  public_id: { $ref: '../components.yaml#/components/schemas/PublicId' }
+                  status: { type: string, enum: [pendiente, generando, completada, fallida] }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `alum` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+        '429': { $ref: '../components.yaml#/components/responses/TooManyRequests' }
+
   /api/v1/enrollments/{publicId}:
     parameters:
       - name: publicId
