@@ -172,13 +172,8 @@ final class StudentPhotoService
         $key = (string) $photo->object_key;
         $photo->forceDelete();
 
-        DB::afterCommit(function () use ($key): void {
-            try {
-                $this->objects->delete($key);
-            } catch (Throwable) {
-                // El objeto huérfano lo recogerá el barrido; la baja del alumno no depende del almacenamiento.
-            }
-        });
+        // El objeto huérfano lo recogerá el barrido; la baja del alumno no depende del almacenamiento.
+        $this->deleteObjectAfterCommit($key);
     }
 
     /**

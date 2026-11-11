@@ -4,6 +4,7 @@ use App\Support\Tenancy\TenantContext;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Tests\Support\AlumTestHelpers as Alum;
 use Tests\Support\FamUnitTestHelpers as Fam;
@@ -285,4 +286,27 @@ test('RN-ALUM-50 INV-012: si falla el borrado del objeto anterior, la sustituci�
     expect($rows)->toHaveCount(2)
         ->and($rows[0]->deleted_at)->not->toBeNull()
         ->and($rows[1]->deleted_at)->not->toBeNull();
+});
+
+test('datos.md §6 INV-012: si falla el borrado del objeto al dar de baja al alumno, la baja y la purga de la fila siguen siendo correctas y el fallo se registra sin la clave del objeto', function (): void {
+    $c = photoScenario('ph-baja-fallo');
+    $id = $c['student']['public_id'];
+
+    $disk = Mockery::mock(Storage::disk('local'))->makePartial();
+    $disk->shouldReceive('delete')->andThrow(new RuntimeException('S3 caído'));
+    Storage::set('flaky', $disk);
+    config(['files.disk' => 'flaky']);
+
+    Alum::putPhoto($c['tenant'], $c['admin'], $id)->assertOk();
+    $key = (string) Arr::first(Storage::disk('local')->allFiles());
+
+    Log::spy();
+    Alum::call($c['tenant'], $c['admin'], 'delete', "/students/{$id}")->assertNoContent();
+
+    expect(photoRows($c['tenant']))->toBe([]);
+    Log::shouldHaveReceived('warning')
+        ->withArgs(fn (string $message, array $context): bool => $message === 'alum.photo.object_delete_failed'
+            && $context === ['exception' => RuntimeException::class]
+            && ! str_contains(json_encode($context), $key))
+        ->once();
 });
