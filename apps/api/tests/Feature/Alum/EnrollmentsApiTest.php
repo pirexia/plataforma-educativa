@@ -417,3 +417,54 @@ test('CA-ALUM-018b INV-001: con dos centros equivalentes, ningún endpoint de ma
     expect(array_column(Alum::call($a['tenant'], $a['admin'], 'get', "/students?course={$a['api']['course']}")->assertOk()->json('data'), 'public_id'))->toBe([$a['students'][0]['public_id']]);
     Alum::call($a['tenant'], $a['admin'], 'get', "/students/{$b['students'][0]['public_id']}")->assertNotFound();
 });
+
+test('api.md §1 RN-ALUM-23 RN-ALUM-60: enrollments[] de la ficha se acota por el ámbito de matricula.leer del actor: sin el permiso es [], con grupo solo las de su grupo, con todos todas', function (): void {
+    $s = En::scenario('enrapi-ficha');
+    $plan = En::planningYear($s);
+    $student = $s['students'][0]['public_id'];
+    $active = apiEnrolled($s);
+    $planned = apiEnroll($s, ['student' => $student, 'academic_year' => $plan['year']->public_id, 'course' => $plan['api']['course'], 'group' => $plan['api']['group'], 'enrolled_on' => '2027-09-05'])->assertCreated()->json('public_id');
+    $teacher = Alum::userWithScopes($s['tenant'], $s['admin'], 'docente', ['alumno.leer' => 'grupo', 'matricula.leer' => 'grupo']);
+    $noMatricula = Alum::userWithScopes($s['tenant'], $s['admin'], 'docente_sin', ['alumno.leer' => 'grupo']);
+
+    foreach ([$teacher, $noMatricula] as $user) {
+        Tt::send($s['tenant'], $s['admin'], 'PUT', "/groups/{$s['api']['group']}/subjects", ['subjects' => [$s['api']['subject']]])->assertOk();
+        Tt::postAssignment($s['tenant'], $s['admin'], $user, $s['api']['group'], $s['api']['subject'])->assertCreated();
+    }
+
+    $ids = fn (User $u) => array_column(Alum::call($s['tenant'], $u, 'get', "/students/{$student}")->assertOk()->json('enrollments'), 'public_id');
+
+    expect($ids($noMatricula))->toBe([])
+        ->and($ids($teacher))->toBe([$active])
+        ->and($ids($s['admin']))->toEqualCanonicalizing([$active, $planned]);
+});
+
+test('api.md §1: StudentSummary.enrollment es la matrícula vigente del curso pedido con la forma de Enrollment, acotada por matricula.leer; null sin filtro de curso o año, sin matrícula o sin el permiso', function (): void {
+    $s = En::scenario('enrapi-summary');
+    $e0 = apiEnrolled($s, 0);
+    $first = fn (array $r) => $r['data'][0] ?? null;
+    $get = fn (User $u, string $q) => Alum::call($s['tenant'], $u, 'get', '/students'.$q)->assertOk()->json();
+    $direct = Alum::call($s['tenant'], $s['admin'], 'get', "/enrollments/{$e0}")->assertOk()->json();
+    $noMatricula = Alum::userWith($s['tenant'], $s['admin'], 'solo_alumno', ['alumno.leer']);
+    $year = $s['year']->public_id;
+    $byName = fn (array $r, string $name) => collect($r['data'])->firstWhere('display_name', $name);
+
+    // Sin filtro de curso o año: null para todos.
+    expect(collect($get($s['admin'], '')['data'])->pluck('enrollment')->filter()->all())->toBe([]);
+
+    $withYear = $get($s['admin'], "?academic_year={$year}");
+    $filtered = $get($s['admin'], "?course={$s['api']['course']}");
+
+    expect($byName($withYear, 'Alumno Uno')['enrollment'])->toBe($direct)
+        ->and($byName($withYear, 'Alumno Dos')['enrollment'])->toBeNull()
+        ->and($byName($filtered, 'Alumno Uno')['enrollment'])->toBe($direct)
+        // Sin matricula.leer, null aunque haya matrícula.
+        ->and($first($get($noMatricula, "?academic_year={$year}&sort=name"))['enrollment'])->toBeNull()
+        ->and(collect($get($noMatricula, "?academic_year={$year}")['data'])->pluck('enrollment')->filter()->all())->toBe([]);
+
+    // Una baja y una matrícula nueva en el mismo curso: la vigente es la activa.
+    Alum::call($s['tenant'], $s['admin'], 'post', "/enrollments/{$e0}/withdrawal", ['withdrawn_on' => '2026-10-01', 'withdrawal_reason' => 'traslado'])->assertOk();
+    $e0b = apiEnroll($s, apiBody($s, 0, ['enrolled_on' => '2026-10-02']))->assertCreated()->json('public_id');
+
+    expect($byName($get($s['admin'], "?academic_year={$year}&course={$s['api']['course']}"), 'Alumno Uno')['enrollment']['public_id'])->toBe($e0b);
+});
