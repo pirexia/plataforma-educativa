@@ -168,7 +168,7 @@ jobs:
 
   lint:
     name: Lint (Pint)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # fijada: ubuntu-latest migra a 26.04 hasta el 19-11-2026 (#609, actions/runner-images#14748)
     # Mismos servicios que "test": el arranque del framework durante
     # composer install (artisan package:discover) puede intentar resolver
     # una conexión de base de datos/caché real, no solo leer config
@@ -225,7 +225,7 @@ jobs:
 
   static-analysis:
     name: Análisis estático (Larastan)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # fijada: ubuntu-latest migra a 26.04 hasta el 19-11-2026 (#609, actions/runner-images#14748)
     # Ver comentario del job "lint" sobre los servicios.
     services:
       postgres:
