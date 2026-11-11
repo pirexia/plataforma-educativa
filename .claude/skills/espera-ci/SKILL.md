@@ -27,19 +27,22 @@ merge() {
   git fetch -q origin develop:develop 2>&1 | tail -1   # actualiza develop sin cambiar de rama el checkout
   gh pr view "$N" --json state,mergeCommit -q '.state + " " + .mergeCommit.oid'
 }
+HEAD=$(gh pr view "$N" --json headRefOid -q .headRefOid)
+# Runs de Actions del último commit del PR que no han terminado (en cola o ejecutándose).
+runs_pendientes() { gh run list --commit "$HEAD" --json status -q '[.[] | select(.status != "completed")] | length'; }
 for i in $(seq 1 90); do
-  gh pr checks "$N" 2>&1 | grep -q -E "pending|queued|in_progress" || break
+  OUT=$(gh pr checks "$N" 2>&1)
+  if ! echo "$OUT" | grep -q -E "pending|queued|in_progress" && [ "$(runs_pendientes)" = "0" ]; then
+    # Nada pendiente. Si tampoco hay checks, da unos ciclos de margen por si aún no se han registrado.
+    if echo "$OUT" | grep -q "no checks reported" && [ "$i" -lt 4 ]; then sleep 20; continue; fi
+    break
+  fi
   sleep 20
 done
 OUT=$(gh pr checks "$N" 2>&1)
-# «no checks reported» puede ser un PR sin CI o checks que aún no se han registrado: reintenta antes de concluir.
-for i in 1 2 3; do
-  echo "$OUT" | grep -q "no checks reported" || break
-  sleep 20; OUT=$(gh pr checks "$N" 2>&1)
-done
 echo "$OUT" | awk -F'\t' '{print $2}' | sort | uniq -c
-if echo "$OUT" | grep -q "no checks reported"; then
-  # SIN CI: no es lo mismo que CI en verde. Solo se mezcla un PR cuyo diff es únicamente documentación
+if echo "$OUT" | grep -q "no checks reported" && [ "$(runs_pendientes)" = "0" ]; then
+  # SIN CI (sin checks y sin ningún run en cola ni ejecutándose): no es lo mismo que CI en verde. Solo se mezcla un PR cuyo diff es únicamente documentación
   # o configuración de proceso (.md, docs/, .claude/), y se dice en voz alta.
   if gh pr diff "$N" --name-only | grep -q -v -E '\.md$|^docs/|^\.claude/'; then
     echo "SIN CHECKS en un PR que toca algo más que documentación: NO se mezcla; averigua por qué no corre CI"
@@ -49,14 +52,16 @@ if echo "$OUT" | grep -q "no checks reported"; then
   fi
 elif echo "$OUT" | grep -q -E "fail|cancel"; then
   echo "FALLO"; echo "$OUT" | grep -E "fail|cancel"
-elif echo "$OUT" | grep -q -E "pending|queued|in_progress"; then
-  echo "PENDIENTE: tiempo agotado, no se mezcla; volver a esperar"
+elif echo "$OUT" | grep -q -E "pending|queued|in_progress" || [ "$(runs_pendientes)" != "0" ]; then
+  echo "PENDIENTE: tiempo agotado (runs en cola o en ejecución), no se mezcla; volver a esperar"
 else
   merge
 fi
 ```
 
-Máximo ~30 min. Solo mezcla si hay checks y ninguno está `pending` ni `fail`, o si el PR no tiene checks y solo toca documentación o `.claude/` (en ese caso se avisa de que se mezcla **sin CI**).
+Máximo ~30 min. Solo mezcla si hay checks y ninguno está `pending` ni `fail`, o si el PR no tiene checks **ni ningún run en cola o ejecutándose** y solo toca documentación o `.claude/` (en ese caso se avisa de que se mezcla **sin CI**).
+
+**Runs en cola ≠ sin checks.** `gh pr checks` dice «no checks reported» mientras los runs siguen en cola y aún no han registrado sus checks (ocurrió con el PR #615: los cuatro workflows estaban en `queued` y se mezcló antes de que arrancaran). Por eso la espera consulta también `gh run list --commit <sha>`: con algún run sin terminar, el PR no se trata nunca como «sin CI». Si la cola de Actions tarda más de ~30 min, el resultado es `PENDIENTE` y se vuelve a esperar; no se mezcla.
 
 **Checkouts y worktrees.** La skill nunca hace `git checkout develop` ni `git pull`: el checkout puede tener trabajo en curso o ser el de otra rama (y `gh pr merge --delete-branch` falla al borrar la rama local si otro *worktree* la usa). Por eso borra la rama remota con `git push origin --delete` y actualiza `develop` con `git fetch origin develop:develop`. La rama local y el *worktree*, si los hay, los limpia quien los creó (`git worktree remove`, `git branch -D`).
 
