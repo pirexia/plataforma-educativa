@@ -149,7 +149,10 @@ describe('REQ-ALUM-003 (api.md §2 y §6): matrícula y exportación', () => {
     expect(last()[0]).toBe('/enrollments/E1')
     expect(last()[1]?.method).toBe('PATCH')
 
-    await api.withdrawEnrollment('E1', { withdrawn_on: '2026-10-01', withdrawal_reason: 'Traslado' })
+    await api.withdrawEnrollment('E1', {
+      withdrawn_on: '2026-10-01',
+      withdrawal_reason: 'Traslado',
+    })
     expect(last()[0]).toBe('/enrollments/E1/withdrawal')
     expect(JSON.parse(last()[1]!.body as string)).toEqual({
       withdrawn_on: '2026-10-01',

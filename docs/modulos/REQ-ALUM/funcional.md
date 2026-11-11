@@ -331,6 +331,13 @@ Propuesta [DERIVADA en nombres y rutas]. `src/data-table`, shadcn-vue, `docs/des
 | `alum-class-list` | `/alumnado/listas` | `['matricula.leer']` | Sí | Lista de clase por grupo; exportar con `matricula.exportar` |
 | `alum-group-changes` | `/alumnado/cambios-de-grupo` | `['matricula.leer']` | Sí | Solicitudes; aprobar o rechazar con `matricula.aprobar`; solicitar y cancelar con `matricula.actualizar` |
 
+**Decisión del usuario 2026-11-11** (`1.15-d`, aclara la tabla anterior sin reescribirla):
+
+1. **Solicitud de cambio de grupo**: se inicia desde la ficha (matrícula activa con grupo) y desde una acción por fila de la lista de clase; la pantalla `alum-group-changes` solo lista, aprueba, rechaza y cancela.
+2. **Matrícula desde la ficha**: alta, baja (`withdrawal`) y anulación, con `matricula.crear`, `matricula.actualizar` y `matricula.eliminar` respectivamente.
+3. **Lista de clase**: curso de etapa y grupo opcionales.
+4. **Curso académico de solo lectura** (`RN-ACAD-42`): se puede exportar; quedan ocultas las acciones de solicitar, cancelar, aprobar, rechazar, y también el alta, la baja y la anulación de matrícula.
+
 Bloques del panel: ninguno (#261).
 
 ---

@@ -29,7 +29,9 @@ export interface ListEnrollmentsParams {
 }
 
 /** `GET /enrollments` (`matricula.leer`, ámbito). */
-export function listEnrollments(params: ListEnrollmentsParams = {}): Promise<Paginated<Enrollment>> {
+export function listEnrollments(
+  params: ListEnrollmentsParams = {},
+): Promise<Paginated<Enrollment>> {
   return apiFetch<Paginated<Enrollment>>(`/enrollments${buildQuery({ ...params })}`)
 }
 

@@ -25,7 +25,9 @@ export interface ListGroupChangeRequestsParams {
 export function listGroupChangeRequests(
   params: ListGroupChangeRequestsParams = {},
 ): Promise<Paginated<GroupChangeRequest>> {
-  return apiFetch<Paginated<GroupChangeRequest>>(`/group-change-requests${buildQuery({ ...params })}`)
+  return apiFetch<Paginated<GroupChangeRequest>>(
+    `/group-change-requests${buildQuery({ ...params })}`,
+  )
 }
 
 /** `GET /group-change-requests/{id}` (`matricula.leer`, ámbito). */

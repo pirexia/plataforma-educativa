@@ -2,11 +2,13 @@
 /**
  * `/alumnado/:publicId` (`docs/modulos/REQ-ALUM/funcional.md §10`, `REQ-ALUM-001`; `1.15-d` T1, `CA-ALUM-070`,
  * `CA-ALUM-071`). Ficha del alumno: datos personales (documento **enmascarado**, nunca completo), fotografía y, con su
- * permiso, tutores y estado de imagen de `fam-unit`. Las matrículas de la ficha llegan en el T2.
+ * permiso, tutores y estado de imagen de `fam-unit`. Las matrículas, en `1.15-d` T2a.
  *
  * - Cada sección y cada acción se muestran si y solo si el permiso de su *endpoint* está en `/me.permissions`
  *   (`RN-CORE-61`); el servidor decide igualmente (`INV-002`): `alumno.actualizar` (corregir, foto), `alumno.eliminar`
- *   (baja), `vinculo_tutor.leer` (tutores y contacto de emergencia), `consentimiento_imagen.leer` (estado de imagen).
+ *   (baja), `vinculo_tutor.leer` (tutores y contacto de emergencia), `consentimiento_imagen.leer` (estado de imagen),
+ *   `matricula.leer` (matrículas) y, por acción, `matricula.crear` (alta), `matricula.actualizar` (baja y solicitud de
+ *   cambio de grupo) y `matricula.eliminar` (anulación) (`1.15-d` T2a, decisión del usuario 2026-11-11).
  * - Sin acciones de escritura con un curso de solo lectura (`RN-ACAD-42`): el curso es el de `?academic_year=`.
  * - **Lecturas auditadas bajo demanda**: la URL de la foto, los vínculos de tutor y los consentimientos de imagen
  *   escriben una fila `read`; no se piden al montar sino con una acción explícita (`frontend-spa` regla 7).
@@ -18,7 +20,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Ban, CircleCheck, CircleHelp, CircleX, Siren } from '@lucide/vue'
-import { useT } from '@/i18n'
+import { i18n, useT } from '@/i18n'
 import { Button } from '@/components/ui/button'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import {
@@ -33,9 +35,13 @@ import LoadingState from '@/layouts/components/LoadingState.vue'
 import { listImageConsents } from '@/modules/fam-unit/api'
 import type { GuardianStudentLink, ImageConsent } from '@/modules/fam-unit/types'
 import ActionNotices from '../components/ActionNotices.vue'
+import EnrollmentFormDialog from '../components/EnrollmentFormDialog.vue'
+import EnrollmentWithdrawDialog from '../components/EnrollmentWithdrawDialog.vue'
+import GroupChangeRequestDialog from '../components/GroupChangeRequestDialog.vue'
 import StudentFormDialog from '../components/StudentFormDialog.vue'
 import StudentPhotoPanel from '../components/StudentPhotoPanel.vue'
 import {
+  deleteEnrollment,
   deleteStudent,
   deleteStudentPhoto,
   getStudent,
@@ -47,7 +53,7 @@ import { useActions } from '../composables/useActions'
 import { useLoad } from '../composables/useLoad'
 import { usePermissions } from '../composables/usePermissions'
 import { problemDetail } from '../composables/problem'
-import type { Student, StudentUpdate } from '../types'
+import type { Enrollment, Student, StudentUpdate } from '../types'
 
 /** Una persona tiene un puñado de vínculos y de niveles de consentimiento: una página basta. */
 const PER_PAGE = 100
@@ -62,12 +68,34 @@ const actions = useActions()
 
 const publicId = computed(() => String(route.params.publicId))
 
-/** `RN-ACAD-42`: con un curso de solo lectura no hay acciones de escritura. */
-const writable = computed(() => !year.readOnly.value)
+/**
+ * `RN-ACAD-42`: con un curso de solo lectura no hay acciones de escritura. Se usa `year.writable` (no `!readOnly`): con
+ * el curso aún sin resolver no es escribible (`useAcademicYear`).
+ */
+const writable = computed(() => year.writable.value)
 const canUpdate = computed(() => can('alumno.actualizar') && writable.value)
 const canDelete = computed(() => can('alumno.eliminar') && writable.value)
 const canReadLinks = computed(() => can('vinculo_tutor.leer'))
 const canReadConsents = computed(() => can('consentimiento_imagen.leer'))
+const canReadEnrollments = computed(() => can('matricula.leer'))
+const canEnroll = computed(() => can('matricula.crear') && writable.value)
+
+/** Una matrícula solo se toca si es del curso académico escribible elegido (`RN-ACAD-42`). */
+function inSelectedYear(enrollment: Enrollment): boolean {
+  return writable.value && enrollment.academic_year.public_id === year.selectedId.value
+}
+
+function canWithdraw(enrollment: Enrollment): boolean {
+  return can('matricula.actualizar') && enrollment.status === 'activa' && inSelectedYear(enrollment)
+}
+
+function canRequestChange(enrollment: Enrollment): boolean {
+  return canWithdraw(enrollment) && enrollment.group !== null
+}
+
+function canCancelEnrollment(enrollment: Enrollment): boolean {
+  return can('matricula.eliminar') && inSelectedYear(enrollment)
+}
 
 const { data, loading, error, load } = useLoad<Student>(() => getStudent(publicId.value))
 
@@ -77,12 +105,70 @@ onMounted(load)
 async function refresh(): Promise<void> {
   try {
     data.value = await getStudent(publicId.value)
+    enrollmentsKey.value += 1
   } catch (err) {
     actions.fail(err)
   }
 }
 
 const formOpen = ref(false)
+/** Fuerza a la tabla local de matrículas a releer tras una acción (como `refresh` de `StudentsView`). */
+const enrollmentsKey = ref(0)
+
+// --- Matrículas (`matricula.*`, `1.15-d` T2a) -----------------------------------------------------------------------
+
+const enrollOpen = ref(false)
+const withdrawOpen = ref(false)
+const withdrawTarget = ref<Enrollment | null>(null)
+const changeOpen = ref(false)
+const changeTarget = ref<Enrollment | null>(null)
+
+function openWithdraw(enrollment: Enrollment): void {
+  withdrawTarget.value = enrollment
+  withdrawOpen.value = true
+}
+
+function openChange(enrollment: Enrollment): void {
+  changeTarget.value = enrollment
+  changeOpen.value = true
+}
+
+async function onEnrolled(): Promise<void> {
+  actions.clear()
+  actions.message.value = t('alum.enrollments.created')
+  await refresh()
+}
+
+async function onWithdrawn(): Promise<void> {
+  actions.clear()
+  actions.message.value = t('alum.enrollments.withdrawn')
+  await refresh()
+}
+
+async function onChangeRequested(): Promise<void> {
+  actions.clear()
+  actions.message.value = t('alum.groupChange.requested')
+  await refresh()
+}
+
+async function cancelEnrollment(enrollment: Enrollment): Promise<void> {
+  const done = await actions.confirmAndRun(
+    {
+      title: t('alum.enrollments.confirmCancel.title', { course: enrollment.course.code }),
+      description: t('alum.enrollments.confirmCancel.description'),
+      confirmLabel: t('alum.enrollments.confirmCancel.confirm', {
+        course: enrollment.course.code,
+      }),
+      destructive: true,
+    },
+    () => deleteEnrollment(enrollment.public_id),
+    t('alum.enrollments.cancelled'),
+  )
+
+  if (done) {
+    await refresh()
+  }
+}
 
 function label(group: string, code: string | null): string {
   if (code === null) {
@@ -227,6 +313,70 @@ const fetchConsents: DataTableLocalFetcher<ImageConsent> = async () => ({
 })
 const consentRowKey = (row: ImageConsent): string => row.level
 
+const fetchEnrollments: DataTableLocalFetcher<Enrollment> = async () => ({
+  data: data.value?.enrollments ?? [],
+})
+const enrollmentRowKey = (row: Enrollment): string => row.public_id
+
+/** Nombre del curso de etapa en el idioma activo (`es` ⇒ `es-ES`), con respaldo en es-ES y en el código. */
+function courseName(row: Enrollment): string {
+  const active = String(i18n.global.locale.value)
+  const names = row.course.name_translations
+
+  return names[active === 'es' ? 'es-ES' : active] ?? names['es-ES'] ?? row.course.code
+}
+
+const hasRowActions = (rows: Enrollment[]): boolean =>
+  rows.some((row) => canWithdraw(row) || canRequestChange(row) || canCancelEnrollment(row))
+
+const enrollmentColumns = computed<DataTableColumn<Enrollment>[]>(() => [
+  {
+    id: 'course',
+    headerKey: 'alum.enrollments.course',
+    rowHeader: true,
+    hideable: false,
+    card: 'title',
+    value: (row) => courseName(row),
+  },
+  {
+    id: 'academic_year',
+    headerKey: 'alum.enrollments.academicYear',
+    card: 'field',
+    value: (row) => row.academic_year.code,
+  },
+  {
+    id: 'group',
+    headerKey: 'alum.enrollments.group',
+    card: 'field',
+    value: (row) => row.group?.name ?? null,
+  },
+  { id: 'status', headerKey: 'alum.enrollments.status', card: 'field' },
+  {
+    id: 'enrolled_on',
+    headerKey: 'alum.enrollments.enrolledOn',
+    card: 'field',
+    value: (row) => formatDate(row.enrolled_on),
+  },
+  {
+    id: 'withdrawn_on',
+    headerKey: 'alum.enrollments.withdrawnOn',
+    card: 'field',
+    defaultHidden: true,
+    value: (row) => formatDate(row.withdrawn_on),
+  },
+  ...(hasRowActions(data.value?.enrollments ?? [])
+    ? [
+        {
+          id: 'actions',
+          headerKey: 'alum.fields.actions',
+          hideable: false,
+          card: 'actions' as const,
+          value: () => null,
+        },
+      ]
+    : []),
+])
+
 const linkColumns = computed<DataTableColumn<GuardianStudentLink>[]>(() => [
   {
     id: 'relationship',
@@ -334,6 +484,84 @@ function consentIcon(state: string) {
             <dd class="text-sm">{{ label('locale', data.locale) }}</dd>
           </div>
         </dl>
+      </section>
+
+      <section
+        v-if="canReadEnrollments"
+        aria-labelledby="alum-enrollments"
+        class="flex flex-col gap-3"
+      >
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <h2 id="alum-enrollments" class="text-sm font-semibold">
+            {{ t('alum.enrollments.title') }}
+          </h2>
+          <Button
+            v-if="canEnroll"
+            type="button"
+            variant="outline"
+            size="sm"
+            @click="enrollOpen = true"
+          >
+            {{ t('alum.enrollments.create') }}
+          </Button>
+        </div>
+        <DataTable
+          :key="enrollmentsKey"
+          table-id="alum.enrollments"
+          :caption="t('alum.enrollments.caption')"
+          :columns="enrollmentColumns"
+          mode="local"
+          :fetcher="fetchEnrollments"
+          :row-key="enrollmentRowKey"
+          hide-single-page-footer
+          :empty-title="t('alum.enrollments.empty')"
+          :card-heading-level="3"
+        >
+          <template #cell-status="{ row }">
+            <span class="inline-flex items-center gap-1">
+              <component
+                :is="row.status === 'activa' ? CircleCheck : Ban"
+                class="size-4"
+                aria-hidden="true"
+              />
+              {{ label('enrollmentStatus', row.status) }}
+            </span>
+          </template>
+          <template #cell-actions="{ row }">
+            <div class="flex flex-wrap gap-2">
+              <Button
+                v-if="canRequestChange(row)"
+                type="button"
+                variant="outline"
+                size="sm"
+                @click="openChange(row)"
+              >
+                {{ t('alum.groupChange.request') }}
+                <span class="sr-only">{{ courseName(row) }}</span>
+              </Button>
+              <Button
+                v-if="canWithdraw(row)"
+                type="button"
+                variant="outline"
+                size="sm"
+                @click="openWithdraw(row)"
+              >
+                {{ t('alum.enrollments.withdraw') }}
+                <span class="sr-only">{{ courseName(row) }}</span>
+              </Button>
+              <Button
+                v-if="canCancelEnrollment(row)"
+                type="button"
+                variant="outline"
+                size="sm"
+                @click="cancelEnrollment(row)"
+              >
+                {{ t('alum.enrollments.cancel') }}
+                <span class="sr-only">{{ courseName(row) }}</span>
+              </Button>
+            </div>
+          </template>
+        </DataTable>
       </section>
 
       <section aria-labelledby="alum-photo" class="flex flex-col gap-3">
@@ -447,6 +675,24 @@ function consentIcon(state: string) {
       mode="edit"
       :student="data"
       :save="save"
+    />
+
+    <EnrollmentFormDialog
+      v-if="data"
+      v-model:open="enrollOpen"
+      :student="data.public_id"
+      :academic-year="year.selectedId.value"
+      @saved="onEnrolled"
+    />
+    <EnrollmentWithdrawDialog
+      v-model:open="withdrawOpen"
+      :enrollment="withdrawTarget"
+      @saved="onWithdrawn"
+    />
+    <GroupChangeRequestDialog
+      v-model:open="changeOpen"
+      :enrollment="changeTarget"
+      @saved="onChangeRequested"
     />
 
     <ConfirmDialog

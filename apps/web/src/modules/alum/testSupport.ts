@@ -202,3 +202,50 @@ export function problem(
 ): ApiError {
   return new ApiError('x', status, { type: 'urn:pge:error:x', status, detail, errors })
 }
+
+/** Abre un `Select` de Reka UI por su disparador (`id`) y elige la opción por su texto. */
+export async function chooseOption(triggerSelector: string, label: string): Promise<void> {
+  const trigger = document.body.querySelector<HTMLElement>(triggerSelector)
+
+  if (!trigger) {
+    throw new Error(`No existe ${triggerSelector}`)
+  }
+
+  trigger.focus()
+  trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+  await flushPromises()
+
+  const option = [...document.body.querySelectorAll<HTMLElement>('[role="option"]')].find(
+    (item) => item.textContent?.trim() === label,
+  )
+
+  if (!option) {
+    throw new Error(`No hay opción ${label}`)
+  }
+
+  option.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerType: 'mouse' }))
+  option.click()
+  await flushPromises()
+}
+
+/** Una solicitud de cambio de grupo tal como la entrega la API (`api.md §3`). */
+export function groupChangeRequest(over: Record<string, unknown> = {}) {
+  return {
+    public_id: 'R1',
+    enrollment: {
+      public_id: 'E1',
+      student: { public_id: 'S1', display_name: 'Lucas Ejemplo Ruiz' },
+    },
+    academic_year: { public_id: 'Y2', code: '2026-2027' },
+    from_group: { public_id: 'G1', code: '1ESO-A', name: '1º ESO A' },
+    to_group: { public_id: 'G2', code: '1ESO-B', name: '1º ESO B' },
+    reason: 'Motivo de ejemplo',
+    status: 'pendiente',
+    requested_by: { public_id: 'U1', display_name: 'Secretaría Ejemplo' },
+    decided_by: null,
+    decided_at: null,
+    decision_note: null,
+    ...AUDIT,
+    ...over,
+  }
+}

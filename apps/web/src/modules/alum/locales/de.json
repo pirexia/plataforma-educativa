@@ -62,6 +62,11 @@
         "autorizo": "Autorizo",
         "no_autorizo": "No autorizo",
         "pendiente": "Pendiente"
+      },
+      "withdrawalReason": {
+        "traslado": "Traslado",
+        "baja_voluntaria": "Baja voluntaria",
+        "otro": "Otro"
       }
     },
     "students": {
@@ -168,6 +173,52 @@
       "state": "Estado",
       "lastDecision": "Última decisión",
       "caption": "Consentimiento de imagen del alumno"
+    },
+    "enrollments": {
+      "title": "Matrículas",
+      "caption": "Matrículas del alumno",
+      "empty": "El alumno no tiene matrículas.",
+      "create": "Matricular",
+      "createTitle": "Matricular al alumno",
+      "createDescription": "Matrícula en el curso académico seleccionado. El grupo es opcional y puede asignarse después.",
+      "course": "Curso",
+      "coursePlaceholder": "Elija un curso",
+      "group": "Grupo",
+      "noGroup": "Sin grupo",
+      "academicYear": "Curso académico",
+      "status": "Estado",
+      "enrolledOn": "Fecha de matrícula",
+      "withdrawnOn": "Fecha de baja",
+      "withdrawalReason": "Motivo de la baja",
+      "reasonPlaceholder": "Elija un motivo",
+      "withdraw": "Dar de baja la matrícula",
+      "withdrawTitle": "Dar de baja la matrícula",
+      "withdrawDescription": "La matrícula de {course} pasa a baja y se conserva entera. No se puede revertir.",
+      "withdrawConfirm": "Dar de baja",
+      "cancel": "Anular matrícula",
+      "created": "La matrícula se ha creado.",
+      "withdrawn": "La matrícula se ha dado de baja.",
+      "cancelled": "La matrícula se ha anulado.",
+      "optionsLoadError": "No se han podido cargar los cursos y grupos.",
+      "groupsLoadError": "No se han podido cargar los grupos.",
+      "confirmCancel": {
+        "title": "Anular la matrícula de {course}",
+        "description": "La anulación borra la matrícula como si no hubiera existido (por ejemplo, si se creó por error). Para un traslado o una baja use «Dar de baja la matrícula».",
+        "confirm": "Anular matrícula de {course}"
+      }
+    },
+    "groupChange": {
+      "request": "Solicitar cambio de grupo",
+      "title": "Solicitar cambio de grupo",
+      "description": "Solicitud para mover a {student} desde el grupo {group} a otro grupo de su mismo curso. Debe aprobarla otra persona con permiso.",
+      "toGroup": "Grupo de destino",
+      "toGroupPlaceholder": "Elija un grupo",
+      "toGroupHint": "Solo se ofrecen los grupos del mismo curso.",
+      "noGroups": "No hay otros grupos en este curso.",
+      "reason": "Motivo",
+      "reasonHint": "Obligatorio, hasta {max} caracteres.",
+      "submit": "Enviar solicitud",
+      "requested": "La solicitud de cambio de grupo se ha enviado."
     }
   }
 }

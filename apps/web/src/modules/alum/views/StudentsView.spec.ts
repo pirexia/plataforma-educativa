@@ -222,6 +222,14 @@ describe('INV-002 / RN-ACAD-42: acciones por permiso y por curso', () => {
     expect(wrapper.text()).not.toContain('Nuevo alumno')
   })
 
+  it('CA-ALUM-070: mientras el curso no se ha resuelto no es escribible: sin alta (year.writable)', async () => {
+    vi.mocked(cursoApi.listSelectableAcademicYears).mockReturnValue(new Promise(() => undefined))
+
+    const { wrapper } = await open()
+
+    expect(wrapper.text()).not.toContain('Nuevo alumno')
+  })
+
   it('«Incluir bajas» solo con alumno.eliminar, y la baja se restaura desde la fila tras confirmar', async () => {
     session.__setPermissions(['alumno.leer', 'alumno.eliminar'])
     vi.mocked(alumApi.listStudents).mockResolvedValue(

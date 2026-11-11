@@ -47,8 +47,8 @@ const year = useAcademicYear()
 const actions = useActions()
 const idempotency = useIdempotencyKey()
 
-const canCreate = computed(() => can('alumno.crear') && !year.readOnly.value)
-const canRestore = computed(() => can('alumno.eliminar') && !year.readOnly.value)
+const canCreate = computed(() => can('alumno.crear') && year.writable.value)
+const canRestore = computed(() => can('alumno.eliminar') && year.writable.value)
 const canSeeEnrollments = computed(() => can('matricula.leer'))
 const canLinkFamily = computed(() => can('familia.actualizar'))
 
