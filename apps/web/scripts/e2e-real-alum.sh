@@ -5,7 +5,7 @@
 # y se niega si ya hay otra en :5173 con otra URL, como `e2e-real-prl.sh`; necesita `demo.plataforma.test` en /etc/hosts). Prepara DOS centros sintéticos con `alum` y `fam_unit`
 # contratados y un tutor con el rol `tutor_legal` (apps/api/tests/Support/e2e-real-tenant.php setup <slug> alum), lanza Playwright
 # con sus credenciales y los retira al terminar, también si falla (mismo método y garantías que `e2e-real-api.sh`: solo
-# contenedores de desarrollo, solo centros con la marca del script, solo datos sintéticos). No usa S3.
+# contenedores de desarrollo, solo centros con la marca del script, solo datos sintéticos). Usa Garage como almacén S3 (ADR-076, lib/e2e-garage.sh): las exportaciones CSV se sirven por URL firmada.
 #
 # Requisitos: pila de desarrollo levantada (`plataforma-api` en :8000 y `plataforma-postgres`), migraciones y
 # `platform:sync-registry` aplicados. No necesita entradas de `hosts`: cada centro se alcanza por 127.0.0.1:8000 con la cabecera `Host`.
@@ -28,6 +28,11 @@ done
 # shellcheck source=e2e-vite-api-url.sh
 source "$(dirname "${BASH_SOURCE[0]}")/e2e-vite-api-url.sh"
 prepare_vite_api_url "$SLUG_A" || exit 2
+
+# Almacén S3 de desarrollo (Garage, ADR-076): levantado, inicializado y con api/worker configurados contra él.
+# shellcheck source=lib/e2e-garage.sh
+source "$(dirname "${BASH_SOURCE[0]}")/lib/e2e-garage.sh"
+ensure_garage || exit 2
 
 support() { podman exec -e E2E_ALLOW_DESTRUCTIVE=1 "$API_CONTAINER" php tests/Support/e2e-real-tenant.php "$@"; }
 field() { python3 -c 'import json,sys; print(json.load(sys.stdin)[sys.argv[1]])' "$1"; }

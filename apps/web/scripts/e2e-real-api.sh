@@ -34,6 +34,11 @@ fi
 source "$(dirname "${BASH_SOURCE[0]}")/e2e-vite-api-url.sh"
 prepare_vite_api_url "$SLUG" || exit 2
 
+# Almacén S3 de desarrollo (Garage, ADR-076): levantado, inicializado y con api/worker configurados contra él.
+# shellcheck source=lib/e2e-garage.sh
+source "$(dirname "${BASH_SOURCE[0]}")/lib/e2e-garage.sh"
+ensure_garage || exit 2
+
 # `E2E_ONLY` no vacío y fuera de la lista cerrada: se rechaza antes de tocar nada (un typo no puede salir en verde sin
 # haber ejecutado ninguna suite).
 case "${E2E_ONLY:-}" in
@@ -143,8 +148,8 @@ fi
 
 # REQ-FAM-UNIT (1.14b-c1 T3), CA-FAM-UNIT-142: sección «Personas autorizadas» en navegador real contra la API real
 # (persona → autorización → fotografía → lista vigente → retirada). Centro propio con `fam_unit` y `prl` (modo `door`).
-# Requiere un almacén S3 en `minio:9000` con el bucket `plataforma` (MinIO o el servidor falso de
-# apps/api/tests/Support/e2e-fake-s3.php; `docs/modulos/REQ-PRL/operacion.md §12.7`) y publicado en 127.0.0.1:9000.
+# El almacén S3 es Garage (ADR-076): `ensure_garage` lo levanta, ejecuta infra/garage/init.sh y recrea api/worker si hace falta.
+# Su endpoint de firma es 127.0.0.1:3900, alcanzable desde el navegador y desde el host.
 if only fam-unit; then
   prepare_tenant door
   npx playwright test e2e/fam-unit-pickup-real.spec.ts --workers=1 "$@"
