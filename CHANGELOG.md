@@ -6,6 +6,17 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-11 · `feat(alum)`: 1.15-b, cierre de la matrícula, vetos y acotación por `matricula.leer` (`REQ-ALUM-002`, `#598`, `#599`, `#601`)
+
+- `acad`: vetos de `GroupDirectory` y `TeachingMembership::groupIdsFor` (T1a) y `CourseDirectory`.
+- `alum`: `EnrollmentService`, resolutores `grupo` y `unidad_familiar`, endpoints de matrícula y `enrollments[]` y `enrollment` del listado acotados por `matricula.leer`; `GET /students` responde `403 filter_forbidden` a los filtros `course`, `group` y `enrollment_status` sin `matricula.leer` (M1); `enrollment` es `null` sin filtro de curso o año.
+- Concurrencia: grupo y curso de etapa vivos bloqueados con `FOR SHARE` (`lockAliveForShare`, `RN-ALUM-26`) (M2); fallo en cerrado sin `public_id` del centro.
+- Base de datos: índice redundante quitado de `enrollments`; `findManyById` para las lecturas por lotes (#601).
+- `core`: tope de filas de exportación `core.export_max_rows` y `404` sin `curso_historico.leer` en las escrituras y lecturas de curso cerrado (#598, #599).
+- Infraestructura: `QUEUE_CONNECTION=database` fijado en `api` y `worker` de `compose.yaml` en desarrollo, porque un `redis` heredado del `.env` encolaba sin consumidor.
+- Tests: `CA-ALUM-040` (recuento de consultas de la lista de clase sin N+1) y la suite de matrícula de T1a a T2c.
+- **E2E real 11/11** (`npm run test:e2e:real`, 2026-11-11).
+
 ## 2026-11-11 · `feat(alum)`: 1.15-b, tramo T2c, exportación de matrículas y cierre de la API (`REQ-ALUM-002`)
 
 - `alum`: `POST /enrollments/exports` (`matricula.exportar`, solo `todos`): `202`, en cola `default` (`GenerateEnrollmentsExport`, permiso y módulo recomprobados al ejecutar) sobre `data_exports` con `kind = alum_enrollments`; CSV de esquema cerrado (`api.md §6`, sin documento de identidad), auditado como `exported` con los filtros; `422 alum.validation.export_query_not_allowed` con `q`. Límite de tasa por centro y usuario (`config/alum.php`, 10 por hora; `429` con `Retry-After`; patrón de `ConsentRateLimit`, decisión del usuario del 2026-11-11). Ruta declarada antes de las paramétricas.
