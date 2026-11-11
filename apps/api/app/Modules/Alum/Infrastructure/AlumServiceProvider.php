@@ -4,6 +4,7 @@ namespace App\Modules\Alum\Infrastructure;
 
 use App\Modules\Acad\Domain\StructureDeletionVetoRegistry;
 use App\Modules\Acad\Domain\StructureEntity;
+use App\Modules\Alum\Application\EnrollmentService;
 use App\Modules\Alum\Domain\Models\Enrollment;
 use App\Modules\Alum\Domain\Models\Student;
 use App\Support\Authorization\ScopeResolverRegistry;
@@ -21,7 +22,8 @@ class AlumServiceProvider extends ServiceProvider implements DeclaresModuleRegis
 {
     public function register(): void
     {
-        //
+        // Memoiza por petición `groupIdsOf()` (RN-ALUM-63: nunca entre peticiones; el contenedor olvida lo `scoped()`).
+        $this->app->scoped(EnrollmentService::class);
     }
 
     public function boot(): void

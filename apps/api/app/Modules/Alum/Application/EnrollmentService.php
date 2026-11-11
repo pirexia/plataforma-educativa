@@ -48,6 +48,9 @@ final class EnrollmentService
     /** Claves del cuerpo que `PATCH` nunca admite (`RN-ALUM-28`). */
     private const IMMUTABLE_KEYS = ['student', 'academic_year', 'course'];
 
+    /** @var array<int, list<int>> usuario => ids de grupo; vive lo que la petición (`scoped()`), `RN-ALUM-63` */
+    private array $groupIdsMemo = [];
+
     public function __construct(
         private readonly ScopedQuery $scopedQuery,
         private readonly StudentService $students,
@@ -258,10 +261,14 @@ final class EnrollmentService
      * `curso_historico.leer`) ⇒ `404` (`RN-ALUM-23`). Sin curso activo ni `academic_year`, o con un `course`/`group` que no
      * resuelve a algo de ese curso, la subconsulta no devuelve nada.
      *
+     * Los filtros `course`, `group` y `enrollment_status` revelan datos de matrícula: exigen `matricula.leer`
+     * (`$matricula`, la decisión de ese permiso) y, si se tiene, la subconsulta se acota por su ámbito (`ScopedQuery`,
+     * recurso `matricula`); sin el permiso, `403 alum.validation.filter_forbidden` (`api.md §1`, revisión de seguridad M1).
+     *
      * @param  array{academic_year?: ?string, course?: ?string, group?: ?string, enrollment_status?: ?string}  $filters
      * @return Builder<Enrollment>|null
      */
-    public function studentIdsMatching(User $subject, array $filters): ?Builder
+    public function studentIdsMatching(User $subject, PermissionDecision $matricula, array $filters): ?Builder
     {
         $yearPublicId = $filters['academic_year'] ?? null;
         $year = null;
@@ -277,8 +284,12 @@ final class EnrollmentService
             return null;
         }
 
+        if (! $matricula->permitted) {
+            throw AlumErrors::filterForbidden();
+        }
+
         $year ??= $this->yearContext->active();
-        $query = Enrollment::query()->select('student_id');
+        $query = $this->scopedQuery->constrain(Enrollment::query(), 'matricula', $matricula, $subject)->select('student_id');
 
         if ($year === null) {
             return $query->whereRaw('1 = 0');
@@ -338,6 +349,7 @@ final class EnrollmentService
                 $student = $this->students->lockAliveForShare($studentPublicId)
                     ?? throw AlumErrors::invalid('student', 'alum.validation.student_not_found');
 
+                $this->assertStructureAlive((int) $course->id, $groupId);
                 $this->assertDateInYear($enrolledOn, $locked);
 
                 if (Enrollment::query()->where('student_id', $student->id)->where('academic_year_id', $locked->id)->where('status', 'activa')->exists()) {
@@ -407,6 +419,8 @@ final class EnrollmentService
 
         return DB::transaction(function () use ($found, $enrolledOn, $hasGroup, $newGroupId): Enrollment {
             [$year, $enrollment] = $this->lockForWrite($found);
+
+            $this->assertStructureAlive((int) $enrollment->course_id, $hasGroup && $enrollment->group_id === null ? $newGroupId : null);
 
             if ($hasGroup && (int) $enrollment->group_id !== (int) $newGroupId && $enrollment->group_id !== null) {
                 throw AlumErrors::invalid('group', 'alum.validation.group_change_requires_request');
@@ -492,11 +506,20 @@ final class EnrollmentService
     /**
      * Ids de los grupos de `groupIdsFor(u, Y)` para cada curso académico `Y` en que hay matrículas con grupo
      * (`RN-ALUM-60`: «del curso de la matrícula»). Un grupo pertenece a un solo curso, así que la unión por cursos es
-     * exactamente la restricción por fila. Sin caché entre peticiones (`RN-ALUM-63`); `groupIdsFor` memoiza por petición.
+     * exactamente la restricción por fila. Memoizado **por petición** (el servicio se registra con `scoped()`, y el
+     * resolutor lo consulta una vez por consulta acotada: sin esto, cada una barría `enrollments`); **sin caché entre
+     * peticiones** (`RN-ALUM-63`, la asignación retirada se nota en la petición siguiente); `groupIdsFor` también
+     * memoiza por petición.
      *
      * @return list<int>
      */
     public function groupIdsOf(User $subject): array
+    {
+        return $this->groupIdsMemo[(int) $subject->id] ??= $this->computeGroupIdsOf($subject);
+    }
+
+    /** @return list<int> */
+    private function computeGroupIdsOf(User $subject): array
     {
         $ids = [];
 
@@ -739,6 +762,21 @@ final class EnrollmentService
         }
 
         return $group->id;
+    }
+
+    /**
+     * `RN-ALUM-26`, `RN-ACAD-21` (revisión de seguridad M2): dentro de la transacción de escritura, vuelve a leer el curso
+     * de etapa (y el grupo, si lo hay) **vivos y con `FOR SHARE`**, en ese orden. Así un borrado concurrente de `acad`
+     * (que bloquea la fila `FOR UPDATE` y consulta después el veto) espera a esta transacción y ve la matrícula, o ya
+     * confirmó y aquí se rechaza. Ya no existen ⇒ `422 parent_not_found` (el mismo código que un curso o grupo inexistente).
+     */
+    private function assertStructureAlive(int $courseId, ?int $groupId): void
+    {
+        $this->courses->lockAliveForShare($courseId) ?? throw AlumErrors::invalid('course', 'alum.validation.parent_not_found');
+
+        if ($groupId !== null) {
+            $this->groups->lockAliveForShare($groupId) ?? throw AlumErrors::invalid('group', 'alum.validation.parent_not_found');
+        }
     }
 
     /** `RN-ALUM-29`: bordes incluidos, con las fechas del curso leídas bajo `FOR SHARE`. */

@@ -75,7 +75,7 @@ final class StudentService
         }
 
         // Perezoso: `EnrollmentService` depende de este servicio (sin dependencia circular de construcción).
-        $enrolled = app(EnrollmentService::class)->studentIdsMatching($subject, $enrollmentFilters);
+        $enrolled = app(EnrollmentService::class)->studentIdsMatching($subject, $this->permissions->decide($subject, 'matricula.leer'), $enrollmentFilters);
 
         if ($enrolled !== null) {
             $query->whereIn('id', $enrolled);

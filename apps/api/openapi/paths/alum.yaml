@@ -16,7 +16,8 @@ paths:
         `course`, `group` y `enrollment_status` filtran a los alumnos con matrícula viva en `academic_year` (por defecto el
         curso activo) que cumpla todos los dados; `academic_year` solo no filtra. Un `academic_year` inexistente, o de un
         curso cerrado sin `curso_historico.leer`, es `404` (RN-ALUM-23); un `course` o `group` que no resuelve a algo de
-        ese curso da lista vacía.
+        ese curso da lista vacía. Esos tres filtros exigen además `matricula.leer` (sin él, `403 alum.validation.filter_forbidden`) y
+        solo cuentan las matrículas que el ámbito de ese permiso alcanza.
       tags: ['Alum / Alumnado']
       security: [{ SessionCookie: [] }]
       parameters:
@@ -49,7 +50,7 @@ paths:
                     items: { $ref: '../components.yaml#/components/schemas/StudentSummary' }
                   meta: { $ref: '../components.yaml#/components/schemas/PageMeta' }
         '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
-        '403': { description: 'Sin el permiso (`403`), filtro `include_deleted` sin `alumno.eliminar` o módulo `alum` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '403': { description: 'Sin el permiso (`403`), filtro `include_deleted` sin `alumno.eliminar`, filtro `course`/`group`/`enrollment_status` sin `matricula.leer` o módulo `alum` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
         '404': { description: 'Con `academic_year` inexistente o de un curso cerrado sin `curso_historico.leer`.', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
         '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
     post:

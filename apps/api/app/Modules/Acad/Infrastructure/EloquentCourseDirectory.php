@@ -7,6 +7,7 @@ use App\Modules\Acad\Domain\CourseSummary;
 use App\Modules\Acad\Domain\Models\Course;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 
 /**
  * INV-001: la consulta pasa por `TenantScope` y por el borrado lógico. Memoiza por petición y centro (registrado con
@@ -34,6 +35,15 @@ final class EloquentCourseDirectory implements CourseDirectory
         $tenantId = $this->tenantContext->tenantId();
 
         return $this->byId[$tenantId][$id] ?? $this->load(Course::query()->where('id', $id), $tenantId);
+    }
+
+    public function lockAliveForShare(int $id): ?CourseSummary
+    {
+        if (DB::transactionLevel() === 0) {
+            throw new \LogicException('lockAliveForShare() exige una transacción abierta.');
+        }
+
+        return $this->load(Course::query()->where('id', $id)->sharedLock(), $this->tenantContext->tenantId());
     }
 
     /**

@@ -164,3 +164,26 @@ test('CA-ALUM-030 funcional.md §4.2: un alumno borrado por otra conexión sin c
         ->and(alumCollect($enroller))->toMatchArray(['outcome' => 'api_error', 'status' => 422, 'code' => 'alum.validation.student_not_found'])
         ->and(En::liveCount($s['tenant']))->toBe(0);
 });
+
+test('RN-ALUM-26 RN-ACAD-21 (revisión de seguridad M2): un grupo borrado por otra conexión sin confirmar hace esperar al alta de matrícula; al confirmar, 422 parent_not_found y ninguna fila', function (): void {
+    $s = En::scenario('alum-m2c');
+    $student = $s['students'][0]['public_id'];
+    $key = random_int(1_000, 2_000_000_000);
+
+    $gate = alumPdo();
+    $gate->prepare('select pg_advisory_lock(?)')->execute([$key]);
+
+    // El borrado ya pasó el veto (sin matrículas todavía), borró el grupo y espera sin confirmar.
+    $deleter = alumSpawn($s['tenant']->id, 'delete-group', $s['groupB'], (string) $key);
+    alumWaitBlocked('advisory', 1, [$deleter]);
+
+    // El alta resolvió el grupo (el borrado aún no es visible) y pide el grupo FOR SHARE: espera a que el borrado confirme.
+    $enroller = alumSpawn($s['tenant']->id, 'enroll', $student, $s['year']->public_id, $s['api']['course'], '2026-09-10', $s['groupB']);
+    alumWaitBlocked('transactionid', 1, [$deleter, $enroller]);
+
+    $gate->prepare('select pg_advisory_unlock(?)')->execute([$key]);
+
+    expect(alumCollect($deleter))->toMatchArray(['outcome' => 'ok'])
+        ->and(alumCollect($enroller))->toMatchArray(['outcome' => 'api_error', 'status' => 422, 'code' => 'alum.validation.parent_not_found'])
+        ->and(En::liveCount($s['tenant']))->toBe(0);
+});
