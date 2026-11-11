@@ -22,7 +22,7 @@
 | Término | Entidad / tabla | Qué es |
 |---------|-----------------|--------|
 | **Alumno/a** | `Student` / `students` | **Faceta** de una `Person` (`ADR-034 §1`, `§16.1`): la persona en su papel de alumno del centro. No depende del curso académico. Sus datos personales viven en `people` (`Core`, `§16.3` regla 1); esta tabla no los duplica |
-| **Expediente** | — (composición) | Vista de la ficha del alumno: datos personales (de `Core`), tutores y contacto de emergencia (de `fam_unit`), matrículas (de este módulo). En `1.15` no es una tabla propia (§1.3) |
+| **Expediente** | — (composición) | Pantalla de ficha del alumno (composición en la SPA, no la respuesta de la API): datos personales (de `Core`), tutores y contacto de emergencia (de `fam_unit`), matrículas (de este módulo). En `1.15` no es una tabla propia (§1.3) |
 | **Matrícula** | `Enrollment` / `enrollments` | Un alumno en un curso académico, un curso de etapa y, si ya lo tiene, un grupo (`§16.1`, `§16.3` regla 4; grupo opcional por `OPEN-ALUM-11` = B). Eje del que colgarán asistencia, calificaciones y facturación |
 | **Lista de clase** | — (consulta) | Las matrículas activas de un grupo (`REQ-ALUM-003`) |
 | **Solicitud de cambio de grupo** | `GroupChangeRequest` / `group_change_requests` | Petición de mover una matrícula a otro grupo del mismo curso de etapa, con su aprobación, rechazo o cancelación (`REQ-ALUM-003`; `OPEN-ALUM-13` = A) |
@@ -55,7 +55,7 @@ Reglas de nombre [DERIVADA]: código de módulo `alum`, prefijo de traducciones 
 |-------|----------------|-----------|
 | Módulo `alum` | `apps/api/app/Modules/Alum/` con `ServiceProvider` (descriptor, catálogo de permisos, migraciones, *morph map*, resolutores), rutas, `lang/{es,en,de,fr}/alum.php`, `modules.alum`; módulo web `apps/web/src/modules/alum/` | `RMOD-001`, `AR-03`, `AR-11`, `AR-12` |
 | Alumnado | Alta (crea la persona por `Core` y la faceta; opcionalmente la pertenencia a una unidad familiar en la misma transacción), consulta, edición de datos personales por `Core`, baja lógica y restauración | `REQ-ALUM-001` (ficha: datos personales) |
-| Ficha / expediente | Composición de lectura: datos personales, tutores con su contacto de emergencia (leídos de `fam_unit`), matrículas (desde `1.15-b`) | `REQ-ALUM-001` |
+| Ficha / expediente | Composición de lectura **de la pantalla** (no de la respuesta de la API): datos personales, tutores con su contacto de emergencia (leídos de `fam_unit`), matrículas (desde `1.15-b`) | `REQ-ALUM-001` |
 | Matrícula | Alta, consulta, edición, baja con fecha y motivo, anulación de una matrícula errónea | `REQ-ALUM-002` (último estado del flujo: «matriculación») |
 | Listas de clase y exportación | Listado de matrículas por grupo; exportación CSV en cola (`ADR-054`/`ADR-055`) | `REQ-ALUM-003` |
 | Cambio de grupo con aprobación | Solicitud, aprobación, rechazo y cancelación (`OPEN-ALUM-13` = A) | `REQ-ALUM-003` |
@@ -338,6 +338,8 @@ Propuesta [DERIVADA en nombres y rutas]. `src/data-table`, shadcn-vue, `docs/des
 3. **Lista de clase**: curso de etapa y grupo opcionales.
 4. **Curso académico de solo lectura** (`RN-ACAD-42`): se puede exportar; quedan ocultas las acciones de solicitar, cancelar, aprobar, rechazar, y también el alta, la baja y la anulación de matrícula.
 
+**Límites conocidos de la UI de `1.15-d`**: (a) no hay pantalla para asignar el primer grupo a una matrícula creada sin grupo (`PATCH /enrollments/{id}` existe en la API y ninguna pantalla lo llama; issue #621); (b) sin curso resuelto (ni `?academic_year=` ni curso activo) no se ofrece ninguna acción ni la exportación, y la lista de clase y la pantalla de cambios de grupo avisan de que falta un curso académico y no consultan (`GET /enrollments` y `GET /group-change-requests` exigen `academic_year`).
+
 Bloques del panel: ninguno (#261).
 
 ---
@@ -430,7 +432,7 @@ Pest en `apps/api/tests/Feature/Alum/` (concurrencia en `tests/Concurrency/`), V
 ### 11.8 Interfaz y E2E (`1.15-d`)
 
 - **CA-ALUM-070** — Vitest: el listado lleva los filtros a la URL sin `q`; la ficha oculta las secciones de `fam_unit` sin sus permisos; sin acciones de escritura con un curso de solo lectura (`RN-ACAD-42`); la subida de foto muestra el error de tipo o tamaño.
-- **CA-ALUM-071** — Accesibilidad: etiquetas, errores asociados, foco en diálogos, 320 px sin desplazamiento horizontal (WCAG 2.2 AA).
+- **CA-ALUM-071** — Accesibilidad: etiquetas, errores asociados, foco en diálogos, 320 px sin desplazamiento horizontal (WCAG 2.2 AA). *Alcance de la comprobación*: el foco en diálogos se comprueba en navegador real (E2E) y en Vitest; los 320 px, en navegador real solo en `/alumnado`, `/alumnado/listas` y `/alumnado/cambios-de-grupo`; la ficha y los diálogos de matrícula **no** se comprueban a 320 px en E2E, y no hay comprobación automática tipo axe.
 - **CA-ALUM-072** — **E2E contra la API real** (`CLAUDE.md §3`): secretaría da de alta un alumno en una unidad familiar, lo matricula, ve la lista de clase y exporta; un docente con asignación en ese grupo ve al alumno y otro sin asignación no. Lo ejecuta `verificador`; S3/MinIO real se declara probado o no.
   **Estado (`1.15-d` T3)**: implementado en `apps/web/e2e/alum-screens-real.spec.ts` (8 tests de navegador: alta y matrícula, lista de clase con exportación, docente con y sin asignación, foco del diálogo de alta y 320 px en tres pantallas) y `alum-group-change-real.spec.ts` (6: solicitar desde la ficha y desde la lista, aprobar por otra persona, autoaprobación rechazada, rechazo con nota obligatoria, curso cerrado), más los 11 HTTP de `alum-students-real` y `alum-enrollments-real`. **No probado: la descarga del CSV desde S3** (la exportación se acepta con `202` y no falla, pero el fichero no se descarga) **y el E2E de la fotografía** (subir, ver, sustituir, quitar); ambos quedan aplazados a la entrega `S-1b` de `ADR-076`, cuando exista un S3 real con firma. Cómo se ejecuta: `operacion.md §9`.
 

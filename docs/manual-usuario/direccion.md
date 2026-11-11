@@ -1,6 +1,6 @@
 # Manual de dirección
 
-> Estructura académica (`REQ-ACAD-001`, pasos `1.11-b`, `1.11d-a` y `1.11d-b`) conserjería (`REQ-PRL-004`, paso `1.14b-c2`) y aprobación de cambios de grupo (`REQ-ALUM`, paso `1.15-d`). El resto de funciones de este perfil se documentan con cada módulo.
+> Estructura académica (`REQ-ACAD-001`, pasos `1.11-b`, `1.11d-a` y `1.11d-b`), conserjería (`REQ-PRL-004`, paso `1.14b-c2`) y aprobación de cambios de grupo (`REQ-ALUM`, paso `1.15-d`). El resto de funciones de este perfil se documentan con cada módulo.
 
 ## Estructura académica del centro
 
@@ -54,5 +54,5 @@
 
 Quien tiene el permiso de actualizar matrículas puede **«Cancelar»** una solicitud pendiente (también la propia). Una solicitud ya decidida no admite más cambios. El motivo y la nota son texto libre y no se guardan en el registro de cambios de la auditoría.
 
-**Con el curso cerrado.** Si el curso seleccionado es de solo lectura, un aviso lo indica y desaparecen **Aprobar, Rechazar y Cancelar**; las solicitudes pendientes se siguen viendo y la lista de clase se puede exportar.
+**Con el curso cerrado.** Si el curso seleccionado es de solo lectura, un aviso lo indica y desaparecen **Aprobar, Rechazar y Cancelar**; las solicitudes pendientes se siguen viendo y la lista de clase se puede exportar. **Sin curso resuelto** (ni `?academic_year=` en la dirección ni curso activo) no se ofrece ninguna acción ni la exportación, y la lista de clase y los cambios de grupo avisan de que falta un curso académico: elige uno en el selector de la barra superior.
 
