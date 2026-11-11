@@ -8,7 +8,7 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ## 2026-11-11 · `docs(almacenamiento)`: ADR-076 almacenamiento de objetos (`ACEPTADA`)
 
-- `ADR-076`: la API S3 es el contrato único (Flysystem S3 tras el almacén privado); Garage, fijado por versión y digest, sustituye a MinIO y al servidor S3 falso solo en desarrollo, CI y E2E (nunca en servidores); `TenantObjectStore` en `App\Support\Files` con el prefijo del centro impuesto por la implementación y test de arquitectura; endpoint de firma, sumas de verificación `when_required` y test de conformidad; inventario de limpieza. Concreta `ADR-013`, `ADR-033 §9` y `ADR-068 §5.3`; sustituye en parte a `ADR-030` y `ADR-037`. Proveedor de producción y cumplimiento, fuera (expediente aparte). Requisitos 3.2.30.
+- `ADR-076`: la API S3 es el contrato único (Flysystem S3 tras el almacén privado); Garage, fijado por versión y digest, sustituye a MinIO y al servidor S3 falso solo en desarrollo, CI y E2E (nunca en servidores); `TenantObjectStore` en `App\Support\Files` con el prefijo del centro impuesto por la implementación y test de arquitectura; endpoint de firma, sumas de verificación `when_required` y test de conformidad; inventario de limpieza. Concreta `ADR-013` y `ADR-068 §5.3`; sustituye en parte a `ADR-030`, `ADR-037` y `ADR-033 §9` (solo el mecanismo `TenantStorage`; la regla del prefijo se mantiene). Proveedor de producción y cumplimiento, fuera (expediente aparte). Requisitos 3.2.30.
 
 ## 2026-11-11 · `feat(alum)`: 1.15-c, tramo T2b, fotografía del alumno (`REQ-ALUM-001`)
 
