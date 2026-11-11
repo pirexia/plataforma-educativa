@@ -29,7 +29,7 @@ jobs:
   # acoplamiento web→api podría colarse de vuelta.
   guard-no-proxy-pass:
     name: Guarda — sin proxy_pass en infra/containers/web
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # fijada: ubuntu-latest migra a 26.04 hasta el 19-11-2026 (#609, actions/runner-images#14748)
     steps:
       - uses: actions/checkout@v7
       - name: Comprobar ausencia de proxy_pass
@@ -48,7 +48,7 @@ jobs:
   # el primer despliegue.
   quadlet-lint:
     name: Lint de unidades Quadlet
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # fijada: ubuntu-latest migra a 26.04 hasta el 19-11-2026 (#609, actions/runner-images#14748)
     container:
       image: quay.io/podman/stable:latest
     steps:
@@ -70,7 +70,7 @@ jobs:
   # revisión independiente de doc-reviewer sobre 0.9b: faltaba este gate.
   require-ci-green:
     name: Exigir CI en verde antes de publicar una versión
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # fijada: ubuntu-latest migra a 26.04 hasta el 19-11-2026 (#609, actions/runner-images#14748)
     permissions:
       checks: read
     steps:
@@ -103,7 +103,7 @@ jobs:
 
   build-api:
     name: Construir plataforma-api
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # fijada: ubuntu-latest migra a 26.04 hasta el 19-11-2026 (#609, actions/runner-images#14748)
     needs: [guard-no-proxy-pass, require-ci-green]
     permissions:
       contents: read
@@ -148,7 +148,7 @@ jobs:
 
   build-web:
     name: Construir plataforma-web
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # fijada: ubuntu-latest migra a 26.04 hasta el 19-11-2026 (#609, actions/runner-images#14748)
     needs: [guard-no-proxy-pass, require-ci-green]
     permissions:
       contents: read
@@ -198,7 +198,7 @@ jobs:
   # sin límite. Todos los vX.Y.Z se conservan siempre (ignore-versions).
   prune-old-images:
     name: Purgar imágenes antiguas de develop
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # fijada: ubuntu-latest migra a 26.04 hasta el 19-11-2026 (#609, actions/runner-images#14748)
     needs: [build-api, build-web]
     if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
     permissions:

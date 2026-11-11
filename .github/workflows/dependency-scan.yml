@@ -10,7 +10,7 @@ permissions:
 jobs:
   trivy:
     name: Trivy (composer.lock, package-lock.json)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # fijada: ubuntu-latest migra a 26.04 hasta el 19-11-2026 (#609, actions/runner-images#14748)
     steps:
       - uses: actions/checkout@v7
 
