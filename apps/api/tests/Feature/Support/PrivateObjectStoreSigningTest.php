@@ -60,6 +60,30 @@ test('ADR-076 §4: un TTL menor que el tope se respeta', function (): void {
     expect((int) $q['X-Amz-Expires'])->toBeLessThanOrEqual(5 * 60)->toBeGreaterThan(4 * 60);
 });
 
+test('ADR-076 §4: en production y staging un endpoint de firma sin https falla en cerrado', function (string $env): void {
+    useS3Probe($this->s3 + ['signing_endpoint' => 'http://127.0.0.1:3900']);
+    app()->detectEnvironment(fn (): string => $env);
+
+    try {
+        expect(fn () => app(PrivateObjectStore::class)->temporaryUrl($this->key, now()->addMinutes(5)))
+            ->toThrow(RuntimeException::class, 'https');
+    } finally {
+        app()->detectEnvironment(fn (): string => 'testing');
+    }
+})->with(['production', 'staging']);
+
+test('ADR-076 §4: en production un endpoint de firma https se acepta', function (): void {
+    useS3Probe($this->s3 + ['signing_endpoint' => 'https://files.example.com']);
+    app()->detectEnvironment(fn (): string => 'production');
+
+    try {
+        expect(app(PrivateObjectStore::class)->temporaryUrl($this->key, now()->addMinutes(5)))
+            ->toStartWith('https://files.example.com/b/tenants/');
+    } finally {
+        app()->detectEnvironment(fn (): string => 'testing');
+    }
+});
+
 test('ADR-076 §4: el disco s3 declara when_required para las sumas de verificación y el tope vale 15 por defecto', function (): void {
     expect(config('filesystems.disks.s3.request_checksum_calculation'))->toBe('when_required')
         ->and(config('filesystems.disks.s3.response_checksum_validation'))->toBe('when_required')

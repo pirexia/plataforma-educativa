@@ -47,6 +47,13 @@ wait_s="${GARAGE_WAIT_SECONDS:-60}"
 [[ "$GARAGE_BUCKET" =~ ^[a-z0-9][a-z0-9-]{2,62}$ ]] \
   || fail "GARAGE_BUCKET no es un nombre de bucket válido"
 
+# Valores opcionales: se validan para que nunca se interpreten como opciones de la CLI.
+[[ "$capacity" =~ ^[0-9]+[KMGT]?$ ]] || fail "GARAGE_CAPACITY no es válida (p. ej. 1G)"
+[[ "$zone" =~ ^[A-Za-z0-9][A-Za-z0-9_-]{0,31}$ ]] || fail "GARAGE_ZONE no es válida"
+[[ "$container" =~ ^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$ ]] || fail "GARAGE_CONTAINER no es válido"
+[[ "$cli" =~ ^[A-Za-z0-9][A-Za-z0-9_./-]{0,63}$ ]] || fail "CONTAINER_CLI no es válido"
+[[ "$wait_s" =~ ^[0-9]{1,4}$ ]] || fail "GARAGE_WAIT_SECONDS no es válido"
+
 g() { "$cli" exec -e RUST_LOG=warn "$container" /garage "$@"; }
 
 # 1. Esperar a que el nodo responda.

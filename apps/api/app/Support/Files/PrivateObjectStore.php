@@ -88,6 +88,11 @@ final class PrivateObjectStore
 
         $this->disk(); // misma guarda de entorno
 
+        // ADR-076 §4: fuera de desarrollo la URL firmada viaja al navegador y no puede salir en claro (falla en cerrado).
+        if (app()->environment(['production', 'staging']) && ! str_starts_with(strtolower($signing), 'https://')) {
+            throw new RuntimeException('El endpoint de firma (AWS_URL_SIGNING_ENDPOINT) debe ser https en production y staging.');
+        }
+
         unset($config['signing_endpoint'], $config['url']);
         $config['endpoint'] = $signing;
 
