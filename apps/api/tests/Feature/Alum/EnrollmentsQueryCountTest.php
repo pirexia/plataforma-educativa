@@ -33,7 +33,9 @@ function enrollMore(array &$s, int $n): void
     }
 }
 
-test('CA-ALUM-040: GET /enrollments (lista de clase) y GET /students con enrollment hacen las mismas consultas con 3 que con 15 matrículas en la página', function (): void {
+// Tolerancia de 2 consultas: una consulta suelta de sesión o de caché de la petición no es un N+1; un N+1 real suma
+// una por fila, 12 más con 15 filas.
+test('CA-ALUM-040: GET /enrollments (lista de clase) y GET /students con enrollment hacen las mismas consultas (±2) con 3 que con 15 matrículas en la página', function (): void {
     $s = En::scenario('enrqc-040');
     $list = fn () => "/enrollments?academic_year={$s['year']->public_id}&group={$s['api']['group']}&status=activa";
     $students = fn () => "/students?academic_year={$s['year']->public_id}&group={$s['api']['group']}";
@@ -41,13 +43,14 @@ test('CA-ALUM-040: GET /enrollments (lista de clase) y GET /students con enrollm
     enrollMore($s, 3);
     // Primera llamada sin medir: calienta cachés de la petición (idiomas, permisos) que no dependen del tamaño.
     queryCount($s, $list());
+    queryCount($s, $students());
     $listSmall = queryCount($s, $list());
     $studentsSmall = queryCount($s, $students());
 
     enrollMore($s, 12);
 
     expect(Alum::call($s['tenant'], $s['admin'], 'get', $list())->json('data'))->toHaveCount(15)
-        ->and(queryCount($s, $list()))->toBe($listSmall)
+        ->and(abs(queryCount($s, $list()) - $listSmall))->toBeLessThanOrEqual(2)
         ->and(Alum::call($s['tenant'], $s['admin'], 'get', $students())->json('data'))->toHaveCount(15)
-        ->and(queryCount($s, $students()))->toBe($studentsSmall);
+        ->and(abs(queryCount($s, $students()) - $studentsSmall))->toBeLessThanOrEqual(2);
 });

@@ -255,7 +255,7 @@ paths:
         `kind = alum_enrollments`. Cuerpo: los filtros de `GET /enrollments` (`academic_year` obligatorio, `course`,
         `group`, `status`), sin paginación, `sort` ni `q`: con `q`, `422 alum.validation.export_query_not_allowed`
         (ADR-054 §8.2, §9); sin `academic_year`, `422 alum.validation.required`; un curso académico inexistente o
-        ilegible, `404` (RN-ALUM-23). La solicitud queda auditada como `exported` con los filtros. Límite por centro y
+        ilegible, `404` (RN-ALUM-23); más filas que `core.export_max_rows`, `422 core.validation.export_range_too_large`. La solicitud queda auditada como `exported` con los filtros. Límite por centro y
         usuario (10 por hora por defecto, `config/alum.php`): superado, `429` con `Retry-After`. El estado y la descarga,
         en `GET /data-exports/{publicId}`.
       tags: ['Alum / Matrícula']
