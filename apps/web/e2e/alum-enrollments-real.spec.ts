@@ -20,25 +20,6 @@ import {
  * comprueba si el *worker* y el almacenamiento S3/MinIO responden dentro del plazo; si no, el spec comprueba el `202` y el estado
  * de la exportación y lo deja como anotación del test (no declara probada la descarga).
  */
-import {
-  test,
-  expect,
-  request as playwrightRequest,
-  type APIRequestContext,
-  type APIResponse,
-} from '@playwright/test'
-
-/**
- * `docs/modulos/REQ-ALUM/funcional.md §11.1` (1.15-a): alumnado **contra la API real en ejecución** (HTTP real con cookie de
- * sesión y CSRF, sin navegador: las pantallas son de 1.15-d; sin S3). Cubre CA-ALUM-001 (alta con `Idempotency-Key`, ficha, lista,
- * PATCH, baja y restauración), CA-ALUM-009 (`person_exists`), CA-ALUM-012 (tutor con ámbito `unidad_familiar`: solo su alumno,
- * 404 al otro, 404 tras revocar el vínculo), CA-ALUM-014a (el tutor no escribe: 403) y CA-ALUM-018a (public_id de otro centro: 404).
- *
- * Solo con `E2E_REAL_API=1`: `npm run test:e2e:real:alum` (apps/web/scripts/e2e-real-alum.sh) prepara los dos centros sintéticos
- * (`@example.com`, nombres explícitamente ficticios, `REQ-SEED-005`) y define las variables. Cada centro se alcanza por
- * `127.0.0.1:8000` con la cabecera `Host` de su subdominio (ADR-014).
- */
-
 const API = process.env.E2E_API_URL ?? 'http://127.0.0.1:8000/api/v1'
 const BASE_DOMAIN = process.env.E2E_BASE_DOMAIN ?? 'plataforma.test'
 
