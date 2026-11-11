@@ -237,7 +237,7 @@ Primitiva compartida: la introduce `REQ-CORE` para la exportación CSV del regis
 | Columna | Tipo | Nulo | Descripción |
 |---------|------|------|-------------|
 | `public_id` | ULID | No | |
-| `kind` | `text` + `CHECK` | No | `audit_logs` en 1.1; `users` en 1.9b; `image_consents` en 1.14-b (ampliación de `Core` aprobada por el usuario el 2026-10-27 (`1.14-b`, `REQ-FAM-UNIT/funcional.md §18` D-18 y D-27), migración `2026_10_27_100100_widen_data_exports_kind_for_image_consents`). Cada módulo añade su valor al `CHECK` por *expand* |
+| `kind` | `text` + `CHECK` | No | `audit_logs` en 1.1; `users` en 1.9b; `image_consents` en 1.14-b (ampliación de `Core` aprobada por el usuario el 2026-10-27 (`1.14-b`, `REQ-FAM-UNIT/funcional.md §18` D-18 y D-27), migración `2026_10_27_100100_widen_data_exports_kind_for_image_consents`); `alum_enrollments` en 1.15-b (migración `2026_11_10_100200_widen_data_exports_kind_for_enrollments`). Cada módulo añade su valor al `CHECK` por *expand* |
 | `format` | `text` + `CHECK` | No | `csv` en 1.1. `pdf` diferido a 1.17 |
 | `filters` | `jsonb` | Sí | Filtros con los que se pidió, para poder reproducirla y auditar qué se extrajo |
 | `status` | `text` + `CHECK` | No | `pendiente`, `generando`, `completada`, `fallida` |
