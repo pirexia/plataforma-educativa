@@ -63,6 +63,8 @@ const E2E_TARGET_EMAIL = 'e2e-docente@example.com';
 const E2E_CONSERJE_EMAIL = 'e2e-conserje@example.com';
 const E2E_SECRETARIA_EMAIL = 'e2e-secretaria@example.com';
 const E2E_TUTOR_EMAIL = 'e2e-tutor@example.com';
+const E2E_DOCENTE2_EMAIL = 'e2e-docente2@example.com';
+const E2E_DIRECCION_EMAIL = 'e2e-direccion@example.com';
 
 // Centro de escaparate de la landing (ADR-074 §4.4). Nombre visible ficticio; marca de seguridad = slug + nombre + administrador.
 const SHOWCASE_SLUG = 'demo';
@@ -157,8 +159,9 @@ $staffPassword = 'E2e-'.Str::random(20);
 
 $students = [];
 $tutorUser = null;
+$alumUsers = [];
 
-app(TenantContext::class)->runFor($tenant->id, function () use ($password, $door, $alum, $showcase, $adminEmail, $staffPassword, &$students, &$tutorUser): void {
+app(TenantContext::class)->runFor($tenant->id, function () use ($password, $door, $alum, $showcase, $adminEmail, $staffPassword, &$students, &$tutorUser, &$alumUsers): void {
     // El administrador aprovisionado queda invitado (sin contraseña) y su rol
     // obliga a MFA: se activa con contraseña conocida y una excepción de MFA
     // viva (REQ-AUTH-003) para que el login real no pida inscribir un factor.
@@ -210,7 +213,7 @@ app(TenantContext::class)->runFor($tenant->id, function () use ($password, $door
 
     // REQ-ACAD (1.12-c), CA-ACAD-135: segundo profesor sintético para el e2e de horarios.
     User::factory()->for(Person::factory()->create(['given_name' => 'Marta', 'family_name_1' => 'Docente']))->create([
-        'email' => 'e2e-docente2@example.com',
+        'email' => E2E_DOCENTE2_EMAIL,
         'status' => UserStatus::Activo,
     ]);
 
@@ -231,6 +234,26 @@ app(TenantContext::class)->runFor($tenant->id, function () use ($password, $door
             'email_verified_at' => now(),
         ]);
         $tutorUser->roles()->attach(Role::where('code', 'tutor_legal')->firstOrFail()->id);
+
+        // REQ-ALUM (1.15-d T3, CA-ALUM-072): personal con los roles predefinidos y contraseña conocida para el e2e de navegador. Los dos
+        // docentes ya existen sin rol: ambos reciben `docente` (con `alumno.leer`/`matricula.leer` de ámbito `grupo`); el test asigna a
+        // uno solo a un grupo. `direccion` aporta un segundo usuario con `matricula.aprobar`, distinto del solicitante.
+        foreach ([[E2E_TARGET_EMAIL, 'docente'], [E2E_DOCENTE2_EMAIL, 'docente']] as [$email, $roleCode]) {
+            $teacher = User::query()->where('email', $email)->firstOrFail();
+            $teacher->forceFill(['password' => $staffPassword, 'email_verified_at' => now()])->save();
+            $teacher->roles()->attach(Role::where('code', $roleCode)->firstOrFail()->id);
+            $alumUsers[$email] = $teacher->public_id;
+        }
+
+        foreach ([[E2E_SECRETARIA_EMAIL, 'Sara', 'Secretaria', 'secretaria'], [E2E_DIRECCION_EMAIL, 'Diana', 'Direccion', 'direccion']] as [$email, $given, $family, $roleCode]) {
+            $staff = User::factory()->for(Person::factory()->create(['given_name' => $given, 'family_name_1' => $family]))->create([
+                'email' => $email,
+                'password' => $staffPassword,
+                'status' => UserStatus::Activo,
+                'email_verified_at' => now(),
+            ]);
+            $staff->roles()->attach(Role::where('code', $roleCode)->firstOrFail()->id);
+        }
 
         return;
     }
@@ -271,6 +294,9 @@ echo json_encode([
     'admin_email' => $adminEmail,
     'admin_password' => $password,
     ...($showcase ? ['teachers' => array_map(static fn (array $t): string => $t[0], SHOWCASE_TEACHERS)] : ['target_email' => E2E_TARGET_EMAIL, 'target_name' => 'Daniel Docente']),
-    ...($alum ? ['staff_password' => $staffPassword, 'tutor_email' => E2E_TUTOR_EMAIL, 'tutor_user' => $tutorUser?->public_id] : []),
+    ...($alum ? ['staff_password' => $staffPassword, 'tutor_email' => E2E_TUTOR_EMAIL, 'tutor_user' => $tutorUser?->public_id,
+        'secretaria_email' => E2E_SECRETARIA_EMAIL, 'direccion_email' => E2E_DIRECCION_EMAIL,
+        'docente_email' => E2E_TARGET_EMAIL, 'docente_user' => $alumUsers[E2E_TARGET_EMAIL] ?? null,
+        'docente2_email' => E2E_DOCENTE2_EMAIL, 'docente2_user' => $alumUsers[E2E_DOCENTE2_EMAIL] ?? null] : []),
     ...($door ? ['staff_password' => $staffPassword, 'conserje_email' => E2E_CONSERJE_EMAIL, 'secretaria_email' => E2E_SECRETARIA_EMAIL, 'student_1' => $students[0], 'student_2' => $students[1]] : []),
 ]), "\n";

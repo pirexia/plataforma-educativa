@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Ejecuta los e2e de alumnado (REQ-ALUM, 1.15-a CA-ALUM-009/012/018a y 1.15-b CA-ALUM-020 a -042) contra la API real: `alum-students-real.spec.ts` y
-# `alum-enrollments-real.spec.ts` (HTTP real con
-# cookie de sesión y CSRF, sin navegador: las pantallas son de 1.15-d). Prepara DOS centros sintéticos con `alum` y `fam_unit`
+# Ejecuta los e2e de alumnado (REQ-ALUM, 1.15-a CA-ALUM-009/012/018a, 1.15-b CA-ALUM-020 a -042 y 1.15-d CA-ALUM-071/072) contra la API real:
+# `alum-students-real.spec.ts` y `alum-enrollments-real.spec.ts` (HTTP real con cookie de sesión y CSRF, sin navegador) y, en navegador real,
+# `alum-screens-real.spec.ts` y `alum-group-change-real.spec.ts` (1.15-d T3; Playwright arranca la SPA con VITE_API_URL del centro `demo`
+# y se niega si ya hay otra en :5173 con otra URL, como `e2e-real-prl.sh`; necesita `demo.plataforma.test` en /etc/hosts). Prepara DOS centros sintéticos con `alum` y `fam_unit`
 # contratados y un tutor con el rol `tutor_legal` (apps/api/tests/Support/e2e-real-tenant.php setup <slug> alum), lanza Playwright
 # con sus credenciales y los retira al terminar, también si falla (mismo método y garantías que `e2e-real-api.sh`: solo
 # contenedores de desarrollo, solo centros con la marca del script, solo datos sintéticos). No usa S3.
@@ -23,6 +24,10 @@ for slug in "$SLUG_A" "$SLUG_B"; do
     exit 2
   fi
 done
+
+# shellcheck source=e2e-vite-api-url.sh
+source "$(dirname "${BASH_SOURCE[0]}")/e2e-vite-api-url.sh"
+prepare_vite_api_url "$SLUG_A" || exit 2
 
 support() { podman exec -e E2E_ALLOW_DESTRUCTIVE=1 "$API_CONTAINER" php tests/Support/e2e-real-tenant.php "$@"; }
 field() { python3 -c 'import json,sys; print(json.load(sys.stdin)[sys.argv[1]])' "$1"; }
@@ -77,10 +82,21 @@ prepare() {
   export "E2E_${prefix}_TUTOR_EMAIL=$(printf '%s' "$json" | field tutor_email)"
   export "E2E_${prefix}_TUTOR_USER=$(printf '%s' "$json" | field tutor_user)"
   export "E2E_${prefix}_STAFF_PASSWORD=$(printf '%s' "$json" | field staff_password)"
+  export "E2E_${prefix}_SECRETARIA_EMAIL=$(printf '%s' "$json" | field secretaria_email)"
+  export "E2E_${prefix}_DIRECCION_EMAIL=$(printf '%s' "$json" | field direccion_email)"
+  export "E2E_${prefix}_DOCENTE_EMAIL=$(printf '%s' "$json" | field docente_email)"
+  export "E2E_${prefix}_DOCENTE_USER=$(printf '%s' "$json" | field docente_user)"
+  export "E2E_${prefix}_DOCENTE2_EMAIL=$(printf '%s' "$json" | field docente2_email)"
+  export "E2E_${prefix}_DOCENTE2_USER=$(printf '%s' "$json" | field docente2_user)"
 }
 
 prepare A "$SLUG_A"
 prepare B "$SLUG_B"
 export E2E_REAL_API=1
 
-npx playwright test e2e/alum-students-real.spec.ts e2e/alum-enrollments-real.spec.ts --workers=1 "$@"
+# Dos invocaciones: primero los specs HTTP y después los de navegador. Los accesos a la API están limitados (429, 10 por minuto y centro desde
+# una IP): los specs de navegador esperan lo que pida el servidor, los HTTP no, y por eso van antes.
+status=0
+npx playwright test e2e/alum-students-real.spec.ts e2e/alum-enrollments-real.spec.ts --workers=1 --pass-with-no-tests "$@" || status=$?
+npx playwright test e2e/alum-screens-real.spec.ts e2e/alum-group-change-real.spec.ts --workers=1 --pass-with-no-tests "$@" || status=$?
+exit "$status"
