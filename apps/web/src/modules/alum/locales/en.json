@@ -1,58 +1,58 @@
 {
   "alum": {
     "nav": {
-      "students": "Alumnado",
-      "backToStudents": "Volver al alumnado"
+      "students": "Students",
+      "backToStudents": "Back to students"
     },
     "common": {
       "dash": "—",
-      "yes": "Sí",
+      "yes": "Yes",
       "no": "No",
-      "loading": "Cargando…"
+      "loading": "Loading…"
     },
     "errors": {
-      "unexpected": "No se ha podido completar la operación. Inténtelo de nuevo."
+      "unexpected": "The operation could not be completed. Please try again."
     },
     "fields": {
-      "name": "Nombre",
-      "givenName": "Nombre de pila",
-      "familyName1": "Primer apellido",
-      "familyName2": "Segundo apellido",
-      "birthDate": "Fecha de nacimiento",
-      "documentType": "Tipo de documento",
-      "documentNumber": "Número de documento",
-      "locale": "Idioma",
-      "enrollment": "Matrícula",
-      "createdAt": "Alta",
-      "actions": "Acciones"
+      "name": "Name",
+      "givenName": "Given name",
+      "familyName1": "First family name",
+      "familyName2": "Second family name",
+      "birthDate": "Date of birth",
+      "documentType": "Document type",
+      "documentNumber": "Document number",
+      "locale": "Language",
+      "enrollment": "Enrollment",
+      "createdAt": "Created",
+      "actions": "Actions"
     },
     "enums": {
       "documentType": {
         "dni": "DNI",
         "nie": "NIE",
-        "pasaporte": "Pasaporte"
+        "pasaporte": "Passport"
       },
       "locale": {
-        "es-ES": "Español",
-        "en": "Inglés",
-        "de": "Alemán",
-        "fr": "Francés"
+        "es-ES": "Spanish",
+        "en": "English",
+        "de": "German",
+        "fr": "French"
       },
       "enrollmentStatus": {
-        "activa": "Activa",
-        "baja": "Baja"
+        "activa": "Active",
+        "baja": "Withdrawn"
       },
       "relationship": {
-        "padre": "Padre",
-        "madre": "Madre",
-        "tutor_legal": "Tutor legal",
-        "abuelo": "Abuelo/a",
-        "apoderado": "Apoderado/a",
-        "otro": "Otro"
+        "padre": "Father",
+        "madre": "Mother",
+        "tutor_legal": "Legal guardian",
+        "abuelo": "Grandparent",
+        "apoderado": "Authorised proxy",
+        "otro": "Other"
       },
       "linkStatus": {
-        "activo": "Activo",
-        "revocado": "Revocado"
+        "activo": "Active",
+        "revocado": "Revoked"
       },
       "consentLevel": {
         "web": "Web del centro",
@@ -65,100 +65,100 @@
       }
     },
     "students": {
-      "title": "Alumnado",
-      "intro": "Alumnado del centro. El curso académico es el elegido en el selector de la barra superior.",
-      "caption": "Listado del alumnado",
-      "new": "Nuevo alumno",
-      "unnamed": "Sin nombre",
-      "deleted": "baja",
-      "restore": "Restaurar",
-      "restored": "El alumno se ha restaurado.",
+      "title": "Students",
+      "intro": "Students of the school. The academic year is the one selected in the selector in the top bar.",
+      "caption": "List of students",
+      "new": "New student",
+      "unnamed": "No name",
+      "deleted": "withdrawn",
+      "restore": "Restore",
+      "restored": "The student has been restored.",
       "empty": {
-        "title": "No hay alumnos que mostrar",
-        "text": "Dé de alta al primer alumno del centro."
+        "title": "There are no students to show",
+        "text": "Create the first student of the school."
       },
       "filters": {
-        "course": "Curso",
-        "group": "Grupo",
-        "enrollmentStatus": "Estado de la matrícula",
-        "includeDeleted": "Incluir bajas"
+        "course": "Course",
+        "group": "Group",
+        "enrollmentStatus": "Enrollment status",
+        "includeDeleted": "Include withdrawn"
       },
       "confirmRestore": {
-        "title": "Restaurar a {name}",
-        "description": "El alumno volverá a aparecer en el alumnado. Si su persona ya no existe o tiene otra ficha de alumno, el sistema lo impedirá.",
-        "confirm": "Restaurar a {name}"
+        "title": "Restore {name}",
+        "description": "The student will appear again in the list of students. If their person record no longer exists or they already have another student record, the system will prevent it.",
+        "confirm": "Restore {name}"
       }
     },
     "detail": {
-      "pageTitle": "Ficha del alumno",
-      "personal": "Datos personales",
-      "edit": "Corregir datos",
-      "delete": "Dar de baja",
-      "saved": "Los datos del alumno se han guardado.",
-      "deleted": "El alumno se ha dado de baja.",
-      "readOnlyYear": "El curso académico seleccionado es de solo lectura: no se pueden hacer cambios.",
+      "pageTitle": "Student record",
+      "personal": "Personal data",
+      "edit": "Correct data",
+      "delete": "Withdraw",
+      "saved": "The student's data have been saved.",
+      "deleted": "The student has been withdrawn.",
+      "readOnlyYear": "The selected academic year is read-only: no changes can be made.",
       "confirmDelete": {
-        "title": "Dar de baja a {name}",
-        "description": "La baja es lógica: no borra a la persona ni su pertenencia a la unidad familiar, y puede restaurarse. Con una matrícula activa no se permite.",
-        "confirm": "Dar de baja a {name}"
+        "title": "Withdraw {name}",
+        "description": "Withdrawal is logical: it does not delete the person or their membership of the family unit, and it can be restored. It is not allowed while there is an active enrollment.",
+        "confirm": "Withdraw {name}"
       }
     },
     "form": {
-      "close": "Cerrar",
-      "cancel": "Cancelar",
-      "create": "Dar de alta",
-      "save": "Guardar cambios",
-      "createTitle": "Nuevo alumno",
-      "createDescription": "Datos personales del alumno. La unidad familiar es opcional.",
-      "editTitle": "Corregir datos del alumno",
-      "editDescription": "Solo se envían los datos que cambie. La pertenencia a la unidad familiar se gestiona en Familias.",
-      "none": "Sin indicar",
-      "localeDefault": "Idioma del centro",
-      "documentKeep": "Documento actual: {masked}. Déjelo en blanco para conservarlo; si escribe uno nuevo, indique también el tipo."
+      "close": "Close",
+      "cancel": "Cancel",
+      "create": "Create",
+      "save": "Save changes",
+      "createTitle": "New student",
+      "createDescription": "Personal data of the student. The family unit is optional.",
+      "editTitle": "Correct student data",
+      "editDescription": "Only the data you change is sent. Membership of the family unit is managed in Families.",
+      "none": "Not specified",
+      "localeDefault": "School language",
+      "documentKeep": "Current document: {masked}. Leave it blank to keep it; if you enter a new one, also indicate the type."
     },
     "familyPicker": {
-      "legend": "Unidad familiar (opcional)",
-      "hint": "Se añade al alumno a la unidad familiar elegida. Requiere permiso para modificar familias.",
-      "search": "Buscar por código de unidad",
-      "loading": "Buscando unidades familiares…",
-      "empty": "No hay unidades familiares con ese código.",
-      "none": "Sin unidad familiar",
-      "loadError": "No se han podido cargar las unidades familiares."
+      "legend": "Family unit (optional)",
+      "hint": "The student is added to the chosen family unit. Requires permission to modify families.",
+      "search": "Search by unit code",
+      "loading": "Searching family units…",
+      "empty": "There are no family units with that code.",
+      "none": "No family unit",
+      "loadError": "The family units could not be loaded."
     },
     "photo": {
-      "title": "Fotografía",
-      "none": "El alumno no tiene fotografía.",
-      "show": "Mostrar fotografía",
-      "hide": "Ocultar fotografía",
-      "loading": "Cargando la fotografía…",
-      "expired": "El enlace de la fotografía ha caducado. Vuelva a mostrarla.",
-      "alt": "Fotografía de {student}",
-      "file": "Fichero de imagen",
+      "title": "Photo",
+      "none": "The student has no photo.",
+      "show": "Show photo",
+      "hide": "Hide photo",
+      "loading": "Loading photo…",
+      "expired": "The photo link has expired. Show it again.",
+      "alt": "Photo of {student}",
+      "file": "Image file",
       "hint": "JPEG o PNG, hasta 5 MB. El servidor reprocesa la imagen y descarta sus metadatos.",
-      "tooLarge": "El fichero supera los 5 MB permitidos.",
-      "wrongType": "El fichero debe ser una imagen JPEG o PNG.",
-      "submitUpload": "Subir fotografía",
-      "submitReplace": "Sustituir fotografía",
-      "replace": "Sustituir",
-      "remove": "Quitar",
-      "saved": "La fotografía se ha guardado.",
-      "removed": "La fotografía se ha quitado.",
+      "tooLarge": "The file exceeds the 5 MB limit.",
+      "wrongType": "The file must be a JPEG or PNG image.",
+      "submitUpload": "Upload photo",
+      "submitReplace": "Replace photo",
+      "replace": "Replace",
+      "remove": "Remove",
+      "saved": "The photo has been saved.",
+      "removed": "The photo has been removed.",
       "confirmRemove": {
-        "title": "Quitar la fotografía de {name}",
-        "description": "La fotografía dejará de estar disponible. Puede subir otra después.",
-        "confirm": "Quitar la fotografía de {name}"
+        "title": "Remove the photo of {name}",
+        "description": "The photo will no longer be available. You can upload another one afterwards.",
+        "confirm": "Remove the photo of {name}"
       }
     },
     "guardians": {
-      "title": "Tutores y contacto de emergencia",
+      "title": "Guardians and emergency contact",
       "hint": "Vínculos del alumno con sus tutores. Consultarlos queda registrado en la auditoría, por eso solo se piden al pulsar el botón.",
-      "show": "Mostrar vínculos",
-      "empty": "El alumno no tiene vínculos de tutor.",
-      "relationship": "Relación",
-      "legal": "Representación legal",
-      "emergency": "Contacto de emergencia",
-      "status": "Estado",
-      "caption": "Vínculos de tutor del alumno"
+      "show": "Show links",
+      "empty": "The student has no guardian links.",
+      "relationship": "Relationship",
+      "legal": "Legal representation",
+      "emergency": "Emergency contact",
+      "status": "Status",
+      "caption": "Guardian links of the student"
     },
     "consents": {
       "title": "Consentimiento de imagen",
