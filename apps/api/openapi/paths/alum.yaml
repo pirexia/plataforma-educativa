@@ -247,8 +247,8 @@ paths:
       operationId: deleteStudentPhoto
       summary: Elimina la fotografía del alumno
       description: >
-        Permiso `alumno.actualizar`, ámbito `todos`. Baja lógica de la fotografía viva; el objeto del *bucket* queda para el barrido
-        de huérfanos (pendiente, `operacion.md`). Idempotente: sin fotografía también es `204`. Alumno inexistente: `404`.
+        Permiso `alumno.actualizar`, ámbito `todos`. Baja lógica de la fotografía viva; el objeto del *bucket* se borra al confirmar
+        la transacción y solo un fallo de borrado queda para el barrido de huérfanos (#606, `operacion.md`). Idempotente: sin fotografía también es `204`. Alumno inexistente: `404`.
       tags: ['Alum / Alumnado']
       security: [{ SessionCookie: [] }]
       responses:

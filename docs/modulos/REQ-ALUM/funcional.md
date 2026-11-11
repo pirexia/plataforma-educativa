@@ -7,7 +7,7 @@
 | Fase | 1 · paso **1.15** del plan (bloque D, Personas) |
 | Depende de | Documento (3.2.25): `CORE, CURSO, ACAD, FAM-UNIT`, igual que lo real: `CORE` (esencial), `CURSO` (esencial; la matrícula lleva `academic_year_id`), `ACAD` (grupos y cursos de etapa) y `FAM-UNIT` (pertenencia del alumno a su unidad). **Aprobado** (`OPEN-ALUM-28` = A, 2026-11-06): `depends_on: ['curso', 'acad', 'fam_unit']`. Aplicado en el documento de requisitos 3.2.25 |
 | Esencial | `essential: false`: consecuencia de `OPEN-ALUM-28` = A, porque un esencial no puede depender de `acad` ni de `fam_unit`, que no lo son (`ADR-045`) |
-| Estado | **APROBADA** (2026-11-06); lo marcado [DERIVADA] o dependiente de un `OPEN-ALUM` no bloqueante sigue como propuesta. Decisiones del usuario: `OPEN-ALUM-01` = A, `-02` = A, `-03` = A, `-11` = B, `-13` = A, `-16` = A, `-19` = A, `-28` = A. Corregida el mismo día con los hallazgos de `doc-reviewer` (un Alto, siete Medios, Bajos). Quedan abiertas las no bloqueantes de §14.2 (`OPEN-ALUM-31` resuelta A el 2026-11-09). `1.15-a` implementada (T1+T2); `1.15-b` mezclada (PR #604, 2026-11-11); `1.15-c` implementada (T1, T2a, T2b), revisada, pendiente de cierre; `1.15-d` sin implementar |
+| Estado | **APROBADA** (2026-11-06); lo marcado [DERIVADA] o dependiente de un `OPEN-ALUM` no bloqueante sigue como propuesta. Decisiones del usuario: `OPEN-ALUM-01` = A, `-02` = A, `-03` = A, `-11` = B, `-13` = A, `-16` = A, `-19` = A, `-28` = A. Corregida el mismo día con los hallazgos de `doc-reviewer` (un Alto, siete Medios, Bajos). Quedan abiertas las no bloqueantes de §14.2 (`OPEN-ALUM-31` resuelta A el 2026-11-09). `1.15-a` implementada (T1+T2); `1.15-b` mezclada (PR #604, 2026-11-11); `1.15-c` implementada (T1, T2a, T2b), revisiones aplicadas, pendiente de PR y cierre; `1.15-d` sin implementar |
 | Clasificación del paso: crítico | Ver §2 |
 | Decisiones vinculantes de partida | `ADR-004`, `ADR-013`, `ADR-015`, `ADR-016`, `ADR-020`, `ADR-021`, `ADR-029`, `ADR-032`, `ADR-033`, `ADR-034 §1`/`§4`/`§6`, `ADR-035`, `ADR-038` (incluido `§8`, idempotencia), `ADR-044` (enmendado por `ADR-063`), `ADR-045`, `ADR-048`, `ADR-053`, `ADR-054`, `ADR-055`, `ADR-056`, `ADR-057`/`ADR-058`, `ADR-062`, `ADR-063`, `ADR-066`, `ADR-068`, `ADR-069 §4.2`; contratos ya aprobados de `REQ-ACAD/funcional.md §7.2` y `§18.7`, `REQ-FAM-UNIT/funcional.md §7.1`/`§7.4`, `REQ-CURSO/funcional.md §7.1` |
 
@@ -214,7 +214,7 @@ Subida por `App\Support\Files` (`ADR-068`, precedente `pickup_photos`): tipo rea
 | ID | Regla |
 |----|-------|
 | `RN-ALUM-50` | Una foto viva por alumno; subir otra da de baja la anterior en la misma transacción |
-| `RN-ALUM-51` | Validación y almacenamiento por `App\Support\Files` (`ADR-068 §5.3`): tipo real JPEG/PNG, tamaño máximo de la primitiva, EXIF eliminado, *bucket* privado, URL firmada de caducidad corta tras comprobar permiso (`ADR-013`) |
+| `RN-ALUM-51` | Validación y almacenamiento por `App\Support\Files` (`ADR-068 §5.3`): tipo real JPEG/PNG, tamaño máximo `alum.photo.max_bytes` (5 MB, `config/alum.php`), EXIF eliminado, *bucket* privado, URL firmada de caducidad corta tras comprobar permiso (`ADR-013`) |
 | `RN-ALUM-52` | Toda respuesta con URL de foto registra una fila `read` por consulta con `AuditRecorder::recordRead` (precedente `OPEN-068-04` = A) |
 | `RN-ALUM-53` | La foto **no** se publica desde este módulo; toda publicación futura consulta `ImageConsentPolicy` (`INV-014`) |
 
@@ -416,7 +416,7 @@ Pest en `apps/api/tests/Feature/Alum/` (concurrencia en `tests/Concurrency/`), V
 
 - **CA-ALUM-060** *(`1.15-b`)* — *(`#382`, `ADR-057`, `CA-057-09`)* `AcademicYearWriteGuardOverheadTest` con 20.000 inserciones en `enrollments`, con y sin disparador, mismo método que `1.10`; cifra en `CHANGELOG.md` junto a la de `1.10` (+182 % a +195 %) y la de `CA-ACAD-023`. No es umbral de aprobado.
 - **CA-ALUM-061** *(`1.15-b` y `-c`)* — `AR-13` ve el disparador en `enrollments` y `group_change_requests`, sin acciones referenciales.
-- **CA-ALUM-062** *(`1.15-a` para `Student`, `1.15-b` para `Enrollment`, `1.15-c` para `GroupChangeRequest`)* — `AR-01`/`AR-02`: `alum` no importa `Domain\Models` de otros módulos ni `Core` fuera de `Core\Domain`; `AR-08`: ninguna regla compara roles; `AR-10`: cada modelo solo por su servicio sancionado.
+- **CA-ALUM-062** *(`1.15-a` para `Student`, `1.15-b` para `Enrollment`, `1.15-c` para `GroupChangeRequest`, `StudentPhoto` y `StudentPhotoService`)* — `AR-01`/`AR-02`: `alum` no importa `Domain\Models` de otros módulos ni `Core` fuera de `Core\Domain`; `AR-08`: ninguna regla compara roles; `AR-10`: cada modelo solo por su servicio sancionado.
 - **CA-ALUM-063** *(`1.15-a`)* — *Dado* `alum` descontratado, *entonces* toda ruta de `alum` responde `403 module-disabled`.
 - **CA-ALUM-064** *(cada entrega)* — Paridad de claves en los cuatro idiomas (`AR-12`, `TranslationParityTest`, `lint:i18n`).
 

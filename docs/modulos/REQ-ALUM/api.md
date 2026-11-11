@@ -8,7 +8,7 @@ Errores comunes: `401`; `403` sin permiso; `403 urn:pge:error:module-disabled`; 
 
 **Idempotencia** (`ADR-038 §8`, `RN-ALUM-27`): mecanismo existente, *middleware* `RequireIdempotencyKey` y tabla `idempotency_keys`, con el contrato de `§8.2` sin cambios (ULID del cliente; formato inválido o ausencia donde es obligatoria ⇒ `400 urn:pge:error:malformed`; reintento con mismo cuerpo ⇒ respuesta original con `Idempotency-Replayed: true`; cuerpo distinto o primera aún en curso ⇒ `409`; retención 24 h). Obligatoria **solo** en `POST /students` (`§8.1` condición 4). Las demás escrituras están protegidas por unicidad natural o por su transición de estado y no llevan la cabecera (`§8.1`, «no» deliberado).
 
-**Entregas**: `1.15-a` sirve `§1` **sin** los filtros `course`, `group`, `enrollment_status`, sin la matrícula vigente en el listado y sin `enrollments[]` en la ficha, y con `alumno.leer` de ámbitos `todos` y `unidad_familiar`; `1.15-b` añade todo eso y el ámbito `grupo` (`funcional.md §1.2`).
+**Entregas**: `1.15-a` sirve `§1` **sin** los filtros `course`, `group`, `enrollment_status`, sin la matrícula vigente en el listado y sin `enrollments[]` en la ficha, y con `alumno.leer` de ámbitos `todos` y `unidad_familiar`; `1.15-b` añade todo eso y el ámbito `grupo` (`funcional.md §1.2`); `1.15-c` añade las solicitudes de cambio de grupo (`§3`) y la fotografía del alumno (`§4`, con `has_photo` en la ficha).
 
 ---
 

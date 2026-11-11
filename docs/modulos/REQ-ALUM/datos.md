@@ -160,7 +160,7 @@ Los datos personales del alumno los audita `Core` en la persona. Lectura: fila `
 ## 6. Retención y supresión
 
 - **Expediente y matrícula**: historial académico con obligación legal de conservación ⇒ **anonimización** al vencer, no purga (`ADR-004` nivel 2). Plazo y base legal: catálogo de `REQ-PRIV-006`/`1.23b` (`OPEN-13`), condición previa a datos reales.
-- **Fotografía**: sin obligación de conservación; purga física al dar de baja al alumno o al vencer el plazo que fije `1.23b` (propuesta a ratificar allí, como `OPEN-FAM-UNIT-37`).
+- **Fotografía**: sin obligación de conservación; `purgeLive` borra la foto viva (fila y objeto) al dar de baja al alumno. Las filas históricas soft-deleted (fotos sustituidas o dadas de baja) permanecen sin objeto; su purga física se decide en `1.23b` (propuesta a ratificar allí, como `OPEN-FAM-UNIT-37`).
 - **Solicitudes de cambio de grupo**: siguen a la matrícula.
 - **Baja lógica** (`INV-004`): las cuatro tablas.
 - **Antiguo alumno** (`ADR-071`, `OPEN-071-02`): no es un estado ni una columna; se deriva (sin matrícula `activa` y con alguna en `baja` o en un curso `cerrado`/`archivado`). Un uso futuro que dependa de ello (p. ej., bonificación a hermanos) exige que el plazo de conservación de `1.23b` (`OPEN-13`) no borre el hecho de haber sido alumno; el contacto de antiguos alumnos requiere consentimiento propio (`REQ-CRM-004`).

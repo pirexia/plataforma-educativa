@@ -12,6 +12,7 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 - La ficha devuelve solo `has_photo` (decisión del usuario 2026-11-11); la baja del alumno purga su foto viva. Sin job de huérfanos (pendiente, `operacion.md`).
 - `AR-10` ampliado a `StudentPhoto` y `StudentPhotoService`; textos en es-ES, en, de y fr; OpenAPI (22 operaciones de `alum`).
 - Documentación: `REQ-ALUM` (`api.md §1` y `§4`, `funcional.md §4.6`, `operacion.md`, `permisos.md`).
+- Corrección `d64f996` y posterior: el objeto de una foto sustituida o dada de baja se borra tras confirmar la transacción (`DB::afterCommit`) y `purgeLive` registra el fallo de borrado (`alum.photo.object_delete_failed`, sin la clave).
 - Tests: `CA-ALUM-018c`, `-056` a `-058` (`StudentPhotosApiTest`), `-063` (22 rutas).
 
 ## 2026-11-11 · `feat(alum)`: 1.15-c, tramo T2a, solicitudes de cambio de grupo (`REQ-ALUM-003`)
