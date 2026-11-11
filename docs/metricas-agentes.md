@@ -170,5 +170,6 @@ Solo cuota de OpenAI; no se mide en tokens de Claude. Registrar por revisión: p
 | 1.15-b cierre | janitor | 7 issues + correcciones documentales | 225083 | 37 | 7.4 | | |
 | S-1a T1 | explorer | briefing | 127956 | 27 | 1.9 | | |
 | S-1a T1 | implementer | experimento Garage, servicio, `garage.toml` e `init.sh` | 92845 | 43 | 5.3 | | |
+| S-1a T2 | implementer | config `s3`, endpoint de firma, tope de TTL y tests (sin explorer propio: se reutilizó el briefing del T1) | 73604 | 7 | 1.0 | | Telemetría baja pero el trabajo es real: contrastado con el diff y Pest/Pint/Larastan por `verificador` |
 
 Medias por tipo de `1.15-a` sin recalcular: el paso `1.15` no está cerrado (faltan `-b`..`-d`); se recalculan al cerrar `1.15`.
