@@ -6,6 +6,14 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-11 · feat(alum): 1.15-d pantallas y E2E de alumnado (REQ-ALUM-070/071/072)
+
+- SPA `alum` (módulo web nuevo): T1 listado de alumnado con filtros en la URL, ficha y fotografía; T2 matrículas en la ficha (alta, baja con fecha y motivo, anulación), lista de clase con exportación y solicitudes de cambio de grupo (solicitar, aprobar, rechazar con nota obligatoria, cancelar; la propia solicitud no se aprueba). Vínculos de tutor y consentimientos de imagen se piden bajo demanda porque su lectura se audita. Con el curso de solo lectura no hay acciones de escritura y se puede exportar (`RN-ACAD-42`). Textos en es-ES, en, de y fr.
+- T3 E2E de navegador contra la API real: `alum-screens-real` (8) y `alum-group-change-real` (6), 14 tests de navegador, más 11 HTTP de `alum-students-real` y `alum-enrollments-real`; `npm run test:e2e:real:alum` en dos invocaciones de Playwright.
+- **No probado**: la descarga del CSV desde S3 (la exportación se acepta con `202`, el fichero no se descarga) y el E2E de la fotografía; aplazados a la entrega `S-1b` de `ADR-076`, cuando exista un S3 real con firma.
+- Documentación: `REQ-ALUM` (`funcional.md` cabecera, §11.8 y §15; `operacion.md §9`) y manuales de secretaría, docente y dirección. Contradicción corregida antes (issue #614): la ficha no lleva `guardians[]` ni `emergency_contact`, se leen de `fam_unit`.
+- Tests: `CA-ALUM-070` (Vitest), `-071` (foco y 320 px en navegador real) y `-072`.
+
 ## 2026-11-11 · `docs(almacenamiento)`: ADR-076 almacenamiento de objetos (`ACEPTADA`)
 
 - `ADR-076`: la API S3 es el contrato único (Flysystem S3 tras el almacén privado); Garage, fijado por versión y digest, sustituye a MinIO y al servidor S3 falso solo en desarrollo, CI y E2E (nunca en servidores); `TenantObjectStore` en `App\Support\Files` con el prefijo del centro impuesto por la implementación y test de arquitectura; endpoint de firma, sumas de verificación `when_required` y test de conformidad; inventario de limpieza. Concreta `ADR-013` y `ADR-068 §5.3`; sustituye en parte a `ADR-030`, `ADR-037` y `ADR-033 §9` (solo el mecanismo `TenantStorage`; la regla del prefijo se mantiene). Proveedor de producción y cumplimiento, fuera (expediente aparte). Requisitos 3.2.30.
