@@ -26,6 +26,8 @@ Route::middleware([RequireAuthenticatedUser::class, 'module-enabled:alum'])->gro
 
     // api.md §2 (1.15-b): matrícula. Sin `Idempotency-Key` (`RN-ALUM-27`): el índice único de `RN-ALUM-21` y la transición
     // de estado hacen seguro el reintento.
+    // La exportación se declara antes que las rutas con `{publicId}` (`api.md §6`).
+    Route::post('/enrollments/exports', [EnrollmentsController::class, 'storeExport'])->middleware('permission:matricula.exportar')->name('alum.enrollments.exports.store');
     Route::get('/enrollments', [EnrollmentsController::class, 'index'])->middleware('permission:matricula.leer')->name('alum.enrollments.index');
     Route::post('/enrollments', [EnrollmentsController::class, 'store'])->middleware('permission:matricula.crear')->name('alum.enrollments.store');
     Route::get('/enrollments/{publicId}', [EnrollmentsController::class, 'show'])->middleware('permission:matricula.leer')->name('alum.enrollments.show');

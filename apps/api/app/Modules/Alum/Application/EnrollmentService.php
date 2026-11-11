@@ -94,19 +94,7 @@ final class EnrollmentService
      */
     public function page(PermissionDecision $decision, User $subject, array $filters, string $sort, int $page, int $perPage): LengthAwarePaginator
     {
-        $yearPublicId = $filters['academic_year'] ?? null;
-
-        if ($yearPublicId === null || $yearPublicId === '') {
-            throw AlumErrors::invalid('academic_year', 'alum.validation.required');
-        }
-
-        $year = $this->years->findByPublicId($yearPublicId) ?? throw ApiException::notFound();
-        $this->readAccess->assertCanRead($year, $subject);
-
-        $query = $this->scopedQuery->constrain(Enrollment::query(), 'matricula', $decision, $subject)
-            ->where('academic_year_id', $year->id);
-
-        $this->applyFilters($query, $year, $filters);
+        $query = $this->filteredQuery($decision, $subject, $filters);
 
         if (in_array($sort, self::NAME_SORTS, true)) {
             return $this->pageByName($query, str_starts_with($sort, '-'), $page, $perPage);
@@ -535,6 +523,102 @@ final class EnrollmentService
             ->where('status', 'activa')
             ->whereIn('group_id', $groupIds)
             ->select('student_id');
+    }
+
+    /**
+     * Consulta del listado y de la exportación (mismos filtros y mismo ámbito, `ADR-054 §8.2`): acotada por ámbito de
+     * `matricula` (`ScopedQuery`) y por `academic_year`, obligatorio y legible (`RN-ALUM-23`: inexistente o ilegible ⇒
+     * `404`; ausente ⇒ `422 required`).
+     *
+     * @param  array{academic_year?: ?string, course?: ?string, group?: ?string, student?: ?string, status?: ?string}  $filters
+     * @return Builder<Enrollment>
+     */
+    private function filteredQuery(PermissionDecision $decision, User $subject, array $filters): Builder
+    {
+        $yearPublicId = $filters['academic_year'] ?? null;
+
+        if ($yearPublicId === null || $yearPublicId === '') {
+            throw AlumErrors::invalid('academic_year', 'alum.validation.required');
+        }
+
+        $year = $this->years->findByPublicId($yearPublicId) ?? throw ApiException::notFound();
+        $this->readAccess->assertCanRead($year, $subject);
+
+        $query = $this->scopedQuery->constrain(Enrollment::query(), 'matricula', $decision, $subject)
+            ->where('academic_year_id', $year->id);
+
+        $this->applyFilters($query, $year, $filters);
+
+        return $query;
+    }
+
+    /**
+     * Validación síncrona de `POST /enrollments/exports` (`api.md §6`): el curso académico existe y es legible; si no,
+     * la misma respuesta que el listado. No lee filas.
+     *
+     * @param  array{academic_year?: ?string, course?: ?string, group?: ?string, status?: ?string}  $filters
+     */
+    public function assertExportable(PermissionDecision $decision, User $subject, array $filters): void
+    {
+        $this->filteredQuery($decision, $subject, $filters);
+    }
+
+    /**
+     * Filas del CSV de `alum_enrollments` (`api.md §6`, esquema cerrado), en lotes de `$size` por id ascendente, con el
+     * mismo ámbito y filtros que el listado. Cada fila: `enrollment_public_id`, `student_public_id`, `family_name`
+     * (apellidos 1 y 2 unidos por un espacio), `given_name`, `birth_date`, `academic_year_code`, `course_code`,
+     * `group_name`, `status`, `enrolled_on`, `withdrawn_on`, `withdrawal_reason`. Nunca el documento de identidad.
+     * Los datos de personas se leen en una consulta por lote (`PersonDirectory`).
+     *
+     * @param  array{academic_year?: ?string, course?: ?string, group?: ?string, status?: ?string}  $filters
+     * @return \Generator<int, list<list<?string>>>
+     */
+    public function exportBatches(PermissionDecision $decision, User $subject, array $filters, int $size = 500): \Generator
+    {
+        $query = $this->filteredQuery($decision, $subject, $filters);
+        $last = 0;
+
+        while (true) {
+            $batch = (clone $query)->where('id', '>', $last)->orderBy('id')->limit($size)->get()->all();
+
+            if ($batch === []) {
+                return;
+            }
+
+            $this->attachViews($batch);
+            $students = $this->students->byIds(array_values(array_unique(array_map(static fn (Enrollment $e): int => (int) $e->student_id, $batch))));
+            $personIds = array_values(array_unique(array_map(static fn ($s): int => (int) $s->person_id, $students)));
+            $births = $this->people->birthDatesByIds($personIds);
+            $contacts = $this->people->contactDetailsByIds($personIds);
+
+            $rows = [];
+
+            foreach ($batch as $enrollment) {
+                $student = $students[(int) $enrollment->student_id] ?? null;
+                $personId = $student === null ? null : (int) $student->person_id;
+                $contact = $personId === null ? null : ($contacts[$personId] ?? null);
+                $family = trim(($contact === null ? '' : ($contact->familyName1 ?? '')).' '.($contact === null ? '' : ($contact->familyName2 ?? '')));
+
+                $rows[] = [
+                    $enrollment->public_id,
+                    $student?->public_id,
+                    $family === '' ? null : $family,
+                    $contact?->givenName,
+                    $personId === null ? null : ($births[$personId] ?? null)?->birthDate,
+                    $enrollment->getAttribute('year_view')['code'] ?? null,
+                    $enrollment->getAttribute('course_view')['code'] ?? null,
+                    $enrollment->getAttribute('group_view')['name'] ?? null,
+                    $enrollment->status,
+                    $enrollment->enrolled_on->format('Y-m-d'),
+                    $enrollment->withdrawn_on?->format('Y-m-d'),
+                    $enrollment->withdrawal_reason,
+                ];
+            }
+
+            yield $rows;
+
+            $last = (int) end($batch)->id;
+        }
     }
 
     /**

@@ -32,6 +32,11 @@ return [
         'immutable' => 'This enrolment field cannot be changed.',
         'withdrawal_reason_invalid' => 'The withdrawal reason must be transfer, voluntary withdrawal or other.',
         'withdrawn_before_enrolled' => 'The withdrawal date cannot be earlier than the enrolment date.',
+        'export_query_not_allowed' => 'An export cannot use a search term: use only the list filters.',
+        'status_invalid' => 'The status must be activa or baja.',
+    ],
+    'errors' => [
+        'export_rate_limited' => 'You have reached the limit of enrollment exports. Try again in about :minutes minutes.',
     ],
     'conflict' => [
         'cannot_restore' => 'This student cannot be restored: the person no longer exists or already has another student record.',

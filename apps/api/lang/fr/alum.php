@@ -32,6 +32,11 @@ return [
         'immutable' => 'Cette donnée de l\'inscription ne peut pas être modifiée.',
         'withdrawal_reason_invalid' => 'Le motif de radiation doit être transfert, départ volontaire ou autre.',
         'withdrawn_before_enrolled' => 'La date de radiation ne peut pas être antérieure à la date d\'inscription.',
+        'export_query_not_allowed' => 'Une exportation ne peut pas utiliser de recherche : utilisez uniquement les filtres de la liste.',
+        'status_invalid' => 'Le statut doit être activa ou baja.',
+    ],
+    'errors' => [
+        'export_rate_limited' => 'Vous avez atteint la limite d\'exportations d\'inscriptions. Réessayez dans environ :minutes minutes.',
     ],
     'conflict' => [
         'cannot_restore' => 'Cet élève ne peut pas être restauré : la personne n\'existe plus ou possède déjà une autre fiche d\'élève.',

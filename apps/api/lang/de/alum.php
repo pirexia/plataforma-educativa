@@ -32,6 +32,11 @@ return [
         'immutable' => 'Diese Angabe der Einschreibung kann nicht geändert werden.',
         'withdrawal_reason_invalid' => 'Der Abmeldegrund muss Versetzung, freiwillige Abmeldung oder Sonstiges sein.',
         'withdrawn_before_enrolled' => 'Das Abmeldedatum darf nicht vor dem Einschreibedatum liegen.',
+        'export_query_not_allowed' => 'Ein Export kann keinen Suchbegriff verwenden: Verwenden Sie nur die Filter der Liste.',
+        'status_invalid' => 'Der Status muss activa oder baja sein.',
+    ],
+    'errors' => [
+        'export_rate_limited' => 'Sie haben das Limit für Matrikelexporte erreicht. Versuchen Sie es in etwa :minutes Minuten erneut.',
     ],
     'conflict' => [
         'cannot_restore' => 'Dieser Schüler kann nicht wiederhergestellt werden: Die Person existiert nicht mehr oder hat bereits eine andere Schülerakte.',

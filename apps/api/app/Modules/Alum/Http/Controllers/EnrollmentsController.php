@@ -3,12 +3,18 @@
 namespace App\Modules\Alum\Http\Controllers;
 
 use App\Modules\Alum\Application\EnrollmentService;
+use App\Modules\Alum\Application\ExportRateLimit;
+use App\Modules\Alum\Http\Requests\ExportEnrollmentsRequest;
 use App\Modules\Alum\Http\Requests\IndexEnrollmentsRequest;
 use App\Modules\Alum\Http\Requests\StoreEnrollmentRequest;
 use App\Modules\Alum\Http\Requests\UpdateEnrollmentRequest;
 use App\Modules\Alum\Http\Requests\WithdrawEnrollmentRequest;
 use App\Modules\Alum\Http\Resources\EnrollmentResource;
+use App\Modules\Alum\Infrastructure\Jobs\GenerateEnrollmentsExport;
+use App\Modules\Core\Domain\ExportRequestService;
 use App\Support\Api\PagePaginatedResponse;
+use App\Support\Tenancy\Tenant;
+use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -75,5 +81,26 @@ class EnrollmentsController extends AlumController
         $service->annul($this->actor($request), $publicId);
 
         return response()->noContent();
+    }
+
+    /**
+     * `POST /enrollments/exports` (`api.md §6`): en cola (`INV-012`) sobre la primitiva `data_exports` de `Core`, con
+     * `kind = alum_enrollments`, enlace caducable y la solicitud auditada como `exported` con los filtros. `202` con el
+     * recurso de exportación (`GET /data-exports/{public_id}`). El límite de tasa cuenta todos los intentos.
+     */
+    public function storeExport(ExportEnrollmentsRequest $request, EnrollmentService $service, ExportRequestService $exports, TenantContext $tenantContext, ExportRateLimit $rateLimit): JsonResponse
+    {
+        $actor = $this->actor($request);
+        $rateLimit->hit($actor);
+
+        $filters = $request->payload();
+        $service->assertExportable($this->decision($request), $actor, $filters);
+
+        $export = $exports->request('alum_enrollments', 'csv', $filters, $actor);
+
+        $tenant = Tenant::query()->find($tenantContext->tenantId());
+        GenerateEnrollmentsExport::dispatch($export->id, $tenant->public_id ?? '');
+
+        return response()->json(['public_id' => $export->public_id, 'status' => $export->status], 202);
     }
 }

@@ -32,6 +32,11 @@ return [
         'immutable' => 'Este dato de la matrícula no se puede cambiar.',
         'withdrawal_reason_invalid' => 'El motivo de la baja debe ser traslado, baja voluntaria u otro.',
         'withdrawn_before_enrolled' => 'La fecha de baja no puede ser anterior a la fecha de matrícula.',
+        'export_query_not_allowed' => 'No se puede exportar con una búsqueda: usa solo los filtros del listado.',
+        'status_invalid' => 'El estado debe ser activa o baja.',
+    ],
+    'errors' => [
+        'export_rate_limited' => 'Has alcanzado el límite de exportaciones de matrículas. Inténtalo de nuevo en unos :minutes minutos.',
     ],
     'conflict' => [
         'cannot_restore' => 'No se puede restaurar este alumno: la persona ya no existe o ya tiene otra ficha de alumno.',
