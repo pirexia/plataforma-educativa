@@ -6,6 +6,13 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-11 · `feat(alum)`: 1.15-b, tramo T2c, exportación de matrículas y cierre de la API (`REQ-ALUM-002`)
+
+- `alum`: `POST /enrollments/exports` (`matricula.exportar`, solo `todos`): `202`, en cola `default` (`GenerateEnrollmentsExport`, permiso y módulo recomprobados al ejecutar) sobre `data_exports` con `kind = alum_enrollments`; CSV de esquema cerrado (`api.md §6`, sin documento de identidad), auditado como `exported` con los filtros; `422 alum.validation.export_query_not_allowed` con `q`. Límite de tasa por centro y usuario (`config/alum.php`, 10 por hora; `429` con `Retry-After`; patrón de `ConsentRateLimit`, decisión del usuario del 2026-11-11). Ruta declarada antes de las paramétricas.
+- `EnrollmentService`: consulta común del listado y la exportación (`filteredQuery`), `assertExportable()` y `exportBatches()` (lotes de 500 por id). OpenAPI: `exportEnrollments` con `404`, `422` y `429`. Claves `alum.validation.export_query_not_allowed` y `.status_invalid` y `alum.errors.export_rate_limited` en es/en/de/fr.
+- Documentación: `REQ-ALUM` (`api.md §6`, `operacion.md`, estado y `CA-ALUM-041`/`-042`; `CA-ALUM-030` con el prefijo de `api.md §2`), `REQ-ACAD §7.2` (`CourseDirectory`, y `code`/`name` en `GroupSummary`, aditivo).
+- Tests (`EnrollmentsExportTest`): `CA-ALUM-041`, `-042`, `-018b`, 429, cola `default`, fallo en cerrado por permiso o módulo retirados.
+
 ## 2026-11-10 · `feat(alum)`: 1.15-b, tramo T1b, datos y permisos de matrícula (`REQ-ALUM-002`, `#382`)
 
 - `alum`: tabla `enrollments` (FK compuestas a curso de etapa del mismo curso académico y a grupo del curso de etapa, `CHECK` de estado y baja, único parcial de matrícula activa, disparador `academic_year_write_guard`), modelo `Enrollment` (alias `alum_enrollment`, política `Full`), `EnrollmentFactory`, y los dos vetos de borrado de `alum` sobre grupo y curso de etapa (`RN-ALUM-26`, `CA-ALUM-027` en lo que ejecuta `acad`).

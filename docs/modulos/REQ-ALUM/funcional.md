@@ -7,7 +7,7 @@
 | Fase | 1 · paso **1.15** del plan (bloque D, Personas) |
 | Depende de | Documento (3.2.25): `CORE, CURSO, ACAD, FAM-UNIT`, igual que lo real: `CORE` (esencial), `CURSO` (esencial; la matrícula lleva `academic_year_id`), `ACAD` (grupos y cursos de etapa) y `FAM-UNIT` (pertenencia del alumno a su unidad). **Aprobado** (`OPEN-ALUM-28` = A, 2026-11-06): `depends_on: ['curso', 'acad', 'fam_unit']`. Aplicado en el documento de requisitos 3.2.25 |
 | Esencial | `essential: false`: consecuencia de `OPEN-ALUM-28` = A, porque un esencial no puede depender de `acad` ni de `fam_unit`, que no lo son (`ADR-045`) |
-| Estado | **APROBADA** (2026-11-06); lo marcado [DERIVADA] o dependiente de un `OPEN-ALUM` no bloqueante sigue como propuesta. Decisiones del usuario: `OPEN-ALUM-01` = A, `-02` = A, `-03` = A, `-11` = B, `-13` = A, `-16` = A, `-19` = A, `-28` = A. Corregida el mismo día con los hallazgos de `doc-reviewer` (un Alto, siete Medios, Bajos). Quedan abiertas las no bloqueantes de §14.2 (`OPEN-ALUM-31` resuelta A el 2026-11-09). `1.15-a` implementada (T1+T2); `1.15-b`/`-c`/`-d` sin implementar |
+| Estado | **APROBADA** (2026-11-06); lo marcado [DERIVADA] o dependiente de un `OPEN-ALUM` no bloqueante sigue como propuesta. Decisiones del usuario: `OPEN-ALUM-01` = A, `-02` = A, `-03` = A, `-11` = B, `-13` = A, `-16` = A, `-19` = A, `-28` = A. Corregida el mismo día con los hallazgos de `doc-reviewer` (un Alto, siete Medios, Bajos). Quedan abiertas las no bloqueantes de §14.2 (`OPEN-ALUM-31` resuelta A el 2026-11-09). `1.15-a` implementada (T1+T2); `1.15-b` **implementada en código** (T1a a T2c, 2026-11-11; pendiente de revisiones, E2E real y cierre); `1.15-c`/`-d` sin implementar |
 | Clasificación del paso: crítico | Ver §2 |
 | Decisiones vinculantes de partida | `ADR-004`, `ADR-013`, `ADR-015`, `ADR-016`, `ADR-020`, `ADR-021`, `ADR-029`, `ADR-032`, `ADR-033`, `ADR-034 §1`/`§4`/`§6`, `ADR-035`, `ADR-038` (incluido `§8`, idempotencia), `ADR-044` (enmendado por `ADR-063`), `ADR-045`, `ADR-048`, `ADR-053`, `ADR-054`, `ADR-055`, `ADR-056`, `ADR-057`/`ADR-058`, `ADR-062`, `ADR-063`, `ADR-066`, `ADR-068`, `ADR-069 §4.2`; contratos ya aprobados de `REQ-ACAD/funcional.md §7.2` y `§18.7`, `REQ-FAM-UNIT/funcional.md §7.1`/`§7.4`, `REQ-CURSO/funcional.md §7.1` |
 
@@ -377,7 +377,7 @@ Pest en `apps/api/tests/Feature/Alum/` (concurrencia en `tests/Concurrency/`), V
 - **CA-ALUM-027** — Borrar en `acad` un grupo o un curso de etapa con matrículas vivas ⇒ `409 acad.conflict.has_dependents` con `enrollments` (`RN-ALUM-26`).
 - **CA-ALUM-028** — `PATCH` que cambia el grupo de una matrícula con grupo ⇒ `422 group_change_requires_request`; sobre una matrícula sin grupo, asigna el primero con `200` (`RN-ALUM-28`).
 - **CA-ALUM-029** — Fecha de matrícula fuera del curso ⇒ `422 date_outside_academic_year` (`RN-ALUM-29`).
-- **CA-ALUM-030** — *Dado* un alumno borrado por otra conexión sin confirmar, *cuando* se matricula, *entonces* espera y, al confirmar, `422 student_not_found` sin fila.
+- **CA-ALUM-030** — *Dado* un alumno borrado por otra conexión sin confirmar, *cuando* se matricula, *entonces* espera y, al confirmar, `422 alum.validation.student_not_found` sin fila.
 - **CA-ALUM-031** — *Dado* una matrícula anulada, *entonces* deja de aparecer en listas y ficha, y el alumno puede matricularse de nuevo en ese curso (`RN-ALUM-25`).
 - **CA-ALUM-033** — *Dado* un curso en `planificacion` y un curso de etapa sin grupos, *cuando* se matricula sin `group`, *entonces* `201` con `group = null`, y la matrícula aparece en el listado por curso de etapa y no en ninguna lista de clase (`OPEN-ALUM-11` = B).
 - **CA-ALUM-034** — *Dado* una matrícula en `baja`, *cuando* se envía otra baja (también como reintento de la misma petición), *entonces* `409 alum.conflict.already_withdrawn` y nada cambia (`RN-ALUM-22`, `-27`).
@@ -387,8 +387,8 @@ Pest en `apps/api/tests/Feature/Alum/` (concurrencia en `tests/Concurrency/`), V
 ### 11.4 Listas y exportación (`1.15-b`)
 
 - **CA-ALUM-040** — *Dado* un grupo con 3 matrículas activas y 1 de baja, *cuando* se lista con `group=<G>&status=activa`, *entonces* 3 filas con el nombre del alumno, sin N+1 (test de recuento de consultas).
-- **CA-ALUM-041** — *Dado* `matricula.exportar`, *cuando* se pide la exportación con los filtros del listado, *entonces* `202`, se encola, el CSV tiene el esquema cerrado de `api.md §6` y la solicitud queda auditada como `exported`; *y* con `q` ⇒ `422 alum.validation.export_query_not_allowed` (`ADR-054 §9`).
-- **CA-ALUM-042** — *Dado* un usuario sin `matricula.exportar` (por ejemplo, un docente con `matricula.leer` de ámbito `grupo`), *entonces* `403`; *y* la exportación con filtro `group` contiene exactamente las filas del listado con los mismos filtros (paridad, `ADR-054 §8.2`).
+- **CA-ALUM-041** *(implementado en `1.15-b` T2c)* — *Dado* `matricula.exportar`, *cuando* se pide la exportación con los filtros del listado, *entonces* `202`, se encola, el CSV tiene el esquema cerrado de `api.md §6` y la solicitud queda auditada como `exported`; *y* con `q` ⇒ `422 alum.validation.export_query_not_allowed` (`ADR-054 §9`).
+- **CA-ALUM-042** *(implementado en `1.15-b` T2c)* — *Dado* un usuario sin `matricula.exportar` (por ejemplo, un docente con `matricula.leer` de ámbito `grupo`), *entonces* `403`; *y* la exportación con filtro `group` contiene exactamente las filas del listado con los mismos filtros (paridad, `ADR-054 §8.2`).
 
 ### 11.5 Cambio de grupo (`1.15-c`)
 

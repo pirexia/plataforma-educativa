@@ -29,7 +29,7 @@ Ninguna nueva en `.env`. Configuración del módulo en `config/alum.php` [DERIVA
 
 | Elemento | Cola | Notas |
 |----------|------|-------|
-| Exportación `alum_enrollments` | `default` (conexión `database`) | `INV-012`; con contexto de tenant (`ADR-033`); CSV por `App\Support\Csv` |
+| Exportación `alum_enrollments` (`Alum\Infrastructure\Jobs\GenerateEnrollmentsExport`, `1.15-b` T2c) | `default` (conexión `database`) | `INV-012`; con contexto de tenant (`ADR-033`); CSV por `App\Support\Csv`; `tries = 3`; permiso y módulo se recomprueban al ejecutar. `default` y no `long`: conjuntos acotados por centro (≤ ~3.000 personas, `ADR-005`), segundos de trabajo |
 
 Sin tareas programadas (el planificador #453 sigue sin desplegar; nada en `1.15` lo necesita).
 
@@ -47,6 +47,8 @@ Sin métricas propias. Cifra de `CA-ALUM-060` (`#382`, `1.15-b` T1b; sobrecoste 
 | `409 has_dependents` al borrar un curso de etapa en `acad` | Matrículas vivas del curso de etapa, **también las que no tienen grupo** (`RN-ALUM-26`, `ADR-071 §5.5`: segundo veto, independiente del de grupo) | Dar de baja o anular esas matrículas antes |
 | `platform:sync-registry` aborta | `acad` o `fam_unit` no registrados | Desplegar en orden |
 | Exportación `pendiente` indefinida | *Worker* parado | `RUNBOOK.md`, arranque del perfil `worker` |
+| `429` al pedir la exportación de matrículas | Límite de tasa por centro y usuario (`config/alum.php`, `export.rate_limit`: 10 por hora) | Esperar el `Retry-After`; ajustar la configuración solo si el uso legítimo lo exige |
+| Exportación `fallida` con `core.export.generation_failed` | Al ejecutarse, el solicitante ya no tiene `matricula.exportar`, el módulo está descontratado o el curso académico dejó de ser legible para él | Repetir la petición con un usuario con permiso |
 | Foto no visible | S3 caído o credenciales | §2; la ficha sigue funcionando |
 | Datos de un menor en `idempotency_keys.response_body` durante 24 h tras el alta | Respuesta `201` de `POST /students` guardada por la idempotencia de `Core` | Conocido, sin acción operativa; seguimiento en #558 |
 
