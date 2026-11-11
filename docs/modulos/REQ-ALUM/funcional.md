@@ -7,7 +7,7 @@
 | Fase | 1 · paso **1.15** del plan (bloque D, Personas) |
 | Depende de | Documento (3.2.25): `CORE, CURSO, ACAD, FAM-UNIT`, igual que lo real: `CORE` (esencial), `CURSO` (esencial; la matrícula lleva `academic_year_id`), `ACAD` (grupos y cursos de etapa) y `FAM-UNIT` (pertenencia del alumno a su unidad). **Aprobado** (`OPEN-ALUM-28` = A, 2026-11-06): `depends_on: ['curso', 'acad', 'fam_unit']`. Aplicado en el documento de requisitos 3.2.25 |
 | Esencial | `essential: false`: consecuencia de `OPEN-ALUM-28` = A, porque un esencial no puede depender de `acad` ni de `fam_unit`, que no lo son (`ADR-045`) |
-| Estado | **APROBADA** (2026-11-06); lo marcado [DERIVADA] o dependiente de un `OPEN-ALUM` no bloqueante sigue como propuesta. Decisiones del usuario: `OPEN-ALUM-01` = A, `-02` = A, `-03` = A, `-11` = B, `-13` = A, `-16` = A, `-19` = A, `-28` = A. Corregida el mismo día con los hallazgos de `doc-reviewer` (un Alto, siete Medios, Bajos). Quedan abiertas las no bloqueantes de §14.2 (`OPEN-ALUM-31` resuelta A el 2026-11-09). `1.15-a` implementada (T1+T2); `1.15-b` **implementada en código** (T1a a T2c, 2026-11-11; pendiente de revisiones, E2E real y cierre); `1.15-c`/`-d` sin implementar |
+| Estado | **APROBADA** (2026-11-06); lo marcado [DERIVADA] o dependiente de un `OPEN-ALUM` no bloqueante sigue como propuesta. Decisiones del usuario: `OPEN-ALUM-01` = A, `-02` = A, `-03` = A, `-11` = B, `-13` = A, `-16` = A, `-19` = A, `-28` = A. Corregida el mismo día con los hallazgos de `doc-reviewer` (un Alto, siete Medios, Bajos). Quedan abiertas las no bloqueantes de §14.2 (`OPEN-ALUM-31` resuelta A el 2026-11-09). `1.15-a` implementada (T1+T2); `1.15-b` implementada, revisada (security-reviewer, db-reviewer, doc-reviewer) y con E2E real 11/11 (2026-11-11); pendiente PR y cierre; `1.15-c`/`-d` sin implementar |
 | Clasificación del paso: crítico | Ver §2 |
 | Decisiones vinculantes de partida | `ADR-004`, `ADR-013`, `ADR-015`, `ADR-016`, `ADR-020`, `ADR-021`, `ADR-029`, `ADR-032`, `ADR-033`, `ADR-034 §1`/`§4`/`§6`, `ADR-035`, `ADR-038` (incluido `§8`, idempotencia), `ADR-044` (enmendado por `ADR-063`), `ADR-045`, `ADR-048`, `ADR-053`, `ADR-054`, `ADR-055`, `ADR-056`, `ADR-057`/`ADR-058`, `ADR-062`, `ADR-063`, `ADR-066`, `ADR-068`, `ADR-069 §4.2`; contratos ya aprobados de `REQ-ACAD/funcional.md §7.2` y `§18.7`, `REQ-FAM-UNIT/funcional.md §7.1`/`§7.4`, `REQ-CURSO/funcional.md §7.1` |
 
@@ -139,7 +139,7 @@ Un fallo en cualquier paso deshace los tres. Si el documento coincide con una pe
 ### 4.2 Matrícula (`1.15-b`)
 
 1. Secretaría elige alumno, curso académico (`activo` o en `planificacion`), curso de etapa, opcionalmente grupo, y fecha de matrícula.
-2. El servidor comprueba: alumno vivo (bloqueado con `FOR SHARE`); curso académico escribible y legible; curso de etapa y grupo vivos, del mismo curso académico y el grupo del curso de etapa (`GroupDirectory`); no hay otra matrícula activa del alumno en ese curso académico (`RN-ALUM-21`).
+2. El servidor comprueba: alumno vivo (bloqueado con `FOR SHARE`); curso académico escribible y legible; curso de etapa y grupo vivos (bloqueados con `FOR SHARE`, `lockAliveForShare`, `RN-ALUM-26`), del mismo curso académico y el grupo del curso de etapa (`GroupDirectory`); no hay otra matrícula activa del alumno en ese curso académico (`RN-ALUM-21`).
 3. `201`. Un reintento de la misma petición responde `422 already_enrolled` por la unicidad natural (`RN-ALUM-27`).
 
 ### 4.3 Baja de una matrícula (traslado o baja)
@@ -238,7 +238,7 @@ Subida por `App\Support\Files` (`ADR-068`, precedente `pickup_photos`): tipo rea
 | Tutor con el vínculo revocado | No alcanza al alumno: `404` |
 | Matrícula en un curso en `planificacion` sin grupos | Se admite sin grupo (`OPEN-ALUM-11` = B) |
 | Grupo borrado con matrículas vivas | `409` (`RN-ALUM-26`) |
-| Alumno borrado entre la lectura y el alta de su matrícula | `FOR SHARE` de la faceta en la transacción; `422 alum.validation.student_not_found` [DERIVADA, lección de `RN-PRL-12`] |
+| Alumno borrado entre la lectura y el alta de su matrícula | `FOR SHARE` de la faceta en la transacción; grupo y curso de etapa vivos también con `FOR SHARE` (`lockAliveForShare`, `RN-ALUM-26`); `422 alum.validation.student_not_found` [DERIVADA, lección de `RN-PRL-12`] |
 | Dos altas simultáneas de matrícula para el mismo alumno y curso | Una `201`, otra `422 already_enrolled` |
 | Curso cerrado con una solicitud pendiente | Aprobar ⇒ `409 academic-year-closed`; la solicitud sigue pendiente |
 | Módulo `alum` no contratado | `403 urn:pge:error:module-disabled` (`RMOD-009`) |
@@ -367,26 +367,26 @@ Pest en `apps/api/tests/Feature/Alum/` (concurrencia en `tests/Concurrency/`), V
 
 ### 11.3 Matrícula (`1.15-b`)
 
-- **CA-ALUM-020** — *Dado* un alumno, un curso `activo`, un curso de etapa y un grupo suyo, *cuando* secretaría matricula, *entonces* `201`; *y* la repetición exacta de la petición responde `422 alum.validation.already_enrolled` sin segunda fila (`RN-ALUM-20`, `-21`, `-27`).
-- **CA-ALUM-021** — *Dado* un grupo de otro curso de etapa o de otro curso académico, *entonces* `422 group_not_in_course` (o `course_not_in_academic_year`); *y* una inserción directa incoherente la rechaza el motor (`RN-ALUM-20`).
-- **CA-ALUM-022** — *Dado* una matrícula activa del alumno en el curso, *cuando* se intenta otra, *entonces* `422 already_enrolled`; con dos altas simultáneas (dos procesos), una `201` y otra `422` (`RN-ALUM-21`).
-- **CA-ALUM-023** — *Dado* una matrícula dada de baja con motivo `traslado`, *cuando* se matricula de nuevo al alumno en el mismo curso, *entonces* `201` y la anterior se conserva (`RN-ALUM-22`).
-- **CA-ALUM-024** — *Dado* una baja sin `withdrawn_on`, con fecha anterior a la matrícula o con motivo fuera del vocabulario, *entonces* `422`, y el `CHECK` del motor lo rechaza por SQL directo (`RN-ALUM-22`).
-- **CA-ALUM-025** — **Curso cerrado, escritura**: matricular o editar en un curso `cerrado` ⇒ `409 urn:pge:error:academic-year-closed` (`RN-ALUM-23`).
-- **CA-ALUM-026** — **Curso cerrado, lectura en listado y detalle** (`RN-CURSO-33`): sin `curso_historico.leer`, listado de matrículas de un curso `cerrado`/`archivado` y detalle por `public_id` ⇒ `404`; con él, los datos. Igual para `GET /students?academic_year=<cerrado>`, y esas matrículas no aparecen en la ficha.
-- **CA-ALUM-027** — Borrar en `acad` un grupo o un curso de etapa con matrículas vivas ⇒ `409 acad.conflict.has_dependents` con `enrollments` (`RN-ALUM-26`).
-- **CA-ALUM-028** — `PATCH` que cambia el grupo de una matrícula con grupo ⇒ `422 group_change_requires_request`; sobre una matrícula sin grupo, asigna el primero con `200` (`RN-ALUM-28`).
-- **CA-ALUM-029** — Fecha de matrícula fuera del curso ⇒ `422 date_outside_academic_year` (`RN-ALUM-29`).
-- **CA-ALUM-030** — *Dado* un alumno borrado por otra conexión sin confirmar, *cuando* se matricula, *entonces* espera y, al confirmar, `422 alum.validation.student_not_found` sin fila.
-- **CA-ALUM-031** — *Dado* una matrícula anulada, *entonces* deja de aparecer en listas y ficha, y el alumno puede matricularse de nuevo en ese curso (`RN-ALUM-25`).
-- **CA-ALUM-033** — *Dado* un curso en `planificacion` y un curso de etapa sin grupos, *cuando* se matricula sin `group`, *entonces* `201` con `group = null`, y la matrícula aparece en el listado por curso de etapa y no en ninguna lista de clase (`OPEN-ALUM-11` = B).
-- **CA-ALUM-034** — *Dado* una matrícula en `baja`, *cuando* se envía otra baja (también como reintento de la misma petición), *entonces* `409 alum.conflict.already_withdrawn` y nada cambia (`RN-ALUM-22`, `-27`).
-- **CA-ALUM-035** — `PATCH` que cambia alumno, curso académico o curso de etapa ⇒ `422 alum.validation.immutable` (`RN-ALUM-28`).
-- **CA-ALUM-036** — Curso de etapa o grupo del cuerpo inexistente, de otro centro o de un curso cerrado ilegible para el sujeto ⇒ `422 alum.validation.parent_not_found`, mismo cuerpo en los tres casos (`RN-ALUM-24`).
+- **CA-ALUM-020** *(implementado en `1.15-b`)* — *Dado* un alumno, un curso `activo`, un curso de etapa y un grupo suyo, *cuando* secretaría matricula, *entonces* `201`; *y* la repetición exacta de la petición responde `422 alum.validation.already_enrolled` sin segunda fila (`RN-ALUM-20`, `-21`, `-27`).
+- **CA-ALUM-021** *(implementado en `1.15-b`)* — *Dado* un grupo de otro curso de etapa o de otro curso académico, *entonces* `422 group_not_in_course` (o `course_not_in_academic_year`); *y* una inserción directa incoherente la rechaza el motor (`RN-ALUM-20`).
+- **CA-ALUM-022** *(implementado en `1.15-b`)* — *Dado* una matrícula activa del alumno en el curso, *cuando* se intenta otra, *entonces* `422 already_enrolled`; con dos altas simultáneas (dos procesos), una `201` y otra `422` (`RN-ALUM-21`).
+- **CA-ALUM-023** *(implementado en `1.15-b`)* — *Dado* una matrícula dada de baja con motivo `traslado`, *cuando* se matricula de nuevo al alumno en el mismo curso, *entonces* `201` y la anterior se conserva (`RN-ALUM-22`).
+- **CA-ALUM-024** *(implementado en `1.15-b`)* — *Dado* una baja sin `withdrawn_on`, con fecha anterior a la matrícula o con motivo fuera del vocabulario, *entonces* `422`, y el `CHECK` del motor lo rechaza por SQL directo (`RN-ALUM-22`).
+- **CA-ALUM-025** *(implementado en `1.15-b`)* — **Curso cerrado, escritura**: matricular o editar en un curso `cerrado` ⇒ `409 urn:pge:error:academic-year-closed` (`RN-ALUM-23`).
+- **CA-ALUM-026** *(implementado en `1.15-b`)* — **Curso cerrado, lectura en listado y detalle** (`RN-CURSO-33`): sin `curso_historico.leer`, listado de matrículas de un curso `cerrado`/`archivado` y detalle por `public_id` ⇒ `404`; con él, los datos. Igual para `GET /students?academic_year=<cerrado>`, y esas matrículas no aparecen en la ficha.
+- **CA-ALUM-027** *(implementado en `1.15-b`)* — Borrar en `acad` un grupo o un curso de etapa con matrículas vivas ⇒ `409 acad.conflict.has_dependents` con `enrollments` (`RN-ALUM-26`).
+- **CA-ALUM-028** *(implementado en `1.15-b`)* — `PATCH` que cambia el grupo de una matrícula con grupo ⇒ `422 group_change_requires_request`; sobre una matrícula sin grupo, asigna el primero con `200` (`RN-ALUM-28`).
+- **CA-ALUM-029** *(implementado en `1.15-b`)* — Fecha de matrícula fuera del curso ⇒ `422 date_outside_academic_year` (`RN-ALUM-29`).
+- **CA-ALUM-030** *(implementado en `1.15-b`)* — *Dado* un alumno borrado por otra conexión sin confirmar, *cuando* se matricula, *entonces* espera y, al confirmar, `422 alum.validation.student_not_found` sin fila.
+- **CA-ALUM-031** *(implementado en `1.15-b`)* — *Dado* una matrícula anulada, *entonces* deja de aparecer en listas y ficha, y el alumno puede matricularse de nuevo en ese curso (`RN-ALUM-25`).
+- **CA-ALUM-033** *(implementado en `1.15-b`)* — *Dado* un curso en `planificacion` y un curso de etapa sin grupos, *cuando* se matricula sin `group`, *entonces* `201` con `group = null`, y la matrícula aparece en el listado por curso de etapa y no en ninguna lista de clase (`OPEN-ALUM-11` = B).
+- **CA-ALUM-034** *(implementado en `1.15-b`)* — *Dado* una matrícula en `baja`, *cuando* se envía otra baja (también como reintento de la misma petición), *entonces* `409 alum.conflict.already_withdrawn` y nada cambia (`RN-ALUM-22`, `-27`).
+- **CA-ALUM-035** *(implementado en `1.15-b`)* — `PATCH` que cambia alumno, curso académico o curso de etapa ⇒ `422 alum.validation.immutable` (`RN-ALUM-28`).
+- **CA-ALUM-036** *(implementado en `1.15-b`)* — Curso de etapa o grupo del cuerpo inexistente, de otro centro o de un curso cerrado ilegible para el sujeto ⇒ `422 alum.validation.parent_not_found`, mismo cuerpo en los tres casos (`RN-ALUM-24`).
 
 ### 11.4 Listas y exportación (`1.15-b`)
 
-- **CA-ALUM-040** — *Dado* un grupo con 3 matrículas activas y 1 de baja, *cuando* se lista con `group=<G>&status=activa`, *entonces* 3 filas con el nombre del alumno, sin N+1 (test de recuento de consultas).
+- **CA-ALUM-040** *(implementado en `1.15-b`)* — *Dado* un grupo con 3 matrículas activas y 1 de baja, *cuando* se lista con `group=<G>&status=activa`, *entonces* 3 filas con el nombre del alumno, sin N+1 (test de recuento de consultas).
 - **CA-ALUM-041** *(implementado en `1.15-b` T2c)* — *Dado* `matricula.exportar`, *cuando* se pide la exportación con los filtros del listado, *entonces* `202`, se encola, el CSV tiene el esquema cerrado de `api.md §6` y la solicitud queda auditada como `exported`; *y* con `q` ⇒ `422 alum.validation.export_query_not_allowed` (`ADR-054 §9`).
 - **CA-ALUM-042** *(implementado en `1.15-b` T2c)* — *Dado* un usuario sin `matricula.exportar` (por ejemplo, un docente con `matricula.leer` de ámbito `grupo`), *entonces* `403`; *y* la exportación con filtro `group` contiene exactamente las filas del listado con los mismos filtros (paridad, `ADR-054 §8.2`).
 
