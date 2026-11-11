@@ -123,3 +123,77 @@ describe('REQ-ALUM-001 (api.md §4): fotografía', () => {
     expect(last()).toEqual([`/students/${ENCODED}/photo`, { cache: 'no-store' }])
   })
 })
+
+describe('REQ-ALUM-003 (api.md §2 y §6): matrícula y exportación', () => {
+  it('GET /enrollments y /enrollments/{id}: los vacíos se omiten y el id se codifica', async () => {
+    await api.listEnrollments({ academic_year: 'Y1', student: 'S1', group: '', page: 2 })
+    expect(last()[0]).toBe('/enrollments?academic_year=Y1&student=S1&page=2')
+
+    await api.getEnrollment(HOSTILE)
+    expect(last()[0]).toBe(`/enrollments/${ENCODED}`)
+  })
+
+  it('POST /enrollments, PATCH, withdrawal y DELETE sin Idempotency-Key (RN-ALUM-27)', async () => {
+    await api.createEnrollment({
+      student: 'S1',
+      academic_year: 'Y1',
+      course: 'C1',
+      group: 'G1',
+      enrolled_on: '2026-09-10',
+    })
+    expect(last()[0]).toBe('/enrollments')
+    expect(last()[1]?.method).toBe('POST')
+    expect(last()[1]?.headers).toBeUndefined()
+
+    await api.updateEnrollment('E1', { group: 'G2' })
+    expect(last()[0]).toBe('/enrollments/E1')
+    expect(last()[1]?.method).toBe('PATCH')
+
+    await api.withdrawEnrollment('E1', { withdrawn_on: '2026-10-01', withdrawal_reason: 'Traslado' })
+    expect(last()[0]).toBe('/enrollments/E1/withdrawal')
+    expect(JSON.parse(last()[1]!.body as string)).toEqual({
+      withdrawn_on: '2026-10-01',
+      withdrawal_reason: 'Traslado',
+    })
+
+    await api.deleteEnrollment('E1')
+    expect(last()).toEqual(['/enrollments/E1', { method: 'DELETE' }])
+  })
+
+  it('POST /enrollments/exports lleva los filtros', async () => {
+    await api.exportEnrollments({ academic_year: 'Y1', group: 'G1' })
+    expect(last()[0]).toBe('/enrollments/exports')
+    expect(last()[1]?.method).toBe('POST')
+    expect(JSON.parse(last()[1]!.body as string)).toEqual({ academic_year: 'Y1', group: 'G1' })
+  })
+})
+
+describe('REQ-ALUM-003 (api.md §3): solicitudes de cambio de grupo', () => {
+  it('GET /group-change-requests y /{id}', async () => {
+    await api.listGroupChangeRequests({ academic_year: 'Y1', status: 'pendiente' })
+    expect(last()[0]).toBe('/group-change-requests?academic_year=Y1&status=pendiente')
+
+    await api.getGroupChangeRequest(HOSTILE)
+    expect(last()[0]).toBe(`/group-change-requests/${ENCODED}`)
+  })
+
+  it('POST /group-change-requests sin Idempotency-Key', async () => {
+    await api.createGroupChangeRequest({ enrollment: 'E1', to_group: 'G2', reason: 'Motivo' })
+    expect(last()[0]).toBe('/group-change-requests')
+    expect(last()[1]?.method).toBe('POST')
+    expect(last()[1]?.headers).toBeUndefined()
+  })
+
+  it('approval, rejection y cancellation son POST con decision_note', async () => {
+    await api.approveGroupChangeRequest('R1')
+    expect(last()[0]).toBe('/group-change-requests/R1/approval')
+
+    await api.rejectGroupChangeRequest('R1', { decision_note: 'No procede' })
+    expect(last()[0]).toBe('/group-change-requests/R1/rejection')
+    expect(JSON.parse(last()[1]!.body as string)).toEqual({ decision_note: 'No procede' })
+
+    await api.cancelGroupChangeRequest('R1')
+    expect(last()[0]).toBe('/group-change-requests/R1/cancellation')
+    expect(last()[1]?.method).toBe('POST')
+  })
+})

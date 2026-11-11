@@ -3,3 +3,5 @@
  * `@/api/client` con rutas escritas a mano.
  */
 export * from './students'
+export * from './enrollments'
+export * from './groupChangeRequests'

@@ -88,3 +88,84 @@ export interface StudentPhotoUrl {
   url: string
   expires_at: string
 }
+
+/** `POST /enrollments` (`api.md §2`). `group` es opcional (matrícula sin grupo, `RN-ALUM-28`). */
+export interface EnrollmentCreate {
+  student: PublicId
+  academic_year: PublicId
+  course: PublicId
+  group?: PublicId | null
+  enrolled_on: string
+}
+
+/** `PATCH /enrollments/{id}` (`api.md §2`, `RN-ALUM-28`): fecha y primer grupo; el resto es inmutable. */
+export interface EnrollmentUpdate {
+  enrolled_on?: string
+  group?: PublicId
+}
+
+/** `POST /enrollments/{id}/withdrawal` (`api.md §2`). */
+export interface EnrollmentWithdrawal {
+  withdrawn_on?: string
+  withdrawal_reason?: string
+}
+
+/** Filtros de `POST /enrollments/exports` (`academic_year` obligatorio; sin `q`, `api.md §6`). */
+export interface EnrollmentExportRequest {
+  academic_year: PublicId
+  course?: PublicId
+  group?: PublicId
+  status?: string
+}
+
+/** `202` de `POST /enrollments/exports`: seguimiento en `GET /data-exports/{public_id}`. */
+export interface EnrollmentExport {
+  public_id: PublicId
+  status: string
+}
+
+/** `api.md §3`: enumerado extensible (`ADR-038 §7.3`). */
+export type GroupChangeStatus = 'pendiente' | 'aprobada' | 'rechazada' | 'cancelada' | (string & {})
+
+interface GroupView {
+  public_id: PublicId
+  code: string
+  name: string
+}
+
+interface PersonView {
+  public_id: PublicId
+  display_name: string
+}
+
+/**
+ * `GroupChangeRequest` (`api.md §3`, forma [DERIVADA] del recurso `GroupChangeRequestResource`). `from_group` y
+ * `to_group` pueden ser `null` si el grupo ya no es legible; `requested_by`/`decided_by`, igual.
+ */
+export interface GroupChangeRequest {
+  public_id: PublicId
+  enrollment: { public_id: PublicId; student: { public_id: PublicId; display_name: string } }
+  academic_year: { public_id: PublicId; code: string }
+  from_group: GroupView | null
+  to_group: GroupView | null
+  reason: string
+  status: GroupChangeStatus
+  requested_by: PersonView | null
+  decided_by: PersonView | null
+  decided_at: string | null
+  decision_note: string | null
+  created_at: string
+  updated_at: string
+}
+
+/** `POST /group-change-requests` (`api.md §3`): `reason` 1-500. */
+export interface GroupChangeCreate {
+  enrollment: PublicId
+  to_group: PublicId
+  reason: string
+}
+
+/** Cuerpo de `approval`, `rejection` y `cancellation` (`decision_note` 1-500; obligatoria solo en `rejection`). */
+export interface GroupChangeDecision {
+  decision_note?: string
+}
