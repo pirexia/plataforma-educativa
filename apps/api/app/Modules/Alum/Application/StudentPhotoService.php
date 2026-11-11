@@ -6,7 +6,6 @@ use App\Models\User;
 use App\Modules\Alum\Domain\Models\Student;
 use App\Modules\Alum\Domain\Models\StudentPhoto;
 use App\Support\Api\ApiException;
-use App\Support\Audit\AuditActor;
 use App\Support\Audit\AuditRecorder;
 use App\Support\Authorization\PermissionDecision;
 use App\Support\Authorization\ScopedQuery;
@@ -18,6 +17,7 @@ use App\Support\Files\PrivateObjectStore;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Throwable;
 
 /**
@@ -87,8 +87,10 @@ final class StudentPhotoService
             throw ApiException::unavailable();
         }
 
+        $previousKey = null;
+
         try {
-            return DB::transaction(function () use ($student, $key, $image): StudentPhoto {
+            return DB::transaction(function () use ($student, $key, $image, &$previousKey): StudentPhoto {
                 // Bloqueo del alumno (como el patrón de `PickupListService::lockPerson`): serializa subidas concurrentes y
                 // la baja del alumno; un alumno dado de baja entre tanto es `404`.
                 $locked = Student::query()->whereKey($student->id)->lockForUpdate()->first();
@@ -97,7 +99,13 @@ final class StudentPhotoService
                     throw (new ModelNotFoundException)->setModel(Student::class);
                 }
 
-                StudentPhoto::query()->where('student_id', $locked->id)->lockForUpdate()->first()?->delete();
+                $previous = StudentPhoto::query()->where('student_id', $locked->id)->lockForUpdate()->first();
+
+                if ($previous !== null) {
+                    $previousKey = (string) $previous->object_key;
+                    $previous->delete();
+                    $this->deleteObjectAfterCommit($previousKey);
+                }
 
                 $photo = new StudentPhoto;
                 $photo->student_id = $locked->id;
@@ -109,18 +117,43 @@ final class StudentPhotoService
                 return $photo;
             });
         } catch (Throwable $e) {
-            $this->objects->delete($key);
+            try {
+                $this->objects->delete($key);
+            } catch (Throwable) {
+                // No enmascarar la excepción original; el objeto huérfano lo recogerá el barrido.
+            }
 
             throw $e;
         }
     }
 
-    /** Baja lógica de la fotografía viva (`DELETE …/photo`); el objeto queda para el barrido de huérfanos. Idempotente. */
+    /**
+     * Baja lógica de la fotografía viva (`DELETE …/photo`). La fila soft-deleted se conserva; su objeto se borra del
+     * *bucket* al confirmar la transacción (solo la foto viva tiene objeto). Idempotente.
+     */
     public function remove(Student $student): void
     {
         DB::transaction(function () use ($student): void {
             Student::query()->whereKey($student->id)->lockForUpdate()->first();
-            StudentPhoto::query()->where('student_id', $student->id)->lockForUpdate()->first()?->delete();
+            $photo = StudentPhoto::query()->where('student_id', $student->id)->lockForUpdate()->first();
+
+            if ($photo !== null) {
+                $key = (string) $photo->object_key;
+                $photo->delete();
+                $this->deleteObjectAfterCommit($key);
+            }
+        });
+    }
+
+    /** Borra el objeto al confirmar la transacción; un fallo se registra (sin la clave) y no afecta a la petición. */
+    private function deleteObjectAfterCommit(string $key): void
+    {
+        DB::afterCommit(function () use ($key): void {
+            try {
+                $this->objects->delete($key);
+            } catch (Throwable $e) {
+                Log::warning('alum.photo.object_delete_failed', ['exception' => $e::class]);
+            }
         });
     }
 
@@ -177,7 +210,7 @@ final class StudentPhotoService
      */
     public function signedUrl(string $studentPublicId, PermissionDecision $decision, User $subject): array
     {
-        $this->rateLimit->hit(AuditActor::resolveUserId());
+        $this->rateLimit->hit((int) $subject->id);
 
         $student = $this->scopedQuery->constrain(Student::query(), 'alumno', $decision, $subject)
             ->where('public_id', $studentPublicId)

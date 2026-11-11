@@ -104,7 +104,7 @@ test('CA-ALUM-057 RN-ALUM-50: subir otra foto da de baja la anterior en la misma
         ->and($rows[0]->deleted_at)->not->toBeNull()
         ->and($rows[1]->deleted_at)->toBeNull()
         ->and($rows[1]->content_type)->toBe('image/png')
-        ->and(Storage::disk('local')->allFiles())->toHaveCount(2)
+        ->and(Storage::disk('local')->allFiles())->toBe([$rows[1]->object_key])
         ->and(count(Alum::audit($c['tenant'], 'alum_student_photo', 'deleted')))->toBe(1);
 
     Alum::call($c['tenant'], $c['admin'], 'delete', "/students/{$id}/photo")->assertNoContent();
@@ -246,4 +246,43 @@ test('CA-ALUM-018c INV-001: dos centros con fotografías equivalentes no se ven:
         ->and(photoRows($a['tenant'])[0]->object_key)->toContain($a['tenant']->public_id)
         ->and(photoRows($b['tenant'])[0]->object_key)->toContain($b['tenant']->public_id)
         ->and(Alum::audit($b['tenant'], 'alum_student_photo', 'read'))->toBe([]);
+});
+
+test('RN-ALUM-50 datos.md §4: sustituir borra el objeto anterior y deja el nuevo; DELETE borra el objeto vivo y conserva la fila soft-deleted', function (): void {
+    $c = photoScenario('ph-objetos');
+    $id = $c['student']['public_id'];
+
+    Alum::putPhoto($c['tenant'], $c['admin'], $id, ImageFixtures::jpeg(), 'a.jpg')->assertOk();
+    $first = photoRows($c['tenant'])[0]->object_key;
+    Alum::putPhoto($c['tenant'], $c['admin'], $id, ImageFixtures::png(), 'b.png')->assertOk();
+    $second = photoRows($c['tenant'])[1]->object_key;
+
+    expect(Storage::disk('local')->exists($first))->toBeFalse()
+        ->and(Storage::disk('local')->allFiles())->toBe([$second]);
+
+    Alum::call($c['tenant'], $c['admin'], 'delete', "/students/{$id}/photo")->assertNoContent();
+
+    $rows = photoRows($c['tenant']);
+    expect(Storage::disk('local')->allFiles())->toBe([])
+        ->and($rows)->toHaveCount(2)
+        ->and($rows[1]->deleted_at)->not->toBeNull();
+});
+
+test('RN-ALUM-50 INV-012: si falla el borrado del objeto anterior, la sustitución y el DELETE siguen siendo correctos', function (): void {
+    $c = photoScenario('ph-obj-fallo');
+    $id = $c['student']['public_id'];
+
+    $disk = Mockery::mock(Storage::disk('local'))->makePartial();
+    $disk->shouldReceive('delete')->andThrow(new RuntimeException('S3 caído'));
+    Storage::set('flaky', $disk);
+    config(['files.disk' => 'flaky']);
+
+    Alum::putPhoto($c['tenant'], $c['admin'], $id, ImageFixtures::jpeg(), 'a.jpg')->assertOk();
+    Alum::putPhoto($c['tenant'], $c['admin'], $id, ImageFixtures::png(), 'b.png')->assertOk();
+    Alum::call($c['tenant'], $c['admin'], 'delete', "/students/{$id}/photo")->assertNoContent();
+
+    $rows = photoRows($c['tenant']);
+    expect($rows)->toHaveCount(2)
+        ->and($rows[0]->deleted_at)->not->toBeNull()
+        ->and($rows[1]->deleted_at)->not->toBeNull();
 });

@@ -4,6 +4,7 @@ use App\Support\Tenancy\TenantMigration;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * REQ-ALUM/datos.md §1.4, §3 (1.15-c, `REQ-ALUM-003`, `OPEN-ALUM-08` = A, decisión del usuario 2026-11-11). Fotografía de
@@ -49,7 +50,7 @@ return new class extends Migration
     {
         // La fotografía de un alumno es dato personal de un menor: no se borra con un rollback. La comprobación va por la
         // conexión de plataforma (BYPASSRLS) para ver todos los centros.
-        if (DB::connection('pgsql_platform')->table('student_photos')->exists()) {
+        if (Schema::hasTable('student_photos') && DB::connection('pgsql_platform')->table('student_photos')->exists()) {
             throw new RuntimeException('student_photos tiene filas: las fotografías de alumnos no se revierten. Purga el centro por el procedimiento de retención (REQ-PRIV-006) antes.');
         }
 
