@@ -1348,6 +1348,94 @@ namespace App\Modules\Alum\Domain\Models{
  */
 	#[\AllowDynamicProperties]
 	class IdeHelperStudent {}
+/**
+ * REQ-ALUM/datos.md §1.3 (1.15-c). Solicitud de cambio de grupo.
+ *
+ * @property int $id
+ * @property int $tenant_id
+ * @property string $public_id
+ * @property int $enrollment_id
+ * @property int $academic_year_id
+ * @property int $from_group_id
+ * @property int $to_group_id
+ * @property string $reason
+ * @property string $status
+ * @property int $requested_by
+ * @property int|null $decided_by
+ * @property \Illuminate\Support\Carbon|null $decided_at
+ * @property string|null $decision_note
+ * @property int|null $created_by
+ * @property int|null $updated_by
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @method static \Database\Factories\Alum\GroupChangeRequestFactory factory($count = null, $state = [])
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GroupChangeRequest newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GroupChangeRequest newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GroupChangeRequest onlyTrashed()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GroupChangeRequest query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GroupChangeRequest whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GroupChangeRequest whereTenantId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GroupChangeRequest wherePublicId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GroupChangeRequest whereEnrollmentId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GroupChangeRequest whereAcademicYearId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GroupChangeRequest whereFromGroupId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GroupChangeRequest whereToGroupId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GroupChangeRequest whereReason($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GroupChangeRequest whereStatus($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GroupChangeRequest whereRequestedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GroupChangeRequest whereDecidedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GroupChangeRequest whereDecidedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GroupChangeRequest whereDecisionNote($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GroupChangeRequest whereCreatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GroupChangeRequest whereUpdatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GroupChangeRequest whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GroupChangeRequest whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GroupChangeRequest whereDeletedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GroupChangeRequest withTrashed(bool $withTrashed = true)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GroupChangeRequest withoutTrashed()
+ * @mixin \Eloquent
+ */
+	#[\AllowDynamicProperties]
+	class IdeHelperGroupChangeRequest {}
+/**
+ * REQ-ALUM/datos.md §1.4 (1.15-c). Fotografía del alumno.
+ *
+ * @property int $id
+ * @property int $tenant_id
+ * @property string $public_id
+ * @property int $student_id
+ * @property string $object_key
+ * @property string $content_type
+ * @property int $byte_size
+ * @property int|null $created_by
+ * @property int|null $updated_by
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @method static \Database\Factories\Alum\StudentPhotoFactory factory($count = null, $state = [])
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StudentPhoto newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StudentPhoto newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StudentPhoto onlyTrashed()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StudentPhoto query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StudentPhoto whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StudentPhoto whereTenantId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StudentPhoto wherePublicId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StudentPhoto whereStudentId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StudentPhoto whereObjectKey($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StudentPhoto whereContentType($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StudentPhoto whereByteSize($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StudentPhoto whereCreatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StudentPhoto whereUpdatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StudentPhoto whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StudentPhoto whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StudentPhoto whereDeletedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StudentPhoto withTrashed(bool $withTrashed = true)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StudentPhoto withoutTrashed()
+ * @mixin \Eloquent
+ */
+	#[\AllowDynamicProperties]
+	class IdeHelperStudentPhoto {}
 }
 
 namespace App\Modules\Auth\Domain\Models{

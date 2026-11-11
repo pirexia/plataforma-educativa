@@ -6,7 +6,9 @@ use App\Modules\Acad\Domain\StructureDeletionVetoRegistry;
 use App\Modules\Acad\Domain\StructureEntity;
 use App\Modules\Alum\Application\EnrollmentService;
 use App\Modules\Alum\Domain\Models\Enrollment;
+use App\Modules\Alum\Domain\Models\GroupChangeRequest;
 use App\Modules\Alum\Domain\Models\Student;
+use App\Modules\Alum\Domain\Models\StudentPhoto;
 use App\Support\Authorization\ScopeResolverRegistry;
 use App\Support\Modules\DeclaresModuleRegistry;
 use Illuminate\Database\Eloquent\Relations\Relation;
@@ -34,6 +36,8 @@ class AlumServiceProvider extends ServiceProvider implements DeclaresModuleRegis
         Relation::enforceMorphMap([
             'alum_student' => Student::class,
             'alum_enrollment' => Enrollment::class,
+            'alum_group_change_request' => GroupChangeRequest::class,
+            'alum_student_photo' => StudentPhoto::class,
         ]);
 
         // permisos.md §3.1 (`ADR-044 §3.4`): cuatro resolutores de 1.15-a/1.15-b (`GroupChangeRequest` llega con 1.15-c).
