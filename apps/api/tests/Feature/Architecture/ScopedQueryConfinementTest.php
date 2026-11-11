@@ -3,8 +3,10 @@
 use App\Models\AuditLog;
 use App\Modules\Acad\Application\FacilityBookingService;
 use App\Modules\Acad\Domain\Models\FacilityBooking;
+use App\Modules\Alum\Application\GroupChangeService;
 use App\Modules\Alum\Application\StudentService;
 use App\Modules\Alum\Domain\Models\Enrollment;
+use App\Modules\Alum\Domain\Models\GroupChangeRequest;
 use App\Modules\Alum\Domain\Models\Student;
 use App\Modules\Core\Infrastructure\EloquentAuditQuery;
 use App\Modules\Core\Infrastructure\EloquentExportRequestService;
@@ -137,12 +139,16 @@ function scopedResourceMap(): array
         // admite `grupo` y `unidad_familiar`. `Enrollment` y dos ficheros sancionados: `EnrollmentService` (T2, ya
         // construido: el test de existencia de ficheros del mapa lo comprueba) y el
         // veto de borrado de `acad` (RN-ALUM-26), que cuenta matrículas vivas del centro entero, sin ámbito de actor.
-        // `GroupChangeRequest` entra con 1.15-c.
+        // 1.15-c (T2a, ampliación del mapa con la especificación): `GroupChangeRequest` y sus dos ficheros sancionados,
+        // `GroupChangeService` (listado y detalle con `ScopedQuery`, `RN-ALUM-46`) y el veto de grupos con solicitudes
+        // pendientes (`RN-ALUM-47`, cuenta las del centro entero, sin ámbito de actor).
         'matricula' => [
-            'models' => [Enrollment::class],
+            'models' => [Enrollment::class, GroupChangeRequest::class],
             'files' => [
                 'Modules/Alum/Application/EnrollmentService.php',
                 'Modules/Alum/Infrastructure/EnrollmentStructureDeletionVeto.php',
+                'Modules/Alum/Application/GroupChangeService.php',
+                'Modules/Alum/Infrastructure/GroupChangeRequestStructureDeletionVeto.php',
             ],
         ],
     ];
@@ -268,9 +274,11 @@ foreach ([FamilyUnitService::class, GuardianService::class, FamilyUnitStudentSer
         ->toUse(ScopedQuery::class);
 }
 
-arch('AR-10 CA-056-11 CA-ALUM-062: el fichero sancionado StudentService usa ScopedQuery')
-    ->expect(StudentService::class)
-    ->toUse(ScopedQuery::class);
+foreach ([StudentService::class, GroupChangeService::class] as $sanctionedClass) {
+    arch("AR-10 CA-056-11 CA-ALUM-062: el fichero sancionado {$sanctionedClass} usa ScopedQuery")
+        ->expect($sanctionedClass)
+        ->toUse(ScopedQuery::class);
+}
 
 test('AR-10 CA-056-11: las clases sancionadas de los arch() coinciden con los ficheros del mapa', function (): void {
     $toPath = static fn (string $c): string => str_replace('\\', '/', substr($c, strlen('App\\'))).'.php';

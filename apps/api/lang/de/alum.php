@@ -34,6 +34,12 @@ return [
         'withdrawn_before_enrolled' => 'Das Abmeldedatum darf nicht vor dem Einschreibedatum liegen.',
         'export_query_not_allowed' => 'Ein Export kann keinen Suchbegriff verwenden: Verwenden Sie nur die Filter der Liste.',
         'status_invalid' => 'Der Status muss activa oder baja sein.',
+        'request_already_pending' => 'Für die Einschreibung liegt bereits ein offener Antrag auf Gruppenwechsel vor.',
+        'reason_invalid' => 'Die Begründung muss zwischen 1 und 500 Zeichen lang sein und darf keine Steuerzeichen enthalten.',
+        'decision_note_required' => 'Bei der Ablehnung eines Antrags muss eine Begründung angegeben werden.',
+        'decision_note_invalid' => 'Der Entscheidungsvermerk muss zwischen 1 und 500 Zeichen lang sein und darf keine Steuerzeichen enthalten.',
+        'enrollment_not_active' => 'Ein Gruppenwechsel kann nur für eine aktive Einschreibung beantragt werden.',
+        'enrollment_without_group' => 'Die Einschreibung hat keine Gruppe: Weisen Sie ihr direkt eine zu, ohne Antrag.',
     ],
     'errors' => [
         'export_rate_limited' => 'Sie haben das Limit für Matrikelexporte erreicht. Versuchen Sie es in etwa :minutes Minuten erneut.',
@@ -42,5 +48,10 @@ return [
         'cannot_restore' => 'Dieser Schüler kann nicht wiederhergestellt werden: Die Person existiert nicht mehr oder hat bereits eine andere Schülerakte.',
         'already_withdrawn' => 'Die Einschreibung ist bereits abgemeldet.',
         'has_active_enrollments' => 'Ein Schüler mit aktiven Einschreibungen kann nicht abgemeldet werden.',
+        'request_closed' => 'Der Antrag ist bereits entschieden und kann nicht mehr geändert werden.',
+        'enrollment_changed' => 'Die Einschreibung hat sich seit dem Antrag geändert: Sie ist nicht mehr aktiv oder nicht mehr in der Ausgangsgruppe.',
+    ],
+    'forbidden' => [
+        'self_approval' => 'Sie können einen von Ihnen selbst gestellten Antrag nicht genehmigen.',
     ],
 ];

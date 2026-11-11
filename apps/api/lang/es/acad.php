@@ -172,5 +172,6 @@ return [
         'timetable_sessions' => 'sesiones de horario',
         'facility_bookings' => 'reservas de espacios',
         'enrollments' => 'matrículas',
+        'group_change_requests' => 'solicitudes de cambio de grupo',
     ],
 ];

@@ -11,6 +11,7 @@
 
 use App\Http\Middleware\RequireAuthenticatedUser;
 use App\Modules\Alum\Http\Controllers\EnrollmentsController;
+use App\Modules\Alum\Http\Controllers\GroupChangeRequestsController;
 use App\Modules\Alum\Http\Controllers\StudentsController;
 use Illuminate\Support\Facades\Route;
 
@@ -34,4 +35,13 @@ Route::middleware([RequireAuthenticatedUser::class, 'module-enabled:alum'])->gro
     Route::patch('/enrollments/{publicId}', [EnrollmentsController::class, 'update'])->middleware('permission:matricula.actualizar')->name('alum.enrollments.update');
     Route::post('/enrollments/{publicId}/withdrawal', [EnrollmentsController::class, 'withdraw'])->middleware('permission:matricula.actualizar')->name('alum.enrollments.withdraw');
     Route::delete('/enrollments/{publicId}', [EnrollmentsController::class, 'destroy'])->middleware('permission:matricula.eliminar')->name('alum.enrollments.destroy');
+
+    // api.md §3 (1.15-c): solicitudes de cambio de grupo. Sin `Idempotency-Key`: el único de solicitud pendiente
+    // (`RN-ALUM-41`) y las transiciones de estado hacen seguro el reintento.
+    Route::get('/group-change-requests', [GroupChangeRequestsController::class, 'index'])->middleware('permission:matricula.leer')->name('alum.group-change-requests.index');
+    Route::post('/group-change-requests', [GroupChangeRequestsController::class, 'store'])->middleware('permission:matricula.actualizar')->name('alum.group-change-requests.store');
+    Route::get('/group-change-requests/{publicId}', [GroupChangeRequestsController::class, 'show'])->middleware('permission:matricula.leer')->name('alum.group-change-requests.show');
+    Route::post('/group-change-requests/{publicId}/approval', [GroupChangeRequestsController::class, 'approve'])->middleware('permission:matricula.aprobar')->name('alum.group-change-requests.approve');
+    Route::post('/group-change-requests/{publicId}/rejection', [GroupChangeRequestsController::class, 'reject'])->middleware('permission:matricula.aprobar')->name('alum.group-change-requests.reject');
+    Route::post('/group-change-requests/{publicId}/cancellation', [GroupChangeRequestsController::class, 'cancel'])->middleware('permission:matricula.actualizar')->name('alum.group-change-requests.cancel');
 });

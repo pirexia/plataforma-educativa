@@ -173,5 +173,6 @@ return [
         'timetable_sessions' => 'Unterrichtsstunden',
         'facility_bookings' => 'Raumreservierungen',
         'enrollments' => 'Einschreibungen',
+        'group_change_requests' => 'Anträge auf Gruppenwechsel',
     ],
 ];

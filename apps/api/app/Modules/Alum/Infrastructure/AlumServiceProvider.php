@@ -40,7 +40,7 @@ class AlumServiceProvider extends ServiceProvider implements DeclaresModuleRegis
             'alum_student_photo' => StudentPhoto::class,
         ]);
 
-        // permisos.md §3.1 (`ADR-044 §3.4`): cuatro resolutores de 1.15-a/1.15-b (`GroupChangeRequest` llega con 1.15-c).
+        // permisos.md §3.1 (`ADR-044 §3.4`): cuatro resolutores; los de `matricula` cubren también `GroupChangeRequest` (1.15-c, `RN-ALUM-46`).
         $resolvers = $this->app->make(ScopeResolverRegistry::class);
         $resolvers->register(new AlumnoUnidadFamiliarScopeResolver);
         $resolvers->register(new AlumnoGrupoScopeResolver);
@@ -52,6 +52,9 @@ class AlumServiceProvider extends ServiceProvider implements DeclaresModuleRegis
         $vetoes = $this->app->make(StructureDeletionVetoRegistry::class);
         $vetoes->register(new EnrollmentStructureDeletionVeto(StructureEntity::Group));
         $vetoes->register(new EnrollmentStructureDeletionVeto(StructureEntity::Course));
+        // RN-ALUM-47 (1.15-c, decisión del usuario 2026-11-11 = B): un grupo con solicitudes de cambio `pendiente` (de origen o
+        // destino) tampoco se borra. Tercer veto de `alum`, independiente de los de matrícula.
+        $vetoes->register(new GroupChangeRequestStructureDeletionVeto);
     }
 
     public function moduleDescriptor(): array

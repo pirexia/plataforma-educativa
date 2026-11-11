@@ -34,6 +34,12 @@ return [
         'withdrawn_before_enrolled' => 'The withdrawal date cannot be earlier than the enrolment date.',
         'export_query_not_allowed' => 'An export cannot use a search term: use only the list filters.',
         'status_invalid' => 'The status must be activa or baja.',
+        'request_already_pending' => 'The enrolment already has a pending group change request.',
+        'reason_invalid' => 'The reason must be between 1 and 500 characters long and contain no control characters.',
+        'decision_note_required' => 'A reason must be given when rejecting a request.',
+        'decision_note_invalid' => 'The decision note must be between 1 and 500 characters long and contain no control characters.',
+        'enrollment_not_active' => 'A group change can only be requested for an active enrolment.',
+        'enrollment_without_group' => 'The enrolment has no group: assign one directly, without a request.',
     ],
     'errors' => [
         'export_rate_limited' => 'You have reached the limit of enrollment exports. Try again in about :minutes minutes.',
@@ -42,5 +48,10 @@ return [
         'cannot_restore' => 'This student cannot be restored: the person no longer exists or already has another student record.',
         'already_withdrawn' => 'The enrolment has already been withdrawn.',
         'has_active_enrollments' => 'A student with active enrolments cannot be deactivated.',
+        'request_closed' => 'The request has already been resolved and cannot be changed.',
+        'enrollment_changed' => 'The enrolment has changed since the request was made: it is no longer active or no longer in the original group.',
+    ],
+    'forbidden' => [
+        'self_approval' => 'You cannot approve a request that you made yourself.',
     ],
 ];
