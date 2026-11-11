@@ -168,5 +168,7 @@ Solo cuota de OpenAI; no se mide en tokens de Claude. Registrar por revisión: p
 | 1.15-b cierre | doc-precheck | pasada mecánica | 103288 | 11 | 1.4 | | |
 | 1.15-b cierre | doc-reviewer | revisión | 135882 | 40 | 2.9 | | |
 | 1.15-b cierre | janitor | 7 issues + correcciones documentales | 225083 | 37 | 7.4 | | |
+| S-1a T1 | explorer | briefing | 127956 | 27 | 1.9 | | |
+| S-1a T1 | implementer | experimento Garage, servicio, `garage.toml` e `init.sh` | 92845 | 43 | 5.3 | | |
 
 Medias por tipo de `1.15-a` sin recalcular: el paso `1.15` no está cerrado (faltan `-b`..`-d`); se recalculan al cerrar `1.15`.
