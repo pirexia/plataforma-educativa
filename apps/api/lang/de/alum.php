@@ -41,7 +41,14 @@ return [
         'enrollment_not_active' => 'Ein Gruppenwechsel kann nur für eine aktive Einschreibung beantragt werden.',
         'enrollment_without_group' => 'Die Einschreibung hat keine Gruppe: Weisen Sie ihr direkt eine zu, ohne Antrag.',
     ],
+    'photo' => [
+        'file_required' => 'Im Feld „file“ muss ein Bild angehängt werden.',
+        'type_unsupported' => 'Es werden nur Fotos im JPEG- oder PNG-Format akzeptiert.',
+        'invalid_image' => 'Der Inhalt der Datei ist kein gültiges JPEG- oder PNG-Bild oder überschreitet die zulässigen Höchstabmessungen.',
+        'too_large' => 'Das Bild überschreitet die zulässige Höchstgröße.',
+    ],
     'errors' => [
+        'photo_read_rate_limited' => 'Sie haben das Limit für Abrufe von Schülerfotos erreicht. Bitte versuchen Sie es in etwa :minutes Minuten erneut.',
         'export_rate_limited' => 'Sie haben das Limit für Matrikelexporte erreicht. Versuchen Sie es in etwa :minutes Minuten erneut.',
     ],
     'conflict' => [

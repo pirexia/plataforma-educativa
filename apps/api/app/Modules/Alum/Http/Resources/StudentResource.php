@@ -7,7 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
- * REQ-ALUM/api.md §1: ficha del alumno (sin `emergency_contact`, `guardians[]` ni `photo`; con `enrollments[]` desde 1.15-b):
+ * REQ-ALUM/api.md §1: ficha del alumno (sin `emergency_contact` ni `guardians[]`; con `has_photo` desde 1.15-c; con `enrollments[]` desde 1.15-b):
  * nombres por partes, fecha de nacimiento e idioma de la persona. El documento de identidad va **enmascarado**, nunca
  * completo (decisión del 2026-11-09; `StudentService::attachPeople()`).
  *
@@ -34,6 +34,8 @@ class StudentResource extends JsonResource
             'locale' => $view['locale'] ?? null,
             'document_type' => $view['document_type'] ?? null,
             'document_number' => $view['document_number'] ?? null,
+            // 1.15-c (decisión del 2026-11-11): solo el booleano; la URL firmada sale únicamente de `GET /students/{id}/photo`.
+            'has_photo' => (bool) $this->getAttribute('has_photo_view'),
             'enrollments' => EnrollmentResource::collection($this->getAttribute('enrollments_view') ?? []),
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,

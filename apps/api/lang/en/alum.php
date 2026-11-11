@@ -41,7 +41,14 @@ return [
         'enrollment_not_active' => 'A group change can only be requested for an active enrolment.',
         'enrollment_without_group' => 'The enrolment has no group: assign one directly, without a request.',
     ],
+    'photo' => [
+        'file_required' => 'An image must be attached in the "file" field.',
+        'type_unsupported' => 'Only JPEG or PNG photographs are accepted.',
+        'invalid_image' => 'The file content is not a valid JPEG or PNG image, or it exceeds the maximum dimensions allowed.',
+        'too_large' => 'The image exceeds the maximum size allowed.',
+    ],
     'errors' => [
+        'photo_read_rate_limited' => 'You have reached the limit of student photograph requests. Please try again in about :minutes minutes.',
         'export_rate_limited' => 'You have reached the limit of enrollment exports. Try again in about :minutes minutes.',
     ],
     'conflict' => [

@@ -12,6 +12,7 @@
 use App\Http\Middleware\RequireAuthenticatedUser;
 use App\Modules\Alum\Http\Controllers\EnrollmentsController;
 use App\Modules\Alum\Http\Controllers\GroupChangeRequestsController;
+use App\Modules\Alum\Http\Controllers\StudentPhotosController;
 use App\Modules\Alum\Http\Controllers\StudentsController;
 use Illuminate\Support\Facades\Route;
 
@@ -24,6 +25,11 @@ Route::middleware([RequireAuthenticatedUser::class, 'module-enabled:alum'])->gro
     Route::patch('/students/{publicId}', [StudentsController::class, 'update'])->middleware('permission:alumno.actualizar')->name('alum.students.update');
     Route::delete('/students/{publicId}', [StudentsController::class, 'destroy'])->middleware('permission:alumno.eliminar')->name('alum.students.destroy');
     Route::post('/students/{publicId}/restore', [StudentsController::class, 'restore'])->middleware('permission:alumno.eliminar')->name('alum.students.restore');
+
+    // api.md §4 (1.15-c): fotografía del alumno. Sin `Idempotency-Key`: el `PUT` sustituye y el `DELETE` es idempotente.
+    Route::put('/students/{publicId}/photo', [StudentPhotosController::class, 'put'])->middleware('permission:alumno.actualizar')->name('alum.students.photo.put');
+    Route::get('/students/{publicId}/photo', [StudentPhotosController::class, 'show'])->middleware('permission:alumno.leer')->name('alum.students.photo.show');
+    Route::delete('/students/{publicId}/photo', [StudentPhotosController::class, 'destroy'])->middleware('permission:alumno.actualizar')->name('alum.students.photo.destroy');
 
     // api.md §2 (1.15-b): matrícula. Sin `Idempotency-Key` (`RN-ALUM-27`): el índice único de `RN-ALUM-21` y la transición
     // de estado hacen seguro el reintento.

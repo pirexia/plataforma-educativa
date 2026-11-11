@@ -41,7 +41,14 @@ return [
         'enrollment_not_active' => 'Solo se puede solicitar el cambio de grupo de una matrícula activa.',
         'enrollment_without_group' => 'La matrícula no tiene grupo asignado: se le asigna uno directamente, sin solicitud.',
     ],
+    'photo' => [
+        'file_required' => 'Hay que adjuntar una imagen en el campo «file».',
+        'type_unsupported' => 'Solo se admiten fotografías en formato JPEG o PNG.',
+        'invalid_image' => 'El contenido del fichero no coincide con una imagen JPEG o PNG válida, o supera las dimensiones máximas admitidas.',
+        'too_large' => 'La imagen supera el tamaño máximo admitido.',
+    ],
     'errors' => [
+        'photo_read_rate_limited' => 'Has alcanzado el límite de consultas de fotografías de alumnos. Inténtalo de nuevo en unos :minutes minutos.',
         'export_rate_limited' => 'Has alcanzado el límite de exportaciones de matrículas. Inténtalo de nuevo en unos :minutes minutos.',
     ],
     'conflict' => [

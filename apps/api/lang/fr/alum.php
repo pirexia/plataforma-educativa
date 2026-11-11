@@ -41,7 +41,14 @@ return [
         'enrollment_not_active' => 'Le changement de groupe ne peut être demandé que pour une inscription active.',
         'enrollment_without_group' => 'L\'inscription n\'a pas de groupe : attribuez-lui-en un directement, sans demande.',
     ],
+    'photo' => [
+        'file_required' => 'Une image doit être jointe dans le champ « file ».',
+        'type_unsupported' => 'Seules les photographies au format JPEG ou PNG sont acceptées.',
+        'invalid_image' => 'Le contenu du fichier n’est pas une image JPEG ou PNG valide, ou il dépasse les dimensions maximales autorisées.',
+        'too_large' => 'L’image dépasse la taille maximale autorisée.',
+    ],
     'errors' => [
+        'photo_read_rate_limited' => 'Vous avez atteint la limite de consultations de photographies d’élèves. Veuillez réessayer dans environ :minutes minutes.',
         'export_rate_limited' => 'Vous avez atteint la limite d\'exportations d\'inscriptions. Réessayez dans environ :minutes minutes.',
     ],
     'conflict' => [

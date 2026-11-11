@@ -284,6 +284,9 @@ final class StudentService
                 throw AlumErrors::conflict('student', 'alum.conflict.has_active_enrollments');
             }
 
+            // `datos.md §6`: la fotografía viva se purga al dar de baja al alumno (fila y objeto). Perezoso, como arriba.
+            app(StudentPhotoService::class)->purgeLive($student);
+
             $student->delete();
         });
     }
