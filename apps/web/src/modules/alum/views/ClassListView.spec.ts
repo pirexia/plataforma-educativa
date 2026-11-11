@@ -130,6 +130,8 @@ describe('CA-ALUM-070: lista de clase', () => {
 
     const params = lastList()
 
+    // Sin ?academic_year= en la URL (entrada por el menú) se envía el curso activo: el servidor lo exige.
+    expect(params.academic_year).toBe('Y2')
     expect(params.course).toBeUndefined()
     expect(params.group).toBeUndefined()
     expect(params.status).toBeUndefined()
@@ -231,8 +233,10 @@ describe('CA-ALUM-070 (RN-ALUM-40, RN-ACAD-42, INV-002): solicitud de cambio de 
       data: [year('Y1', '2025-2026', 'cerrado')],
     } as never)
 
-    await open()
+    const { wrapper } = await open()
 
+    expect(alumApi.listEnrollments).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain('No hay un curso académico activo ni elegido')
     expect(buttonByText('Solicitar cambio de grupo')).toBeUndefined()
     expect(buttonByText('Exportar')).toBeUndefined()
   })

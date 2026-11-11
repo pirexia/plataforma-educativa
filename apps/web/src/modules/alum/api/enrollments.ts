@@ -17,7 +17,7 @@ import type {
 import { buildQuery, encode } from './query'
 
 export interface ListEnrollmentsParams {
-  /** `public_id` del curso académico (el servidor usa el activo si se omite). */
+  /** `public_id` del curso académico. Obligatorio en `GET /enrollments` (`422 alum.validation.required` si falta). */
   academic_year?: PublicId
   course?: PublicId
   group?: PublicId

@@ -79,9 +79,10 @@ describe('CA-ALUM-064 / INV-009: las cuatro lenguas de alum tienen las mismas cl
     const used = new Set<string>()
 
     for (const file of sourceFiles(resolve(process.cwd(), 'src/modules/alum'))) {
-      for (const match of readFileSync(file, 'utf-8').matchAll(
-        /['"`](alum\.[A-Za-z0-9_.]+)['"`]/g,
-      )) {
+      // El `table-id` de un `DataTable` (`<modulo>.<nombre_snake_case>`, CA-CORE-176) no es una clave de texto.
+      const source = readFileSync(file, 'utf-8').replace(/table-id="[^"]*"/g, '')
+
+      for (const match of source.matchAll(/['"`](alum\.[A-Za-z0-9_.]+)['"`]/g)) {
         used.add(match[1]!)
       }
     }

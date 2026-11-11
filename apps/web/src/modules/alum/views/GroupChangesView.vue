@@ -233,7 +233,7 @@ const rowKey = (request: GroupChangeRequest): string => request.public_id
     <DataTable
       v-if="optionsReady && yearId !== null"
       :key="`${yearId}-${refresh}`"
-      table-id="alum.groupChanges"
+      table-id="alum.group_changes"
       :caption="t('alum.groupChanges.caption')"
       :columns="columns"
       mode="page"

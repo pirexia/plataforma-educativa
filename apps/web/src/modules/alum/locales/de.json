@@ -188,7 +188,7 @@
       "empty": "Die Schülerin bzw. der Schüler hat keine Einschreibungen.",
       "create": "Einschreiben",
       "createTitle": "Schülerin bzw. Schüler einschreiben",
-      "createDescription": "Einschreibung im gewählten Schuljahr. Die Gruppe ist optional und kann später zugewiesen werden.",
+      "createDescription": "Einschreibung im gewählten Schuljahr. Die Gruppe ist optional.",
       "course": "Jahrgang",
       "coursePlaceholder": "Jahrgang wählen",
       "group": "Gruppe",
@@ -236,7 +236,8 @@
       "empty": {
         "title": "Es gibt keine Einschreibungen zum Anzeigen",
         "text": "Probieren Sie andere Filter oder ein anderes Schuljahr."
-      }
+      },
+      "noYear": "Es gibt weder ein aktives noch ein gewähltes Schuljahr: Bitte wählen Sie eines aus, um die Klassenliste zu sehen."
     },
     "groupChanges": {
       "title": "Anträge auf Gruppenwechsel",

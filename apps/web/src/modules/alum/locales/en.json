@@ -188,7 +188,7 @@
       "empty": "The student has no enrolments.",
       "create": "Enrol",
       "createTitle": "Enrol the student",
-      "createDescription": "Enrolment in the selected academic year. The group is optional and can be assigned later.",
+      "createDescription": "Enrolment in the selected academic year. The group is optional.",
       "course": "Course",
       "coursePlaceholder": "Choose a course",
       "group": "Group",
@@ -236,7 +236,8 @@
       "empty": {
         "title": "There are no enrolments to show",
         "text": "Try other filters or another academic year."
-      }
+      },
+      "noYear": "There is no active or selected academic year: select one to see the class list."
     },
     "groupChanges": {
       "title": "Group change requests",

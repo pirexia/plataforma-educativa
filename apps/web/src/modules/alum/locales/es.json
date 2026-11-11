@@ -188,7 +188,7 @@
       "empty": "El alumno no tiene matrículas.",
       "create": "Matricular",
       "createTitle": "Matricular al alumno",
-      "createDescription": "Matrícula en el curso académico seleccionado. El grupo es opcional y puede asignarse después.",
+      "createDescription": "Matrícula en el curso académico seleccionado. El grupo es opcional.",
       "course": "Curso",
       "coursePlaceholder": "Elija un curso",
       "group": "Grupo",
@@ -236,7 +236,8 @@
       "empty": {
         "title": "No hay matrículas que mostrar",
         "text": "Pruebe con otros filtros u otro curso académico."
-      }
+      },
+      "noYear": "No hay un curso académico activo ni elegido: seleccione uno para ver la lista de clase."
     },
     "groupChanges": {
       "title": "Solicitudes de cambio de grupo",

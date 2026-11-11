@@ -2,9 +2,10 @@
 /**
  * `/alumnado/listas` (`docs/modulos/REQ-ALUM/funcional.md §10`, `REQ-ALUM-003`; `1.15-d` T2b, `CA-ALUM-070`,
  * `CA-ALUM-071`). Lista de clase: matrículas del curso académico elegido en el selector del *shell*
- * (`?academic_year=`, `RN-ACAD-40`), con curso de etapa y grupo **opcionales** (decisión del usuario 2026-11-11), con el
+ * (`?academic_year=`, `RN-ACAD-40`; sin parámetro, el curso activo), con curso de etapa y grupo **opcionales** (decisión del usuario 2026-11-11), con el
  * componente de tablas de `ADR-054`: modo `page`, estado en la URL **sin `q`** (esta lista no tiene búsqueda,
- * `RN-CORE-54`) y orden `name|enrolled_on`.
+ * `RN-CORE-54`) y orden `name|enrolled_on`. `GET /enrollments` **exige** `academic_year` (`422 alum.validation.required`
+ * si falta): se envía el curso **efectivo** (`selectedId`: URL o activo) y, sin curso resuelto, no se consulta y se avisa.
  *
  * - Exportación CSV con `matricula.exportar` (cola, `INV-012`): `POST /enrollments/exports` admite **un** valor por campo
  *   y ningún `q`, por eso los filtros son de valor único. Se permite también con un curso de solo lectura.
@@ -42,6 +43,10 @@ const year = useAcademicYear()
 const actions = useActions()
 
 const refresh = ref(0)
+
+/** El servidor exige el curso: el de la URL o el activo. Sin ninguno no se consulta ni se exporta. */
+const yearId = computed(() => year.selectedId.value)
+const noYear = computed(() => year.noActive.value && yearId.value === null)
 const requestOpen = ref(false)
 const requestTarget = ref<Enrollment | null>(null)
 
@@ -56,29 +61,31 @@ async function loadOptions(): Promise<void> {
   courseOptions.value = []
   groupOptions.value = []
 
-  const params = { academic_year: year.urlYear.value ?? undefined, per_page: OPTIONS_PER_PAGE }
-  const [courses, groups] = await Promise.allSettled([listCourses(params), listGroups(params)])
+  if (yearId.value !== null) {
+    const params = { academic_year: yearId.value, per_page: OPTIONS_PER_PAGE }
+    const [courses, groups] = await Promise.allSettled([listCourses(params), listGroups(params)])
 
-  // Si `acad` no responde (permiso, módulo), el filtro simplemente no se ofrece.
-  if (courses.status === 'fulfilled') {
-    courseOptions.value = courses.value.data.map((course) => ({
-      value: course.public_id,
-      label: course.name || course.code,
-    }))
-  }
+    // Si `acad` no responde (permiso, módulo), el filtro simplemente no se ofrece.
+    if (courses.status === 'fulfilled') {
+      courseOptions.value = courses.value.data.map((course) => ({
+        value: course.public_id,
+        label: course.name || course.code,
+      }))
+    }
 
-  if (groups.status === 'fulfilled') {
-    groupOptions.value = groups.value.data.map((group) => ({
-      value: group.public_id,
-      label: group.name || group.code,
-    }))
+    if (groups.status === 'fulfilled') {
+      groupOptions.value = groups.value.data.map((group) => ({
+        value: group.public_id,
+        label: group.name || group.code,
+      }))
+    }
   }
 
   optionsReady.value = true
 }
 
 onMounted(loadOptions)
-watch(() => year.urlYear.value, loadOptions)
+watch(yearId, loadOptions)
 
 const filters = computed<DataTableFilter[]>(() => {
   const result: DataTableFilter[] = []
@@ -202,7 +209,7 @@ const columns = computed<DataTableColumn<Enrollment>[]>(() => [
 
 const fetchEnrollments: DataTableFetcher<Enrollment> = (query) =>
   listEnrollments({
-    academic_year: year.urlYear.value ?? undefined,
+    academic_year: yearId.value ?? undefined,
     course: query.filters.course,
     group: query.filters.group,
     status: query.filters.status,
@@ -216,10 +223,10 @@ const fetchEnrollments: DataTableFetcher<Enrollment> = (query) =>
  * exportación lo exige. Sin curso resuelto no se ofrece (`canExport` falso).
  */
 const exportConfig = computed(() => ({
-  canExport: can('matricula.exportar') && year.selectedId.value !== null,
+  canExport: can('matricula.exportar') && yearId.value !== null,
   request: (exportFilters: Record<string, string>) =>
     exportEnrollments({
-      academic_year: year.selectedId.value ?? '',
+      academic_year: yearId.value ?? '',
       course: exportFilters.course,
       group: exportFilters.group,
       status: exportFilters.status,
@@ -250,12 +257,16 @@ const rowKey = (enrollment: Enrollment): string => enrollment.public_id
       {{ t('alum.classList.readOnlyYear') }}
     </p>
 
+    <p v-if="noYear" role="status" class="text-muted-foreground text-sm">
+      {{ t('alum.classList.noYear') }}
+    </p>
+
     <ActionNotices :message="actions.message.value" :action-error="actions.actionError.value" />
 
     <DataTable
-      v-if="optionsReady"
-      :key="`${year.urlYear.value ?? 'active'}-${refresh}`"
-      table-id="alum.classList"
+      v-if="optionsReady && yearId !== null"
+      :key="`${yearId}-${refresh}`"
+      table-id="alum.class_list"
       :caption="t('alum.classList.caption')"
       :columns="columns"
       mode="page"

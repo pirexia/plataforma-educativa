@@ -188,7 +188,7 @@
       "empty": "L'élève n'a aucune inscription.",
       "create": "Inscrire",
       "createTitle": "Inscrire l'élève",
-      "createDescription": "Inscription à l'année scolaire sélectionnée. Le groupe est facultatif et peut être attribué plus tard.",
+      "createDescription": "Inscription à l'année scolaire sélectionnée. Le groupe est facultatif.",
       "course": "Niveau",
       "coursePlaceholder": "Choisissez un niveau",
       "group": "Groupe",
@@ -236,7 +236,8 @@
       "empty": {
         "title": "Aucune inscription à afficher",
         "text": "Essayez d'autres filtres ou une autre année scolaire."
-      }
+      },
+      "noYear": "Il n'y a aucune année scolaire active ni sélectionnée : veuillez en choisir une pour voir la liste de classe."
     },
     "groupChanges": {
       "title": "Demandes de changement de groupe",
