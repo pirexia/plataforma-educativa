@@ -161,4 +161,12 @@ Solo cuota de OpenAI; no se mide en tokens de Claude. Registrar por revisión: p
 | 1.15-b T2b | implementer | endpoints matrícula, filtros GET /students, enrollments[], concurrencia | 217558 | 42 | 13.8 | | 98/98 informado; la sesión reejecutó 95/95 |
 | 1.15-b T2b | implementer (reanudación) | ámbito matricula.leer en enrollments[] y enrollment en StudentSummary (delta) | 14482 | 11 | 8.7 | | 97/97 reejecutado por la sesión |
 
+| 1.15-b T2c | implementer | exportación, OpenAPI, docs, CHANGELOG | 194256 | 53 | 9.3 | | 350/350 informado |
+| 1.15-b cierre | implementer (reanudaciones) | correcciones A-F (M1, M2, índice, E2E spec), import, test CA-040, #598/#599/#601 (delta acumulado) | 128385 | 76 | | | duración acumulada con esperas, no fiable |
+| 1.15-b cierre | db-reviewer | revisión | 84472 | 11 | 1.4 | | |
+| 1.15-b cierre | security-reviewer | revisión (paso crítico) | 149271 | 23 | 3.2 | | |
+| 1.15-b cierre | doc-precheck | pasada mecánica | 103288 | 11 | 1.4 | | |
+| 1.15-b cierre | doc-reviewer | revisión | 135882 | 40 | 2.9 | | |
+| 1.15-b cierre | janitor | 7 issues + correcciones documentales | 225083 | 37 | 7.4 | | |
+
 Medias por tipo de `1.15-a` sin recalcular: el paso `1.15` no está cerrado (faltan `-b`..`-d`); se recalculan al cerrar `1.15`.
