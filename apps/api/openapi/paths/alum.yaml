@@ -101,7 +101,7 @@ paths:
         Permiso `alumno.leer`, ámbito `todos` o `unidad_familiar`. Fuera de ámbito o inexistente (o de otro centro):
         `404` idéntico (RN-ALUM-64). Nombres por partes, fecha de nacimiento e idioma de la persona (de `Core`); el
         documento de identidad va **enmascarado**, nunca completo. `enrollments[]` (desde `1.15-b`) lista las matrículas vivas
-        del alumno con la forma de `Enrollment`; las de un curso cerrado que el sujeto no puede leer se omiten (RN-ALUM-23).
+        del alumno con la forma de `Enrollment`; las de un curso cerrado que el sujeto no puede leer se omiten (RN-ALUM-23). El ámbito de `matricula.leer` acota `enrollments[]`: sin ese permiso sale `[]`.
         Sin `emergency_contact`, `guardians[]` ni `photo`.
       tags: ['Alum / Alumnado']
       security: [{ SessionCookie: [] }]

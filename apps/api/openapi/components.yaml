@@ -2143,6 +2143,7 @@ components:
           description: >
             Matrículas vivas del alumno (`1.15-b`), con la forma de `GET /enrollments`, de la más reciente a la más
             antigua. Las de un curso cerrado que el sujeto no puede leer se omiten (RN-ALUM-23).
+            El ámbito de `matricula.leer` acota la lista: sin ese permiso sale `[]`.
           items: { $ref: '#/components/schemas/Enrollment' }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
