@@ -1,7 +1,7 @@
-# REQ-ALUM (pasos 1.15-a y 1.15-b), docs/modulos/REQ-ALUM/api.md §1 y §2. Convenciones de ADR-038.
+# REQ-ALUM (pasos 1.15-a, 1.15-b y 1.15-c), docs/modulos/REQ-ALUM/api.md §1 a §4. Convenciones de ADR-038.
 # `1.15-a`: alumnado (listado, alta, ficha, corrección, baja y restauración). `1.15-b`: matrícula (listado, alta, detalle,
 # edición, baja y anulación), ámbito `grupo` y los filtros de matrícula de `GET /students`. La exportación de la lista de
-# clase (`1.15-b` T2c), el cambio de grupo y la fotografía (`1.15-c`) se documentan con su entrega.
+# clase (`1.15-b` T2c). `1.15-c`: solicitudes de cambio de grupo (api.md §3) y fotografía del alumno (api.md §4).
 paths:
   /api/v1/students:
     get:
