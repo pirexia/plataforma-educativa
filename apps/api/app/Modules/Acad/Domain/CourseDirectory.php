@@ -14,6 +14,16 @@ interface CourseDirectory
     public function findById(int $id): ?CourseSummary;
 
     /**
+     * REQ-ALUM/funcional.md §15 (`1.15-b`, deuda #601; ampliación aditiva): los cursos de etapa **vivos** de esos ids internos en una
+     * sola consulta (los ya memoizados no se vuelven a pedir). Los ids que no existen, están borrados o son de otro centro
+     * no aparecen. Misma memoización por petición que `findById()`.
+     *
+     * @param  list<int>  $ids
+     * @return array<int, CourseSummary> por id interno
+     */
+    public function findManyById(array $ids): array;
+
+    /**
      * REQ-ALUM/funcional.md §5.2 (`RN-ALUM-26`, `RN-ACAD-21`), `1.15-b` (revisión de seguridad M2; ampliación aditiva): el
      * resumen del course **vivo** de ese id interno, releído **con bloqueo compartido** (`SELECT … FOR SHARE`) hasta el final
      * de la transacción en curso; `null` si no existe, está borrado o es de otro centro. Sin memoización: lee siempre de

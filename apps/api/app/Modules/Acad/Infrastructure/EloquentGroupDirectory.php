@@ -38,6 +38,29 @@ final class EloquentGroupDirectory implements GroupDirectory
         return $this->byId[$tenantId][$id] ?? $this->load(Group::query()->where('id', $id), $tenantId);
     }
 
+    public function findManyById(array $ids): array
+    {
+        $tenantId = $this->tenantContext->tenantId();
+        $unique = array_values(array_unique($ids));
+        $missing = array_values(array_filter($unique, fn (int $id): bool => ! isset($this->byId[$tenantId][$id])));
+
+        if ($missing !== []) {
+            foreach (Group::query()->whereIn('id', $missing)->with('course.educationLevel')->get() as $group) {
+                $this->summarize($group, $tenantId);
+            }
+        }
+
+        $result = [];
+
+        foreach ($unique as $id) {
+            if (isset($this->byId[$tenantId][$id])) {
+                $result[$id] = $this->byId[$tenantId][$id];
+            }
+        }
+
+        return $result;
+    }
+
     public function lockAliveForShare(int $id): ?GroupSummary
     {
         if (DB::transactionLevel() === 0) {
@@ -53,10 +76,16 @@ final class EloquentGroupDirectory implements GroupDirectory
     private function load($query, int $tenantId): ?GroupSummary
     {
         $group = $query->with('course.educationLevel')->first();
-        $course = $group?->course;
+
+        return $group === null ? null : $this->summarize($group, $tenantId);
+    }
+
+    private function summarize(Group $group, int $tenantId): ?GroupSummary
+    {
+        $course = $group->course;
         $level = $course?->educationLevel;
 
-        if ($group === null || $course === null || $level === null) {
+        if ($course === null || $level === null) {
             return null;
         }
 

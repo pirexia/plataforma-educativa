@@ -37,6 +37,29 @@ final class EloquentCourseDirectory implements CourseDirectory
         return $this->byId[$tenantId][$id] ?? $this->load(Course::query()->where('id', $id), $tenantId);
     }
 
+    public function findManyById(array $ids): array
+    {
+        $tenantId = $this->tenantContext->tenantId();
+        $unique = array_values(array_unique($ids));
+        $missing = array_values(array_filter($unique, fn (int $id): bool => ! isset($this->byId[$tenantId][$id])));
+
+        if ($missing !== []) {
+            foreach (Course::query()->whereIn('id', $missing)->get() as $course) {
+                $this->summarize($course, $tenantId);
+            }
+        }
+
+        $result = [];
+
+        foreach ($unique as $id) {
+            if (isset($this->byId[$tenantId][$id])) {
+                $result[$id] = $this->byId[$tenantId][$id];
+            }
+        }
+
+        return $result;
+    }
+
     public function lockAliveForShare(int $id): ?CourseSummary
     {
         if (DB::transactionLevel() === 0) {
@@ -53,10 +76,11 @@ final class EloquentCourseDirectory implements CourseDirectory
     {
         $course = $query->first();
 
-        if ($course === null) {
-            return null;
-        }
+        return $course === null ? null : $this->summarize($course, $tenantId);
+    }
 
+    private function summarize(Course $course, int $tenantId): CourseSummary
+    {
         $summary = new CourseSummary(
             $course->id,
             $course->public_id,

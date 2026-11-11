@@ -71,6 +71,19 @@ final class EnrollmentService
     }
 
     /**
+     * Matrícula para escribir (edición, baja, anulación; ámbito `todos`): como `findScoped()`, un curso académico que el
+     * actor no puede leer (cerrado sin `curso_historico.leer`) es `404`, no `409 academic-year-closed` (#598, `RN-ALUM-23`,
+     * `-64`: no revelar que existe).
+     */
+    private function findWritable(string $publicId, User $actor): Enrollment
+    {
+        $enrollment = $this->find($publicId);
+        $this->assertYearReadable((int) $enrollment->academic_year_id, $actor);
+
+        return $enrollment;
+    }
+
+    /**
      * Detalle acotado por ámbito y por curso legible (`ADR-044 §4.2`, `RN-ALUM-23`, `-64`): `404` si no existe, es de
      * otro centro, no se alcanza o es de un curso cerrado sin `curso_historico.leer` (`AcademicYearReadDeniedException`,
      * que `curso` traduce a `404`).
@@ -132,6 +145,8 @@ final class EnrollmentService
                 'public_id' => $student?->public_id,
                 'display_name' => $ref === null ? '' : $ref->displayName,
             ]);
+            // Efímero y no serializado (`EnrollmentResource` lee solo `student_view`): lo reutiliza la exportación.
+            $enrollment->setAttribute('student_person_id', $student === null ? null : (int) $student->person_id);
         }
     }
 
@@ -153,10 +168,14 @@ final class EnrollmentService
 
         $years = $this->years->findManyById(array_values(array_unique(array_map(static fn (Enrollment $e): int => (int) $e->academic_year_id, $list))));
 
+        // Una consulta por tipo para toda la lista (#601), no una por matrícula.
+        $courses = $this->courses->findManyById(array_values(array_unique(array_map(static fn (Enrollment $e): int => (int) $e->course_id, $list))));
+        $groups = $this->groups->findManyById(array_values(array_unique(array_filter(array_map(static fn (Enrollment $e): ?int => $e->group_id === null ? null : (int) $e->group_id, $list)))));
+
         foreach ($list as $enrollment) {
             $year = $years[(int) $enrollment->academic_year_id] ?? null;
-            $course = $this->courses->findById((int) $enrollment->course_id);
-            $group = $enrollment->group_id === null ? null : $this->groups->findById((int) $enrollment->group_id);
+            $course = $courses[(int) $enrollment->course_id] ?? null;
+            $group = $enrollment->group_id === null ? null : ($groups[(int) $enrollment->group_id] ?? null);
 
             $enrollment->setAttribute('year_view', ['public_id' => $year?->publicId, 'code' => $year?->code]);
             $enrollment->setAttribute('course_view', [
@@ -394,7 +413,7 @@ final class EnrollmentService
      */
     public function update(User $actor, string $publicId, array $input): Enrollment
     {
-        $found = $this->find($publicId);
+        $found = $this->findWritable($publicId, $actor);
 
         foreach (self::IMMUTABLE_KEYS as $key) {
             if (array_key_exists($key, $input)) {
@@ -454,7 +473,7 @@ final class EnrollmentService
      */
     public function withdraw(User $actor, string $publicId, array $input): Enrollment
     {
-        $found = $this->find($publicId);
+        $found = $this->findWritable($publicId, $actor);
 
         return DB::transaction(function () use ($found, $input): Enrollment {
             [, $enrollment] = $this->lockForWrite($found);
@@ -489,7 +508,7 @@ final class EnrollmentService
      */
     public function annul(User $actor, string $publicId): void
     {
-        $found = $this->find($publicId);
+        $found = $this->findWritable($publicId, $actor);
 
         DB::transaction(function () use ($found): void {
             [, $enrollment] = $this->lockForWrite($found);
@@ -577,13 +596,28 @@ final class EnrollmentService
 
     /**
      * Validación síncrona de `POST /enrollments/exports` (`api.md §6`): el curso académico existe y es legible; si no,
-     * la misma respuesta que el listado. No lee filas.
+     * la misma respuesta que el listado. Aplica además el tope `core.export_max_rows` (#599): `422
+     * core.validation.export_range_too_large`, como `audit_logs` y `users`.
      *
      * @param  array{academic_year?: ?string, course?: ?string, group?: ?string, status?: ?string}  $filters
      */
     public function assertExportable(PermissionDecision $decision, User $subject, array $filters): void
     {
-        $this->filteredQuery($decision, $subject, $filters);
+        $query = $this->filteredQuery($decision, $subject, $filters);
+
+        // #599, `RNF-LIM-004` / `RN-CORE-85` (mismo código, mismo momento y mismo tope que los `kind` de `Core`): el tope
+        // cuenta lo que se exporta, antes de encolar.
+        $max = (int) config('core.export_max_rows');
+
+        if ($query->count() > $max) {
+            throw ApiException::validation([
+                'filters' => [[
+                    'code' => 'core.validation.export_range_too_large',
+                    'message' => __('core.validation.export_range_too_large'),
+                    'params' => ['max_rows' => $max],
+                ]],
+            ]);
+        }
     }
 
     /**
@@ -608,23 +642,22 @@ final class EnrollmentService
                 return;
             }
 
+            // `attachViews()` ya leyó alumnos y personas del lote: aquí solo quedan fecha de nacimiento y nombres por partes.
             $this->attachViews($batch);
-            $students = $this->students->byIds(array_values(array_unique(array_map(static fn (Enrollment $e): int => (int) $e->student_id, $batch))));
-            $personIds = array_values(array_unique(array_map(static fn ($s): int => (int) $s->person_id, $students)));
+            $personIds = array_values(array_unique(array_filter(array_map(static fn (Enrollment $e): ?int => $e->getAttribute('student_person_id'), $batch))));
             $births = $this->people->birthDatesByIds($personIds);
             $contacts = $this->people->contactDetailsByIds($personIds);
 
             $rows = [];
 
             foreach ($batch as $enrollment) {
-                $student = $students[(int) $enrollment->student_id] ?? null;
-                $personId = $student === null ? null : (int) $student->person_id;
+                $personId = $enrollment->getAttribute('student_person_id');
                 $contact = $personId === null ? null : ($contacts[$personId] ?? null);
                 $family = trim(($contact === null ? '' : ($contact->familyName1 ?? '')).' '.($contact === null ? '' : ($contact->familyName2 ?? '')));
 
                 $rows[] = [
                     $enrollment->public_id,
-                    $student?->public_id,
+                    $enrollment->getAttribute('student_view')['public_id'] ?? null,
                     $family === '' ? null : $family,
                     $contact?->givenName,
                     $personId === null ? null : ($births[$personId] ?? null)?->birthDate,
