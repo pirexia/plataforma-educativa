@@ -6,6 +6,14 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-11 · `feat(files)`: S-1a, Garage, URL firmadas y test de conformidad (`ADR-076`)
+
+- Servicio `garage` (perfil `full`, imagen `v2.5.0` fijada por digest), `infra/garage/garage.toml` e `init.sh` idempotente; MinIO y el servidor S3 falso siguen hasta `S-1b`. Experimento previo: `docs/proceso/experimento-garage-s1a.md`.
+- Disco `s3`: sumas de verificación `when_required`; `AWS_URL_SIGNING_ENDPOINT` (firma con el *endpoint* del navegador, operación con el interno) y tope global `FILES_SIGNED_URL_MAX_TTL_MINUTES` (15) en `PrivateObjectStore`.
+- Test de conformidad `tests/StorageConformance` (grupo `storage-conformance`, `composer test:conformance`, fuera de `composer test`, se salta sin `STORAGE_CONFORMANCE_ENABLED=1`) y job `Conformidad del almacén (Garage)` en `ci-api.yml` (todo PR y `develop`; no *check* requerido). Renovate sube juntos el digest de `compose.yaml` y el de CI.
+- Discrepancia con `ADR-076 §5.4`: Garage responde `400` (no `403`) a una URL caducada; el test acepta ambos.
+- Documentación: `SYSADMIN.md`, `ARCHITECTURE.md §2` y `§4.1`, `RUNBOOK.md §2.1`. Los manuales y `operacion.md` de módulo que mencionan MinIO se actualizan en `S-1b`.
+
 ## 2026-11-11 · `feat(alum)`: 1.15-d pantallas y E2E de alumnado (`REQ-ALUM-001`; criterios `CA-ALUM-070`, `-071` y `-072`)
 
 - SPA `alum` (módulo web nuevo): T1 listado de alumnado con filtros en la URL, ficha y fotografía; T2 matrículas en la ficha (alta, baja con fecha y motivo, anulación), lista de clase con exportación y solicitudes de cambio de grupo (solicitar, aprobar, rechazar con nota obligatoria, cancelar; la propia solicitud no se aprueba). Vínculos de tutor y consentimientos de imagen se piden bajo demanda porque su lectura se audita. Con el curso de solo lectura no hay acciones de escritura y se puede exportar (`RN-ACAD-42`). Textos en es-ES, en, de y fr.
