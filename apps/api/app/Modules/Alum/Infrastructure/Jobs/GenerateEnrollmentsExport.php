@@ -41,6 +41,11 @@ class GenerateEnrollmentsExport implements ShouldQueue
         public readonly int $dataExportId,
         public readonly string $tenantPublicId,
     ) {
+        // Falla en cerrado (revisión de seguridad B3): una ruta `tenants//exports/…` mezclaría objetos de centros.
+        if ($tenantPublicId === '') {
+            throw new \InvalidArgumentException('La exportación necesita el public_id del centro.');
+        }
+
         $this->onQueue('default');
     }
 

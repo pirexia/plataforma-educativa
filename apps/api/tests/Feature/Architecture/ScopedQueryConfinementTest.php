@@ -134,8 +134,8 @@ function scopedResourceMap(): array
             ],
         ],
         // 1.15-b (REQ-ALUM/permisos.md §3.1, ampliación del mapa con la especificación, funcional.md §15): `matricula.leer`
-        // admite `grupo` y `unidad_familiar`. `Enrollment` y dos ficheros sancionados: `EnrollmentService` (T2: aún no
-        // existe, el test de existencia de ficheros del mapa falla a propósito hasta entonces, `funcional.md §15`) y el
+        // admite `grupo` y `unidad_familiar`. `Enrollment` y dos ficheros sancionados: `EnrollmentService` (T2, ya
+        // construido: el test de existencia de ficheros del mapa lo comprueba) y el
         // veto de borrado de `acad` (RN-ALUM-26), que cuenta matrículas vivas del centro entero, sin ámbito de actor.
         // `GroupChangeRequest` entra con 1.15-c.
         'matricula' => [

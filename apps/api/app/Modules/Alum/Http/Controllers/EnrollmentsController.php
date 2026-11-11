@@ -96,10 +96,16 @@ class EnrollmentsController extends AlumController
         $filters = $request->payload();
         $service->assertExportable($this->decision($request), $actor, $filters);
 
+        // Falla en cerrado (revisión de seguridad B3): sin el `public_id` del centro no hay ruta de objeto ni contexto del job.
+        $tenant = Tenant::query()->find($tenantContext->tenantId());
+
+        if ($tenant === null || $tenant->public_id === '') {
+            throw new \LogicException('No se pudo resolver el centro de la exportación.');
+        }
+
         $export = $exports->request('alum_enrollments', 'csv', $filters, $actor);
 
-        $tenant = Tenant::query()->find($tenantContext->tenantId());
-        GenerateEnrollmentsExport::dispatch($export->id, $tenant->public_id ?? '');
+        GenerateEnrollmentsExport::dispatch($export->id, $tenant->public_id);
 
         return response()->json(['public_id' => $export->public_id, 'status' => $export->status], 202);
     }

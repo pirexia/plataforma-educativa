@@ -112,6 +112,8 @@ erDiagram
 
 **Implementado (`1.15-b` T1b)**: la FK compuesta a `groups` `(tenant_id, course_id, group_id)` se cubre con el índice no único `enrollments_tenant_course_group_idx` (`AR-16`); **no** se creó el `UNIQUE (tenant_id, course_id, group_id, id)` opcional de §1.2, que solo hará falta cuando `group_change_requests` (`1.15-c`) apunte a la matrícula (decide `db-reviewer`; si se crea, el índice no único sobra).
 
+**Implementado (`1.15-b`, revisión de `db-reviewer`)**: la FK a `academic_years` se declara con `tenantForeignId(…, withIndex: false)`; el índice `(tenant_id, academic_year_id, course_id)` la cubre por su prefijo (`AR-16`) y el automático `enrollments__academic_year_id_tenant_idx` era redundante. La migración `create_enrollments` se editó (tabla aún sin desplegar); un entorno de desarrollo ya migrado conserva el índice sobrante hasta recrear la base.
+
 Índices de FK no listados: los añade `tenantForeignId()` o los pide `AR-16` (#407); `db-reviewer` comprueba redundancias (precedente `REQ-FAM-UNIT §15`, D-12).
 
 **Particionado**: no. `enrollments` crece ~1.200 filas por centro y curso (`1.15b`: 300-1.200 alumnos); muy por debajo del umbral que justificaría particionar por curso académico (`ADR-029`).

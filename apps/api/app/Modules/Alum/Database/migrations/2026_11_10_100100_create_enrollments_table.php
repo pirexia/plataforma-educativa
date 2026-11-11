@@ -22,7 +22,9 @@ return new class extends Migration
         TenantMigration::tenantTable('enrollments', function (Blueprint $table): void {
             $table->ulid('public_id')->unique();
             TenantMigration::tenantForeignId($table, 'student_id', 'students');
-            TenantMigration::tenantForeignId($table, 'academic_year_id', 'academic_years');
+            // Sin índice propio (`withIndex: false`): `enrollments_tenant_year_course_idx` empieza por `(tenant_id, academic_year_id)`
+            // y ya cubre la FK (`AR-16`); uno más solo encarecería cada escritura (revisión de `db-reviewer`, 1.15-b).
+            TenantMigration::tenantForeignId($table, 'academic_year_id', 'academic_years', null, false);
             $table->foreignId('course_id');
             $table->foreignId('group_id')->nullable();
             $table->text('status')->default('activa');
