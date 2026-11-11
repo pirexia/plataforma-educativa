@@ -1,9 +1,9 @@
 # ADR-076 · Almacenamiento de objetos: la API S3 como contrato único, Garage fijado por versión y digest en desarrollo, CI y E2E, y todo acceso por el almacén privado con prefijo del centro
 
-**Estado**: **ACEPTADA** (usuario, 2026-11-11). Las preguntas abiertas de `§10` se resuelven así: la 2 (contrato en `App\Support\Files`) y la 3 (Garage solo en el perfil `full`) con la recomendación; las 4, 5 y 6 conservan el valor propuesto y siguen **abiertas** (no las contestó el usuario); la 1 (dónde vive el expediente de cumplimiento) sigue **pendiente**. La primera entrega de `§8` se parte en `a` y `b` (recomendación de la sesión, aplicada al aceptar).
+**Estado**: **ACEPTADA** (usuario, 2026-11-11). Las preguntas abiertas de `§10` se resuelven así: la 2 (contrato en `App\Support\Files`) y la 3 (Garage solo en el perfil `full`) con la recomendación; las 4, 5 y 6 conservan el valor propuesto y siguen **abiertas** (no las contestó el usuario); la 1 (dónde vive el expediente de cumplimiento) sigue **pendiente**; la 7 (issue #38) se cierra con la entrega `S-1b`. La primera entrega de `§8` se parte en `a` y `b` (recomendación de la sesión, aplicada al aceptar).
 **Fecha**: 2026-11-11
 **Origen**: decisiones del usuario del 2026-11-11: la API S3 es el contrato único de almacenamiento (Flysystem S3 tras `PrivateObjectStore`) y `OPEN-STO-02` = A (Garage sustituye a MinIO y al servidor S3 falso en desarrollo, CI y E2E; no en producción).
-**Afecta a**: `compose.yaml`, `infra/` (nuevo `infra/garage/`, retirada de `infra/quadlet/minio-data.volume`), `apps/api/config/filesystems.php`, `apps/api/app/Support/Files/`, los 14 ficheros con acceso directo al disco (§3.2), `apps/api/tests/Support/e2e-fake-s3.php`, `apps/web/scripts/e2e-real-*.sh`, `apps/web/scripts/landing-shots.sh`, los *specs* de E2E de §7.1, `.github/workflows/ci-api.yml` y la documentación viva de §7.3.
+**Afecta a**: `compose.yaml`, `infra/` (nuevo `infra/garage/`, retirada de `infra/quadlet/minio-data.volume`), `apps/api/config/filesystems.php`, `apps/api/app/Support/Files/`, los 15 ficheros con acceso directo al disco (§3.2), `apps/api/tests/Support/e2e-fake-s3.php`, `apps/web/scripts/e2e-real-*.sh`, `apps/web/scripts/landing-shots.sh`, los *specs* de E2E de §7.1, `.github/workflows/ci-api.yml` y la documentación viva de §7.3.
 **Concreta sin sustituir**: `ADR-013` (almacenamiento compatible con S3, URL firmadas de caducidad corta, sin acceso público), `ADR-033 §9` (prefijo `tenants/{public_id}/`) y `ADR-068 §5.3` (`PrivateObjectStore`).
 **Sustituye en parte a**:
 - `ADR-030`, punto «Perfil de desarrollo reducido»: donde dice «MinIO» pasa a leerse «Garage (`§2.2` de este ADR)». El resto del punto sigue vigente.
@@ -72,7 +72,7 @@ Todo objeto que pertenezca a un centro: activos de marca, ficheros de importaci�
 
 Excepción, explícita: objetos de plataforma no ligados a un centro, si llegan a existir, irán por una variante de plataforma separada, nunca por el disco crudo. Hoy no hay ninguno.
 
-### 3.2 El hueco: acceso directo al disco (16 llamadas en 14 ficheros)
+### 3.2 El hueco: acceso directo al disco (16 llamadas en 15 ficheros)
 
 | Fichero (`apps/api/app/Modules/…`) | Operaciones |
 |---|---|
@@ -92,7 +92,7 @@ Excepción, explícita: objetos de plataforma no ligados a un centro, si llegan 
 | `Core/Http/Resources/UserImportResource.php` | `temporaryUrl` |
 | `Alum/Infrastructure/Jobs/GenerateEnrollmentsExport.php` | `put` (clave interpolada) |
 
-(14 ficheros; `ValidateUserImport.php` tiene dos llamadas. La lista exacta se regenera con `grep` al implementar.)
+(15 ficheros; `ValidateUserImport.php` tiene dos llamadas. La lista exacta se regenera con `grep` al implementar.)
 
 ### 3.3 Propuesta de interfaz (no se implementa en este ADR)
 
@@ -246,7 +246,7 @@ Los ADR (`ADR-030`, `ADR-037`, `ADR-049`, `ADR-061` y cualquier otro que cite Mi
 | Mantener el servidor S3 falso | No valida firmas ni caducidad: es justo lo que hay que probar. |
 | Azure Blob o Google Cloud Storage con *driver* nativo | Rompe el contrato único S3, duplica la configuración y ata el código a un proveedor sin decidir (`OPEN-STO-01`). |
 
-**Licencia de Garage (AGPLv3)**: se usa sin modificar, como proceso aparte, comunicándose por HTTP en desarrollo y CI. No se enlaza con la aplicación, no se distribuye en las imágenes del producto y no se ofrece como servicio a terceros. La AGPLv3 impone obligaciones al distribuir el programa o al ofrecer una **versión modificada** a usuarios por red (§13); ninguno de los dos casos se da, así que no afecta al código del proyecto. Una réplica **pública** de la imagen sí sería distribución (habría que ofrecer el código fuente correspondiente): si se replica, en un registro privado. Esta lectura no es asesoramiento legal; si se quisiera certeza formal, va al expediente de cumplimiento.
+**Licencia de Garage (AGPLv3)**: se usa sin modificar, como proceso aparte, comunicándose por HTTP en desarrollo y CI. No se enlaza con la aplicación, no se distribuye en las imágenes del producto y no se ofrece como servicio a terceros. La AGPLv3 impone obligaciones al distribuir el programa o al ofrecer una **versión modificada** a usuarios por red (AGPLv3 §13); ninguno de los dos casos se da, así que no afecta al código del proyecto. Una réplica **pública** de la imagen sí sería distribución (habría que ofrecer el código fuente correspondiente): si se replica, en un registro privado. Esta lectura no es asesoramiento legal; si se quisiera certeza formal, va al expediente de cumplimiento.
 
 ## 10 · Preguntas abiertas y lo no verificado
 
@@ -256,7 +256,7 @@ Los ADR (`ADR-030`, `ADR-037`, `ADR-049`, `ADR-061` y cualquier otro que cite Mi
 - No se han generado URL prefirmadas con `aws-sdk-php` 3.403.1 contra Garage, ni comprobado que Garage devuelva `403` al caducar o que rechace o ignore las cabeceras de suma de verificación con `when_supported`.
 - No se ha comprobado que Laravel pase `request_checksum_calculation`/`response_checksum_validation` del array del disco al `S3Client` (se espera que sí, porque Laravel entrega la configuración del disco al cliente).
 - El estado de MinIO (archivado, sin imágenes desde octubre de 2025) viene del estudio previo de esta sesión; no se ha vuelto a comprobar.
-- Recuento de llamadas directas: 16 en 14 ficheros (`grep` de hoy) frente a «unas 20» del estudio previo. Puede que el estudio contara tests o `Storage::fake`; no se ha conciliado.
+- Recuento de llamadas directas: 16 en 15 ficheros (`grep` de hoy) frente a «unas 20» del estudio previo. Puede que el estudio contara tests o `Storage::fake`; no se ha conciliado.
 
 **Preguntas para el usuario**
 
