@@ -17,7 +17,7 @@
  * - Accesibilidad (WCAG 2.2 AA): estados con texto e icono, botones con nombre único, baja con confirmación
  *   (`RN-CORE-64`), errores junto a la acción en una región `alert`.
  */
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Ban, CircleCheck, CircleHelp, CircleX, Siren } from '@lucide/vue'
 import { i18n, useT } from '@/i18n'
@@ -417,6 +417,23 @@ const consentColumns = computed<DataTableColumn<ImageConsent>[]>(() => [
 function consentIcon(state: string) {
   return state === 'autorizo' ? CircleCheck : state === 'no_autorizo' ? CircleX : CircleHelp
 }
+
+/**
+ * La `RouterView` no se remonta al cambiar `:publicId`: se descartan los datos, la foto (el panel se desmonta con la
+ * ficha), los vínculos y los consentimientos del alumno anterior y se carga el nuevo (`INV-002`, datos de personas).
+ */
+watch(publicId, () => {
+  data.value = null
+  links.value = null
+  linksError.value = null
+  consents.value = null
+  consentsError.value = null
+  formOpen.value = false
+  enrollOpen.value = false
+  withdrawOpen.value = false
+  changeOpen.value = false
+  void load()
+})
 </script>
 
 <template>

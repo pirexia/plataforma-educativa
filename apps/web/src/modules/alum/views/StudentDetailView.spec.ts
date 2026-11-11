@@ -388,6 +388,97 @@ describe('CA-ALUM-070 / RN-ALUM-50 a RN-ALUM-52: fotografía', () => {
     expect(window.localStorage.length).toBe(0)
   })
 
+  it.each([
+    ['vacío', ''],
+    ['mal formado', 'no-es-una-fecha'],
+    ['vencido por reloj desfasado', '2000-01-01T00:00:00Z'],
+    ['lejano (1 día)', new Date(Date.now() + 86_400_000).toISOString()],
+  ])(
+    'CA-ALUM-070: con expires_at %s la imagen se retira con el tope de 5 minutos',
+    async (_label, expiresAt) => {
+      vi.mocked(alumApi.getStudent).mockResolvedValue(student({ has_photo: true }) as never)
+      vi.mocked(alumApi.getStudentPhotoUrl).mockResolvedValue({
+        url: 'https://almacen.example.com/firmada/s1.jpg?firma=abc',
+        expires_at: expiresAt,
+      })
+
+      const { wrapper } = await open()
+
+      vi.useFakeTimers()
+      await buttonByText('Mostrar fotografía')!.click()
+      await flushPromises()
+
+      expect(wrapper.find('img').exists()).toBe(true)
+
+      await vi.advanceTimersByTimeAsync(5 * 60 * 1000 - 1000)
+      expect(wrapper.find('img').exists()).toBe(true)
+
+      await vi.advanceTimersByTimeAsync(2000)
+      await flushPromises()
+
+      expect(wrapper.find('img').exists()).toBe(false)
+      expect(wrapper.text()).toContain('El enlace de la fotografía ha caducado')
+    },
+  )
+
+  it('CA-ALUM-070: con una caducidad válida más corta que el tope, manda la caducidad', async () => {
+    vi.mocked(alumApi.getStudent).mockResolvedValue(student({ has_photo: true }) as never)
+    vi.mocked(alumApi.getStudentPhotoUrl).mockResolvedValue({
+      url: 'https://almacen.example.com/firmada/s1.jpg?firma=abc',
+      expires_at: new Date(Date.now() + 60_000).toISOString(),
+    })
+
+    const { wrapper } = await open()
+
+    vi.useFakeTimers()
+    await buttonByText('Mostrar fotografía')!.click()
+    await flushPromises()
+    await vi.advanceTimersByTimeAsync(61_000)
+    await flushPromises()
+
+    expect(wrapper.find('img').exists()).toBe(false)
+  })
+
+  it('CA-ALUM-070 (INV-002): al cambiar :publicId se descartan datos, foto, vínculos y consentimientos del anterior', async () => {
+    vi.mocked(alumApi.getStudent).mockImplementation(((id: string) =>
+      Promise.resolve(
+        id === 'S1'
+          ? student({ has_photo: true })
+          : student({
+              public_id: 'S9',
+              person: { public_id: 'P9' },
+              display_name: 'Ana Ejemplo Vidal',
+              has_photo: false,
+            }),
+      )) as never)
+    vi.mocked(alumApi.getStudentPhotoUrl).mockResolvedValue({
+      url: 'https://almacen.example.com/firmada/s1.jpg?firma=abc',
+      expires_at: new Date(Date.now() + 300_000).toISOString(),
+    })
+    session.__setPermissions(['alumno.leer', 'vinculo_tutor.leer', 'consentimiento_imagen.leer'])
+
+    const { wrapper, router } = await open()
+
+    await buttonByText('Mostrar fotografía')!.click()
+    await flushPromises()
+    await buttonByText('Mostrar vínculos')!.click()
+    await flushPromises()
+
+    expect(wrapper.find('img').exists()).toBe(true)
+    expect(wrapper.text()).toContain('Lucas Ejemplo Ruiz')
+    expect(wrapper.text()).toContain('Madre')
+
+    await router.push('/alumnado/S9')
+    await flushPromises()
+
+    expect(alumApi.getStudent).toHaveBeenLastCalledWith('S9')
+    expect(wrapper.text()).toContain('Ana Ejemplo Vidal')
+    expect(wrapper.text()).not.toContain('Lucas Ejemplo Ruiz')
+    expect(wrapper.find('img').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('Madre')
+    expect(buttonByText('Mostrar vínculos')).toBeDefined()
+  })
+
   it('un 429 al pedir la URL muestra el mensaje del servidor y no pinta imagen', async () => {
     vi.mocked(alumApi.getStudent).mockResolvedValue(student({ has_photo: true }) as never)
     vi.mocked(alumApi.getStudentPhotoUrl).mockRejectedValue(

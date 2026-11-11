@@ -30,6 +30,8 @@ const loading = ref(false)
 const error = ref<string | null>(null)
 const expired = ref(false)
 const replacing = ref(false)
+/** Tope de visibilidad de la fotografía una vez cargada. */
+const MAX_VISIBLE_MS = 5 * 60 * 1000
 let timer: ReturnType<typeof setTimeout> | null = null
 
 const canShow = computed(() => props.hasPhoto)
@@ -58,12 +60,17 @@ async function show(): Promise<void> {
 
     url.value = result.url
 
-    if (Number.isFinite(remaining) && remaining > 0) {
-      timer = setTimeout(() => {
-        url.value = null
-        expired.value = true
-      }, remaining)
-    }
+    // Tope fijo (la URL firmada caduca pronto): el menor entre el restante válido y 5 min; con un valor vacío,
+    // mal formado o vencido por reloj desfasado, 5 min. La imagen ya cargada nunca queda visible sin límite.
+    const delay =
+      Number.isFinite(remaining) && remaining > 0
+        ? Math.min(remaining, MAX_VISIBLE_MS)
+        : MAX_VISIBLE_MS
+
+    timer = setTimeout(() => {
+      url.value = null
+      expired.value = true
+    }, delay)
   } catch (err) {
     url.value = null
     error.value = problemDetail(err) ?? t('alum.errors.unexpected')
