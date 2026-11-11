@@ -14,6 +14,10 @@
         <testsuite name="Concurrency">
             <directory>tests/Concurrency</directory>
         </testsuite>
+        <!-- ADR-076 §5: requiere un S3 real (Garage); `composer test:conformance`. No entra en `composer test`. -->
+        <testsuite name="StorageConformance">
+            <directory>tests/StorageConformance</directory>
+        </testsuite>
     </testsuites>
     <source>
         <include>

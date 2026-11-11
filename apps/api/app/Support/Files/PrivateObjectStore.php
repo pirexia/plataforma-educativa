@@ -4,8 +4,10 @@ namespace App\Support\Files;
 
 use App\Support\Tenancy\Tenant;
 use App\Support\Tenancy\TenantContext;
+use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Illuminate\Contracts\Filesystem\Filesystem;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
@@ -52,7 +54,49 @@ final class PrivateObjectStore
     {
         $this->assertOwn($key);
 
-        return $this->disk()->temporaryUrl($key, $expiresAt);
+        return $this->signingDisk()->temporaryUrl($key, $this->capExpiry($expiresAt));
+    }
+
+    /** ADR-076 §4: la caducidad nunca supera `files.signed_url_max_ttl_minutes`. No se registra la clave ni la URL. */
+    private function capExpiry(CarbonInterface $expiresAt): CarbonInterface
+    {
+        $max = max(1, (int) config('files.signed_url_max_ttl_minutes', 15));
+        $limit = Carbon::now()->addMinutes($max);
+
+        if ($expiresAt->greaterThan($limit)) {
+            Log::warning('Caducidad de URL firmada recortada al máximo global.', ['max_minutes' => $max]);
+
+            return $limit;
+        }
+
+        return $expiresAt;
+    }
+
+    /**
+     * Disco con el que se firma: el de `signing_endpoint` si el disco S3 lo declara (ADR-076 §4; la firma SigV4 incluye
+     * `Host`, así que debe ser el que alcanza el navegador); si no, el disco de operación. Nunca se opera con él.
+     */
+    private function signingDisk(): Filesystem
+    {
+        $name = $this->diskName();
+        $config = config("filesystems.disks.{$name}");
+        $signing = is_array($config) ? ($config['signing_endpoint'] ?? null) : null;
+
+        if (! is_array($config) || ($config['driver'] ?? null) !== 's3' || ! is_string($signing) || $signing === '') {
+            return $this->disk();
+        }
+
+        $this->disk(); // misma guarda de entorno
+
+        // ADR-076 §4: fuera de desarrollo la URL firmada viaja al navegador y no puede salir en claro (falla en cerrado).
+        if (app()->environment(['production', 'staging']) && ! str_starts_with(strtolower($signing), 'https://')) {
+            throw new RuntimeException('El endpoint de firma (AWS_URL_SIGNING_ENDPOINT) debe ser https en production y staging.');
+        }
+
+        unset($config['signing_endpoint'], $config['url']);
+        $config['endpoint'] = $signing;
+
+        return Storage::build($config);
     }
 
     public function exists(string $key): bool
@@ -131,13 +175,19 @@ final class PrivateObjectStore
      */
     private function disk(): Filesystem
     {
-        $configured = config('files.disk');
-        $name = is_string($configured) && $configured !== '' ? $configured : (string) config('filesystems.default');
+        $name = $this->diskName();
 
         if (config("filesystems.disks.{$name}.driver") === 'local' && app()->environment(['production', 'staging'])) {
             throw new RuntimeException('El almacenamiento privado no puede ser un disco local: configura FILESYSTEM_DISK=s3 y las variables AWS_* (en desarrollo, MinIO con el perfil full).');
         }
 
         return Storage::disk($name);
+    }
+
+    private function diskName(): string
+    {
+        $configured = config('files.disk');
+
+        return is_string($configured) && $configured !== '' ? $configured : (string) config('filesystems.default');
     }
 }

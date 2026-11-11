@@ -1,7 +1,7 @@
 name: plataforma-educativa
 
 # Perfil reducido (ADR-030): por defecto PostgreSQL, Redis, api y web.
-# MinIO se levanta a demanda con: podman compose --profile full up -d
+# MinIO y Garage (ADR-076) se levantan a demanda con: podman compose --profile full up -d
 #
 # El servicio de renderizado PDF queda pendiente de elegir motor concreto
 # (ver paso 1.17); no se define aquí para no fijar una dependencia sin
@@ -17,6 +17,7 @@ volumes:
   postgres-cluster:
   redis-data:
   minio-data:
+  garage-data:
 
 services:
   postgres:
@@ -313,4 +314,28 @@ services:
     ports:
       - "127.0.0.1:9000:9000"
       - "127.0.0.1:9001:9001"
+    profiles: ["full"]
+
+  # ADR-076 §6: servidor S3 de desarrollo, CI y E2E (un nodo, solo datos
+  # sintéticos). La imagen no trae shell: se inicializa con
+  # infra/garage/init.sh, que corre en el host. Se añade junto a MinIO, que
+  # retira S-1b.
+  garage:
+    image: docker.io/dxflrs/garage:v2.5.0@sha256:677e5b758e4425a325b811c425c026bf35a4bf42f7ddbaa773de3f4fd779a5a5
+    container_name: plataforma-garage
+    restart: unless-stopped
+    environment:
+      GARAGE_RPC_SECRET: ${GARAGE_RPC_SECRET:?falta GARAGE_RPC_SECRET en .env}
+      GARAGE_ADMIN_TOKEN: ${GARAGE_ADMIN_TOKEN:?falta GARAGE_ADMIN_TOKEN en .env}
+    volumes:
+      - ./infra/garage/garage.toml:/etc/garage.toml:Z,ro
+      - garage-data:/var/lib/garage:Z
+    ports:
+      - "127.0.0.1:3900:3900"
+    healthcheck:
+      test: ["CMD", "/garage", "status"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
     profiles: ["full"]

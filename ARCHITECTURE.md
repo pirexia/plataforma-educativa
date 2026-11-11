@@ -29,7 +29,7 @@ Plataforma SaaS multi-tenant para la gestión integral de centros educativos. Mo
 | **UI** | Tailwind CSS + shadcn-vue (Reka UI) + TanStack Table | `ADR-023` |
 | **Base de datos** | PostgreSQL 18 | Único motor que cubre a la vez particionado por curso, seguridad a nivel de fila, full-text y PITR |
 | **Caché y colas** | Redis (caché); colas: `database` con worker `queue:work` (#128), Redis + Horizon elegido, no instalado | `INV-012` |
-| **Almacenamiento** | Compatible S3 (MinIO en desarrollo) | `ADR-013` |
+| **Almacenamiento** | Compatible S3 (Garage en desarrollo, CI y E2E desde `ADR-076`; MinIO convive hasta `S-1b`) | `ADR-013`, `ADR-076` |
 | **Buscador** | Full-text nativo de PostgreSQL | `ADR-010` |
 | **PDF** | Servicio contenerizado HTML→PDF | Plantillas en HTML reutilizando el design system |
 | **Móvil** | PWA (fase 1) → Capacitor sobre la misma SPA (fase 3) | `ADR-008` |
@@ -227,10 +227,12 @@ Los detectores de llamadas y literales comparten **un único escáner de tokens*
         ┌────────────┬───────────────┼───────────────┬────────────┐
         ▼            ▼               ▼               ▼            ▼
   ┌──────────┐ ┌──────────┐   ┌───────────┐   ┌──────────┐ ┌──────────┐
-  │PostgreSQL│ │  Redis   │   │  workers  │   │ S3/MinIO │ │   PDF    │
+  │PostgreSQL│ │  Redis   │   │  workers  │   │    S3    │ │   PDF    │
   │          │ │caché+cola│   │  (colas)  │   │ ficheros │ │ servicio │
   └──────────┘ └──────────┘   └───────────┘   └──────────┘ └──────────┘
 ```
+
+**Almacenamiento S3 (`ADR-076`)**: la aplicación solo habla la API S3 (Flysystem S3, SigV4) a través de `PrivateObjectStore`; en producción lo sirve el proveedor que decida `OPEN-STO-01`. **Garage** (un nodo, imagen fijada por digest, `infra/garage/`) es el S3 de desarrollo, CI y E2E, con datos sintéticos, y **nunca se despliega en un servidor**. Las URL se firman con un *endpoint* propio (`AWS_URL_SIGNING_ENDPOINT`, el que alcanza el navegador) distinto del de operación, con caducidad topada por `FILES_SIGNED_URL_MAX_TTL_MINUTES`. El test de conformidad (`composer test:conformance`) prueba el contrato contra un S3 real; en CI lo ejecuta el job `Conformidad del almacén (Garage)`.
 
 ### 4.2 Evolución de la infraestructura (`ADR-024`)
 
