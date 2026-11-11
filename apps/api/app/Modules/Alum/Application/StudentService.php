@@ -13,6 +13,7 @@ use App\Modules\Core\Domain\PersonRegistration;
 use App\Modules\FamUnit\Domain\FamilyUnitStudents;
 use App\Support\Api\ApiException;
 use App\Support\Authorization\PermissionDecision;
+use App\Support\Authorization\PermissionResolver;
 use App\Support\Authorization\ScopedQuery;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -38,6 +39,7 @@ final class StudentService
         private readonly PersonDirectory $people,
         private readonly PersonRegistrar $registrar,
         private readonly FamilyUnitStudents $familyUnitStudents,
+        private readonly PermissionResolver $permissions,
     ) {}
 
     /** Detalle sin acotar por ámbito (escrituras, que exigen ámbito `todos`): `404` si no existe o es de otro centro. */
@@ -142,11 +144,23 @@ final class StudentService
 
     /**
      * Pone en la ficha, como atributo efímero `enrollments_view`, sus matrículas vivas de cursos legibles para el sujeto
-     * (`enrollments[]`, `RN-ALUM-23`).
+     * (`enrollments[]`, `RN-ALUM-23`), acotadas por el ámbito de `matricula.leer` (sin el permiso, ninguna).
      */
     public function attachEnrollments(Student $student, User $subject): void
     {
-        $student->setAttribute('enrollments_view', app(EnrollmentService::class)->forStudent((int) $student->id, $subject));
+        $student->setAttribute('enrollments_view', app(EnrollmentService::class)->forStudent((int) $student->id, $subject, $this->permissions->decide($subject, 'matricula.leer')));
+    }
+
+    /**
+     * Pone en cada alumno del listado su matrícula vigente (`enrollment_view`, `null` si no hay filtro de curso o año, no
+     * hay matrícula o el sujeto no tiene `matricula.leer`), acotada por el ámbito de ese permiso.
+     *
+     * @param  iterable<Student>  $students
+     * @param  array{academic_year?: ?string, course?: ?string, group?: ?string, enrollment_status?: ?string}  $filters
+     */
+    public function attachCurrentEnrollments(iterable $students, User $subject, array $filters): void
+    {
+        app(EnrollmentService::class)->attachCurrent($students, $subject, $this->permissions->decide($subject, 'matricula.leer'), $filters);
     }
 
     /**

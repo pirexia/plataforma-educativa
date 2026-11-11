@@ -2079,9 +2079,11 @@ components:
       type: object
       description: >
         REQ-ALUM/api.md §1, `GET /students` (1.15-a). Los datos de la persona vienen de `Core` (`alum` no los guarda,
-        RN-ALUM-02). Sin matrícula vigente hasta `1.15-b`. `deleted_at` solo aparece en un alumno dado de baja (listado con
+        RN-ALUM-02). `enrollment`: matrícula vigente en el curso pedido (`academic_year`, o el activo si hay filtro de
+        matrícula) con la forma de `Enrollment`, acotada por el ámbito de `matricula.leer`; `null` sin filtro de curso o año,
+        sin matrícula o sin ese permiso. `deleted_at` solo aparece en un alumno dado de baja (listado con
         `include_deleted`).
-      required: [public_id, person, display_name, birth_date, created_at, updated_at]
+      required: [public_id, person, display_name, birth_date, enrollment, created_at, updated_at]
       properties:
         public_id: { $ref: '#/components/schemas/PublicId' }
         person:
@@ -2094,6 +2096,10 @@ components:
           description: '`AAAA-MM-DD`, o `null` si no está informada.'
           oneOf:
             - { type: string, format: date }
+            - { type: 'null' }
+        enrollment:
+          oneOf:
+            - { $ref: '#/components/schemas/Enrollment' }
             - { type: 'null' }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }

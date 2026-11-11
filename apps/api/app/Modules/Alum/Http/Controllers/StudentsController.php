@@ -44,6 +44,7 @@ class StudentsController extends AlumController
             $request->enrollmentFilters(),
         );
         $service->attachPeople($page->items(), false);
+        $service->attachCurrentEnrollments($page->items(), $actor, $request->enrollmentFilters());
 
         return PagePaginatedResponse::make($page, StudentSummaryResource::class);
     }

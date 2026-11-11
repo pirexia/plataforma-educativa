@@ -7,6 +7,7 @@ use App\Modules\Acad\Domain\CourseDirectory;
 use App\Modules\Acad\Domain\GroupDirectory;
 use App\Modules\Acad\Domain\TeachingMembership;
 use App\Modules\Alum\Domain\Models\Enrollment;
+use App\Modules\Alum\Domain\Models\Student;
 use App\Modules\Core\Domain\PersonDirectory;
 use App\Modules\Curso\Domain\AcademicYearContext;
 use App\Modules\Curso\Domain\AcademicYearDirectory;
@@ -181,14 +182,20 @@ final class EnrollmentService
     }
 
     /**
-     * Matrículas vivas de un alumno para su ficha (`enrollments[]`, `api.md §1`): las de cursos que el sujeto no puede
-     * leer se omiten (`RN-ALUM-23`). Orden: curso académico más reciente primero (por fecha de matrícula descendente).
+     * Matrículas vivas de un alumno para su ficha (`enrollments[]`, `api.md §1`), acotadas por el ámbito de
+     * `matricula.leer` del sujeto (`ScopedQuery`, recurso `matricula`); las de cursos que no puede leer se omiten
+     * (`RN-ALUM-23`). Sin `matricula.leer`, ninguna. Orden: la más reciente primero.
      *
      * @return list<Enrollment>
      */
-    public function forStudent(int $studentId, User $subject): array
+    public function forStudent(int $studentId, User $subject, PermissionDecision $decision): array
     {
-        $enrollments = Enrollment::query()->where('student_id', $studentId)->orderByDesc('enrolled_on')->orderByDesc('id')->get()->all();
+        if (! $decision->permitted) {
+            return [];
+        }
+
+        $enrollments = $this->scopedQuery->constrain(Enrollment::query(), 'matricula', $decision, $subject)
+            ->where('student_id', $studentId)->orderByDesc('enrolled_on')->orderByDesc('id')->get()->all();
         $years = $this->years->findManyById(array_values(array_unique(array_map(static fn (Enrollment $e): int => (int) $e->academic_year_id, $enrollments))));
 
         $readable = array_values(array_filter($enrollments, function (Enrollment $e) use ($years, $subject): bool {
@@ -200,6 +207,59 @@ final class EnrollmentService
         $this->attachViews($readable);
 
         return $readable;
+    }
+
+    /**
+     * Matrícula vigente de cada alumno del listado en el curso académico pedido (`academic_year`, o el activo si hay algún
+     * filtro de matrícula), como atributo efímero `enrollment_view` (`Enrollment` o `null`). Acotada por el ámbito de
+     * `matricula.leer` (sin el permiso, `null`) y por los mismos `course`, `group` y `enrollment_status` del listado. Sin
+     * `academic_year` ni filtros de matrícula, o sin matrícula, `null`. Si hay varias del curso, la `activa` y, después,
+     * la más reciente.
+     *
+     * @param  iterable<Student>  $students
+     * @param  array{academic_year?: ?string, course?: ?string, group?: ?string, enrollment_status?: ?string}  $filters
+     */
+    public function attachCurrent(iterable $students, User $subject, PermissionDecision $decision, array $filters): void
+    {
+        $list = [];
+
+        foreach ($students as $student) {
+            $student->setAttribute('enrollment_view', null);
+            $list[] = $student;
+        }
+
+        $yearPublicId = $filters['academic_year'] ?? null;
+        $filtered = ($filters['course'] ?? null) !== null || ($filters['group'] ?? null) !== null || ($filters['enrollment_status'] ?? null) !== null;
+
+        if ($list === [] || ! $decision->permitted || (($yearPublicId === null || $yearPublicId === '') && ! $filtered)) {
+            return;
+        }
+
+        $year = $yearPublicId !== null && $yearPublicId !== '' ? $this->years->findByPublicId($yearPublicId) : $this->yearContext->active();
+
+        if ($year === null || ! $this->readAccess->canRead($year, $subject)) {
+            return;
+        }
+
+        $query = $this->scopedQuery->constrain(Enrollment::query(), 'matricula', $decision, $subject)
+            ->where('academic_year_id', $year->id)
+            ->whereIn('student_id', array_map(static fn ($s): int => (int) $s->id, $list));
+        $this->applyFilters($query, $year, ['course' => $filters['course'] ?? null, 'group' => $filters['group'] ?? null, 'status' => $filters['enrollment_status'] ?? null]);
+
+        $byStudent = [];
+
+        // Última en ganar: se recorre de menos a más preferida (baja antes que activa, antigua antes que reciente).
+        $found = $query->orderByRaw("case when status = 'activa' then 1 else 0 end")->orderBy('enrolled_on')->orderBy('id')->get();
+
+        foreach ($found as $enrollment) {
+            $byStudent[(int) $enrollment->student_id] = $enrollment;
+        }
+
+        $this->attachViews(array_values($byStudent));
+
+        foreach ($list as $student) {
+            $student->setAttribute('enrollment_view', $byStudent[(int) $student->id] ?? null);
+        }
     }
 
     /**
