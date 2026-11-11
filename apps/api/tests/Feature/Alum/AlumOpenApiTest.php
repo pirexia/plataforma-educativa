@@ -7,7 +7,7 @@ use Tests\Support\AlumEnrollmentHelpers;
 use Tests\Support\AlumTestHelpers as Alum;
 
 // CLAUDE.md §10 («el endpoint está documentado en OpenAPI»), REQ-ALUM/api.md §1 y §2, INV-006, INV-015, CA-ALUM-064. Los
-// seis endpoints de 1.15-a y los siete de matrícula y exportación de 1.15-b documentados, y solo ellos; sus referencias resuelven; los esquemas describen lo que la API
+// seis endpoints de 1.15-a, los siete de matrícula y exportación de 1.15-b y los seis de solicitudes de cambio de grupo de 1.15-c documentados, y solo ellos; sus referencias resuelven; los esquemas describen lo que la API
 // devuelve de verdad.
 
 afterEach(function (): void {
@@ -30,7 +30,7 @@ function alumDocumentedOperations(): array
     return $documented;
 }
 
-test('REQ-ALUM-002 api.md §1 y §2: los 13 endpoints de 1.15-a y 1.15-b (T2b y T2c) están documentados en OpenAPI, enlazados desde openapi.yaml, y solo ellos', function (): void {
+test('REQ-ALUM-002 api.md §1 y §2: los 19 endpoints de 1.15-a, 1.15-b (T2b y T2c) y 1.15-c (T2a, solicitudes de cambio de grupo) están documentados en OpenAPI, enlazados desde openapi.yaml, y solo ellos', function (): void {
     $root = Yaml::parseFile(base_path('openapi.yaml'));
     $paths = Yaml::parseFile(base_path('openapi/paths/alum.yaml'))['paths'];
 
@@ -49,7 +49,7 @@ test('REQ-ALUM-002 api.md §1 y §2: los 13 endpoints de 1.15-a y 1.15-b (T2b y 
 
     sort($registered);
 
-    expect(alumDocumentedOperations())->toHaveCount(13)->and($registered)->toBe(alumDocumentedOperations())
+    expect(alumDocumentedOperations())->toHaveCount(19)->and($registered)->toBe(alumDocumentedOperations())
         ->and($root['tags'])->toContain(['name' => 'Alum / Alumnado'])->toContain(['name' => 'Alum / Matrícula']);
 });
 
@@ -170,4 +170,40 @@ test('REQ-ALUM-002 api.md §2: el esquema Enrollment describe exactamente las cl
         ->and(array_keys($created['group']))->toEqualCanonicalizing($schemas['Enrollment']['properties']['group']['oneOf'][0]['required'])
         ->and($schemas['EnrollmentStatus']['enum'])->toBe(['activa', 'baja'])
         ->and(array_keys($created))->not->toContain('id', 'tenant_id', 'student_id', 'course_id', 'group_id', 'academic_year_id', 'created_by');
+});
+
+test('REQ-ALUM-003 api.md §3: el esquema GroupChangeRequest describe exactamente las claves que la API devuelve (alta, listado, detalle y transiciones) y los resúmenes anidados; aprobar y cancelar no exigen cuerpo, rechazar sí', function (): void {
+    $s = AlumEnrollmentHelpers::scenario('alum-openapi-gcr');
+    $components = Yaml::parseFile(base_path('openapi/components.yaml'))['components'];
+    $schemas = $components['schemas'];
+    $paths = Yaml::parseFile(base_path('openapi/paths/alum.yaml'))['paths'];
+    $enrollment = Alum::call($s['tenant'], $s['admin'], 'post', '/enrollments', AlumEnrollmentHelpers::body($s))->assertCreated()->json('public_id');
+    $created = Alum::call($s['tenant'], $s['admin'], 'post', '/group-change-requests', ['enrollment' => $enrollment, 'to_group' => $s['groupB'], 'reason' => 'Motivo ficticio'])->assertCreated()->json();
+    $id = $created['public_id'];
+    $properties = array_keys($schemas['GroupChangeRequest']['properties']);
+    $listed = Alum::call($s['tenant'], $s['admin'], 'get', "/group-change-requests?academic_year={$s['year']->public_id}")->assertOk()->json('data.0');
+    $cancelled = Alum::call($s['tenant'], $s['admin'], 'post', "/group-change-requests/{$id}/cancellation")->assertOk()->json();
+
+    expect($schemas['GroupChangeRequest']['required'])->toEqualCanonicalizing($properties)
+        ->and(array_keys($created))->toEqualCanonicalizing($properties)
+        ->and(array_keys($listed))->toEqualCanonicalizing($properties)
+        ->and(array_keys(Alum::call($s['tenant'], $s['admin'], 'get', "/group-change-requests/{$id}")->assertOk()->json()))->toEqualCanonicalizing($properties)
+        ->and(array_keys($cancelled))->toEqualCanonicalizing($properties)
+        ->and(array_keys($created['enrollment']))->toEqualCanonicalizing($schemas['GroupChangeRequest']['properties']['enrollment']['required'])
+        ->and(array_keys($created['enrollment']['student']))->toEqualCanonicalizing($schemas['GroupChangeRequest']['properties']['enrollment']['properties']['student']['required'])
+        ->and(array_keys($created['academic_year']))->toEqualCanonicalizing($schemas['GroupChangeRequest']['properties']['academic_year']['required'])
+        ->and(array_keys($created['from_group']))->toEqualCanonicalizing($schemas['GroupChangeRequestGroup']['required'])
+        ->and(array_keys($created['requested_by']))->toEqualCanonicalizing($schemas['GroupChangeRequestUser']['oneOf'][0]['required'])
+        ->and($schemas['GroupChangeRequestStatus']['enum'])->toBe(['pendiente', 'aprobada', 'rechazada', 'cancelada'])
+        ->and($paths['/api/v1/group-change-requests/{publicId}/approval']['post']['requestBody']['required'])->toBeFalse()
+        ->and($paths['/api/v1/group-change-requests/{publicId}/cancellation']['post']['requestBody']['required'])->toBeFalse()
+        ->and($paths['/api/v1/group-change-requests/{publicId}/rejection']['post']['requestBody']['required'])->toBeTrue()
+        ->and(array_keys($created))->not->toContain('id', 'tenant_id', 'enrollment_id', 'from_group_id', 'to_group_id', 'requested_by_id', 'created_by');
+
+    // Sin `Idempotency-Key` en ninguna (RN-ALUM-27, api.md §3).
+    foreach (array_keys($paths) as $uri) {
+        if (str_starts_with($uri, '/api/v1/group-change-requests')) {
+            expect(json_encode($paths[$uri]))->not->toContain('IdempotencyKeyHeader', $uri);
+        }
+    }
 });

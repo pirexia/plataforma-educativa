@@ -2231,6 +2231,92 @@ components:
         withdrawn_on: { type: string, format: date, description: 'No anterior a `enrolled_on`.' }
         withdrawal_reason: { type: string, enum: [traslado, baja_voluntaria, otro] }
 
+    GroupChangeRequestStatus:
+      type: string
+      description: Estado de la solicitud de cambio de grupo (RN-ALUM-42). Enumerado **extensible**.
+      enum: [pendiente, aprobada, rechazada, cancelada]
+      x-extensible-enum: true
+
+    GroupChangeRequest:
+      type: object
+      description: >
+        REQ-ALUM/api.md §3. Solicitud de cambio de grupo de una matrícula (RN-ALUM-40 a -46). `enrollment`, `academic_year`,
+        `from_group`, `to_group`, `requested_by` y `decided_by` son resúmenes. `decided_by` y `decided_at` son `null` mientras
+        está `pendiente`; en `cancelada`, `decided_by` es quien cancela. `reason` y `decision_note` no se registran en la
+        auditoría (RN-ALUM-45).
+      required: [public_id, enrollment, academic_year, from_group, to_group, reason, status, requested_by, decided_by, decided_at, decision_note, created_at, updated_at]
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        enrollment:
+          type: object
+          required: [public_id, student]
+          properties:
+            public_id: { $ref: '#/components/schemas/PublicId' }
+            student:
+              type: object
+              required: [public_id, display_name]
+              properties:
+                public_id: { $ref: '#/components/schemas/PublicId' }
+                display_name: { type: string, description: 'Nombre visible; vacío si la persona está dada de baja.' }
+        academic_year:
+          type: object
+          required: [public_id, code]
+          properties:
+            public_id: { $ref: '#/components/schemas/PublicId' }
+            code: { type: string, example: '2026-2027' }
+        from_group: { $ref: '#/components/schemas/GroupChangeRequestGroup' }
+        to_group: { $ref: '#/components/schemas/GroupChangeRequestGroup' }
+        reason: { type: string, minLength: 1, maxLength: 500 }
+        status: { $ref: '#/components/schemas/GroupChangeRequestStatus' }
+        requested_by: { $ref: '#/components/schemas/GroupChangeRequestUser' }
+        decided_by: { $ref: '#/components/schemas/GroupChangeRequestUser' }
+        decided_at:
+          oneOf:
+            - { type: string, format: date-time }
+            - { type: 'null' }
+        decision_note: { type: [string, 'null'], maxLength: 500 }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    GroupChangeRequestGroup:
+      description: Resumen del grupo (`GroupDirectory`).
+      type: object
+      required: [public_id, code, name]
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        code: { type: string }
+        name: { type: string }
+
+    GroupChangeRequestUser:
+      description: Usuario que solicita o decide, o `null` (`decided_by` de una solicitud `pendiente`). `display_name` vacío si fue borrado.
+      oneOf:
+        - type: object
+          required: [public_id, display_name]
+          properties:
+            public_id: { $ref: '#/components/schemas/PublicId' }
+            display_name: { type: string }
+        - { type: 'null' }
+
+    GroupChangeRequestCreate:
+      type: object
+      required: [enrollment, to_group, reason]
+      properties:
+        enrollment: { allOf: [{ $ref: '#/components/schemas/PublicId' }], description: 'Matrícula `activa` y con grupo.' }
+        to_group: { allOf: [{ $ref: '#/components/schemas/PublicId' }], description: 'Distinto del grupo actual y del mismo curso de etapa (RN-ALUM-40).' }
+        reason: { type: string, minLength: 1, maxLength: 500 }
+
+    GroupChangeRequestDecision:
+      type: object
+      description: Aprobar y cancelar. El cuerpo es opcional.
+      properties:
+        decision_note: { type: string, minLength: 1, maxLength: 500 }
+
+    GroupChangeRequestRejection:
+      type: object
+      required: [decision_note]
+      properties:
+        decision_note: { type: string, minLength: 1, maxLength: 500, description: 'Obligatoria al rechazar.' }
+
     StudentCreate:
       type: object
       description: >

@@ -424,6 +424,16 @@ paths:
     $ref: "openapi/paths/alum.yaml#/paths/~1api~1v1~1enrollments~1{publicId}"
   /api/v1/enrollments/{publicId}/withdrawal:
     $ref: "openapi/paths/alum.yaml#/paths/~1api~1v1~1enrollments~1{publicId}~1withdrawal"
+  /api/v1/group-change-requests:
+    $ref: "openapi/paths/alum.yaml#/paths/~1api~1v1~1group-change-requests"
+  /api/v1/group-change-requests/{publicId}:
+    $ref: "openapi/paths/alum.yaml#/paths/~1api~1v1~1group-change-requests~1{publicId}"
+  /api/v1/group-change-requests/{publicId}/approval:
+    $ref: "openapi/paths/alum.yaml#/paths/~1api~1v1~1group-change-requests~1{publicId}~1approval"
+  /api/v1/group-change-requests/{publicId}/rejection:
+    $ref: "openapi/paths/alum.yaml#/paths/~1api~1v1~1group-change-requests~1{publicId}~1rejection"
+  /api/v1/group-change-requests/{publicId}/cancellation:
+    $ref: "openapi/paths/alum.yaml#/paths/~1api~1v1~1group-change-requests~1{publicId}~1cancellation"
 
   # REQ-FAM-UNIT (pasos 1.14-a, 1.14-b, 1.14-c y 1.14b-a), unidades familiares, tutores, alumnado, vínculos, revocación,
   # consentimiento de imagen, textos legales y autorizados de recogida. apps/api/openapi/paths/fam-unit.yaml
