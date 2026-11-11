@@ -120,7 +120,7 @@ final class StudentPhotoService
             try {
                 $this->objects->delete($key);
             } catch (Throwable) {
-                // No enmascarar la excepción original; el objeto huérfano lo recogerá el barrido.
+                // No enmascarar la excepción original; el objeto huérfano queda a la espera del barrido (#606, aún sin implementar).
             }
 
             throw $e;
@@ -172,7 +172,7 @@ final class StudentPhotoService
         $key = (string) $photo->object_key;
         $photo->forceDelete();
 
-        // El objeto huérfano lo recogerá el barrido; la baja del alumno no depende del almacenamiento.
+        // El objeto huérfano queda a la espera del barrido (#606, aún sin implementar); la baja del alumno no depende del almacenamiento.
         $this->deleteObjectAfterCommit($key);
     }
 
