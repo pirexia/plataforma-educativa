@@ -102,7 +102,7 @@ paths:
         `404` idéntico (RN-ALUM-64). Nombres por partes, fecha de nacimiento e idioma de la persona (de `Core`); el
         documento de identidad va **enmascarado**, nunca completo. `enrollments[]` (desde `1.15-b`) lista las matrículas vivas
         del alumno con la forma de `Enrollment`; las de un curso cerrado que el sujeto no puede leer se omiten (RN-ALUM-23). El ámbito de `matricula.leer` acota `enrollments[]`: sin ese permiso sale `[]`.
-        Sin `emergency_contact`, `guardians[]` ni `photo`.
+        Sin `emergency_contact` ni `guardians[]`. Con `has_photo` (booleano; desde `1.15-c`): la URL de la fotografía **no** va en la ficha, solo en `GET /students/{publicId}/photo`.
       tags: ['Alum / Alumnado']
       security: [{ SessionCookie: [] }]
       responses:
@@ -179,6 +179,83 @@ paths:
         '403': { description: 'Sin el permiso (`403`) o módulo `alum` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
         '404': { $ref: '../components.yaml#/components/responses/NotFound' }
         '409': { $ref: '../components.yaml#/components/responses/Conflict' }
+
+  /api/v1/students/{publicId}/photo:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    put:
+      operationId: putStudentPhoto
+      summary: Sube o sustituye la fotografía del alumno
+      description: >
+        Permiso `alumno.actualizar`, ámbito `todos`. `multipart/form-data` con el campo `file`. La imagen se valida y se
+        **reprocesa en el servidor** (RN-ALUM-51, ADR-068 §5.3): solo JPEG o PNG por su contenido real (nunca SVG, HEIC ni WebP).
+        Todos los rechazos son `422` con el código en `errors.file`: `alum.photo.file_required`, `alum.photo.type_unsupported`,
+        `alum.photo.invalid_image` (el contenido no coincide con la extensión, no se puede leer o supera las dimensiones de
+        entrada) y `alum.photo.too_large` (5 MB por defecto, `config/alum.php`). Lo que se guarda es una imagen **nueva**
+        (orientación EXIF aplicada y descartada, lado mayor <= 1024 px, sin EXIF, XMP, IPTC ni perfiles) en el *bucket* privado bajo
+        `tenants/<centro>/alum/student-photos/<ULID>.<ext>`; el original no se guarda. Una fotografía viva por alumno: sustituir da
+        de baja la anterior en la misma transacción (RN-ALUM-50). Si el almacenamiento no responde, `503` sin escribir nada.
+        Prohibido cualquier tratamiento automatizado de la imagen. Alumno inexistente, de otro centro o dado de baja: `404`
+        (antes que cualquier `422`).
+      tags: ['Alum / Alumnado']
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        '200':
+          description: La fotografía queda guardada
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/StudentPhotoStored' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `alum` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+        '503': { description: 'Almacenamiento no disponible: no se escribe nada (`503`, `Retry-After`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+    get:
+      operationId: getStudentPhotoUrl
+      summary: URL firmada de la fotografía del alumno
+      description: >
+        Permiso `alumno.leer`, ámbito `todos`, `grupo` o `unidad_familiar`. Devuelve una URL **firmada de caducidad corta** (5
+        minutos por defecto), generada en cada respuesta, con `Cache-Control: no-store`; nunca el binario por la API. **Auditada**
+        (`read` sobre la fotografía, sin nombre ni clave de objeto, RN-ALUM-52) antes de devolver la URL y con **límite** de
+        lecturas (300 por centro y usuario y hora): superado, `429` con `Retry-After`. Alumno fuera de ámbito, inexistente, de
+        otro centro, dado de baja o sin fotografía: `404` idéntico (RN-ALUM-64) y sin fila de lectura.
+      tags: ['Alum / Alumnado']
+      security: [{ SessionCookie: [] }]
+      responses:
+        '200':
+          description: URL firmada
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/StudentPhotoUrl' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `alum` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '429': { $ref: '../components.yaml#/components/responses/TooManyRequests' }
+    delete:
+      operationId: deleteStudentPhoto
+      summary: Elimina la fotografía del alumno
+      description: >
+        Permiso `alumno.actualizar`, ámbito `todos`. Baja lógica de la fotografía viva; el objeto del *bucket* queda para el barrido
+        de huérfanos (pendiente, `operacion.md`). Idempotente: sin fotografía también es `204`. Alumno inexistente: `404`.
+      tags: ['Alum / Alumnado']
+      security: [{ SessionCookie: [] }]
+      responses:
+        '204': { description: Fotografía dada de baja }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `alum` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
 
   /api/v1/enrollments:
     get:

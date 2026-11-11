@@ -30,7 +30,7 @@ function alumDocumentedOperations(): array
     return $documented;
 }
 
-test('REQ-ALUM-002 api.md §1 y §2: los 19 endpoints de 1.15-a, 1.15-b (T2b y T2c) y 1.15-c (T2a, solicitudes de cambio de grupo) están documentados en OpenAPI, enlazados desde openapi.yaml, y solo ellos', function (): void {
+test('REQ-ALUM-002 api.md §1 y §2: los 22 endpoints de 1.15-a, 1.15-b (T2b y T2c) y 1.15-c (T2a, solicitudes de cambio de grupo; T2b, fotografía) están documentados en OpenAPI, enlazados desde openapi.yaml, y solo ellos', function (): void {
     $root = Yaml::parseFile(base_path('openapi.yaml'));
     $paths = Yaml::parseFile(base_path('openapi/paths/alum.yaml'))['paths'];
 
@@ -49,7 +49,7 @@ test('REQ-ALUM-002 api.md §1 y §2: los 19 endpoints de 1.15-a, 1.15-b (T2b y T
 
     sort($registered);
 
-    expect(alumDocumentedOperations())->toHaveCount(19)->and($registered)->toBe(alumDocumentedOperations())
+    expect(alumDocumentedOperations())->toHaveCount(22)->and($registered)->toBe(alumDocumentedOperations())
         ->and($root['tags'])->toContain(['name' => 'Alum / Alumnado'])->toContain(['name' => 'Alum / Matrícula']);
 });
 
@@ -80,7 +80,7 @@ test('REQ-ALUM-001 api.md §1: toda referencia $ref de alum.yaml resuelve en com
     $ids = [];
 
     foreach ($document['paths'] as $item) {
-        foreach (array_intersect(['get', 'post', 'patch', 'delete'], array_keys($item)) as $method) {
+        foreach (array_intersect(['get', 'post', 'patch', 'delete', 'put'], array_keys($item)) as $method) {
             $operation = $item[$method];
             $ids[] = $operation['operationId'];
 

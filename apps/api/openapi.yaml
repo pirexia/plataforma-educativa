@@ -415,6 +415,8 @@ paths:
     $ref: "openapi/paths/alum.yaml#/paths/~1api~1v1~1students~1{publicId}"
   /api/v1/students/{publicId}/restore:
     $ref: "openapi/paths/alum.yaml#/paths/~1api~1v1~1students~1{publicId}~1restore"
+  /api/v1/students/{publicId}/photo:
+    $ref: "openapi/paths/alum.yaml#/paths/~1api~1v1~1students~1{publicId}~1photo"
   # REQ-ALUM (paso 1.15-b), matrícula: listado, alta, detalle, edición, baja y anulación.
   /api/v1/enrollments:
     $ref: "openapi/paths/alum.yaml#/paths/~1api~1v1~1enrollments"

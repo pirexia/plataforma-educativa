@@ -2108,10 +2108,11 @@ components:
     Student:
       type: object
       description: >
-        REQ-ALUM/api.md §1: ficha del alumno (con `enrollments[]` desde `1.15-b`; sin `emergency_contact`, `guardians[]` ni
-        `photo`). Los datos de la persona vienen de `Core`. **`document_number` va enmascarado** (solo los cuatro últimos
+        REQ-ALUM/api.md §1: ficha del alumno (con `enrollments[]` desde `1.15-b` y `has_photo` desde `1.15-c`; sin `emergency_contact`
+        ni `guardians[]`). **Nunca lleva la URL de la fotografía**: solo el booleano `has_photo`; la URL firmada sale únicamente de
+        `GET /students/{publicId}/photo`. Los datos de la persona vienen de `Core`. **`document_number` va enmascarado** (solo los cuatro últimos
         caracteres a la vista): la API de alumnado nunca devuelve el documento completo.
-      required: [public_id, person, display_name, given_name, family_name_1, family_name_2, birth_date, locale, document_type, document_number, enrollments, created_at, updated_at]
+      required: [public_id, person, display_name, given_name, family_name_1, family_name_2, birth_date, locale, document_type, document_number, has_photo, enrollments, created_at, updated_at]
       properties:
         public_id: { $ref: '#/components/schemas/PublicId' }
         person:
@@ -2138,6 +2139,9 @@ components:
         document_number:
           description: Número **enmascarado** (`•••••1234`), o `null`.
           type: [string, 'null']
+        has_photo:
+          description: '`true` si el alumno tiene una fotografía viva (`1.15-c`, `RN-ALUM-50`). Solo el booleano, nunca la URL.'
+          type: boolean
         enrollments:
           type: array
           description: >
@@ -2713,6 +2717,21 @@ components:
       properties:
         url: { type: string, format: uri }
         expires_at: { type: string, format: date-time }
+
+    StudentPhotoUrl:
+      type: object
+      description: 'URL firmada de caducidad corta (5 minutos por defecto) de la fotografía de un alumno, generada en cada respuesta y nunca cacheable (RN-ALUM-51, RN-ALUM-52).'
+      required: [url, expires_at]
+      properties:
+        url: { type: string, format: uri }
+        expires_at: { type: string, format: date-time }
+
+    StudentPhotoStored:
+      type: object
+      description: 'Respuesta de `PUT /students/{publicId}/photo`: la fotografía queda guardada (RN-ALUM-50).'
+      required: [has_photo]
+      properties:
+        has_photo: { type: boolean, enum: [true] }
 
     PickupAuthorization:
       type: object
