@@ -7,7 +7,7 @@ use Tests\Support\AlumEnrollmentHelpers;
 use Tests\Support\AlumTestHelpers as Alum;
 
 // CLAUDE.md §10 («el endpoint está documentado en OpenAPI»), REQ-ALUM/api.md §1 y §2, INV-006, INV-015, CA-ALUM-064. Los
-// seis endpoints de 1.15-a y los seis de matrícula de 1.15-b documentados, y solo ellos; sus referencias resuelven; los esquemas describen lo que la API
+// seis endpoints de 1.15-a y los siete de matrícula y exportación de 1.15-b documentados, y solo ellos; sus referencias resuelven; los esquemas describen lo que la API
 // devuelve de verdad.
 
 afterEach(function (): void {
@@ -30,7 +30,7 @@ function alumDocumentedOperations(): array
     return $documented;
 }
 
-test('REQ-ALUM-002 api.md §1 y §2: los 12 endpoints de 1.15-a y 1.15-b (T2b) están documentados en OpenAPI, enlazados desde openapi.yaml, y solo ellos', function (): void {
+test('REQ-ALUM-002 api.md §1 y §2: los 13 endpoints de 1.15-a y 1.15-b (T2b y T2c) están documentados en OpenAPI, enlazados desde openapi.yaml, y solo ellos', function (): void {
     $root = Yaml::parseFile(base_path('openapi.yaml'));
     $paths = Yaml::parseFile(base_path('openapi/paths/alum.yaml'))['paths'];
 
@@ -49,7 +49,7 @@ test('REQ-ALUM-002 api.md §1 y §2: los 12 endpoints de 1.15-a y 1.15-b (T2b) e
 
     sort($registered);
 
-    expect(alumDocumentedOperations())->toHaveCount(12)->and($registered)->toBe(alumDocumentedOperations())
+    expect(alumDocumentedOperations())->toHaveCount(13)->and($registered)->toBe(alumDocumentedOperations())
         ->and($root['tags'])->toContain(['name' => 'Alum / Alumnado'])->toContain(['name' => 'Alum / Matrícula']);
 });
 

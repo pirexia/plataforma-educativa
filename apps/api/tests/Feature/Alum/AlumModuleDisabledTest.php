@@ -11,7 +11,7 @@ afterEach(function (): void {
     DB::connection('pgsql_platform')->table('tenants')->delete();
 });
 
-test('CA-ALUM-063: con alum descontratado, las doce rutas de alumnado y matrícula responden 403 module-disabled y no tocan los datos; sin sesión, 401', function (): void {
+test('CA-ALUM-063: con alum descontratado, las trece rutas de alumnado y matrícula responden 403 module-disabled y no tocan los datos; sin sesión, 401', function (): void {
     [$tenant, $admin] = Alum::setup('alum-063');
     $student = Alum::student($tenant, $admin);
     $id = $student['public_id'];
@@ -23,7 +23,7 @@ test('CA-ALUM-063: con alum descontratado, las doce rutas de alumnado y matrícu
         ['get', '/students'], ['post', '/students'], ['get', "/students/{$id}"], ['patch', "/students/{$id}"],
         ['delete', "/students/{$id}"], ['post', "/students/{$id}/restore"],
         ['get', '/enrollments'], ['post', '/enrollments'], ['get', "/enrollments/{$enrollmentId}"], ['patch', "/enrollments/{$enrollmentId}"],
-        ['post', "/enrollments/{$enrollmentId}/withdrawal"], ['delete', "/enrollments/{$enrollmentId}"],
+        ['post', "/enrollments/{$enrollmentId}/withdrawal"], ['delete', "/enrollments/{$enrollmentId}"], ['post', '/enrollments/exports'],
     ] as [$method, $path]) {
         Alum::call($tenant, $admin, $method, $path, Alum::body(), ['Idempotency-Key' => (string) Str::ulid()])
             ->assertForbidden()
