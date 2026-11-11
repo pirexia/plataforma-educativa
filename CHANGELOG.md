@@ -6,6 +6,14 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-11 · `feat(alum)`: 1.15-c, tramo T2a, solicitudes de cambio de grupo (`REQ-ALUM-003`)
+
+- `alum`: `GroupChangeService` y seis endpoints `/group-change-requests` (listado, alta, detalle, aprobación, rechazo, cancelación; `matricula.leer`/`actualizar`/`aprobar`); `EnrollmentService::moveToGroup()` como único camino sancionado para cambiar el grupo de una matrícula (`RN-ALUM-43`); resolutores `grupo` (por la matrícula) y `unidad_familiar` (vacío, explícito) de `matricula` también para `GroupChangeRequest` (`RN-ALUM-46`). `decision_note` obligatoria al rechazar.
+- Veto (`RN-ALUM-47`, decisión del usuario 2026-11-11 = B): un grupo con solicitudes `pendiente` de origen o destino no se borra (`acad.dependents.group_change_requests`).
+- Textos en es-ES, en, de y fr; OpenAPI (19 operaciones de `alum`); `AR-10` ampliado a `GroupChangeRequest` y `GroupChangeService`.
+- Documentación: `REQ-ALUM` (`RN-ALUM-47`, `api.md §3`, `operacion.md`), `REQ-ACAD` (`RN-ACAD-21`, `§7.2`, `api.md`).
+- Tests: `CA-ALUM-018c`, `-037` a `-039`, `-050` a `-055`, `-063` (19 rutas) y el veto (`GroupChangeRequestDeletionVetoTest`).
+
 ## 2026-11-11 · `feat(alum)`: 1.15-c, tramo T1, datos de cambio de grupo y fotografía (`REQ-ALUM-003`, `#602`)
 
 - `alum`: `UNIQUE (tenant_id, academic_year_id, id)` en `enrollments` (`CONCURRENTLY` + `USING INDEX`, #602); tablas `group_change_requests` (FK compuestas a matrícula y grupos del mismo curso académico, `decided_by` con FK compuesta, `CHECK` de estado, decisión y no autoaprobación, único parcial de pendiente por matrícula, disparador `academic_year_write_guard`) y `student_photos` (una viva por alumno, `image/jpeg` e `image/png`); modelos `GroupChangeRequest` y `StudentPhoto` (política `Selective`, alias `alum_group_change_request` y `alum_student_photo`) y sus factorías. Sin servicios, rutas ni interfaz (T2).

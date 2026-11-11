@@ -44,6 +44,7 @@ Sin métricas propias. Cifra de `CA-ALUM-060` (`#382`, `1.15-b` T1b; sobrecoste 
 | `409 academic-year-closed` al matricular | Curso cerrado o archivado | Esperado; reapertura solo por `ADR-059` |
 | Docente que «no ve a sus alumnos» | Sin asignación docente o tutoría en ese curso, o curso de la petición distinto (`OPEN-ALUM-17`) | Revisar `acad` (asignación y tutoría del grupo) y el parámetro `academic_year` |
 | `409 has_dependents` al borrar un grupo en `acad` | Matrículas vivas del grupo (`RN-ALUM-26`) | Mover o dar de baja las matrículas antes |
+| `409 has_dependents` con `group_change_requests` al borrar un grupo en `acad` | Solicitudes de cambio de grupo `pendiente` con ese grupo de origen o destino (`RN-ALUM-47`, desde `1.15-c`) | Aprobar, rechazar o cancelar las solicitudes antes |
 | `409 has_dependents` al borrar un curso de etapa en `acad` | Matrículas vivas del curso de etapa, **también las que no tienen grupo** (`RN-ALUM-26`, `ADR-071 §5.5`: segundo veto, independiente del de grupo) | Dar de baja o anular esas matrículas antes |
 | `platform:sync-registry` aborta | `acad` o `fam_unit` no registrados | Desplegar en orden |
 | Exportación `pendiente` indefinida | *Worker* parado | `RUNBOOK.md`, arranque del perfil `worker` |

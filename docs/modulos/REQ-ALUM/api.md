@@ -76,7 +76,7 @@ Errores comunes: `401`; `403` sin permiso; `403 urn:pge:error:module-disabled`; 
 
 ### `DELETE /enrollments/{public_id}`
 - **Permiso**: `matricula.eliminar` · `todos` (anulación, `RN-ALUM-25`)
-- **Errores**: `409 alum.conflict.has_dependents` cuando un consumidor registre veto (ninguno en `1.15`).
+- **Errores**: `409 alum.conflict.has_dependents` cuando un consumidor registre veto (ninguno en `1.15-b`). Las solicitudes de cambio de grupo no impiden anular una matrícula; ver `RN-ALUM-47` para el veto sobre grupos.
 
 ## 3. Cambio de grupo (`1.15-c`, `OPEN-ALUM-13` = A)
 
@@ -90,6 +90,13 @@ Errores comunes: `401`; `403` sin permiso; `403 urn:pge:error:module-disabled`; 
 | `POST /group-change-requests/{public_id}/approval` | `matricula.aprobar` · `todos` | `decision_note` opcional. `403` si es el solicitante (`RN-ALUM-44`); `409 request_closed`, `enrollment_changed`, `academic-year-closed` |
 | `POST /group-change-requests/{public_id}/rejection` | `matricula.aprobar` · `todos` | `decision_note` obligatoria [DERIVADA]; el solicitante puede rechazar la suya. `409 request_closed` |
 | `POST /group-change-requests/{public_id}/cancellation` | `matricula.actualizar` · `todos` | Solo `pendiente`; registra quién cancela en `decided_by` (`RN-ALUM-42`). `409 request_closed` |
+
+**Implementación (`1.15-c` T2a)** [DERIVADA donde se indica]:
+- **Cuerpos**: `POST /group-change-requests` → `enrollment` y `to_group` (`public_id`) y `reason` (1-500, obligatorio); `approval`, `rejection` y `cancellation` → `decision_note` (1-500; **obligatoria** solo en `rejection`, opcional en las otras dos). Los textos se recortan, sin caracteres de control salvo salto de línea y tabulador (`INV-010`).
+- **Recurso** [DERIVADA: la especificación no fijaba su forma]: `public_id`, `enrollment {public_id, student {public_id, display_name}}`, `academic_year {public_id, code}`, `from_group` y `to_group {public_id, code, name}`, `reason`, `status`, `requested_by` y `decided_by` (`{public_id, display_name}` o `null`), `decided_at`, `decision_note`, `created_at`, `updated_at`. Listado paginado por página, la más reciente primero (desempate por `id`). `201` con `Location`.
+- **Errores `422`** (`alum.validation.*`): `request_already_pending` (en `enrollment`), `group_not_in_course` (en `to_group`; también destino igual al origen), `parent_not_found` (grupo inexistente o ilegible), `enrollment_not_active`, `enrollment_without_group`, `reason_invalid`, `decision_note_required`, `decision_note_invalid`, `required`. Matrícula o solicitud inexistente, de otro centro, ilegible o fuera de ámbito: `404`.
+- **Errores `409`** (`alum.conflict.*`): `request_closed` (en `request`), `enrollment_changed` (en `enrollment`; aprobar con la matrícula en baja, anulada o ya no en el grupo de origen); y `urn:pge:error:academic-year-closed` (curso cerrado; `404` si el actor no puede leerlo, #598). **`403 alum.forbidden.self_approval`**: el solicitante intenta aprobar la suya.
+- **Veto de grupos** (`RN-ALUM-47`): `DELETE /groups/{id}` en `acad` ⇒ `409 acad.conflict.has_dependents` con `group_change_requests` si hay solicitudes `pendiente` de origen o destino.
 
 ## 4. Fotografía (`1.15-c`, `OPEN-ALUM-08` = A)
 
