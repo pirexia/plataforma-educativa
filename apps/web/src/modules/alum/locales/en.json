@@ -1,0 +1,173 @@
+{
+  "alum": {
+    "nav": {
+      "students": "Alumnado",
+      "backToStudents": "Volver al alumnado"
+    },
+    "common": {
+      "dash": "—",
+      "yes": "Sí",
+      "no": "No",
+      "loading": "Cargando…"
+    },
+    "errors": {
+      "unexpected": "No se ha podido completar la operación. Inténtelo de nuevo."
+    },
+    "fields": {
+      "name": "Nombre",
+      "givenName": "Nombre de pila",
+      "familyName1": "Primer apellido",
+      "familyName2": "Segundo apellido",
+      "birthDate": "Fecha de nacimiento",
+      "documentType": "Tipo de documento",
+      "documentNumber": "Número de documento",
+      "locale": "Idioma",
+      "enrollment": "Matrícula",
+      "createdAt": "Alta",
+      "actions": "Acciones"
+    },
+    "enums": {
+      "documentType": {
+        "dni": "DNI",
+        "nie": "NIE",
+        "pasaporte": "Pasaporte"
+      },
+      "locale": {
+        "es-ES": "Español",
+        "en": "Inglés",
+        "de": "Alemán",
+        "fr": "Francés"
+      },
+      "enrollmentStatus": {
+        "activa": "Activa",
+        "baja": "Baja"
+      },
+      "relationship": {
+        "padre": "Padre",
+        "madre": "Madre",
+        "tutor_legal": "Tutor legal",
+        "abuelo": "Abuelo/a",
+        "apoderado": "Apoderado/a",
+        "otro": "Otro"
+      },
+      "linkStatus": {
+        "activo": "Activo",
+        "revocado": "Revocado"
+      },
+      "consentLevel": {
+        "web": "Web del centro",
+        "redes_sociales": "Redes sociales"
+      },
+      "consentState": {
+        "autorizo": "Autorizo",
+        "no_autorizo": "No autorizo",
+        "pendiente": "Pendiente"
+      }
+    },
+    "students": {
+      "title": "Alumnado",
+      "intro": "Alumnado del centro. El curso académico es el elegido en el selector de la barra superior.",
+      "caption": "Listado del alumnado",
+      "new": "Nuevo alumno",
+      "unnamed": "Sin nombre",
+      "deleted": "baja",
+      "restore": "Restaurar",
+      "restored": "El alumno se ha restaurado.",
+      "empty": {
+        "title": "No hay alumnos que mostrar",
+        "text": "Dé de alta al primer alumno del centro."
+      },
+      "filters": {
+        "course": "Curso",
+        "group": "Grupo",
+        "enrollmentStatus": "Estado de la matrícula",
+        "includeDeleted": "Incluir bajas"
+      },
+      "confirmRestore": {
+        "title": "Restaurar a {name}",
+        "description": "El alumno volverá a aparecer en el alumnado. Si su persona ya no existe o tiene otra ficha de alumno, el sistema lo impedirá.",
+        "confirm": "Restaurar a {name}"
+      }
+    },
+    "detail": {
+      "pageTitle": "Ficha del alumno",
+      "personal": "Datos personales",
+      "edit": "Corregir datos",
+      "delete": "Dar de baja",
+      "saved": "Los datos del alumno se han guardado.",
+      "deleted": "El alumno se ha dado de baja.",
+      "readOnlyYear": "El curso académico seleccionado es de solo lectura: no se pueden hacer cambios.",
+      "confirmDelete": {
+        "title": "Dar de baja a {name}",
+        "description": "La baja es lógica: no borra a la persona ni su pertenencia a la unidad familiar, y puede restaurarse. Con una matrícula activa no se permite.",
+        "confirm": "Dar de baja a {name}"
+      }
+    },
+    "form": {
+      "close": "Cerrar",
+      "cancel": "Cancelar",
+      "create": "Dar de alta",
+      "save": "Guardar cambios",
+      "createTitle": "Nuevo alumno",
+      "createDescription": "Datos personales del alumno. La unidad familiar es opcional.",
+      "editTitle": "Corregir datos del alumno",
+      "editDescription": "Solo se envían los datos que cambie. La pertenencia a la unidad familiar se gestiona en Familias.",
+      "none": "Sin indicar",
+      "localeDefault": "Idioma del centro",
+      "documentKeep": "Documento actual: {masked}. Déjelo en blanco para conservarlo; si escribe uno nuevo, indique también el tipo."
+    },
+    "familyPicker": {
+      "legend": "Unidad familiar (opcional)",
+      "hint": "Se añade al alumno a la unidad familiar elegida. Requiere permiso para modificar familias.",
+      "search": "Buscar por código de unidad",
+      "loading": "Buscando unidades familiares…",
+      "empty": "No hay unidades familiares con ese código.",
+      "none": "Sin unidad familiar",
+      "loadError": "No se han podido cargar las unidades familiares."
+    },
+    "photo": {
+      "title": "Fotografía",
+      "none": "El alumno no tiene fotografía.",
+      "show": "Mostrar fotografía",
+      "hide": "Ocultar fotografía",
+      "loading": "Cargando la fotografía…",
+      "expired": "El enlace de la fotografía ha caducado. Vuelva a mostrarla.",
+      "alt": "Fotografía de {student}",
+      "file": "Fichero de imagen",
+      "hint": "JPEG o PNG, hasta 5 MB. El servidor reprocesa la imagen y descarta sus metadatos.",
+      "tooLarge": "El fichero supera los 5 MB permitidos.",
+      "wrongType": "El fichero debe ser una imagen JPEG o PNG.",
+      "submitUpload": "Subir fotografía",
+      "submitReplace": "Sustituir fotografía",
+      "replace": "Sustituir",
+      "remove": "Quitar",
+      "saved": "La fotografía se ha guardado.",
+      "removed": "La fotografía se ha quitado.",
+      "confirmRemove": {
+        "title": "Quitar la fotografía de {name}",
+        "description": "La fotografía dejará de estar disponible. Puede subir otra después.",
+        "confirm": "Quitar la fotografía de {name}"
+      }
+    },
+    "guardians": {
+      "title": "Tutores y contacto de emergencia",
+      "hint": "Vínculos del alumno con sus tutores. Consultarlos queda registrado en la auditoría, por eso solo se piden al pulsar el botón.",
+      "show": "Mostrar vínculos",
+      "empty": "El alumno no tiene vínculos de tutor.",
+      "relationship": "Relación",
+      "legal": "Representación legal",
+      "emergency": "Contacto de emergencia",
+      "status": "Estado",
+      "caption": "Vínculos de tutor del alumno"
+    },
+    "consents": {
+      "title": "Consentimiento de imagen",
+      "show": "Mostrar consentimientos",
+      "empty": "No hay consentimientos de imagen registrados.",
+      "level": "Ámbito",
+      "state": "Estado",
+      "lastDecision": "Última decisión",
+      "caption": "Consentimiento de imagen del alumno"
+    }
+  }
+}
