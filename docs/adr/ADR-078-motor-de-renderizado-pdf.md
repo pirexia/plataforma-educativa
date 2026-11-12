@@ -241,11 +241,74 @@ Lo anterior se mantiene (2 a 8 y 10) y además, como mínimo: JavaScript desacti
 
 ## 7 · Accesibilidad, archivado, idiomas y tipografías
 
-_(pendiente)_
+### 7.1 Accesibilidad del PDF
+
+`RNF-UX-002` exige WCAG 2.2 AA y EN 301 549, y un boletín descargado es parte del producto. Se propone:
+
+1. **Todo PDF se genera etiquetado**, sin excepción y sin opción de desactivarlo. Es la base sin la cual un lector de pantalla no puede leer el documento.
+2. **El objetivo de conformidad es PDF/UA-1** para los documentos dirigidos a familias, alumnos y personal (`OPEN-PDF-03` fija el alcance exacto). No PDF/UA-2: exige PDF 2.0 y el soporte en lectores es menor (sin verificar el estado actual de los lectores).
+3. **La accesibilidad la pone la plantilla, no el motor.** La documentación de WeasyPrint lo dice así: la condición principal es un HTML correcto, con `<title>` y `lang`. De ahí la regla 4 de `§3.3`, que se comprueba en el test de conformidad y en la revisión de cada plantilla.
+4. **El contraste de la marca del centro** ya lo valida `RUX-BRAND-006`; la plantilla usa los mismos colores validados y no introduce otros.
+5. **Límite honesto**: el motor declara que el resultado «is not guaranteed». Pasar un validador automático no equivale a ser accesible; la primera plantilla (boletín) se revisa además con un lector de pantalla antes de cerrar `1.17`. No se declara conformidad PDF/UA en ningún documento público del producto hasta tener esa revisión.
+
+### 7.2 Archivado (PDF/A)
+
+`RNF-COMP-004` pide PDF/A «para documentos con valor archivístico» y no dice cuáles. Opciones reales:
+
+| Opción | Ventaja | Riesgo | Coste de revertir |
+|---|---|---|---|
+| **P1 · Dos perfiles: `archival` para documentos emitidos (boletines, informes, certificados, actas, nóminas) y `accessible` para listados y exportaciones de trabajo** | Cumple el requisito donde aplica; los listados no cargan con las restricciones de PDF/A | Hay que clasificar cada tipo de documento (lo hace cada módulo en su especificación) | Bajo: cambiar el perfil de un tipo afecta solo a lo que se genere después |
+| P2 · Todo en PDF/A | Una sola regla | Restricciones innecesarias en documentos efímeros; si PDF/A y PDF/UA no pudieran combinarse en un fichero, se perdería accesibilidad en todos | Bajo |
+| P3 · PDF/A solo cuando un módulo lo pida | Mínimo trabajo | Incumple `RNF-COMP-004` por omisión | Alto: los ya emitidos no se convierten solos |
+
+**Recomendación: P1.** Nivel propuesto para `archival`: **PDF/A-2a o PDF/A-3a** (las variantes «a» exigen etiquetado, con lo que archivo y accesibilidad no compiten). La documentación de WeasyPrint recomienda la parte 3 cuando es posible; la parte 4 se descarta porque exige PDF 2.0 y es incompatible con PDF/UA-1 (documentación de Typst, que lo explica con precisión). **Sin verificar**: que WeasyPrint pueda declarar a la vez PDF/A-«a» y PDF/UA-1 en un mismo fichero (su opción `pdf_variant` admite un solo valor según la referencia consultada). Se comprueba en la prueba de `§5.4`; si no se puede, `archival` es PDF/A-«a» etiquetado sin la declaración PDF/UA, y se anota.
+
+Consecuencias de PDF/A que afectan a las plantillas: fuentes siempre incrustadas, sin transparencias en la parte 1 (motivo para no usarla), perfil de color declarado, sin contenido externo ni JavaScript (ya prohibidos por `§3.3`).
+
+**Un documento emitido no se regenera**: es un objeto inmutable con su huella. Si cambian los datos, se emite otro. Es condición para firmarlo (`§8`) y para que el archivo tenga sentido. Retención y supresión: catálogo de `ADR-077` (`OPEN-PDF-10`).
+
+### 7.3 Cuatro idiomas
+
+- El motor es agnóstico: recibe HTML ya traducido. El idioma del documento es el **del destinatario** (`ADR-021`, `PLAN 1.17`), fijado en el trabajo (`§5.2`), y se declara en `<html lang>`: lo necesitan el lector de pantalla y la partición de palabras.
+- Todos los literales de plantilla salen del sistema de traducción (`INV-009`), con paridad de claves en los cuatro idiomas. Los textos legales de un documento no se traducen automáticamente (`CLAUDE.md §2`, punto 9).
+- El contenido del centro traducible se resuelve en servidor con su cadena de reserva (`ADR-062`) antes de llamar al motor.
+- Un boletín para dos tutores con idiomas distintos son **dos documentos**, cada uno con su registro. Si eso es lo que se quiere lo decide la especificación de `1.17` (B5), no este ADR.
+- Partición automática (`hyphens: auto`): WeasyPrint la soporta con `lang` y los diccionarios de Pyphen; **sin verificar** la calidad en alemán, que es donde más importa por la longitud de las palabras. Entra en el test de conformidad.
+- Los cuatro idiomas usan alfabeto latino: una sola familia tipográfica con cobertura latina extendida basta. Las lenguas cooficiales previstas (`ca`, `eu`, `gl`) tampoco cambian esto.
+
+### 7.4 Tipografías
+
+La pila del sistema de la SPA no existe dentro del contenedor, y PDF/A obliga a incrustar la fuente. Opciones reales:
+
+| Opción | Ventaja | Riesgo | Coste de revertir |
+|---|---|---|---|
+| **T1 · Una familia de licencia abierta dentro de la imagen del servicio, igual para todos los centros** | Resultado idéntico en desarrollo, CI y producción; licencia comprobada una vez; ficheros pequeños por subconjunto | El PDF no usa la «tipografía» de la marca del centro, si la tuviera | Bajo: cambiar la familia es reconstruir la imagen; los ya emitidos no cambian |
+| T2 · Catálogo cerrado de 3-4 familias en la imagen, elegible por centro | Algo de marca | Cada familia multiplica las pruebas de maquetación por plantilla e idioma | Medio |
+| T3 · Fuentes subidas por el centro | Marca completa | Ficheros no confiables procesados por el motor, licencias que no controlamos, maquetaciones rotas | Alto |
+
+**Recomendación: T1** para la primera entrega; T2 solo si un centro lo pide; T3 no. La familia concreta **no se fija en este ADR**: su licencia (debe permitir incrustación y redistribución en la imagen, tipo SIL OFL) y su cobertura se comprueban al elegirla, con fuente y fecha (`OPEN-PDF-06`). La línea 1058 de los requisitos habla de «tipografía» dentro del *branding*; si eso alcanza a los PDF no está dicho, y por eso es pregunta abierta y no decisión.
+
+---
 
 ## 8 · Firma (PAdES) y relación con `ADR-082`
 
-_(pendiente)_
+`ADR-082` está en redacción (esqueleto sin contenido a 2026-11-12). Este ADR fija solo lo que es del motor y deja lo demás allí.
+
+**Lo que este ADR decide:**
+
+1. **El motor no firma.** `ADR-012` manda integrar un prestador cualificado y no desarrollar criptografía propia. El servicio `pdf` no recibe claves ni certificados, y `PdfRenderer` no tiene operación de firma. (Gotenberg 9 anuncia firma y sellado de tiempo en su motor interno; no es motivo para elegirlo: custodiar la clave sería nuestro, que es justo lo que `ADR-012` evita.)
+2. **Orden fijo**: maquetar con el perfil definitivo → guardar el objeto y su huella → firmar por el contrato que defina `ADR-082` → guardar el PDF firmado como **objeto nuevo**, sin sobrescribir el original.
+3. **Un PDF firmado no se vuelve a procesar.** Ni se regenera, ni se optimiza, ni se le añade nada: cualquier reescritura invalida la firma. PAdES añade la firma como actualización incremental; de eso se encarga el firmante, no nosotros.
+4. **La «firma del tutor» como imagen** en el cuerpo del boletín (`REQ-CALIF-002`, «personalización») es contenido de plantilla, un recurso más de la petición. No es una firma electrónica y la plantilla no debe presentarla como tal.
+
+**Lo que queda para `ADR-082` (`OPEN-PDF-05`):**
+
+- Qué nivel de firma lleva cada documento y quién firma (el tutor, el centro con sello, ambos).
+- Si la firma es visible y, en ese caso, si la plantilla debe reservar un hueco o un campo de firma en una posición conocida. **Sin verificar**: que WeasyPrint pueda crear un campo de firma vacío; si `ADR-082` lo exigiera y no pudiera, el hueco se reserva como zona en blanco y el campo lo crea el firmante.
+- Compatibilidad entre el nivel de PDF/A elegido y el perfil PAdES del prestador (sellos de tiempo y validación a largo plazo). **Sin verificar**; es condición que `ADR-082` debe pedir al prestador, y puede obligar a ajustar el nivel de `§7.2`.
+- Custodia de evidencias y verificación pública por código seguro (`REQ-SEC-001`): no son del motor; el código o el QR que se imprima en el documento es un dato más de la plantilla.
+
+Consecuencia para el plan: `1.17` puede entregar boletines **sin firma electrónica** con este ADR aceptado; la firma entra cuando `ADR-082` esté aceptado. `1.17b` ya excluye la firma en su propio enunciado.
 
 ## 9 · Consecuencias, riesgos y reversión
 
