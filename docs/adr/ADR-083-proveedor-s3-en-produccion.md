@@ -162,7 +162,7 @@ Volver atrás o cambiar a otra opción: (1) crear *bucket* y clave en el nuevo p
 | AWS S3 (C) como primario | Mejor posición en ENS, peor en C4 y en coste de salida. Se conserva como salida si el ENS resulta exigible y OVHcloud no lo acredita (`§5`) |
 | Scaleway (B) como primario | Dos incógnitas en C2 (alcance y caducidad del certificado) y ninguna señal de ENS. Queda como alternativa preparada |
 | Dos proveedores activos a la vez desde el primer día | Duplica coste, configuración y superficie de fallo sin un centro firmado. Complejidad sin beneficio proporcional hoy |
-| Otros proveedores (IONOS, Exoscale, Backblaze, Wasabi, Cloudflare R2, Azure, Google) | No evaluados. Los dos últimos, además, no ofrecen S3 nativo como contrato (`ADR-076 §9`). Si el usuario quiere alguno, se añade con el mismo método |
+| Otros proveedores (IONOS, Exoscale, Backblaze, Wasabi, Cloudflare R2, Azure, Google) | No evaluados en esta sesión; no se descartan por ningún defecto conocido. `ADR-076 §9` ya descartó usar Azure o Google con *driver* nativo. Si el usuario quiere alguno, se añade con el mismo método |
 
 ## 11 · Preguntas para el usuario
 
