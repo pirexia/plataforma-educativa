@@ -418,6 +418,8 @@ Además de las opciones descartadas en cada tabla de `§4` y `§5.1`:
 
 **Decidida también el 2026-11-12**: `OPEN-FIRMA-05` (issue #82), según la recomendación de este ADR: el firmante autorizado del centro es una entidad propia de apoderamientos (calidad, alcance por tipo de documento, vigencia, documento acreditativo, revocación), exigida además del permiso `firmar`, sin doble autorización y con la regla «nadie se apodera a sí mismo». Sigue pendiente de validación jurídica.
 
+**Decididas por el usuario (2026-11-12), según la recomendación**: `OPEN-FIRMA-04` (cada tipo de documento fija si basta `uno` de los tutores legales o se exigen `todos`, y un rechazo expreso de cualquiera prevalece siempre) y `OPEN-FIRMA-06` (reautenticación en el acto de firma, funcionalidad nueva que no está en `REQ-AUTH-003`). Ambas pendientes de validación jurídica.
+
 Ninguna se da por resuelta. «Decide» indica quién; todo lo marcado legal necesita además la validación jurídica de la cabecera.
 
 ### 9.1 Bloquean la implementación de `REQ-DOC-002` y `REQ-AUT`
