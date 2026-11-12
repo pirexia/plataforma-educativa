@@ -430,6 +430,8 @@ Un SMS cuesta lo que unos 200 correos. Por eso el tope por centro y la medición
 
 ## 9. Preguntas abiertas
 
+**Decidida por el usuario (2026-11-12)**: `OPEN-079-04`, según la recomendación de este ADR: el motor vive en `Core` y el aviso de recogida de menores lo dispara un *listener* del propio `prl`, no `Com`. Esto matiza la recomendación aprobada de `OPEN-FAM-UNIT-33` («consumido por `COM`»): un centro sin `com` contratado sigue recibiendo avisos de recogida. El ADR continúa en `PROPUESTA` mientras queden abiertas las demás.
+
 ### 9.1 Bloquean
 
 | ID | Pregunta | Recomendación | Impacto | Bloquea | Decide |
