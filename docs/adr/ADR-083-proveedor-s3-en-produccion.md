@@ -168,6 +168,8 @@ Volver atrás o cambiar a otra opción: (1) crear *bucket* y clave en el nuevo p
 
 **Decidida por el usuario (2026-11-12)**: `OPEN-STO-01`, según la recomendación de este ADR: OVHcloud Object Storage 3-AZ (París), **condicionado** a las peticiones P-01 a P-14 de `§6`. No se contrata nada hasta tener las respuestas por escrito y la entidad jurídica (`OPEN-07`). Scaleway queda como alternativa preparada. Sigue sin verificarse ninguna certificación con fuente primaria. El ADR continúa en `PROPUESTA` mientras queden abiertas las demás.
 
+**Decidida también el 2026-11-12**: `OPEN-STO-12` y `-04`, según la recomendación: lo jurídico (ENS, NIS2, base legal de datos de menores) lo valida un **asesor externo con encargo cerrado antes del primer dato real**. Hasta entonces toda la matriz de `docs/cumplimiento/` sigue «pendiente de validación jurídica». Pregunta clave para el asesor: si el ENS alcanza a la plataforma por tener clientes concertados.
+
 Las de cumplimiento están en [`preguntas-abiertas.md`](../cumplimiento/preguntas-abiertas.md). Las propias de este ADR:
 
 | ID | Pregunta | Recomendada | Bloquea |
