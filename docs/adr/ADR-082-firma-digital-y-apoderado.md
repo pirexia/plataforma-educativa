@@ -414,12 +414,88 @@ Además de las opciones descartadas en cada tabla de `§4` y `§5.1`:
 
 ## 9 · Preguntas abiertas
 
-_Pendiente._
+Ninguna se da por resuelta. «Decide» indica quién; todo lo marcado legal necesita además la validación jurídica de la cabecera.
+
+### 9.1 Bloquean la implementación de `REQ-DOC-002` y `REQ-AUT`
+
+| ID | Pregunta | Recomendación | Impacto | Decide |
+|---|---|---|---|---|
+| `OPEN-FIRMA-01` | ¿Se acepta sustituir en parte `ADR-012` para que el nivel N1 se registre en la plataforma sin prestador? | **Sí** (`§4.2` B) | Si no: todo por prestador; `REQ-AUT` no puede empezar sin contrato y hay coste por cada aceptación | Usuario |
+| `OPEN-FIRMA-02` | ¿Es correcta la tabla de niveles de `§4.1`? En particular: medicación (N1 con reautenticación o N2), salidas con pernocta o al extranjero, actas de órganos colegiados | La tabla tal cual; medicación en N1 con reautenticación | Cada tipo que suba a N2 añade coste y dependencia del prestador | Legal y usuario |
+| `OPEN-FIRMA-04` | Regla de tutores: política `uno`/`todos` por tipo, y que un rechazo expreso prevalezca | **`§4.7.2` C**, con el reparto propuesto | Define los estados de toda autorización; cambiarla después altera cómo se leen las ya firmadas | Legal |
+| `OPEN-FIRMA-05` | Modelo del firmante autorizado (`§4.8` C) y control de su alta: ¿basta «nadie se apodera a sí mismo» o hace falta doble autorización? | **C; sin doble autorización**, con permiso propio, documento acreditativo obligatorio y auditoría | La doble autorización exige dos administradores por centro, que muchos centros pequeños no tienen | Usuario |
+| `OPEN-FIRMA-06` | ¿Se aprueba la reautenticación en el acto de firma? No está en `REQ-AUTH-003` | **Sí**: obligatoria en las filas marcadas de `§4.1`, configurable en el resto | Sin ella, N1 no protege frente a la sesión abierta; con ella, hay trabajo nuevo en `auth` (contraseña, segundo factor, SSO) | Usuario |
+| `OPEN-FIRMA-15` | Dependencia de `ADR-078`: perfil `archival`, objeto inmutable, justificante como plantilla | Aceptar ambos ADR de forma coordinada | Sin motor no hay justificante ni documento que firmar | Usuario (al aceptar `ADR-078`) |
+
+### 9.2 Bloquean solo una parte
+
+| ID | Pregunta | Recomendación | Impacto | Decide |
+|---|---|---|---|---|
+| `OPEN-FIRMA-03` | Prestador para N2/N3 y quién lo contrata | **La plataforma contrata uno**, elegido con los criterios de `§4.2.4` tras presupuestos y la prueba de PDF/A de `§4.6.1` | Bloquea solo los tipos N2/N3 | Usuario y negocio |
+| `OPEN-FIRMA-14` | ¿Cómo se repercute el coste por firma N2/N3 (incluido en la cuota, o medido por centro)? | **Medido por centro** y visible en el backoffice | Afecta a `REQ-BO` y a la oferta comercial | Negocio |
+| `OPEN-FIRMA-09` | ¿Se admite el canal presencial (firma en papel registrada por el centro, con escaneo)? | **Sí**, con permiso propio | Sin él, los tipos `todos` se bloquean con familias sin medios digitales o con acceso revocado | Usuario |
+| `OPEN-FIRMA-10` | Alumnado de 14 años o más y mayor de edad: ¿quién firma? (es `OPEN-FAM-UNIT-18`) | No inventar regla; **resolver antes de datos reales** | Puede hacer no conforme toda firma de tutores sobre alumnado adulto | Legal |
+| `OPEN-FIRMA-16` | En autorizaciones de vigencia continuada, ¿deja de contar la firma de quien pierde la representación legal? | **Sí**, estado calculado como en `ADR-066 §5.4` | Define el cálculo de vigencia | Legal |
+| `OPEN-FIRMA-08` | Plazo de conservación de evidencias y de IP y agente de usuario | Ligado al documento más la prescripción que fije la asesoría; supresión según `1.23b` | Catálogo de retención (`REQ-PRIV-006`) | Legal |
+| `OPEN-FIRMA-13` | ¿Las asociaciones internas (#78) son entidad representada con firmantes propios? | **Aplazar** a la especificación de #78; ahora solo el centro | Si se decide después, es un cambio aditivo en apoderamientos | Usuario |
+
+### 9.3 No bloquean
+
+| ID | Pregunta | Recomendación | Impacto | Decide |
+|---|---|---|---|---|
+| `OPEN-FIRMA-07` | Manifiesto diario con sello de tiempo cualificado: ¿en la primera entrega o después?, ¿qué autoridad de sellado? | **Segunda entrega**; la huella de cada evidencia, desde la primera. Autoridad: la del prestador elegido si la ofrece | Refuerza la prueba de N1; dependencia externa nueva y su renovación de sellos | Usuario y técnico |
+| `OPEN-FIRMA-11` | ¿Verificación pública por código para todos los tipos o solo para certificados (`REQ-SEC-001`)? | **Solo certificados**; el resto, con sesión | Superficie pública sin sesión | Usuario |
+| `OPEN-FIRMA-12` | Sello electrónico del centro en PDF emitidos en serie | **No construir** hasta que un centro lo pida; entonces, sello remoto del prestador | Nóminas y certificados salen sin firma criptográfica mientras tanto | Usuario |
+| `OPEN-FIRMA-17` | Notificación fehaciente de `REQ-CONV-002` | Tratarla en `ADR-079` como entrega certificada del mismo prestador | Criterio valorable de `§4.2.4` | Usuario (con `ADR-079`) |
+| `OPEN-FIRMA-18` | Nombre del concepto del lado del centro | **«Firmante autorizado»**; «apoderado» queda como una calidad y como parentesco familiar | Textos de interfaz y manuales | Usuario |
+
+Total: **18** preguntas (`OPEN-FIRMA-01` a `-18`); **6** bloquean la implementación, **7** bloquean una parte, **5** no bloquean.
 
 ## 10 · Cambios propuestos en ficheros compartidos
 
-_Pendiente._
+No se ha tocado ninguno. Los aplica la sesión orquestadora al integrar, y solo si el ADR se acepta (la fila del índice, ya en `PROPUESTA`).
+
+| Fichero | Cambio propuesto |
+|---|---|
+| `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` §18 (índice) | Fila `ADR-082`: «Firma electrónica por niveles (N1 en la plataforma, N2 y N3 por prestador tras `SignatureProvider`), evidencias de solo anexar con custodia doble, justificante y PDF firmado como objetos nuevos, regla de tutores legales por tipo de documento y firmante autorizado del centro (issue #82). Concreta `ADR-012` y **lo sustituye en parte** (el prestador deja de ser obligatorio para N1). **Estado: `PROPUESTA`**». Entrada en el historial de versiones |
+| Ídem, texto de `ADR-012` | Al aceptar: nota «sustituido en parte por `ADR-082`» (el texto de un ADR no se reescribe) |
+| Ídem, `REQ-DOC-002` | Al aceptar: referencia a `ADR-082` y al issue #82. Sin cambiar el requisito |
+| Ídem, glosario | Entradas «firmante autorizado» y «evidencia de firma», si se acepta `OPEN-FIRMA-18` |
+| `PLAN-IMPLEMENTACION.md` | Nota de fase 2 sobre #82 (l. ~293): sustituir «sin diseño todavía» por la referencia a `ADR-082`. Al planificar `REQ-DOC`: firma (`REQ-DOC-002`) como entrega separable y anterior a `REQ-AUT`; contrato «quiénes deciden» de `fam_unit` como prerrequisito; tipos N2/N3 condicionados a `OPEN-FIRMA-03` |
+| `ARCHITECTURE.md` | Al implementar: contrato `SignatureProvider` en la lista de dependencias externas envueltas (`RNF-MANT-007`) y el prestador en el diagrama de servicios externos |
+| `SECURITY.md`, `PRIVACY.md` | Al implementar: prestador de firma como subencargado; evidencias (IP, agente de usuario) en el registro de tratamientos; verificación pública por código, si se aprueba |
+| `SYSADMIN.md`, `RUNBOOK.md` | Al implementar: secretos del prestador y de la autoridad de sellado; «el prestador no responde» (los procesos quedan pendientes, no se degradan); «falla el manifiesto diario» |
+| `CLAUDE.md §1` | Al elegir prestador: fila «Firma electrónica» con «elegido y no instalado» mientras no exista el adaptador |
+| `CHANGELOG.md`, `README.md`, `memory.md` | Lo habitual al integrar; nada antes |
+| `docs/modulos/REQ-FAM-UNIT/funcional.md` (l. 94, tabla de exclusiones) | No es fichero compartido del guion ni de este encargo: donde dice «prestador cualificado sin integrar», referenciar `ADR-082` cuando se acepte |
+| Issue #82 | Comentario con el enlace al ADR; se cierra cuando se acepte o se sustituya |
+
+**Para `ADR-078` (agente A2)**: sus tres peticiones están respondidas en `§4.6.1`; `OPEN-PDF-05` puede cerrarse contra ese apartado, salvo la prueba de compatibilidad PAdES y PDF/A, que queda ligada a `OPEN-FIRMA-03`.
 
 ## 11 · Fuentes y lo no verificado
 
-_Pendiente._
+### 11.1 Fuentes consultadas (2026-11-12)
+
+| Tema | Fuente | Qué se tomó |
+|---|---|---|
+| Ley 6/2020, arts. 3 y 7 | BOE, texto consolidado, `https://www.boe.es/buscar/act.php?id=BOE-A-2020-14046` | Resumen de los artículos (no el literal); última actualización 2023-05-09 |
+| eIDAS, art. 25 | Fuentes secundarias: `https://focus.namirial.com/es/firma-electronica/`, `https://www.gtt.es/boletinjuridico/la-regulacion-de-la-identificacion-la-firma-y-sello-electronicos-en-la-ley-392015`, `https://www.notariosyregistradores.com/web/?p=77723` | Efectos de la firma no cualificada |
+| Cl@ve | `https://laadministracionaldia.inap.es/noticia.asp?id=1148580` (prescripciones técnicas); blog comercial `https://didit.me/es/blog/clave-integration-spain` | Ámbito de sector público; ausencia de vía para privados (solo fuente comercial) |
+| eIDAS 2 y cartera | `https://www.garrigues.com/es_ES/garrigues-digital/cartera-europea-identidad-digital-ya-tiene-calendario-tareas-completar-antes` y otras secundarias | Fechas discrepantes |
+| Signaturit | `https://www.signaturit.com/legalidad/`, `https://www.signaturit.com/products/digital-certification/time-stamp/` | Integración en Namirial; sello de tiempo prestado por un tercero; sin precios públicos de API |
+| DocuSeal y Documenso | `https://verdocs.com/blog/docuseal-vs-documenso`, `https://openalternative.co/compare/documenso/vs/docuseal` | Licencia AGPL-3.0 (fuentes de terceros) |
+| Biblioteca DSS | `https://ec.europa.eu/digital-building-blocks/wikis/display/DIGITAL/Digital+Signature+Service+-++DSS` | Licencia LGPL 2.1; proyecto activo en 2026 |
+| Certificado de representante | `https://www.sede.fnmt.gob.es/registro-inicio` y páginas de la Agencia Tributaria | Requisitos de acreditación registral; información contradictoria sobre disponibilidad |
+| Motor de PDF | `ADR-078` en su rama (`§7.2`, `§8`, `§12`) | Perfil `archival`, orden de firma, peticiones |
+
+### 11.2 Sin verificar
+
+- El texto literal de los arts. 25 y 26 de eIDAS, del art. 326 LEC, del art. 156 del Código Civil y del art. 7 de la LOPDGDD. Todo `§3` es marco de trabajo, **pendiente de validación jurídica**.
+- Que ningún candidato de `§4.2.4` cumpla los criterios: no se ha consultado la lista de confianza de la UE, ni condiciones, ni precios, ni idiomas de la interfaz del firmante.
+- Que una empresa privada no pueda integrarse con Cl@ve: no se ha encontrado fuente oficial que lo afirme o lo niegue.
+- Fechas de la cartera europea de identidad digital.
+- Que un PDF/A-2a o -3a de WeasyPrint siga siendo conforme tras una firma PAdES con validación a largo plazo de un prestador concreto (`§4.6.1` punto 3).
+- pyHanko (licencia, mantenimiento) y soporte de PAdES en DocuSeal y Documenso: sin resultados; no afecta, porque esas opciones se descartan por otros motivos.
+- Que exista una autoridad de sellado cualificada con precio razonable para un sello por centro y día (`OPEN-FIRMA-07`).
+- Volumen real de aceptaciones por centro: la cifra de `§1.3` es un orden de magnitud razonado, no una medida.
+- No se ha ejecutado ningún test ni se ha tocado código: este ADR es solo documentación.
