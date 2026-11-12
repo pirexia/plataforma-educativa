@@ -362,6 +362,8 @@ Consecuencia para el plan: `1.17` puede entregar boletines **sin firma electrón
 
 **Decididas por el usuario (2026-11-12)**: `OPEN-PDF-01` (motor: WeasyPrint, con Gotenberg como vuelta atrás) y `OPEN-PDF-02` (se acepta el envoltorio propio mínimo en Python, un endpoint y un fichero, en `infra/containers/pdf/`), ambas según la recomendación de este ADR. La prueba de rendimiento de `§5.4` sigue siendo condición del primer tramo: si no se cumple, rige la vuelta atrás. El ADR sigue en `PROPUESTA` mientras queden abiertas `OPEN-PDF-03` y `-04`, que también bloquean. Las filas siguientes conservan el razonamiento original.
 
+**Decididas por el usuario (2026-11-12), según la recomendación**: `OPEN-PDF-04` (umbrales de la prueba de aceptación previa a escribir plantillas: 1.200 boletines en 30 minutos o menos con un worker, ningún documento por encima de 60 s y servicio de 512 MB o menos; si no se cumplen, rige la vuelta atrás a Gotenberg con las mismas plantillas).
+
 Convención: **R** es la recomendación de este ADR. «Bloquea» se refiere a la implementación de la entrega del motor, salvo que se diga otra cosa.
 
 ### 11.1 Bloquean
