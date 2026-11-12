@@ -758,6 +758,8 @@ Pest en `apps/api/tests/Feature/<Módulo>/` (concurrencia en `tests/Concurrency/
 
 ## 14. Preguntas abiertas (no las resuelvo; cada una con recomendación)
 
+**Decidida por el usuario (2026-11-12)**: `OPEN-ACAD-45`, según la recomendación: la asistencia vive en un **módulo nuevo `asistencia`** con `depends_on: ['curso','acad','alum']`, lo que evita el ciclo con `alum`. Siguen abiertas `OPEN-ACAD-46`, `-47` y `-52`, que bloquean, y el ADR de lista sin conexión (número `ADR-084`, asignado por la orquestadora).
+
 ### 14.1 Bloqueantes: sin decidirlas no se implementa
 
 | ID | Pregunta | Opciones | **Recomendación** e impacto | Bloquea | Decide |
