@@ -147,15 +147,97 @@ Toda plantilla de PDF de cualquier módulo cumple:
 
 ## 4 · Interfaz propia (`RNF-MANT-007`)
 
-_(pendiente)_
+Ningún módulo conoce el motor. El contrato vive en `App\Support\Pdf` (mismo criterio que `App\Support\Files`, `ADR-076`): es infraestructura transversal, no un módulo, así que usarlo no rompe `INV-007`.
+
+Forma del contrato (se describe, no se implementa en este ADR):
+
+| Pieza | Papel |
+|---|---|
+| `PdfRenderer` | Interfaz única: recibe un `PdfDocument` y devuelve un `RenderedPdf`, o lanza una excepción tipada |
+| `PdfDocument` | Objeto de valor inmutable: HTML ya resuelto, recursos por nombre (bytes y tipo), idioma (`es-ES`, `en`, `de`, `fr`), título y **perfil de conformidad** |
+| `PdfProfile` | Enumerado cerrado propio, no las cadenas del motor: `accessible` (etiquetado, objetivo PDF/UA-1) y `archival` (PDF/A; nivel exacto en `OPEN-PDF-03`) |
+| `RenderedPdf` | Bytes, número de páginas, perfil aplicado y huella SHA-256 |
+| Excepciones | `PdfRenderingFailed` (el motor rechazó la entrada: no se reintenta), `PdfRendererUnavailable` (servicio caído o tiempo agotado: se reintenta), `PdfResourceMissing` (la plantilla cita un recurso que no viaja en la petición) |
+| `HttpPdfRenderer` | Único adaptador: habla con el servicio `pdf` por el cliente HTTP de Laravel. No añade ninguna dependencia a `composer.json` |
+| `FakePdfRenderer` | Doble para Pest: registra los documentos pedidos y devuelve un PDF mínimo válido. La suite no levanta el contenedor |
+
+Reglas del contrato:
+
+1. **El HTML llega resuelto.** Traducción (`INV-009`), formato de fechas e importes, escapado de datos y marca del centro se resuelven en la aplicación antes de llamar. El motor no conoce centros, idiomas ni permisos.
+2. **El contrato no escribe en el almacén.** Devuelve bytes; quien llama los guarda por `PrivateObjectStore` (`ADR-076`). Así el servicio `pdf` no necesita credenciales de nada.
+3. **El contrato no audita ni autoriza.** `INV-002` e `INV-003` son del módulo que genera y del *endpoint* que descarga.
+4. **Test de conformidad** (precedente `ADR-076 §5`): un trabajo de CI aparte levanta el servicio real y comprueba, con plantillas de referencia en los cuatro idiomas, que el resultado es un PDF, que las fuentes están incrustadas, que un recurso externo citado **no** se descarga y que el perfil pedido se cumple (`OPEN-PDF-08` decide con qué validador).
+
+Lo que **no** entra en el contrato: unir, dividir, sellar o firmar PDF. Si un módulo lo necesitara, es otra decisión (`§8`, `§10`).
+
+---
 
 ## 5 · Cola y volumen (`INV-012`)
 
-_(pendiente)_
+### 5.1 Regla
+
+**Ningún PDF se genera en la petición HTTP**, ni siquiera uno solo: el servicio puede estar reiniciándose y el tiempo de un render no está acotado por diseño. El *endpoint* crea el registro del documento en estado pendiente, encola y responde; el cliente consulta el estado y, cuando está listo, obtiene una URL firmada de caducidad corta. Es el patrón que ya usa `data_exports` (`REQ-CORE/funcional.md §4.6`).
+
+### 5.2 Un trabajo por documento
+
+- Un lote de boletines es **N trabajos de un documento**, agrupados con `Bus::batch` (la tabla `job_batches` ya existe) para dar progreso. Nunca un trabajo que genere 1.200.
+- Motivo: cabe en el `--timeout=120` del `worker` actual, un fallo afecta a un alumno y no al lote, y el reintento es barato.
+- **Idempotencia**: cada trabajo se identifica por el registro del documento; si ya tiene objeto y huella, termina sin regenerar. El objeto se escribe una vez y el registro se actualiza en la misma transacción lógica (primero el objeto, después la fila; un objeto huérfano lo limpia la purga, no al revés).
+- **Aislamiento** (`INV-001`): el trabajo lleva el centro y lo fija en `TenantContext` antes de leer nada (skill `aislamiento-tenant`). El idioma se fija **explícitamente** con el del destinatario; en un *worker* no hay petición de la que heredarlo.
+- **Compatibilidad entre versiones** (`CLAUDE.md §9`): la carga del trabajo son identificadores, no HTML ni datos del alumno; un trabajo encolado por la versión anterior se resuelve con la plantilla vigente.
+
+### 5.3 Dónde se consumen
+
+Opciones reales:
+
+| Opción | Ventaja | Riesgo | Coste de revertir |
+|---|---|---|---|
+| **Q1 · Cola propia por módulo (p. ej. `calif-pdf`) en el `worker` actual, al final de la lista de prioridad** | Ningún proceso nuevo. `queue:work` atiende las colas en orden: el correo y lo demás pasan siempre antes que el lote | Un solo proceso: el lote es en serie | Nulo |
+| Q2 · Proceso `worker-pdf` dedicado | Paralelismo y aislamiento del resto | Tercer proceso que desplegar, vigilar y documentar; más memoria en WSL2 | Bajo |
+| Q3 · Cola `long` | Ya existe | `--tries=1` y `retry_after` 900 pensados para una copia única, no para 1.200 trabajos cortos; bloquearía el *rollover* | Bajo |
+
+**Recomendación: Q1**, y pasar a Q2 solo con la medida de `§5.4` en la mano (`OPEN-PDF-09`). La cola nueva se añade a la orden del `worker` en `compose.yaml` y en `infra/quadlet/worker.container` y a `core:queue-health`; `QueueWorkerTest` lo exige.
+
+En el servicio `pdf`: concurrencia pequeña y fija (propuesta: 2 renders simultáneos), un proceso por render que se recicla, y respuesta `503` inmediata si está ocupado, que el trabajo trata como `PdfRendererUnavailable` y reintenta con espera.
+
+### 5.4 Prueba de aceptación del motor (condición de la decisión)
+
+La velocidad de WeasyPrint **no está medida** y es el riesgo que puede tumbar la opción B. Antes de construir nada sobre el motor, el primer tramo de la entrega mide, con datos de `REQ-SEED`:
+
+1. 1.200 boletines de una o dos páginas, en serie y con concurrencia 2: tiempo total, tiempo por documento (mediana y percentil 95) y memoria máxima del servicio.
+2. Un listado de 1.200 filas en una sola tabla de varias páginas: tiempo y memoria.
+3. Consumo en reposo del contenedor.
+
+Umbrales **propuestos** (no salen de ningún requisito; los fija el usuario, `OPEN-PDF-04`): lote de 1.200 boletines en ≤ 30 min con un solo `worker`; ningún documento individual por encima de 60 s; memoria del servicio ≤ 512 MB. Si no se cumplen ni ajustando la plantilla (bloques en vez de tablas, que es lo que recomienda la documentación), **se cambia a la opción A antes de escribir más plantillas**, no después.
+
+---
 
 ## 6 · Seguridad
 
-_(pendiente)_
+### 6.1 Modelo de amenaza
+
+El HTML mezcla tres orígenes: plantilla del proyecto (confiable), datos de personas (no confiables: un nombre puede traer marcado) y configuración del centro (logotipo, pie de página, textos; no confiable). El logotipo puede ser SVG (`RUX-BRAND-001`), y un SVG tiene los mismos riesgos que el HTML según la propia documentación de WeasyPrint. Riesgos: SSRF hacia servicios internos, lectura de ficheros del contenedor, fuga de datos entre centros, agotamiento de recursos y fuga de datos personales por registros.
+
+### 6.2 Controles (opción B)
+
+| # | Control | Cierra |
+|---|---|---|
+| 1 | **El servicio no carga nada que no venga en la petición.** El `url_fetcher` se sustituye por uno que resuelve solo los nombres de recurso recibidos y rechaza todo lo demás (`http`, `https`, `ftp`, `file`, redirecciones). Un recurso ausente es un error, no una descarga | SSRF, lectura de ficheros |
+| 2 | **Sin red de salida.** El contenedor `pdf` vive en una red interna sin puerta de enlace y no publica puerto; solo lo alcanzan `api` y `worker`. Es el control principal; el nº 1 es la segunda barrera. Encaje con `ADR-028` (red externa, sin IP a mano) y con `ADR-080`: `§12` | SSRF aunque falle el nº 1 |
+| 3 | **Sin secretos.** Ni variables de base de datos, ni de S3, ni clave de aplicación. No monta volúmenes | Robo de credenciales |
+| 4 | **Contenedor mínimo**: usuario sin privilegios, sistema de ficheros de solo lectura con `tmpfs`, todas las *capabilities* retiradas, `no-new-privileges`, SELinux en `enforcing` | Escalada |
+| 5 | **Límites**: tamaño máximo de petición, tiempo máximo por render con muerte del proceso, límite de memoria del contenedor, reciclado de procesos | Render infinito, valores CSS enormes (riesgos que la documentación oficial reconoce) |
+| 6 | **Sin estado entre peticiones**: nada en disco ni en memoria sobrevive a un render | Fuga entre centros (`INV-001`) |
+| 7 | **Registros sin contenido**: solo identificador de petición, tamaño, páginas, duración y código de error. Nunca HTML, nombres ni rutas de recursos | Datos de menores en registros |
+| 8 | **Escapado en origen**: todo dato va por la salida escapada de Blade; la salida sin escapar queda prohibida en plantillas de PDF salvo sobre contenido generado por el propio servidor. El texto configurable del centro se trata como texto plano (precedente `ADR-070`) hasta que `OPEN-PDF-07` diga otra cosa | Inyección de marcado |
+| 9 | **Versión mínima 70.0** (CVE-2026-55073: imágenes EPS y sustitución del `url_fetcher`) y escaneo de dependencias de la imagen en cada PR (`CLAUDE.md §8`) | Fallos conocidos, cadena de suministro |
+| 10 | **Descarga**: el PDF sale siempre por URL firmada de caducidad corta, tras comprobar permiso en el *endpoint*; la lectura de documentos con datos de categoría especial se audita (skill `auditoria`) | `INV-002`, `INV-003`, `CLAUDE.md §8` |
+
+**No se añade autenticación entre `worker` y `pdf`** (ni *token* ni mTLS): en una red interna sin salida, quien alcanza el servicio ya es un contenedor propio, y un secreto más es otra pieza que rotar. Si `ADR-080` cambiara el modelo de red (p. ej. un servicio compartido entre entornos), esta decisión se revisa.
+
+### 6.3 Si se acaba en la opción A
+
+Lo anterior se mantiene (2 a 8 y 10) y además, como mínimo: JavaScript desactivado, *webhook* y `downloadFrom` desactivados, denegación de IP privadas y públicas en Chromium, límite de cuerpo y de cola, y contexto de navegador no compartido. Los nombres exactos de las opciones se toman de la documentación de la versión que se fije, no de este ADR: en la serie 9 varias protecciones vienen desactivadas por defecto (`§2.2`).
 
 ## 7 · Accesibilidad, archivado, idiomas y tipografías
 
