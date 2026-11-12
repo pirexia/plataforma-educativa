@@ -432,6 +432,8 @@ Un SMS cuesta lo que unos 200 correos. Por eso el tope por centro y la medición
 
 **Decidida por el usuario (2026-11-12)**: `OPEN-079-04`, según la recomendación de este ADR: el motor vive en `Core` y el aviso de recogida de menores lo dispara un *listener* del propio `prl`, no `Com`. Esto matiza la recomendación aprobada de `OPEN-FAM-UNIT-33` («consumido por `COM`»): un centro sin `com` contratado sigue recibiendo avisos de recogida. El ADR continúa en `PROPUESTA` mientras queden abiertas las demás.
 
+**Decididas por el usuario (2026-11-12), según la recomendación**: `OPEN-079-01` (proveedor de correo: Scaleway Transactional Email, con Brevo de reserva; precios sin verificar), `OPEN-079-07` (la «apertura» se mide por lectura y acuse en la aplicación, sin píxel de seguimiento) y `OPEN-079-03` (boletines, nóminas y facturas se envían como enlace a descarga autenticada, nunca como adjunto).
+
 ### 9.1 Bloquean
 
 | ID | Pregunta | Recomendación | Impacto | Bloquea | Decide |
