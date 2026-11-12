@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any -- cuerpos JSON de la API real, sin tipar a propósito. */
 import { test, expect, request as playwrightRequest } from '@playwright/test'
 import { deflateSync } from 'node:zlib'
 import { RealSession } from './fixtures/realSession'
