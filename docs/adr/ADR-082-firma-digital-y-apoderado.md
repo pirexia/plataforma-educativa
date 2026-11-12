@@ -308,19 +308,109 @@ Son cuatro cosas distintas y no se mezclan:
 
 ## 5 · Modelo conceptual y contrato
 
-_Pendiente._
+No es un esquema: es lo que la especificación de `REQ-DOC`/`REQ-AUT` debe respetar. Los nombres son orientativos.
+
+### 5.1 Dueño
+
+| | Opción | Ventajas | Riesgos | Coste de revertir |
+|---|---|---|---|---|
+| A | **El módulo de `REQ-DOC` (`doc`) es dueño único de procesos de firma, evidencias, manifiestos, catálogo de tipos firmables, apoderamientos y del adaptador del prestador; los demás módulos consumen contratos** | Es donde el usuario situó la capacidad (issue #82); una sola tabla de evidencias; `REQ-AUT` ya declara que depende de `DOC` | `doc` debe existir, al menos en esta parte, antes que cualquier consumidor | Bajo |
+| B | `App\Support\Signing` como primitiva compartida y tablas en cada módulo consumidor | Sin módulo nuevo | Evidencias repartidas en N tablas, N historiales y N purgas; `App\Support` no puede tener tablas de negocio ni importar módulos (`AR-02`) | Alto |
+| C | En `Core` | Disponible para todos desde ya | Engorda el núcleo con un dominio que tiene proveedor externo y ciclo propio; `ADR-034` | Alto |
+
+**Recomendación: A.** Consecuencia de planificación: la parte de firma de `REQ-DOC-002` puede entregarse antes que el repositorio documental de `REQ-DOC-001` (carpetas, búsqueda), del que no depende. Partirlo así es decisión de plan, no de este ADR.
+
+### 5.2 Conceptos
+
+| Concepto | Qué es | Reglas |
+|---|---|---|
+| Tipo de documento firmable | Entrada de catálogo declarada en código (`ADR-051`) por el módulo que lo emite | Declara: lado que firma (familia, centro, ambos, tercero), nivel mínimo (`§4.1`), política de tutores (`uno`/`todos`, `§4.7.2`), calidad mínima del firmante del centro (`§4.8`), si exige reautenticación, si es de categoría especial, y si admite revocación. El centro solo puede endurecer |
+| Documento firmable | Objeto inmutable en el almacén privado con su huella | Lo crea el módulo emisor; `doc` no interpreta su contenido. Un cambio es otra versión |
+| Proceso de firma | Petición de que ciertos firmantes firmen una versión | Estado **calculado** desde evidencias, plazo y política; nivel efectivo; plazo; referencia al prestador si es N2/N3 |
+| Firmante requerido | Quién debe firmar y en calidad de qué | Para tutores se resuelve en el instante contra `fam_unit`, no se congela al crear el proceso; un tercero sin cuenta solo existe en N2/N3 |
+| Evidencia | `§4.5` | Solo anexar; sin `updated_at` ni `deleted_at` |
+| Revocación | Registro que deja sin efecto una firma de vigencia continuada | Solo anexar; referencia la evidencia |
+| Manifiesto | `§4.4` | Solo anexar; uno por centro y día con evidencias |
+| Apoderamiento | `§4.8` | Ordinaria con borrado lógico (`INV-004`); estado calculado |
+
+### 5.3 Contratos hacia otros módulos (`INV-007`)
+
+- **`SignatureProvider`** (salida hacia el prestador): `§4.2.2`.
+- **Solicitud y consulta de firmas** (entrada para consumidores): un módulo pide firmar un documento de un tipo que él mismo declaró y pregunta el estado vigente por lotes (una consulta para un grupo entero, no una por alumno). No recibe evidencias ni datos del firmante más allá de lo que su permiso permita.
+- **Firmantes autorizados**: «¿puede esta persona firmar este tipo de documento en nombre del centro ahora?». Respuesta sí o no; nunca el documento acreditativo.
+- **Desde `fam_unit`** (contrato que `fam_unit` debe publicar; hoy no existe): quiénes deciden por un alumno ahora, con la referencia al vínculo. Es la misma definición que usa `ADR-066 §5.4`, para que no haya dos.
+- **Eventos**: no se define ninguno. Se publicarán los que tengan consumidor cuando lo tengan (`ADR-048`).
 
 ## 6 · Invariantes y seguridad
 
-_Pendiente._
+| Regla | Cómo se cumple |
+|---|---|
+| `INV-001` | Todas las tablas con `tenant_id` y política de aislamiento del proyecto; objetos bajo el prefijo del centro; el manifiesto diario y la recepción de notificaciones del prestador fijan el centro explícitamente (no hay petición con sesión). El identificador del proceso en el prestador no basta para localizar un centro: se resuelve por una tabla propia, nunca confiando en un dato del mensaje |
+| `INV-002` | Permisos propios por acción (`firmar`, de `RPERM-003`; gestionar apoderamientos; registrar firma presencial; leer evidencias). Firmar exige permiso **y** calidad (`§4.7.1`, `§4.8`). Único acceso sin sesión: la verificación por código de `§4.6`, si se aprueba |
+| `INV-003` | `§4.10` |
+| `INV-004` | Evidencias, revocaciones y manifiestos son de solo anexar (más fuerte que el borrado lógico); apoderamientos y procesos, con borrado lógico |
+| `INV-006` | Todo por API; el portal es un cliente. La firma presencial y la del prestador usan los mismos servicios |
+| `INV-008` | La evidencia de una firma por un menor referencia el vínculo de tutor legal que la habilita |
+| `INV-009` | Interfaz y justificante en es, en, de, fr. El texto de la acción de firmar y las plantillas legales son contenido del centro o texto legal: no se traducen automáticamente; se registra el idioma mostrado |
+| `INV-010` | Nivel, política, calidad, plazo e instante se resuelven en servidor; del cliente solo llega la intención |
+| `INV-011` | Firmar, rechazar, revocar y crear procesos en lote aceptan clave de idempotencia; un doble clic no produce dos evidencias |
+| `INV-012` | Envíos masivos, llamadas al prestador, descargas de PDF firmado, justificantes y manifiestos, en cola. Un proceso N2/N3 puede durar días: los trabajos deben poder procesarse tras un despliegue (`CLAUDE.md §9`) |
+| `INV-015` | Cada regla de `§4` tendrá test con su identificador en la especificación |
+| `CLAUDE.md §8` | Sin JWT; el enlace de firma del prestador no sustituye a la sesión para nada dentro de la plataforma. Secretos del prestador y de la autoridad de sellado en el gestor de secretos, por plataforma (`§4.2.3`). Documentos acreditativos y PDF firmados fuera de la raíz web, con URL firmada corta. Los documentos de categoría especial siguen en sus tablas separadas y cifradas; `doc` guarda la huella y la clave de objeto, no el contenido |
+| Suplantación | La reautenticación (`OPEN-FIRMA-06`) cubre la sesión abierta en un dispositivo compartido, que es el riesgo realista en N1 |
+| Enumeración | El código de verificación es aleatorio, largo y con límite de peticiones; respuesta indistinguible entre inexistente y no visible |
+| Prestador caído o comprometido | Fallo en cerrado (`§4.2.2`); las notificaciones entrantes no cambian estado por sí solas |
 
 ## 7 · Consecuencias, riesgos y reversión
 
-_Pendiente._
+### 7.1 Consecuencias
+
+- `REQ-AUT` puede implementarse entero en N1 **sin contratar ningún prestador**. El prestador solo bloquea los tipos N2/N3 (matrícula con contrato, convenios).
+- Aparece trabajo que los requisitos no enumeran y que por tanto necesita aprobación: reautenticación (`OPEN-FIRMA-06`), canal presencial (`OPEN-FIRMA-09`), manifiesto sellado (`OPEN-FIRMA-07`), gestión de apoderamientos (ya pedida por #82).
+- `fam_unit` debe publicar el contrato «quiénes deciden» (`§5.3`); es un cambio pequeño y aditivo, pero es de otro módulo.
+- Los boletines de `1.17` salen sin firma electrónica (coincide con `ADR-078 §8`); la validación del docente tutor en N1 se añade cuando exista `doc`.
+- El prestador pasa a ser subencargado: inventario de `REQ-PRIV-005`, y evaluación de impacto si procede.
+
+### 7.2 Riesgos
+
+| Riesgo | Mitigación |
+|---|---|
+| La tabla de niveles no supera la validación jurídica | El nivel es una fila de catálogo; subir un tipo no toca datos. **Bajar no es posible ni hace falta** |
+| N1 se impugna por «juez y parte» | Manifiesto sellado por tercero (`§4.4`); reautenticación; verificación presencial previa de la representación |
+| Coste del prestador imprevisible (sin precios públicos) | Solo N2/N3; presupuestos antes de decidir (`OPEN-FIRMA-03`); contador por centro (`OPEN-FIRMA-14`) |
+| Regla de tutores mal calibrada en familias en conflicto | Rechazo expreso siempre gana; `custody_restrictions` prevalece cuando exista; canal presencial |
+| Alumnado mayor de edad firmado por sus tutores | Advertido (`§4.7.4`); condición previa a datos reales |
+| Dos vías de firma duplican mantenimiento | Mismo modelo de proceso y evidencia para todos los niveles; el prestador es un adaptador |
+| Depender de tres ADR sin aceptar | `§7.4` |
+
+### 7.3 Reversión
+
+- **Rechazo de `OPEN-FIRMA-01`**: rige `ADR-012` literal; el modelo de `§5` sirve igual con todos los tipos en N2. Lo que cambia es coste y calendario (nada de `REQ-AUT` sin prestador).
+- **Cambio de prestador**: nuevo adaptador; los procesos cerrados conservan su copia local (`§4.5`); los abiertos se cancelan y se relanzan.
+- **Retirada del manifiesto**: se deja de emitir; los existentes siguen siendo verificables.
+- **Retirada de los apoderamientos**: los tipos dejan de exigir calidad; la tabla queda como histórico.
+- Lo único no reversible es lo ya firmado: por eso las evidencias guardan el nivel y la calidad con que se firmó y nunca se reinterpretan.
+
+### 7.4 Dependencias entre borradores
+
+| ADR | Qué necesita este de él | Si cambia |
+|---|---|---|
+| `ADR-078` | `PdfRenderer`, perfil `archival`, objeto inmutable con huella | Si el nivel de PDF/A cambia, se repite la prueba de `§4.6.1` punto 3 |
+| `ADR-079` | Canal de envío de peticiones y recordatorios; entrega certificada | Sin él, las peticiones solo se ven en el portal |
+| `ADR-081` | Decide el nivel del mandato SEPA | Fila de `§4.1` |
+| `ADR-077` | Purga de evidencias, manifiestos, objetos y copias del prestador | `§4.5` |
+| `ADR-083` | Proveedor S3 de producción y expediente de cumplimiento, donde debe constar el prestador de firma | — |
 
 ## 8 · Alternativas descartadas
 
-_Pendiente._
+Además de las opciones descartadas en cada tabla de `§4` y `§5.1`:
+
+- **Firma manuscrita digitalizada (trazo en pantalla) como mecanismo propio.** No añade identificación sobre la sesión autenticada, da una falsa apariencia de solemnidad y la biometría del trazo sería dato de categoría especial. Si un prestador la ofrece dentro de N2, es asunto suyo.
+- **Código de un solo uso por SMS gestionado por la plataforma para «subir» N1 a avanzada.** Construir una firma avanzada casera es justo lo que `ADR-012` evita; el segundo factor propio se usa como reautenticación, sin cambiar el nivel declarado.
+- **Cadena de bloques o registro distribuido para las evidencias.** Mismo efecto que el manifiesto sellado, con una dependencia mayor y sin reconocimiento como servicio cualificado.
+- **Migrar a evidencias de `doc` las aceptaciones ya existentes** (`terms_acceptances`, `image_consent_decisions`, `pickup_authorizations`). Trabajo sin beneficio: ya son de solo anexar y tienen dueño (`ADR-066`, `ADR-068`). Unificar tablas se podrá plantear con un ADR propio si algún día hay motivo.
+- **Un nivel por rol** (familias N1, personal N2). El riesgo es del documento, no de quien lo firma.
+- **Congelar la lista de firmantes al crear el proceso.** Se desfasa cuando cambia un vínculo; mismo argumento que `ADR-066 §5.2`.
 
 ## 9 · Preguntas abiertas
 
