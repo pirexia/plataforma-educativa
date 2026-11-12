@@ -324,6 +324,8 @@ Precios **sin IVA**, leídos en la página del proveedor el 2026-11-12 (`§12`).
 
 **Decidida por el usuario (2026-11-12)**: `OPEN-STG-01`, según la recomendación de este ADR: VPS de staging en OVHcloud (VPS-1, 2 vCPU y 4 GB; precio y suficiencia de 4 GB sin comprobar contra un alta real). Techo de coste propuesto: 15 €/mes. Siguen abiertas `OPEN-STG-02`, `-03`, `-04`, `-05` y `-09`, que también bloquean. El ADR continúa en `PROPUESTA`.
 
+**Decidida también el 2026-11-12**: `OPEN-STG-03`, según la recomendación (B1 de `§4.2`): la promoción a `staging` es **solo por avance rápido** (`git push <sha>:staging`), sin botón de mezclar. Quedan abiertas `OPEN-STG-02`, `-04`, `-05` y `-09`.
+
 ### 10.1 Bloquean la implementación
 
 | Id | Pregunta | Opciones | **Recomendada** | Bloquea | Decide |
