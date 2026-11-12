@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # Ejecuta los e2e de alumnado (REQ-ALUM, 1.15-a CA-ALUM-009/012/018a, 1.15-b CA-ALUM-020 a -042 y 1.15-d CA-ALUM-071/072) contra la API real:
-# `alum-students-real.spec.ts` y `alum-enrollments-real.spec.ts` (HTTP real con cookie de sesión y CSRF, sin navegador) y, en navegador real,
+# `alum-students-real.spec.ts`, `alum-enrollments-real.spec.ts` y `alum-photo-real.spec.ts` (foto contra Garage; HTTP real con cookie de sesión y CSRF, sin navegador) y, en navegador real,
 # `alum-screens-real.spec.ts` y `alum-group-change-real.spec.ts` (1.15-d T3; Playwright arranca la SPA con VITE_API_URL del centro `demo`
 # y se niega si ya hay otra en :5173 con otra URL, como `e2e-real-prl.sh`; necesita `demo.plataforma.test` en /etc/hosts). Prepara DOS centros sintéticos con `alum` y `fam_unit`
 # contratados y un tutor con el rol `tutor_legal` (apps/api/tests/Support/e2e-real-tenant.php setup <slug> alum), lanza Playwright
 # con sus credenciales y los retira al terminar, también si falla (mismo método y garantías que `e2e-real-api.sh`: solo
-# contenedores de desarrollo, solo centros con la marca del script, solo datos sintéticos). No usa S3.
+# contenedores de desarrollo, solo centros con la marca del script, solo datos sintéticos). Usa Garage como almacén S3 (ADR-076, lib/e2e-garage.sh): las exportaciones CSV se sirven por URL firmada.
 #
 # Requisitos: pila de desarrollo levantada (`plataforma-api` en :8000 y `plataforma-postgres`), migraciones y
 # `platform:sync-registry` aplicados. No necesita entradas de `hosts`: cada centro se alcanza por 127.0.0.1:8000 con la cabecera `Host`.
@@ -28,6 +28,11 @@ done
 # shellcheck source=e2e-vite-api-url.sh
 source "$(dirname "${BASH_SOURCE[0]}")/e2e-vite-api-url.sh"
 prepare_vite_api_url "$SLUG_A" || exit 2
+
+# Almacén S3 de desarrollo (Garage, ADR-076): levantado, inicializado y con api/worker configurados contra él.
+# shellcheck source=lib/e2e-garage.sh
+source "$(dirname "${BASH_SOURCE[0]}")/lib/e2e-garage.sh"
+ensure_garage || exit 2
 
 support() { podman exec -e E2E_ALLOW_DESTRUCTIVE=1 "$API_CONTAINER" php tests/Support/e2e-real-tenant.php "$@"; }
 field() { python3 -c 'import json,sys; print(json.load(sys.stdin)[sys.argv[1]])' "$1"; }
@@ -97,6 +102,6 @@ export E2E_REAL_API=1
 # Dos invocaciones: primero los specs HTTP y después los de navegador. Los accesos a la API están limitados (429, 10 por minuto y centro desde
 # una IP): los specs de navegador esperan lo que pida el servidor, los HTTP no, y por eso van antes.
 status=0
-npx playwright test e2e/alum-students-real.spec.ts e2e/alum-enrollments-real.spec.ts --workers=1 --pass-with-no-tests "$@" || status=$?
+npx playwright test e2e/alum-students-real.spec.ts e2e/alum-enrollments-real.spec.ts e2e/alum-photo-real.spec.ts --workers=1 --pass-with-no-tests "$@" || status=$?
 npx playwright test e2e/alum-screens-real.spec.ts e2e/alum-group-change-real.spec.ts --workers=1 --pass-with-no-tests "$@" || status=$?
 exit "$status"

@@ -9,8 +9,7 @@
 # Requisitos: la pila de desarrollo levantada (`plataforma-api` en :8000 y `plataforma-postgres`); la SPA la arranca Playwright
 # (`webServer`) con `VITE_API_URL` del subdominio del centro. Los subdominios `*.plataforma.test` se resuelven a loopback con
 # `--host-resolver-rules` en el navegador y con la cabecera `Host` en la API (no hace falta tocar `/etc/hosts`).
-# El logo de marca se guarda en S3: sin almacén S3 en `minio:9000` (MinIO o `tests/Support/e2e-fake-s3.php`, `docs/modulos/REQ-PRL/operacion.md §12.7`)
-# la API acepta el alta pero la imagen no se puede servir; el humo lo tolera, las capturas de marca (T2b) lo necesitan.
+# El logo de marca se guarda en S3: el script levanta Garage (ADR-076, lib/e2e-garage.sh) y la URL firmada del logo apunta a 127.0.0.1:3900.
 # La cola `long` (worker `worker-long`) solo hace falta si un paso ejecuta la copia del curso siguiente.
 #
 # Retirada: igual que `e2e-real-api.sh` (script de la API borra la fila de `tenants` solo si es el centro de escaparate que creó él,
@@ -35,6 +34,11 @@ SLUG="demo"
 # shellcheck source=e2e-vite-api-url.sh
 source "$(dirname "${BASH_SOURCE[0]}")/e2e-vite-api-url.sh"
 prepare_vite_api_url "$SLUG" || exit 2
+
+# Almacén S3 de desarrollo (Garage, ADR-076): levantado, inicializado y con api/worker configurados contra él.
+# shellcheck source=lib/e2e-garage.sh
+source "$(dirname "${BASH_SOURCE[0]}")/lib/e2e-garage.sh"
+ensure_garage || exit 2
 
 # shellcheck source=lib/e2e-purge.sh
 source "$(dirname "${BASH_SOURCE[0]}")/lib/e2e-purge.sh"

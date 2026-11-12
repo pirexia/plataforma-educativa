@@ -171,14 +171,14 @@ final class PrivateObjectStore
      * fotografías de recogida son datos de menores y de terceros y el almacenamiento de la aplicación es S3 compatible
      * (`ADR-013`); un disco local escribiría en el sistema de ficheros del contenedor (aplicación *stateless*, `CLAUDE.md §9`)
      * y sus «URL firmadas» no serían de un *bucket* privado. Con `APP_ENV=local` o `testing` el disco local es válido, para que
-     * el perfil reducido de desarrollo (sin MinIO, `ADR-030`) tenga fotografías y activos de marca. Un disco S3 vale siempre.
+     * el perfil reducido de desarrollo (sin Garage, `ADR-030`) tenga fotografías y activos de marca. Un disco S3 vale siempre.
      */
     private function disk(): Filesystem
     {
         $name = $this->diskName();
 
         if (config("filesystems.disks.{$name}.driver") === 'local' && app()->environment(['production', 'staging'])) {
-            throw new RuntimeException('El almacenamiento privado no puede ser un disco local: configura FILESYSTEM_DISK=s3 y las variables AWS_* (en desarrollo, MinIO con el perfil full).');
+            throw new RuntimeException('El almacenamiento privado no puede ser un disco local: configura FILESYSTEM_DISK=s3 y las variables AWS_* (en desarrollo, Garage con el perfil full y infra/garage/init.sh).');
         }
 
         return Storage::disk($name);

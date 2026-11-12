@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { RealSession } from './fixtures/realSession'
+import { downloadExportCsv } from './fixtures/dataExport'
 import {
   BASE_URL,
   centreA,
@@ -19,8 +20,8 @@ import {
  * `REQ-SEED-005`: `@example.com`, nombres explícitamente ficticios). Secretaría da de alta un alumno en una unidad familiar,
  * lo matricula, ve la lista de clase y exporta; un docente con asignación en ese grupo ve al alumno y otro sin asignación no.
  *
- * Qué NO se prueba aquí: la descarga del CSV desde S3/MinIO (la exportación se acepta con 202 y se comprueba que no falla, pero
- * la descarga queda «no probada», igual que en `alum-enrollments-real.spec.ts`) ni la fotografía (aplazada a `S-1b`, `ADR-076`).
+ * La exportación de la lista de clase se descarga de Garage (ADR-076) por la URL firmada y se comprueba su contenido; la fotografía
+ * la cubre `alum-photo-real.spec.ts`.
  *
  * Solo con `E2E_REAL_API=1`: `npm run test:e2e:real:alum` (apps/web/scripts/e2e-real-alum.sh) prepara el centro `demo` con
  * `alum` y `fam_unit`, el personal de prueba (secretaría, docentes) y define las variables.
@@ -114,7 +115,7 @@ test.describe('CA-ALUM-072 CA-ALUM-071 (REQ-ALUM-003): pantallas de alumnado en 
     ).toBeVisible()
   })
 
-  test('CA-ALUM-072: secretaría ve la lista de clase con el alumno y exporta (202; descarga S3 no probada)', async ({
+  test('CA-ALUM-072: secretaría ve la lista de clase con el alumno y exporta (202 y CSV descargable de Garage)', async ({
     browser,
   }) => {
     const page = await pageAs(browser, states.secretaria)
@@ -133,14 +134,25 @@ test.describe('CA-ALUM-072 CA-ALUM-071 (REQ-ALUM-003): pantallas de alumnado en 
 
     expect(exportResponse.status(), await exportResponse.text()).toBe(202)
 
-    // La exportación se genera en cola y se descarga de S3: aquí solo se comprueba que no falla de entrada.
     await expect(page.getByText('Preparando exportación…')).toBeVisible()
     await expect(page.getByRole('alert')).toHaveCount(0)
-    test.info().annotations.push({
-      type: 'no-probado',
-      description:
-        'Exportación aceptada (202). La descarga del CSV desde S3/MinIO NO se ha comprobado en este spec.',
-    })
+
+    // El worker escribe el CSV en Garage y se descarga por la URL firmada (ADR-076 §2.3): la familia ficticia del alumno está en él.
+    const secretaria = await RealSession.login(
+      centreA.slug,
+      centreA.secretariaEmail,
+      centreA.staffPassword,
+    )
+    const csv = await downloadExportCsv(
+      { send: (method, path) => secretaria.send(method, path) },
+      ((await exportResponse.json()) as { public_id: string }).public_id,
+    )
+
+    await secretaria.dispose()
+    expect(csv.trim().split(/\r?\n/)[0]).toContain(
+      'enrollment_public_id,student_public_id,family_name',
+    )
+    expect(csv).toContain(family)
   })
 
   test('CA-ALUM-072: un docente con asignación en el grupo ve al alumno', async ({ browser }) => {

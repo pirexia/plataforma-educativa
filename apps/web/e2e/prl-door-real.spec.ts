@@ -15,14 +15,11 @@ import { RealSession } from './fixtures/realSession'
  * `OPEN-FAM-UNIT-62` A), sin `@axe-core/playwright`.
  *
  * Solo con `E2E_REAL_API=1`: `npm run test:e2e:real:prl` (apps/web/scripts/e2e-real-prl.sh) prepara el centro A con `fam_unit` y
- * `prl` contratados y define las variables. Almacén: el S3 que haya en `minio:9000` (MinIO o el servidor falso de
- * `apps/api/tests/Support/e2e-fake-s3.php`, `D-67`); la URL firmada apunta a `minio:9000`, que el navegador no resuelve, así que
- * se redirige a `127.0.0.1:9000`. Los subdominios `*.plataforma.test` se resuelven a loopback con `--host-resolver-rules`, sin
+ * `prl` contratados y define las variables. Almacén: Garage (ADR-076); la URL firmada ya apunta a `127.0.0.1:3900`,
+ * que el navegador alcanza sin reescribirla. Los subdominios `*.plataforma.test` se resuelven a loopback con `--host-resolver-rules`, sin
  * tocar `/etc/hosts`.
  */
 
-const S3_PUBLIC = process.env.E2E_S3_PUBLIC_URL ?? 'http://127.0.0.1:9000'
-const S3_INTERNAL = process.env.E2E_S3_INTERNAL_URL ?? 'http://minio:9000'
 const SLUG = process.env.E2E_A_SLUG ?? 'demo'
 const GRANDPA = { given: 'Abuelo', family: 'Ficticio', document: 'E2EFICT0011', phone: '600555666' }
 const GRANDPA_NAME = `${GRANDPA.given} ${GRANDPA.family}`
@@ -39,17 +36,6 @@ async function signIn(page: Page, email: string, password: string): Promise<void
   await page.getByLabel(/contraseña/i).fill(password)
   await page.getByRole('button', { name: /entrar|acceder/i }).click()
   await expect(page).not.toHaveURL(/\/entrar/)
-}
-
-async function redirectS3(page: Page): Promise<void> {
-  // La URL firmada apunta al `minio` interno de la red de contenedores: el navegador la pide por loopback.
-  await page.route(`${S3_INTERNAL}/**`, async (route) => {
-    const response = await route.fetch({
-      url: route.request().url().replace(S3_INTERNAL, S3_PUBLIC),
-    })
-
-    await route.fulfill({ response })
-  })
 }
 
 test.describe
@@ -172,7 +158,6 @@ test.describe
   test('CA-PRL-035: el conserje busca, abre la lista, verifica por la foto, registra la salida y abre la alerta', async ({
     page,
   }) => {
-    await redirectS3(page)
     await signIn(
       page,
       process.env.E2E_A_CONSERJE_EMAIL ?? '',
@@ -253,7 +238,7 @@ test.describe
     }))
     const haystack = Object.values(leaks).join('\n')
 
-    for (const needle of [studentName, GRANDPA.given, GRANDPA.document, GRANDPA.phone, 'minio']) {
+    for (const needle of [studentName, GRANDPA.given, GRANDPA.document, GRANDPA.phone, 'garage']) {
       expect(haystack, `«${needle}» no debe persistirse`).not.toContain(needle)
     }
 

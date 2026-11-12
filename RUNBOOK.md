@@ -1,6 +1,6 @@
 # RUNBOOK.md
 
-> **Versión 0.3.16** · 2026-10-28
+> **Versión 0.3.17** · 2026-11-12
 > Documento vivo: se actualiza en cada fase (`CLAUDE.md` §6). Cubre por ahora únicamente el entorno de **desarrollo** en WSL2 (`ADR-030`) — no hay producción, piloto ni usuarios reales todavía. Los procedimientos de guardia, alertas y recuperación ante desastre de un entorno real se documentarán aquí cuando `OPEN-11` (alojamiento del piloto) se resuelva.
 
 ---
@@ -24,7 +24,7 @@ Referencia completa de arranque, `compose.yaml` y red: `SYSADMIN.md`.
 
 ```bash
 podman compose up -d          # perfil reducido: postgres, redis, api, web
-podman compose --profile full up -d   # añade minio, garage (S3 de desarrollo, ADR-076; después `bash infra/garage/init.sh`) y el worker de colas
+podman compose --profile full up -d   # añade garage (S3 de desarrollo, ADR-076; después `bash infra/garage/init.sh`) y el worker de colas
 podman compose --profile worker up -d worker   # solo el worker de colas (§2.8)
 podman compose ps
 podman compose logs -f <servicio>

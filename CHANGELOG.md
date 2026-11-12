@@ -6,6 +6,19 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-12 · `feat(files)`: S-1b, E2E contra Garage y retirada de MinIO (`ADR-076`; cierra #38 y #613, resuelve #625)
+
+- Retirados MinIO (servicio y volumen `minio-data` de `compose.yaml`, `infra/quadlet/minio-data.volume`, variables `MINIO_ROOT_*`) y el servidor S3 falso `e2e-fake-s3.php`. `api` y `worker` apuntan a Garage y `compose` exige `GARAGE_ACCESS_KEY_ID`, `GARAGE_SECRET_ACCESS_KEY` y `GARAGE_BUCKET` sin valor de reserva (issue #613, credencial `minioadmin`). Quien tuviera MinIO sigue el procedimiento de migración de `SYSADMIN.md` (el borrado del volumen local lo ejecuta cada desarrollador).
+- Firma de URL de marca, exportaciones e informes de importación por `PrivateObjectStore` (endpoint de firma, tope de 15 minutos, aislamiento por centro): resuelve #625.
+- Los scripts de E2E real y `landing-shots.sh` levantan e inicializan Garage solos (`apps/web/scripts/lib/e2e-garage.sh`); los specs descargan las URL firmadas sin reescribir el *host*.
+- E2E nuevo de la fotografía del alumno (`alum-photo-real.spec.ts`): imagen sintética, descarga de Garage, bytes reprocesados, firma alterada `403`, sustitución y borrado. La descarga del CSV de las exportaciones se comprueba de verdad (`alum-enrollments-real`, `alum-screens-real`, `alum-group-change-real`); desaparecen las ramas «no probada». Cubre lo que dejó pendiente `1.15-d`.
+- Decisión de la pregunta 4 de `ADR-076 §10`: el test de conformidad del almacén corre en todo PR (como ya hace el job `Conformidad del almacén (Garage)`).
+- Documentación viva: `ARCHITECTURE.md`, `RUNBOOK.md`, `SYSADMIN.md`, `apps/landing/README.md` y `operacion.md` de `REQ-PRL`, `REQ-FAM-UNIT` (con `files.signed_url_max_ttl_minutes`), `REQ-ALUM`, `REQ-CORE`, `REQ-AUTH` y `REQ-PERM`; `CA-ALUM-072` en `REQ-ALUM/funcional.md`. Aprobados por el usuario el 2026-11-12 (`ADR-076 §7.2`, sustitución mínima de MinIO por Garage): `CLAUDE.md §1` y `§3` (versión 2.11.4), `.claude/agents/verificador.md` y `.claude/skills/frontend-spa/SKILL.md`.
+- **No cubierto por Garage** (`ADR-076 §2.3`): TLS, versionado, *Object Lock*, cifrado en servidor, ciclo de vida y límites del proveedor; se verifican en *staging*.
+- Guarda de entorno en `ensure_garage` (`apps/web/scripts/lib/e2e-garage.sh`): aborta con código 2 si el `APP_ENV` de `plataforma-api` no es `local` ni `testing`, sin tocar nada; el E2E de alumnado deja `api` y `worker` recreados con `FILESYSTEM_DISK=s3` hasta el siguiente `compose up` sin esa variable.
+- **Cambio de flujo de desarrollo**: `compose` exige en todos los perfiles, también el reducido, las cinco variables `GARAGE_*` (`GARAGE_RPC_SECRET`, `GARAGE_ADMIN_TOKEN`, `GARAGE_ACCESS_KEY_ID`, `GARAGE_SECRET_ACCESS_KEY` y `GARAGE_BUCKET`). Quien tenga un `.env` sin ellas rompe el arranque de `compose` en todos los perfiles hasta que las añada.
+- Recuento de E2E real de alumnado: `alum-photo-real` (5 tests HTTP); los HTTP de alumnado son 16 (3 + 8 + 5) y los de navegador 14.
+
 ## 2026-11-11 · `feat(files)`: S-1a, Garage, URL firmadas y test de conformidad (`ADR-076`)
 
 - Servicio `garage` (perfil `full`, imagen `v2.5.0` fijada por digest), `infra/garage/garage.toml` e `init.sh` idempotente; MinIO y el servidor S3 falso siguen hasta `S-1b`. Experimento previo: `docs/proceso/experimento-garage-s1a.md`. **Cambio de flujo de desarrollo**: `compose` exige ahora `GARAGE_RPC_SECRET` y `GARAGE_ADMIN_TOKEN` en `.env` (véase `.env.example`), también en el perfil reducido; quien tenga un `.env` anterior debe añadirlas o `podman compose` falla en todos los perfiles.
