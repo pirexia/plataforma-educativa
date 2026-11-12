@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Ejecuta los e2e de alumnado (REQ-ALUM, 1.15-a CA-ALUM-009/012/018a, 1.15-b CA-ALUM-020 a -042 y 1.15-d CA-ALUM-071/072) contra la API real:
-# `alum-students-real.spec.ts` y `alum-enrollments-real.spec.ts` (HTTP real con cookie de sesión y CSRF, sin navegador) y, en navegador real,
+# `alum-students-real.spec.ts`, `alum-enrollments-real.spec.ts` y `alum-photo-real.spec.ts` (foto contra Garage; HTTP real con cookie de sesión y CSRF, sin navegador) y, en navegador real,
 # `alum-screens-real.spec.ts` y `alum-group-change-real.spec.ts` (1.15-d T3; Playwright arranca la SPA con VITE_API_URL del centro `demo`
 # y se niega si ya hay otra en :5173 con otra URL, como `e2e-real-prl.sh`; necesita `demo.plataforma.test` en /etc/hosts). Prepara DOS centros sintéticos con `alum` y `fam_unit`
 # contratados y un tutor con el rol `tutor_legal` (apps/api/tests/Support/e2e-real-tenant.php setup <slug> alum), lanza Playwright
@@ -102,6 +102,6 @@ export E2E_REAL_API=1
 # Dos invocaciones: primero los specs HTTP y después los de navegador. Los accesos a la API están limitados (429, 10 por minuto y centro desde
 # una IP): los specs de navegador esperan lo que pida el servidor, los HTTP no, y por eso van antes.
 status=0
-npx playwright test e2e/alum-students-real.spec.ts e2e/alum-enrollments-real.spec.ts --workers=1 --pass-with-no-tests "$@" || status=$?
+npx playwright test e2e/alum-students-real.spec.ts e2e/alum-enrollments-real.spec.ts e2e/alum-photo-real.spec.ts --workers=1 --pass-with-no-tests "$@" || status=$?
 npx playwright test e2e/alum-screens-real.spec.ts e2e/alum-group-change-real.spec.ts --workers=1 --pass-with-no-tests "$@" || status=$?
 exit "$status"
