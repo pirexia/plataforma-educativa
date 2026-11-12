@@ -306,7 +306,7 @@ Reglas derivadas de `ADR-028`, que resuelven dos fallos ya sufridos en despliegu
 
 | Componente | vCPU | RAM | Disco |
 |-----------|------|-----|-------|
-| Todo (api, web, PostgreSQL, Redis, workers, Garage, PDF) | 4 | 8 GB | 80 GB NVMe |
+| Todo (api, web, PostgreSQL, Redis, workers, PDF; el almacén S3 es del proveedor, `ADR-076`) | 4 | 8 GB | 80 GB NVMe |
 
 **Desarrollo — WSL2 en equipo personal**
 
@@ -328,7 +328,7 @@ Las mediciones de rendimiento aquí son **orientativas, no concluyentes**: las c
 |-----------|------|-----|-------|
 | Host con todos los servicios en Podman | 4 | 16 GB | 160 GB NVMe |
 
-Reparto orientativo en reposo: PostgreSQL ~2 GB, PHP-FPM ~1,5 GB, workers ~750 MB, servicio PDF ~1 GB en picos, Redis ~512 MB, Garage (cifra por medir; MinIO, al que sustituye, ocupaba ~512 MB), sistema y Podman ~1,1 GB. Las imágenes se construyen en CI, **nunca en el host**.
+Reparto orientativo en reposo: PostgreSQL ~2 GB, PHP-FPM ~1,5 GB, workers ~750 MB, servicio PDF ~1 GB en picos, Redis ~512 MB, sistema y Podman ~1,1 GB. El almacén de objetos S3 **no ocupa RAM del host**: en servidores es el del proveedor (`ADR-076 §2.2`; Garage es solo de desarrollo, CI y E2E). Las imágenes se construyen en CI, **nunca en el host**.
 
 **T1 ampliado — dos hosts**
 
