@@ -80,7 +80,7 @@ Con este fichero queda contestada la pregunta 1 de `ADR-076 §10` (dónde se reg
 
 ### `OPEN-STO-06` · ISO 27001 propia
 
-- **Pregunta**: `REQUISITOS §1.3` y `§7.1` piden «cumplir» ISO 27001. ¿Significa certificar a la plataforma o alinear sus controles?
+- **Pregunta**: `REQUISITOS §2.1` (l. 195) y `§7.1` piden «cumplir» ISO 27001. ¿Significa certificar a la plataforma o alinear sus controles?
 - **Opciones**:
   1. **Alinear sin certificar, y decirlo así (Recomendada).** Los `RSEC-ISO-001` a `-009` se implementan y se evidencian; no se afirma certificación. Coste asumible en solitario. Reversible: certificarse después aprovecha lo hecho.
   2. Certificarse antes del primer centro. Auditoría externa, coste y mantenimiento anual; no hay cifra verificada.

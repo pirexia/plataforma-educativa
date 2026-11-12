@@ -55,7 +55,7 @@ Este agente no los toca; los aplica la sesión orquestadora al integrar (guion d
 | Fichero | Cambio propuesto |
 |---|---|
 | `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` §18 (índice de ADR) | Fila `ADR-083`: «**Proveedor de almacenamiento S3 en staging y producción y expediente de cumplimiento** (OVHcloud Object Storage Standard 3-AZ condicionado a confirmaciones por escrito; Scaleway como alternativa preparada; resuelve la pregunta 1 de `ADR-076 §10`; define `OPEN-STO-01` a `-12` en `docs/cumplimiento/`). **Estado: `PROPUESTA`**. Concreta `ADR-013` y `ADR-076`; no sustituye ninguno.» Y entrada en el historial de versiones |
-| `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` §6 (tabla de `OPEN-*`) | Nota junto a `OPEN-10`: «relacionada con `ADR-083 §7`». Remitir los `OPEN-STO-*` a `docs/cumplimiento/preguntas-abiertas.md` en vez de copiarlos |
+| `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` §18 (tabla de `OPEN-*`, l. ~3296) | Nota junto a `OPEN-10`: «relacionada con `ADR-083 §7`». Remitir los `OPEN-STO-*` a `docs/cumplimiento/preguntas-abiertas.md` en vez de copiarlos |
 | `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` §4.3 (normativa aplicable) | **Decisión del usuario, no un cambio automático**: la tabla no cita ENS, NIS2 ni el Reglamento de Datos. Si deben figurar, hay que añadirlos con su aplicación; este expediente no lo hace por no inventar requisitos |
 | `PLAN-IMPLEMENTACION.md` | Marcar el expediente de cumplimiento como redactado en borrador; añadir el paso de la skill `cumplimiento-normativo`; anotar que staging (`ADR-080`) depende de `OPEN-STO-01`, `-03`, `-08` y `-11`, y que la entrada de datos reales depende además de `-04`, `-05`, `-07`, `-09` y `-12` |
 | `memory.md` | En «`ADR-076` ACEPTADA…»: la pregunta 1 de `§10` queda contestada por `ADR-083`; los `OPEN-STO-*` ya existen y son una **reconstrucción** (la lista original del 2026-11-11 no se guardó). La recomendación «OVHcloud 3-AZ o Scaleway» pasa de «sin verificar» a «contrastada en parte» con lo que `ADR-083 §9` deja sin comprobar |
@@ -68,5 +68,5 @@ Este agente no los toca; los aplica la sesión orquestadora al integrar (guion d
 
 ## 7. Hallazgos fuera de ámbito (no corregidos)
 
-- `REQUISITOS §1.3` y `§2` (l. 195 y 273) dicen «cumplir» ISO 27001 y lo citan como «requisito de go-live» sin decir si es certificación o alineamiento: `OPEN-STO-06`.
+- `REQUISITOS §2.1` y `§3` (l. 195 y 273) dicen «cumplir» ISO 27001 y lo citan como «requisito de go-live» sin decir si es certificación o alineamiento: `OPEN-STO-06`.
 - `ADR-076 §2.2` afirma, «según su documentación (no comprobado)», que Garage carece de versionado, Object Lock y cifrado gestionado. Este expediente se apoya en esa afirmación sin haberla comprobado tampoco.
