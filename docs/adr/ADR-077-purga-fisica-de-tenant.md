@@ -288,30 +288,182 @@ Es un documento generado y un texto legal: cuatro idiomas (`INV-009`), sin tradu
 
 `apps/web/scripts/lib/e2e-purge.sh` hace hoy, con el superusuario de desarrollo, la mitad de la fase 6. Recomendación: que la limpieza de E2E pase a usar **el mismo motor**, con una entrada que omite la doble autorización y que solo existe fuera de producción (`OPEN-PURGA-10`). Motivo: el motor se ejercita cada día contra el esquema real y una tabla o un disparador nuevos lo rompen en CI, no en la primera baja real.
 
+---
+
 ## 6 · Motivo
 
-_Pendiente._
+1. **Porque la plataforma es encargado y no responsable.** Eso ordena todo lo demás: primero se devuelve, después se destruye, y lo que tiene obligación legal de conservación lo conserva el centro (LOPDGDD art. 33.3). Sin esa lectura, la purga tendría que distinguir tabla a tabla qué se puede borrar, que es el catálogo de retención entero. Con ella, la regla es uniforme y cabe en un paso del plan.
+2. **Porque el descubrimiento por catálogo es lo único que aguanta 53 módulos.** Las cifras del issue #371 quedaron obsoletas en cinco semanas (31 tablas entonces, 66 hoy). Una lista escrita o un contrato por módulo se habrían quedado atrás igual.
+3. **Porque RLS, que se diseñó para aislar lecturas, sirve aquí de cinturón para el borrado.** Ejecutar con el propietario sujeto a `FORCE` convierte «un `DELETE` sin `WHERE`» de catástrofe de plataforma en error acotado a un centro que ya se iba a borrar. Ninguna otra opción da esa garantía gratis.
+4. **Porque `replica` cambia una garantía del motor por una verificación propia, y hay que decir por qué compensa.** Mantener las claves foráneas activas obliga a un orden de borrado con ciclos y a `UPDATE` sobre tablas inmutables. Desactivarlas es seguro si y solo si no queda ninguna fila del centro, y eso es exactamente lo que la fase 7 comprueba por otra conexión y lo que el test T1 comprueba en cada *push*.
+5. **Porque las credenciales del propietario no deben llegar a la API ni a los *workers*.** Ejecutar desde consola no es una limitación de la interfaz: es lo que evita que el proceso expuesto a Internet tenga un rol capaz de desactivar disparadores.
+6. **Porque una purga que una restauración deshace no es una purga.** El libro externo y la reaplicación son la parte menos vistosa y la que hace cierta la frase del certificado.
+7. **Porque es reversible en lo que puede serlo.** Todo es aditivo: una columna, una tabla, dos valores de vocabulario, un `GRANT`, un registro de configuración. Lo único irreversible es el borrado, que es el objeto de la decisión.
+
+---
 
 ## 7 · Consecuencias
 
-_Pendiente._
+**A favor**
+
+- Cierra la deuda de `OPEN-BO-05` en su mitad de purga y desbloquea `1.24` en lo que depende de #371.
+- Los módulos no escriben nada para ser purgables.
+- Resuelve el issue #534 sin tocar su disparador.
+- El motor se prueba a diario si se acepta `OPEN-PURGA-10`.
+
+**En contra, y se asume**
+
+- **La purga de un centro con datos reales no puede ejecutarse hasta que exista la devolución** (`REQ-OPS-004` o instrucción escrita). El mecanismo estará antes que su condición previa.
+- **`plataforma_owner` gana un privilegio** (`SET` sobre `session_replication_role`). El propietario ya puede eliminar tablas, así que no hay escalada real, pero es una línea más que auditar en el aprovisionamiento.
+- **Un disparador futuro que deba actuar también durante una purga no actuará.** No se conoce ninguno. Si aparece, se resuelve en ese módulo.
+- **La operación exige acceso al servidor** y no se completa desde el backoffice. Para un operador en solitario es un paso manual más, deliberado.
+- **El borrado no es instantáneo ni forense**: copias hasta el tope, restos en páginas y WAL, registros de aplicación con identificadores hasta su rotación (retención de registros sin verificar). El certificado lo dice.
+- **La doble autorización necesita dos superadministradores distintos**, como la eliminación. Con una sola persona operando, no hay purga.
+- `REQ-BKP` nace con cinco condiciones heredadas y `ADR-083` con tres.
+
+**Requisitos afectados**: `REQ-PRIV-006`, `REQ-BO-001`, `REQ-BO-007`, `REQ-OPS-004`, `REQ-BKP-001`, `-002`, `-003`, `-004`, `-005`, `REQ-CORE-005`, `RSEC-GDPR-002`, `INV-001`, `INV-003`, `INV-004`, `INV-012`.
+
+**Invariantes**: `INV-001` reforzada (RLS activa durante la purga). `INV-003`: la purga se audita en `admin_action_logs`, fuera del tenant. `INV-004`: no se contradice; `ADR-004` ya prevé el nivel 3 tras el borrado lógico. `INV-007`: `§5.12`. `INV-012`: nada ocurre en la petición HTTP.
+
+**Reversión de la entrega**: las migraciones son de expansión (`CLAUDE.md §9`); el `GRANT` se revoca; el comando se retira. Una purga ejecutada no se revierte: es el motivo de los cinco cerrojos.
+
+**Tamaño estimado** (`CLAUDE.md §2`, punto 7), orientativo: tres entregas. `1.23b-a`: datos, vocabularios, registro, privilegio y tests de esquema. `1.23b-b`: motor, verificación, comando y libro externo. `1.23b-c`: API y pantalla de solicitud y aprobación, alarma, certificado, E2E real. Es un paso **crítico** para el reparto de revisores.
+
+---
 
 ## 8 · Alternativas descartadas y por qué
 
-_Pendiente._
+| Alternativa | Por qué no |
+|---|---|
+| Purgar dentro de la eliminación (D1-A) | Reescribe una operación entregada y junta lo reversible con lo irreversible |
+| Purga automática por plazo (D1-C) | Destrucción sin persona delante; choca con `REQ-BO-007` y con la condición de devolución |
+| `DISABLE TRIGGER USER` y orden de dependencias (D2-B) | Bloquea tablas compartidas a todos los centros y exige romper ciclos con `UPDATE` sobre tablas inmutables |
+| Disparadores conscientes de la purga (D2-C) | Carga permanente sobre cada disparador futuro y migración de 253 claves foráneas |
+| `ON DELETE CASCADE` desde `tenants` (D2-D) | Convierte un `DELETE` de una fila en el borrado de un centro; migración sobre todo el esquema |
+| Ejecutar con el superusuario del clúster | Sin RLS: pierde el cinturón de `§5.5`. Es lo que hace el parche de desarrollo y por eso no sirve en producción |
+| Dar `DELETE` a `plataforma_platform` en las tablas de solo anexar | Con `BYPASSRLS` y desde el proceso web: deshace `ADR-034 §3` |
+| Ejecutar desde un *worker* de cola | Llevaría las credenciales del propietario a un proceso permanente |
+| Contrato de purga por módulo (D3-B) y lista manual (D3-C) | Se olvidan y se quedan obsoletos |
+| Borrar la fila de `tenants` (D4-A) y estado `purgado` (D4-C) | Rompe la auditoría de plataforma; inventa un estado que el requisito no tiene |
+| Conservar `audit_logs` del centro hasta su plazo propio | Deja datos personales de actores (IP, agente de usuario) dos años sin responsable que los pida; convierte el certificado en parcial. Queda como alternativa en `OPEN-PURGA-02` si legal lo exige |
+| *Crypto-shredding* (D5-B) y reescritura de copias (D5-C) | Coste desproporcionado sobre base compartida; imposible con WORM |
+| Anonimizar en vez de borrar | `REQ-BO §5.5.3`: no aplica a un tenant. Un centro anonimizado sigue ocupando 66 tablas con datos de menores seudonimizados |
+| `VACUUM FULL` tras la purga | Bloqueo exclusivo sobre tablas de todos los centros para un beneficio que el cifrado en reposo ya cubre |
+| Ventana de enfriamiento tras aprobar | Estado y planificador nuevos sin reducir un riesgo que ya cubren 90 días, nombre tecleado y dos personas |
+
+---
 
 ## 9 · Tests de regresión que exige esta decisión
 
-_Pendiente._
+Todos referencian `REQ-PRIV-006` y este ADR (`INV-015`).
+
+| Test | Qué demuestra | Tipo |
+|---|---|---|
+| **T1 · Completitud y aislamiento** | Con dos centros sembrados por `REQ-SEED`, se purga A. Para **cada** tabla con `tenant_id` descubierta en el catálogo: A tiene 0 filas y B conserva su recuento exacto. Ídem para objetos bajo cada prefijo de Garage y claves de cada prefijo de Redis. Como descubre por catálogo, una tabla nueva queda cubierta sin tocar el test | Feature, PostgreSQL, Redis y Garage reales |
+| **T2 · El sembrado cubre el esquema** | Antes de purgar, cada tabla con `tenant_id` tiene al menos una fila del centro A, salvo las de una lista de excepciones explícita que solo puede encoger. Sin esto, T1 pasa en vacío | Feature |
+| **T3 · Nada fuera de la convención sin registrar** | Toda tabla sin `tenant_id` con clave foránea a `tenants` o a una tabla de tenant figura en el registro `purge` con su tratamiento | Esquema, junto a los de `ADR-033 §10` |
+| **T4 · Tablas de solo anexar y disparadores** | La purga borra filas de las nueve tablas de solo anexar, de un curso **cerrado** (`ADR-057`), de una versión de términos **publicada** y de una alerta de recogida **cerrada** (#534) | Feature |
+| **T5 · Privilegios intactos** | Tras la migración, `plataforma_app` y `plataforma_platform` siguen sin `DELETE` en las nueve tablas y sin poder fijar `session_replication_role`; fuera de la transacción de purga el parámetro vale `origin` | Esquema |
+| **T6 · RLS como red** | Con `app.tenant_id` = A y el propietario, un `DELETE` **sin `WHERE`** sobre una tabla de tenant no toca filas de B | Feature |
+| **T7 · Cerrojos** | Rechazo si el estado no es `eliminado`, si ya está purgado, sin nombre exacto, sin referencia de devolución, sin autorización aprobada, con la misma persona como solicitante y aprobador, o con la autorización ya consumida | Feature |
+| **T8 · Idempotencia y reanudación** | Un fallo inyectado en cada fase deja la purga `fallida` sin marcar la lápida; relanzarla la completa; relanzar una completada no hace nada | Feature |
+| **T9 · Verificación que falla** | Una fila plantada tras la fase 6 hace fallar la fase 7 y no se emite certificado | Feature |
+| **T10 · Lo que sobrevive** | Tras purgar: fila de `tenants` con `purged_at`, `admin_action_logs` y `tenant_lifecycle_events` del centro intactos y con `tenant.purgado`, `tenant_purges` completa, entrada en el libro externo | Feature |
+| **T11 · Reaplicación** | Con una entrada en el libro externo y datos del centro presentes (restauración simulada), la reaplicación purga sin pedir autorización y lo audita | Feature |
+| **T12 · Colas y sesiones** | Un trabajo pendiente y uno fallido del centro A desaparecen y los de B no; las filas de `sessions` de usuarios de A desaparecen | Feature |
+| **T13 · Arquitectura** | Solo el motor de purga depende de la interfaz de borrado por prefijo de S3 | Arquitectura (Pest) |
+| **E2E real** | Flujo completo contra la API real: baja, eliminación, solicitud, aprobación por otro administrador, ejecución del comando, `503` del centro, certificado | `verificador`, `CLAUDE.md §3` |
+
+**Solo en staging, no en CI**: borrado de versiones y marcadores, y objetos con retención vigente (`§5.6`). Se registra como no probado hasta entonces (`ADR-076 §2.3`).
+
+---
 
 ## 10 · Preguntas abiertas
 
-_Pendiente._
+### 10.1 Bloquean la implementación de `1.23b`
+
+| ID | Pregunta | Recomendación | Impacto | Decide |
+|---|---|---|---|---|
+| `OPEN-PURGA-02` | ¿Se purga `audit_logs` del centro (y `login_attempts`, `mfa_resets`) junto con el resto, o se conserva bloqueado hasta su plazo propio? | **Purgar con el resto**, devolviéndolo antes en la exportación. La defensa del proveedor es `admin_action_logs` | Si se conserva: purga en dos tiempos, filas con referencias colgantes, certificado parcial y un diseño distinto de `§5.3` y `§5.7` | Legal, y el usuario |
+| `OPEN-PURGA-04` | ¿Cómo se acredita la devolución mientras `REQ-OPS-004` no exista? | **Solo con instrucción escrita del responsable de destruir sin devolución**, referenciada en la solicitud. No se improvisa una exportación manual. Alternativa: adelantar la exportación de salida a antes de `1.24` | Sin respuesta, el cerrojo 3 no se puede especificar. Con la recomendación, un centro real que quiera sus datos no puede purgarse hasta `1.26` | Usuario |
+| `OPEN-PURGA-11` | ¿Se acepta `GRANT SET ON PARAMETER session_replication_role TO plataforma_owner` y la ejecución desde consola con credenciales del propietario? | **Sí** (D2-A). Alternativa real: D2-B, con bloqueo de tablas compartidas durante la purga | Decide la mitad del motor y el script de aprovisionamiento de roles | Usuario, con `db-reviewer` y `security-reviewer` |
+
+### 10.2 No bloquean la implementación; sí bloquean la primera purga de datos reales
+
+| ID | Pregunta | Recomendación | Impacto | Decide |
+|---|---|---|---|---|
+| `OPEN-PURGA-01` | Plazo máximo entre eliminación y purga | **30 días**, constante en `config/backoffice.php` sin `env()` (mismo criterio que los 90 días) | Va al contrato de encargado y a `PRIVACY.md` | Legal |
+| `OPEN-PURGA-03` | Tope de retención de copias con datos personales, ubicación y protección del libro externo; confirmación de que la AEPD admite la caducidad en copias | **Tope de 90 días** para toda copia de plataforma, incluida la inmutable; libro en el almacén de copias, fuera del *host*. Ambas cifras son propuesta sin respaldo en requisitos | Condiciona `REQ-BKP-001` («anuales») y el texto del certificado | Legal y usuario, al especificar `REQ-BKP` |
+| `OPEN-PURGA-05` | ¿Escriben siempre bajo `tenants/{public_id}/` las 16 llamadas directas al disco de `ADR-076 §3.2`? | **Comprobarlo con `explorer` antes de especificar**; si alguna no, migrarla antes que la purga | Un objeto fuera del prefijo sobrevive a la purga sin que la verificación lo vea | Técnico |
+| `OPEN-PURGA-09` | Texto del certificado de destrucción y cláusula del contrato de encargado (devolución, gracia, plazo, copias) | Redacción por legal en es-ES; traducción humana a en, de, fr | Sin texto validado no se entrega certificado a un centro real | Legal |
+| `OPEN-PURGA-12` | ¿Contienen `admin_action_logs` o `tenant_lifecycle_events` datos personales de personas del centro? | **Auditar las columnas `changes`, `reason` y `context`** al especificar; si los hay, decidir con `OPEN-BO-06` | Lo que «sobrevive» podría incluir datos que debían destruirse | Técnico, luego legal |
+
+### 10.3 No bloquean
+
+| ID | Pregunta | Recomendación | Impacto | Decide |
+|---|---|---|---|---|
+| `OPEN-PURGA-06` | ¿Hace falta un mecanismo de retención por litigio? | **No**: no solicitar la purga y anotar el motivo | Si se quisiera, es columna y regla nuevas | Usuario |
+| `OPEN-PURGA-07` | ¿La lápida conserva `name` y `slug` indefinidamente? | **Sí**; revisar si el titular del centro es persona física | Si no, el certificado y la auditoría identifican al centro solo por `public_id` | Legal |
+| `OPEN-PURGA-08` | `1.23b` incluye el catálogo de retención y `ADR-035 §10` exige tres mínimos antes de H0. ¿Van en el mismo paso? | **No**: `1.23b` = purga de tenant; el catálogo y los tres mínimos, en paso propio con su especificación, también antes de datos reales | Sin separar, `1.23b` no cabe en tres tramos | Usuario |
+| `OPEN-PURGA-10` | ¿La limpieza de E2E usa el motor real con una entrada sin doble autorización fuera de producción? | **Sí**, rechazando en `production` y limitada a centros sembrados por `REQ-SEED` | Si no, `e2e-purge.sh` sigue como está y el motor solo se prueba en sus tests | Usuario, con `security-reviewer` |
+| `OPEN-PURGA-13` | ¿Puede el responsable pedir por escrito una purga anticipada, antes de los 90 días? | **No construirlo**; los 90 días constan en el contrato | RGPD art. 28.3.g deja la elección al responsable: legal debe confirmar que el contrato basta | Legal |
+
+---
 
 ## 11 · Cambios propuestos en ficheros compartidos
 
-_Pendiente._
+No se ha tocado ninguno. Los aplica la sesión orquestadora al integrar.
+
+| Fichero | Cambio propuesto |
+|---|---|
+| `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md §18` | Fila nueva: `ADR-077` · Purga física de un tenant (concreta `ADR-004` nivel 3; entrada de `1.23b`; issue #371). **Estado: `PROPUESTA`** |
+| `PLAN-IMPLEMENTACION.md` | `1.23b`: enlazar este ADR; corregir «31 tablas, 85 claves foráneas» por «66 y 261, a 2026-11-12»; partir en `1.23b-a/b/c` (`§7`); separar el catálogo de retención según `OPEN-PURGA-08`; anotar la dependencia de `REQ-OPS-004` (`OPEN-PURGA-04`). `1.26` (`REQ-BKP`): añadir las cinco condiciones de `§5.10`. Nota «No olvidar» de la línea 276: misma corrección de cifras |
+| `memory.md` | Decisiones pendientes del usuario: `OPEN-PURGA-02`, `-04`, `-11` |
+| `ARCHITECTURE.md` | Tras aceptar: apartado del ciclo de vida del tenant con la fase de purga y qué sobrevive |
+| `SYSADMIN.md` | Tras implementar: `GRANT SET ON PARAMETER` en el script de roles; procedimiento de ejecución del comando con credenciales del propietario |
+| `RUNBOOK.md` | Tras implementar: purga fallida y reanudación; reaplicación del libro tras restaurar (`§4`); declaración de volcados manuales |
+| `PRIVACY.md` | Tras aceptar: fin del servicio, plazos, copias y certificado |
+| `CHANGELOG.md` | Entrada del ADR al integrarlo |
+| `CLAUDE.md` | Ninguno |
+| Issue #371 y #534 | Comentario con enlace a este ADR; #371: cifras actualizadas. No se cierran hasta implementar |
+
+**Fuera de mi ámbito, señalado y no corregido**:
+
+- `docs/modulos/REQ-BO/` (`funcional.md §5.5.3`, `datos.md`, `api.md`, `permisos.md`, `operacion.md`): necesitará la acción `tenant.purgar`, `tenant_purges` y la alarma. Es trabajo de `spec-writer`.
+- `apps/api/.env.example` declara `QUEUE_CONNECTION=redis`, mientras `CLAUDE.md §1` y `compose.yaml` fijan `database` (el propio `compose.yaml` comenta el problema de heredarlo). Contradicción entre documentación y configuración de ejemplo: severidad media según `CLAUDE.md §6.6`. No se ha abierto issue.
+- `ADR-083` (en curso, A7): debe recoger los tres requisitos de `§5.6`.
+
+---
 
 ## 12 · Fuentes y lo no verificado
 
-_Pendiente._
+**Fuentes, consultadas el 2026-11-12**
+
+| Fuente | Para qué |
+|---|---|
+| Catálogo de la base de desarrollo (PostgreSQL 18.6), consultas de solo lectura | `§1.2` |
+| Repositorio en `b7995bc`: `config/tenancy.php`, `TenantContext.php`, `e2e-purge.sh`, migraciones, `REQ-BO/funcional.md`, ADR citados | `§1.2`, `§5` |
+| PostgreSQL 18, «Client Connection Defaults» (`session_replication_role`): https://www.postgresql.org/docs/18/runtime-config-client.html | `replica` desactiva disparadores y comprobaciones de clave foránea; lo cambian superusuarios o quien tenga el privilegio `SET` |
+| PostgreSQL 18, `ALTER TABLE`: https://www.postgresql.org/docs/18/sql-altertable.html | `DISABLE TRIGGER USER` lo hace el propietario; los disparadores de restricción, solo superusuario |
+| PostgreSQL 18, «Routine Vacuuming»: https://www.postgresql.org/docs/18/routine-vacuuming.html | `DELETE` no elimina la versión de fila de inmediato; `VACUUM` y `VACUUM FULL` |
+| AWS, `DeleteObjects`: https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteObjects.html | Hasta 1.000 claves por petición, resultado por clave, marcadores de borrado con versiones. Es la referencia de la API S3, no un proveedor elegido |
+| BOE, Ley Orgánica 3/2018, texto consolidado: https://www.boe.es/buscar/act.php?id=BOE-A-2018-16673 | Arts. 32 (apartados 1 a 4) y 33 |
+| RGPD art. 28: https://gdpr-info.eu/art-28-gdpr/ (reproducción no oficial, en inglés) | Art. 28.3.g |
+| Búsquedas sobre copias y supresión (ICO, CNIL) | `§3`, solo como orientación |
+
+**Sin verificar**
+
+1. Literal en español de los arts. 5.1.e, 17 y 28.3.g del RGPD: EUR-Lex devolvió la página vacía. El contenido citado es el conocido y, para el 28.3.g, el de una reproducción no oficial.
+2. Criterio de la AEPD sobre datos suprimidos en copias de seguridad: no encontrado. La guía del ICO, por fuente secundaria (su página devolvió 404).
+3. Art. 32.5 de la LOPDGDD: leído incompleto.
+4. Documentación de Redis sobre `SCAN`: la página se descargó pero no se leyó entera; el uso de `SCAN` con `MATCH` y `UNLINK` es práctica conocida, a confirmar en la especificación.
+5. Que Garage carezca de versiones y bloqueo de objetos (heredado de `ADR-076 §10`).
+6. Formato real de las claves de limitación de tasa en Redis y que caigan bajo el prefijo `t{tenant_id}:`.
+7. Que las 16 llamadas directas al disco escriban bajo el prefijo del centro (`OPEN-PURGA-05`).
+8. Que un trabajo en cola o una tarea programada no puedan entrar en un tenant `eliminado` (`§5.4`).
+9. Que la revocación de sesiones de la eliminación borre las filas de `sessions`.
+10. Contenido de `admin_action_logs` respecto a datos personales del centro (`OPEN-PURGA-12`).
+11. Que `jobs` sea una sola tabla para las conexiones `database` y `database_long`.
+12. Volumen y duración de una purga real: no hay datos; ninguna cifra de lotes ni de tiempos se fija.
+13. Retención de los registros de aplicación.
+14. Las cifras de `§1.2` son de la base de **desarrollo** con todas las migraciones de `develop`; no hay otro entorno con el que contrastarlas.
