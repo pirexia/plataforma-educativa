@@ -138,3 +138,83 @@ Las cuatro reglas de `ADR-028` se aplican a **cada** red: externa, subred declar
 ### 3.9 Proveedor del VPS
 
 La decisión es del usuario (`OPEN-STG-01`). Datos de `§7`. Recomendación: **OVHcloud VPS-1**, condicionada a comprobar al contratar que hay centro de datos en la UE, imagen de la familia RHEL y que no impone permanencia. Motivos: es el precio verificado más bajo para 2 vCPU y 4 GB; incluye copia diaria; `ADR-083` propone OVHcloud para el S3 (una cuenta y, llegado el caso, una sola cadena de encargo); y las páginas de Hetzner mostraban el 2026-11-12 **todos sus planes en la nube como no disponibles para contratar**. Si Hetzner vuelve a admitir altas, es equivalente y fue la propuesta inicial del usuario. Que staging y el S3 compartan proveedor **no** vale para las copias: `OPEN-10` exige un proveedor distinto del del host.
+
+## 4 · Decisión B: rama `staging` y flujo de promoción
+
+### 4.1 Lo ya decidido y lo que queda por decidir
+
+El usuario decidió el 2026-11-05: ramas `develop` → `staging` → `main`; promociones con *merge commit* o *fast-forward*, **nunca *squash***. Este ADR no reabre eso. Queda por decidir **cuál de las dos formas es la norma** y cómo se ejecuta.
+
+Objeción que debe constar (`CLAUDE.md §0`): para un solo desarrollador, una rama `staging` no es imprescindible; bastaría desplegar en el entorno de staging un commit concreto de `develop` (opción B4). La rama añade un paso y un puntero que mantener. Lo que aporta a cambio es real: una referencia estable de «qué hay en staging» mientras `develop` sigue avanzando, y un punto del que cortar la versión. Con la forma recomendada (B1) el coste de esa rama es casi nulo, así que la decisión del usuario se mantiene y se ejecuta.
+
+### 4.2 Opciones
+
+| Opción | Ventajas | Riesgos | Coste de revertir |
+|---|---|---|---|
+| **B1 · Solo avance rápido (*fast-forward*)**: `staging` y `main` son punteros que avanzan a un commit que ya está en `develop` | El commit desplegado en staging es **el mismo** que llegará a `main`, con el mismo hash: la imagen `sha-<7>` probada es la del commit que se publica; historia lineal; no hay divergencia posible ni fusiones de vuelta; el CI de ese commit ya pasó en `develop` | La interfaz de PR de GitHub no hace avance rápido (su «rebase» reescribe los commits): la promoción se hace con un `git push` sin forzar, fuera del botón de mezclar; un arreglo urgente hecho directamente en `staging` rompe el avance rápido hasta reconciliar (`§4.4`) | Nulo: pasar a B2 es empezar a mezclar con PR |
+| B2 · PR con *merge commit* en cada promoción | Todo queda en la interfaz de GitHub, con su PR y su CI | Cada promoción crea un commit que no está en la rama de origen: `staging` va siempre «por delante» de `develop`, los hashes difieren entre ramas y la imagen se reconstruye por rama; basta un *squash* por descuido (es el botón por defecto del proyecto) para crear la divergencia que el usuario quiere evitar | Bajo |
+| B3 · *Merge commit* hacia `staging` y avance rápido hacia `main` | Un PR visible en el primer salto | Hereda los inconvenientes de B2 en el primer salto y mezcla dos mecánicas | Bajo |
+| B4 · Sin rama `staging`: se despliega en staging un `sha` de `develop` | Lo más simple | Contradice la decisión del usuario; no hay referencia de qué está en staging salvo mirar el host | — |
+
+**Recomendación: B1**, con B2 como excepción documentada para reconciliar tras un arreglo urgente. Motivo: es la única opción en la que «lo que probé» y «lo que publico» son el mismo commit, y la que hace imposible la divergencia en vez de confiar en no pulsar el botón equivocado. El *squash* se mantiene donde está: de rama de trabajo a `develop` (`CLAUDE.md §4`, skill `espera-ci`).
+
+### 4.3 Procedimiento de promoción (propuesta)
+
+1. **`develop` → `staging`**. Con el CI del commit candidato en verde en `develop`: comprobar que `staging` es ancestro del candidato y ejecutar `git push origin <sha>:refs/heads/staging`, **sin `--force`**. Git rechaza por sí solo un *push* que no sea avance rápido; ese rechazo es la protección, y forzarlo está prohibido.
+2. **Despliegue en staging** de `sha-<7>` (`§3.8`), y comprobaciones: las tres pruebas de `contenedores-y-red`, el E2E contra staging y lo que la entrega pida verificar allí (`ADR-076 §2.3`).
+3. **`staging` → `main`** (versión): mismo avance rápido, `git push origin <sha>:refs/heads/main`, y etiqueta anotada `vX.Y.Z` sobre ese commit, que dispara la imagen de versión (`ADR-037 §5.2`).
+4. Quién lo hace: la sesión orquestadora o `janitor`, **solo cuando el usuario lo pide**. Promocionar a `main` es publicar una versión; no entra en la autonomía de PR y mezclas.
+5. Se puede abrir un PR `develop` → `staging` solo para dejar constancia; GitHub lo marca como mezclado cuando la rama base ya contiene sus commits. **Nunca se pulsa el botón de mezclar en un PR de promoción.**
+
+Sin comprobar (**SV**): si existe protección de ramas en `develop` y `main` (el *token* no pudo leerla) y si, con comprobaciones obligatorias activas, GitHub acepta el *push* de un commit que ya las pasó en otra rama. Se comprueba en la primera promoción, antes de dar el flujo por bueno. El repositorio permite hoy *merge commit*, *squash* y *rebase* (**V**, API de GitHub).
+
+### 4.4 Arreglos urgentes
+
+- **Norma**: el arreglo va por `develop` como cualquier otro (`fix/…`, *squash*) y se promociona.
+- **Excepción**, solo si `develop` contiene algo que no puede ir a staging todavía: rama `fix/…` desde `staging`, PR a `staging` con ***merge commit***, y **en la misma sesión** un PR `staging` → `develop` con *merge commit* (nunca *squash*) para que `staging` vuelva a ser ancestro de `develop`. Hasta que ese segundo PR se mezcle no hay más promociones. Se registra en `memory.md`.
+
+### 4.5 Imágenes y CI
+
+- **`build-images.yml` no cambia.** Con B1 el commit de `staging` ya tiene su imagen `sha-<7>` desde que entró en `develop`. La etiqueta móvil `develop` deja de usarse para desplegar. La política de retención de `ADR-037 §5.1` debe conservar los `sha-` a los que apuntan `staging` y `main`: hoy conserva «los últimos N de `develop`», así que N tiene que cubrir la distancia entre `develop` y `main` (ajuste a especificar en `0.10e`).
+- **CI**: se añade `staging` a `pull_request.branches` de los flujos (para los PR de `§4.4`). No hace falta en `push`: el commit ya pasó el CI.
+- **Renovate** sigue apuntando a `develop`.
+
+### 4.6 Puesta en marcha
+
+`main` tiene hoy un commit que `develop` no tiene (`e2c6456`). Antes de la primera promoción hay que reconciliar una vez: PR `main` → `develop` con *merge commit*. Después, `staging` se crea apuntando al commit de `main` y avanza. El gancho `block-protected-branch.sh` y las skills se actualizan según `§11`.
+
+## 5 · Decisión C: runtime de contenedores, nivel 1
+
+### 5.1 Acoplamiento real (comprobado)
+
+La aplicación, las imágenes (`Containerfile`, formato OCI) y `compose.yaml` ya son neutros. Lo que ata a Podman:
+
+| Dónde | Qué | Entra en el nivel 1 |
+|---|---|---|
+| `apps/web/scripts/e2e-real-{api,alum,prl}.sh`, `landing-shots.sh`, `lib/e2e-garage.sh`, `lib/e2e-purge.sh`, `infra/garage/init.sh`, `infra/containers/postgres/bases-test-paralelo.sh`, `apps/web/e2e/curso-rollover.spec.ts` | Invocaciones `podman exec`, `podman start`, `podman compose` (unas 18 líneas) | **Sí** |
+| `apps/api/tests/Pest.php`, comentarios de `compose.yaml` y de los `Containerfile` | Mensajes y comentarios | Sí, solo el texto |
+| Migración `2026_10_07_100200_…` | Un comentario | **No**: una migración ya aplicada no se edita por un comentario |
+| `infra/quadlet/`, `infra/install.sh`, `infra/compose/compose.prodlike.yaml`, la validación de Quadlet en CI | Producción y su banco de pruebas | **No**: son la implementación de referencia |
+| Unos 35 documentos `.md` | Ejemplos con `podman` | No se reescriben |
+
+### 5.2 Opciones
+
+| Opción | Ventajas | Riesgos | Coste | Revertir |
+|---|---|---|---|---|
+| C0 · No hacer nada | Cero coste; un solo camino, siempre probado | Un colaborador o un host sin Podman no puede ejecutar los guiones; el acoplamiento crece sin que nadie lo vea | Nulo | — |
+| **C1 · Nivel 1: variable `CONTAINER_RUNTIME` en los guiones y contrato portable escrito** | Coste pequeño; frena el acoplamiento nuevo; deja dicho qué es portable y qué no | El camino con otro runtime no se prueba en ningún sitio y puede romperse sin aviso | Bajo: una entrega de un tramo | Trivial: la variable tiene valor por defecto |
+| C2 · Nivel 2: segunda definición de producción (`compose.prod.yaml` para Docker) | Despliegue en hosts sin Podman | Dos definiciones de producción que divergen; una de ellas nunca se ejecuta; duplica las pruebas de `§6` | Alto y permanente | Medio |
+| C3 · Manifiestos de Kubernetes ya | Portabilidad real entre proveedores | `ADR-024` lo sitúa a partir de 3-5 centros; hoy es operar un orquestador para cero usuarios | Muy alto | Alto |
+
+**Recomendación: C1, con límites escritos.** C2 y C3 se rechazan hasta que exista un cliente o un host que lo exija: mantener dos definiciones de producción sin ejecutar una es deuda segura.
+
+### 5.3 Qué es el nivel 1
+
+1. **Variable `CONTAINER_RUNTIME`**, valor por defecto `podman`. Valores admitidos: `podman` y `docker`; cualquier otro aborta el guion con un mensaje (lista cerrada, para no ejecutar lo que venga en una variable de entorno). Los guiones de `§5.1` usan `"$CONTAINER_RUNTIME" exec …` y `"$CONTAINER_RUNTIME" compose …`.
+2. **Contrato portable**, el único que el proyecto promete a otro runtime: imágenes OCI publicadas en el registro, variables de entorno documentadas en `SYSADMIN.md`, volúmenes con nombre, redes con nombre de `§3.7`, chequeo de salud por servicio. Quien despliegue con otro orquestador parte de ahí.
+3. **Quadlet es la implementación de referencia de producción y la única que se prueba** (staging, `§6`). `ADR-027` y `ADR-037` no cambian.
+4. **Podman sigue siendo el runtime por defecto y el único verificado** en desarrollo (`ADR-030` no cambia; su descarte de Docker Desktop sigue en pie). Con `docker` el soporte es **de mejor esfuerzo y sin verificar**: no hay trabajo de CI que lo ejecute, y así se dice donde se documente. Declarar «compatible con Docker» sin ejecutarlo sería una afirmación no verificada (`CLAUDE.md §0`).
+5. **Regla hacia delante**: ningún guion nuevo escribe `podman` a mano; un guion que necesite algo exclusivo de Podman lo dice en su cabecera.
+6. La documentación no se reescribe: una nota en `CLAUDE.md §1` (`§11`).
+
+No añade dependencias, no toca invariantes y no cambia nada en el servidor. La red interna del PDF (`OPEN-PDF-12`) no se ve afectada: es una función común a ambos runtimes y, en producción, la define Quadlet.
