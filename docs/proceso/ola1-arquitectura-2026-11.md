@@ -31,7 +31,7 @@ El usuario dispone de un **reset gratuito del límite semanal** de Anthropic y d
 1. Protocolo de `CLAUDE.md §3`: leer `memory.md`, `PLAN-IMPLEMENTACION.md`, este guion; comprobar rama y estado; `git fetch`. Resumir en 5 líneas. **La frase de arranque del usuario sustituye a la confirmación previa.**
 2. Cargar la skill `asignacion-de-modelos` (la excepción de Fable se anota en el informe, no se edita).
 3. Comprobar que `docs/adr/` termina en `ADR-076` y que los números reservados (`§4`) están libres.
-4. Crear la rama de integración `docs/ola1-arquitectura` desde `develop` (la orquestadora; solo recibe *merges*).
+4. **No hay rama de integración única**: cada entrega va en **su propia rama** (tabla de `§5`, convenciones de `CLAUDE.md §4`) y en **su propio PR** hacia `develop`. Los cambios de ficheros compartidos van en una rama aparte (`§8`).
 5. Lanzar los lotes en el orden de `§6`.
 
 ## 4. Números de ADR reservados
@@ -50,7 +50,7 @@ Si un agente necesita un ADR adicional, **no toma número**: lo propone en su in
 
 ## 5. Reparto de agentes
 
-Todos con `model: "fable"`, `isolation: "worktree"`, rama `docs/ola1-<id>` y *worktree* propio (el `Agent` lo crea). Tipos: `architect` (A) y `spec-writer` (B).
+Todos con `model: "fable"`, `isolation: "worktree"` y *worktree* propio (el `Agent` lo crea). Tipos: `architect` (A) y `spec-writer` (B). **Ramas organizadas como siempre** (`CLAUDE.md §4`: `feature/`, `fix/`, `chore/`, colgadas de `develop`), una por entrega; la lista está en la tabla «Ramas y commits» de más abajo y se le indica a cada agente en su prompt (la rama se crea al empezar, antes de escribir).
 
 ### Lote 1: decisiones transversales (7 × `architect`)
 
@@ -78,6 +78,29 @@ Siguen `docs/modulos/_PLANTILLA/`, cada entrega dimensionada para **≤3 tramos 
 | B6 | `1.18` | `docs/modulos/REQ-INF/` (0-3) | REQUISITOS §5.50 (75 líneas); `ACAD`, `CALIF`, `ALUM`, `FIN` | Infantil primer ciclo: partes diarios, informes; **datos de salud = categoría especial** (tablas separadas, cifradas, auditoría de lectura) |
 | B7 | `1.19` | `docs/modulos/REQ-COM/` | REQUISITOS §5.12; `ADR-079` (borrador de A3); avisos de `1.14b-d3`/`d4` | Mensajería, circulares, confirmación de lectura, consentimiento, permisos por rol |
 
+### Ramas y commits
+
+| Id | Rama | Prefijo del commit |
+|---|---|---|
+| A1 | `chore/adr-077-purga-fisica-de-tenant` | `docs(adr): … [ADR-077]` |
+| A2 | `chore/adr-078-motor-de-renderizado-pdf` | `docs(adr): … [ADR-078]` |
+| A3 | `chore/adr-079-notificaciones-y-comunicaciones` | `docs(adr): … [ADR-079]` |
+| A4 | `chore/adr-080-staging-y-runtime-de-contenedores` | `docs(adr): … [ADR-080]` |
+| A5 | `chore/adr-081-pasarela-de-pago-y-sepa` | `docs(adr): … [ADR-081]` |
+| A6 | `chore/adr-082-firma-digital-y-apoderado` | `docs(adr): … [ADR-082]` |
+| A7 | `chore/adr-083-cumplimiento-y-proveedor-s3` | `docs(cumplimiento): … [ADR-083]` |
+| B1 | `feature/REQ-CORE-almacen-de-objetos-spec` | `docs(core): … [ADR-076]` |
+| B2 | `feature/REQ-ACAD-003-asistencia-spec` | `docs(acad): … [REQ-ACAD-003]` |
+| B3 | `feature/ADR-064-capa-visual-spec` | `docs(ui): … [ADR-064]` |
+| B4 | `feature/REQ-SEED-001-generador-de-datos-spec` | `docs(seed): … [REQ-SEED-001]` |
+| B5 | `feature/REQ-CALIF-calificaciones-y-boletines-spec` | `docs(calif): … [REQ-CALIF-001]` |
+| B6 | `feature/REQ-INF-0-3-spec` | `docs(inf): … [REQ-INF-001]` |
+| B7 | `feature/REQ-COM-comunicaciones-spec` | `docs(com): … [REQ-COM-001]` |
+| Lote 0 | `chore/doc-incoherencias-2026-11` | `docs: … [#<issue>]` (abrir antes un issue Bajo con las seis incoherencias, `CLAUDE.md §5`) |
+| Compartidos (`§8`) | `chore/ola1-ficheros-compartidos` | `docs(proceso): … [ADR-077]` y siguientes |
+
+Si un ID de requisito (`REQ-XXX-NNN`) no existe en `REQUISITOS`, el commit cita el ADR o el issue (`CLAUDE.md §4`: todo commit referencia al menos un ID). Los revisores del lote 3 no tienen rama: sus correcciones se aplican **en la rama de la entrega** reanudando al agente original. Si una entrega necesita partirse, se abren más ramas con el mismo prefijo y un sufijo de letra (`-a`, `-b`).
+
 ### Lote 3: revisión crítica adversarial (4 × `architect`, `model: "fable"`), cuando acaben los lotes 1 y 2
 
 Solo lectura. Cada uno revisa un grupo y devuelve hallazgos con severidad y corrección: contradicciones con ADR vigentes e invariantes (`INV-001` a `INV-015`), requisitos inventados (`CLAUDE.md §11`), faltas de permisos, auditoría, aislamiento de tenant o datos de menores, viabilidad real (¿cabe en ≤3 tramos?), fuentes no verificadas, opciones descartadas sin motivo.
@@ -103,7 +126,7 @@ Solo lectura. Cada uno revisa un grupo y devuelve hallazgos con severidad y corr
 1. **Ahora**: lanzar **A1 a A7** (lote 1) en paralelo (7 agentes) y, en la misma tanda, el **lote 0** (`janitor`, barato).
 2. Cuando **al menos 4 de los 7** del lote 1 hayan informado, lanzar **B1 a B7** (lote 2). B5 y B7 pueden empezar sin esperar a A2 y A3: leen sus borradores si ya existen y, si no, marcan la dependencia.
 3. Cuando los lotes 1 y 2 hayan informado, lanzar **C1 a C4** (lote 3). Aplicar correcciones en **una sola reanudación** por entrega (`SendMessage` al agente original, no un agente nuevo: `CLAUDE.md §2`, lección 5).
-4. `doc-precheck` (Haiku) sobre la rama de integración antes de abrir el PR.
+4. `doc-precheck` (Haiku) sobre **cada rama** antes de abrir su PR.
 
 Prompt de cada agente: la **orquestadora lo compone** con (a) los datos de su fila, (b) las restricciones de `§2` y (c) las reglas comunes de `§7`. Se pega tal cual, sin la especificación entera del proyecto.
 
@@ -121,10 +144,10 @@ Prompt de cada agente: la **orquestadora lo compone** con (a) los datos de su fi
 
 ## 8. Integración (al terminar los lotes 1 a 3)
 
-1. Por cada rama `docs/ola1-<id>` con trabajo: commit (si el agente no pudo), y `git merge --no-ff` en `docs/ola1-arquitectura`. No hay solapes de ficheros por diseño; si los hay, para y resuélvelo con el usuario.
-2. Aplicar los «Cambios propuestos en ficheros compartidos»: índice de ADR en `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` (`§18`), `PLAN-IMPLEMENTACION.md` (nuevos pasos, pasos que cambian de etiqueta o de orden), `README.md` (tabla de versiones), `CHANGELOG.md` (una entrada para la ola), `memory.md` (nota viva y la excepción de Fable).
+1. Por cada rama de la tabla «Ramas y commits» con trabajo: commit (si el agente no pudo, `git -C <worktree>`), `push` y **PR propio** hacia `develop` (skills `pr-check` y `espera-ci`; son solo documentación, pero el CI corre completo: las esperas de varios PR se pueden lanzar a la vez en segundo plano). No hay solapes de ficheros por diseño; si los hay, para y resuélvelo con el usuario. Tras cada merge, borrar la rama remota y local y el *worktree* (`git worktree remove`).
+2. Aplicar los «Cambios propuestos en ficheros compartidos» en **una rama aparte** (`chore/ola1-ficheros-compartidos`, un PR) cuando estén mezcladas las entregas: índice de ADR en `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` (`§18`), `PLAN-IMPLEMENTACION.md` (nuevos pasos, pasos que cambian de etiqueta o de orden), `README.md` (tabla de versiones), `CHANGELOG.md` (una entrada para la ola), `memory.md` (nota viva y la excepción de Fable).
 3. **Consolidar las decisiones para el usuario** en una tabla («Decisión | Opciones | **Recomendada** | Impacto | Bloquea»), ordenadas por lo que desbloquean. Preguntarlas con `AskUserQuestion` en **lotes de hasta 4, recomendada primera y marcada**. Lo que el usuario decida se refleja en los ADR (`PROPUESTA` → `ACEPTADA`) y en las especificaciones (`OPEN-*` → decididas).
-4. `doc-precheck` y, si hay Críticos o Altos corregidos, `doc-reviewer`; PR único hacia `develop`; `espera-ci`.
+4. `doc-precheck` y, si hay Críticos o Altos corregidos, `doc-reviewer`; el PR de ficheros compartidos y `espera-ci`.
 5. Métricas en `docs/metricas-agentes.md` (una fila por agente) y recálculo por tipo de agente; el modelo `fable` va en su propia fila de notas.
 
 ## 9. Ola 2 (no incluida en esta tanda)
