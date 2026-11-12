@@ -1,5 +1,6 @@
 import { test, expect, type Locator, type Page } from '@playwright/test'
 import { RealSession } from './fixtures/realSession'
+import { downloadExportCsv } from './fixtures/dataExport'
 import {
   BASE_URL,
   centreA,
@@ -261,10 +262,15 @@ test.describe('CA-ALUM-072 CA-ALUM-070 CA-ALUM-071 (REQ-ALUM-003): cambios de gr
     ])
 
     expect(response.status(), await response.text()).toBe(202)
-    test.info().annotations.push({
-      type: 'no-probado',
-      description:
-        'Exportación aceptada (202). La descarga del CSV desde S3/MinIO NO se ha comprobado.',
-    })
+
+    // El worker escribe el CSV en Garage y se descarga por la URL firmada (ADR-076 §2.3): el alumno del curso cerrado está en él.
+    const csv = await downloadExportCsv(
+      admin,
+      ((await response.json()) as { public_id: string }).public_id,
+    )
+    const lines = csv.trim().split(/\r?\n/)
+
+    expect(lines[0]).toContain('enrollment_public_id,student_public_id,family_name')
+    expect(lines.some((line) => line.includes(students.cerrado.family))).toBe(true)
   })
 })
