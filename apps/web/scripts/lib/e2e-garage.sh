@@ -12,6 +12,18 @@ ensure_garage() {
   local root
   root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 
+  # Guarda de entorno (revisión de seguridad B1): este helper levanta y recrea contenedores, así que solo se ejecuta contra la
+  # pila de desarrollo. Alinea con la guarda de `e2e-real-tenant.php` (solo local/testing) y falla antes de tocar nada.
+  local app_env
+  app_env="$("$cli" exec "$api" printenv APP_ENV 2>/dev/null || true)"
+  case "$app_env" in
+    local|testing) ;;
+    *)
+      echo "ensure_garage: APP_ENV='${app_env}' en $api no es local ni testing (¿pila de desarrollo caída?); no se toca nada." >&2
+      return 2
+      ;;
+  esac
+
   (cd "$root" && "$cli" compose --profile full up -d garage >/dev/null 2>&1) \
     || { echo "ensure_garage: no se pudo levantar el servicio garage (¿falta .env con GARAGE_*?)." >&2; return 2; }
   (cd "$root" && CONTAINER_CLI="$cli" bash infra/garage/init.sh) \

@@ -34,11 +34,6 @@ fi
 source "$(dirname "${BASH_SOURCE[0]}")/e2e-vite-api-url.sh"
 prepare_vite_api_url "$SLUG" || exit 2
 
-# Almacén S3 de desarrollo (Garage, ADR-076): levantado, inicializado y con api/worker configurados contra él.
-# shellcheck source=lib/e2e-garage.sh
-source "$(dirname "${BASH_SOURCE[0]}")/lib/e2e-garage.sh"
-ensure_garage || exit 2
-
 # `E2E_ONLY` no vacío y fuera de la lista cerrada: se rechaza antes de tocar nada (un typo no puede salir en verde sin
 # haber ejecutado ninguna suite).
 case "${E2E_ONLY:-}" in
@@ -48,6 +43,13 @@ case "${E2E_ONLY:-}" in
     exit 2
     ;;
 esac
+
+# Almacén S3 de desarrollo (Garage, ADR-076): levantado, inicializado y con api/worker configurados contra él. Va DESPUÉS de
+# validar `E2E_ONLY`: un valor inválido debe salir con código 2 antes de tocar ningún contenedor (lo comprueba
+# `e2e-real-api.spec.ts`).
+# shellcheck source=lib/e2e-garage.sh
+source "$(dirname "${BASH_SOURCE[0]}")/lib/e2e-garage.sh"
+ensure_garage || exit 2
 
 # La purga (lib/e2e-purge.sh) exige E2E_ALLOW_DESTRUCTIVE=1 en el entorno: estos scripts solo operan sobre el centro sintético de desarrollo.
 export E2E_ALLOW_DESTRUCTIVE=1
