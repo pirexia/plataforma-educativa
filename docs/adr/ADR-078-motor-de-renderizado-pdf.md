@@ -312,20 +312,128 @@ Consecuencia para el plan: `1.17` puede entregar boletines **sin firma electrón
 
 ## 9 · Consecuencias, riesgos y reversión
 
-_(pendiente)_
+### 9.1 Consecuencias
+
+- **Un servicio nuevo** (`pdf`) en `compose.yaml` (perfil `full`, no en el reducido de `ADR-030`) y una unidad Quadlet, con `Wants=` + `After=` desde `worker` y nunca `Requires=` (`ADR-028`): si `pdf` cae, el `worker` sigue y los trabajos de PDF reintentan.
+- **Python entra en el repositorio**, confinado a `infra/containers/pdf/`: un envoltorio de un fichero y su `Containerfile`. No entra en `apps/`. Necesita su propia comprobación en CI (construcción de la imagen y test de conformidad); no se añade una cadena de herramientas de Python más allá de eso.
+- **Ninguna dependencia nueva en `composer.json` ni en `package.json`.**
+- **Las plantillas de PDF son Blade propias**, no componentes de la SPA: la fila de `ARCHITECTURE.md` que dice «reutilizando el design system» pasa a significar reutilizar los *tokens* (colores, escala) en una hoja de impresión, no los componentes Vue (`§12`).
+- **Entrega propia antes de `1.17`**, de infraestructura, dimensionada para ≤ 3 tramos (`CLAUDE.md §2`, punto 7): (1) imagen, envoltorio y prueba de `§5.4`; (2) contrato, adaptador, doble de pruebas, cola y test de conformidad; (3) hoja base de impresión, plantilla de referencia en cuatro idiomas y documentación. Paso **crítico** a efectos de revisión (servicio nuevo que procesa datos de menores): `security-reviewer` tras Codex.
+- Desbloquea, cada una como entrega pequeña posterior: boletines (`1.17`), PDF de auditoría (`REQ-CORE-005`), horarios (`OPEN-ACAD-38`) y listados (`OPEN-ALUM-15`). Este ADR no las ordena (`OPEN-PDF-11`).
+
+### 9.2 Riesgos
+
+| Riesgo | Probabilidad | Efecto | Mitigación |
+|---|---|---|---|
+| WeasyPrint demasiado lento para el lote o para tablas largas | Media | Cambio de motor | Prueba de `§5.4` **antes** de escribir plantillas; regla de `§3.3` |
+| El envoltorio propio crece (colas internas, caché, autenticación) | Media | Deuda en un lenguaje ajeno al proyecto | Alcance cerrado en `§3.2`: un *endpoint*, sin estado. Cualquier ampliación exige ADR |
+| PDF/A-«a» y PDF/UA-1 no combinables en un fichero | Desconocida | `archival` sin declaración PDF/UA | `§7.2`; se sabe en el primer tramo |
+| El perfil PAdES del prestador no encaja con el nivel de PDF/A | Desconocida | Reajuste del nivel | `§8`; lo emitido sin firma no se ve afectado |
+| Un fallo de seguridad en WeasyPrint o en Pango | Baja-media (ya hubo uno en 2026) | Parche urgente | Sin red y sin secretos: el alcance de un fallo queda en el propio contenedor y en el documento en curso |
+| WeasyPrint pierde a sus dos mantenedores | Baja | Motor sin parches | Opción A como salida; mismas plantillas |
+| Diferencias de maquetación al cambiar de versión | Media | Documentos que cambian de aspecto | Imagen fijada por digest; el test de conformidad compara número de páginas de las plantillas de referencia |
+
+### 9.3 Reversión
+
+- **Antes de implementar**: no aceptar el ADR; no hay nada que deshacer.
+- **De B a A** (el caso probable): nuevo adaptador de `PdfRenderer`, cambio de servicio en `compose.yaml` y Quadlet, rehacer la hoja base de paginación y repasar cada plantilla en los cuatro idiomas. Los módulos no cambian. Los documentos ya emitidos no se tocan: son objetos inmutables.
+- **De cualquiera a C**: reescritura de todas las plantillas. Por eso no se recomienda empezar por C ni dejar que el número de plantillas crezca sin haber pasado la prueba de `§5.4`.
+- **Retirada del servicio**: se quita el contenedor; los trabajos pendientes fallan con `PdfRendererUnavailable` y quedan en `failed_jobs`, sin pérdida de datos.
+
+---
 
 ## 10 · Alternativas descartadas
 
-_(pendiente)_
+| Alternativa | Motivo |
+|---|---|
+| **Gotenberg con Chromium** (opción A) | No se descarta: es la vuelta atrás. No es la primera opción por la superficie de un navegador con datos de menores, por el ritmo de parches y porque la serie 9 (2026-11-05) apoya la conformidad PDF/A y PDF/UA en un motor propio en `v0.0.10` |
+| **Typst** (opción C) | Técnicamente el mejor motor de los tres, pero sale del HTML: reversión cara, 0.x, y contradice `CLAUDE.md §1`. Reconsiderable cuando llegue a 1.0, con ADR nuevo |
+| **Servicio propio con Playwright o Puppeteer** | Es reimplementar Gotenberg a mano: más código propio que B y la misma superficie que A |
+| **dompdf o mPDF dentro del proceso PHP** | Contradicen `ADR-010` (servicio contenerizado); el render correría con las credenciales del `worker`. dompdf es LGPL-2.1 con soporte CSS limitado y sin PDF/UA (sin verificar al detalle); mPDF es GPL-2.0 y su última publicación en GitHub Releases es de 2022 (puede publicar solo por etiquetas: sin verificar) |
+| **wkhtmltopdf** | Repositorio archivado; última versión de 2020 |
+| **Motores comerciales (Prince, PDFreactor)** | Calidad y conformidad muy altas, pero licencia de pago por servidor (precios sin verificar) y dependencia de un proveedor. La interfaz de `§4` permite adoptarlos si un cliente lo exigiera |
+| **PDF generado en el navegador del usuario (hoja de impresión)** | Ya descartado en `OPEN-ACAD-38` (opción B): no es un documento emitido, no es PDF/A ni reproducible, y viola `INV-006` al dejar la lógica en la interfaz |
+| **Firmar con el motor interno de Gotenberg 9** | `ADR-012`: sin criptografía ni custodia de claves propias |
+| **WeasyPrint dentro de la imagen del `worker`** | `§3.2`, opción B2 |
+
+---
 
 ## 11 · Preguntas abiertas
 
-_(pendiente)_
+Convención: **R** es la recomendación de este ADR. «Bloquea» se refiere a la implementación de la entrega del motor, salvo que se diga otra cosa.
+
+### 11.1 Bloquean
+
+| ID | Pregunta | Opciones | Recomendación e impacto | Decide |
+|---|---|---|---|---|
+| `OPEN-PDF-01` | ¿Qué motor? | **R: B** WeasyPrint · A Gotenberg con Chromium · C Typst | B (`§3.1`). Con A: menos código propio, más superficie y más parches. Con C: hay que enmendar `CLAUDE.md §1` y aceptar una reversión cara | Usuario |
+| `OPEN-PDF-02` | ¿Se acepta mantener un servicio propio mínimo en Python (un *endpoint*, un fichero, `infra/containers/pdf/`)? | **R: Sí** · No | Si es no, `OPEN-PDF-01` pasa a A: B no tiene empaquetado oficial y las otras formas de empaquetarlo se descartan por seguridad (`§3.2`) | Usuario |
+| `OPEN-PDF-04` | ¿Qué umbrales hacen aceptable el motor en la prueba de `§5.4`? | **R:** 1.200 boletines en ≤ 30 min con un `worker`, ningún documento > 60 s, servicio ≤ 512 MB · otros valores · sin umbral | Sin umbral, la prueba no decide nada y el riesgo de velocidad se descubre con las plantillas ya escritas | Usuario, con negocio (¿cuánto puede esperar un centro la noche de publicación?) |
+| `OPEN-PDF-03` | ¿Qué documentos son `archival` (PDF/A) y a cuáles se les exige PDF/UA-1? | **R: P1** de `§7.2`: `archival` para documentos emitidos, `accessible` para listados; todos etiquetados · P2 todo PDF/A · P3 a demanda | Bloquea la plantilla del boletín (`1.17`), no la construcción del motor. Con P3 se incumple `RNF-COMP-004` | Negocio y legal; el nivel exacto, técnico tras `§5.4` |
+
+### 11.2 No bloquean
+
+| ID | Pregunta | Opciones | Recomendación e impacto | Decide |
+|---|---|---|---|---|
+| `OPEN-PDF-05` | Firma: nivel, firmante, firma visible, campo reservado y compatibilidad PAdES con PDF/A | Depende de `ADR-082` | **R:** el motor no firma (`§8`); `1.17` entrega sin firma electrónica hasta que `ADR-082` se acepte. Bloquea solo la parte firmada de `REQ-CALIF-002` | `ADR-082` (usuario y legal) |
+| `OPEN-PDF-06` | Tipografía de los PDF | **R: T1** una familia de licencia abierta en la imagen · T2 catálogo cerrado · T3 subidas por el centro | T1; la familia se elige comprobando licencia y cobertura. Aclara además si la «tipografía» del *branding* alcanza a los PDF | Usuario |
+| `OPEN-PDF-07` | Plantillas «configurables» por centro (`REQ-CALIF-004`, `REQ-SEC-001`): ¿parámetros o HTML libre? | **R:** parámetros estructurados (logotipo, colores, textos como texto plano, bloques que se activan) · HTML libre saneado · editor visual | HTML libre convierte al centro en autor de entrada no confiable y multiplica las pruebas de accesibilidad. Lo concreta la especificación de cada módulo | Usuario, en la especificación de `1.17` |
+| `OPEN-PDF-08` | ¿Con qué se valida PDF/A y PDF/UA en CI? | **R:** veraPDF en el trabajo de conformidad, fuera de la suite Pest · solo comprobaciones propias (fuentes, etiquetas, metadatos) · validación manual | veraPDF es una herramienta nueva solo de CI (Java); mantenimiento, licencia e imagen **sin verificar**: se comprueban antes de adoptarla (`CLAUDE.md §1`). Sin validador, la conformidad es una afirmación sin prueba | Técnico; la dependencia la aprueba el usuario |
+| `OPEN-PDF-09` | ¿Cola en el `worker` actual o proceso dedicado? | **R: Q1** cola por módulo en `worker`, última en prioridad · Q2 `worker-pdf` · Q3 cola `long` | Q1; se revisa con la medida de `§5.4` | Técnico |
+| `OPEN-PDF-10` | Conservación de los PDF generados | **R:** los emitidos se guardan como objetos inmutables con la retención que fije el catálogo de `ADR-077`; las exportaciones de trabajo caducan como `data_exports` (7 días) · regenerar siempre · guardar todo | Regenerar un documento emitido rompe firma y archivo. Los plazos no son de este ADR | Legal y negocio (`ADR-077`) |
+| `OPEN-PDF-11` | Orden de las exportaciones pendientes (auditoría, horarios, listados) | **R:** todas después de `1.17`, cada una como entrega pequeña · alguna antes | `1.17` es quien valida el motor con un caso real; adelantar otra reparte el riesgo en dos frentes | Usuario (plan) |
+| `OPEN-PDF-12` | ¿El servicio `pdf` entra en el *staging* barato y cómo queda su red interna con un *runtime* agnóstico? | Depende de `ADR-080` | **R:** sí entra, con la misma red sin salida; si el *runtime* no ofreciera red interna, se compensa con reglas de salida y se documenta | `ADR-080` (técnico) |
+
+---
 
 ## 12 · Cambios propuestos en ficheros compartidos
 
-_(pendiente)_
+No se ha tocado ninguno. Los aplica la sesión orquestadora al integrar, y solo los de la opción que se acepte.
+
+| Fichero | Cambio propuesto |
+|---|---|
+| `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` §18 (índice) | Fila `ADR-078`: «Motor de renderizado PDF: WeasyPrint en servicio propio mínimo tras `PdfRenderer`; plantillas HTML y CSS sin JavaScript ni recursos externos; un trabajo por documento en cola; PDF etiquetado, PDF/A para documentos emitidos; el motor no firma (`ADR-082`). Concreta `ADR-010`. **Estado: `PROPUESTA`**». Entrada en el historial de versiones |
+| `CLAUDE.md §1`, fila «PDF» | Al aceptar: «**Elegido y no instalado**: WeasyPrint en servicio propio (`ADR-078`); plantillas sin JavaScript ni recursos externos», con el issue que lo siga. Hasta que exista el servicio, la fila debe seguir diciendo que no está instalado |
+| `PLAN-IMPLEMENTACION.md` | (a) Paso nuevo de infraestructura **antes de `1.17`**, «Servicio de PDF (`ADR-078`)», en tres tramos (`§9.1`), marcado crítico; el número lo asigna la orquestadora. (b) En `1.17`: «motor según `ADR-078`; firma electrónica según `ADR-082`, no incluida si no está aceptado». (c) En `0.3`: sustituir «motor sin decidir, ver 1.17» por la referencia a `ADR-078` |
+| `ARCHITECTURE.md` | Línea 34: «Plantillas HTML propias con los *tokens* del design system, sin JavaScript (`ADR-078`)». Tablas de dimensionado (líneas ~331-362): las cifras del servicio PDF (≈1 GB en picos, 4 GB por nodo) son previas a la decisión; sustituirlas por lo medido en `§5.4`. Añadir `App\Support\Pdf` a la lista de contratos transversales y la red interna del servicio al diagrama |
+| `SYSADMIN.md` | Línea 87: retirar «no está definido todavía»; documentar el servicio `pdf` (perfil `full`, límites, sin red de salida, sin secretos), la cola nueva y cómo actualizar la imagen por digest |
+| `RUNBOOK.md` | Entradas nuevas: «el servicio `pdf` no responde» (los trabajos reintentan; qué mirar) y «un lote de boletines va lento» |
+| `README.md`, `CHANGELOG.md`, `memory.md` | Lo habitual al cerrar la entrega; nada antes |
+| `docs/modulos/REQ-CORE/funcional.md §4.6`, `REQ-ACAD` (`OPEN-ACAD-38`), `REQ-ALUM` (`OPEN-ALUM-15`) | No son ficheros compartidos del guion, pero tampoco de este encargo: donde dicen «motor sin decidir», referenciar `ADR-078` cuando se acepte |
+| `.claude/skills/colas-y-workers`, `contenedores-y-red` | Añadir la regla «un trabajo por documento, nunca PDF en la petición» y el servicio `pdf` sin red de salida. Requiere aprobación del usuario |
+| `docs/modulos/REQ-CALIF/` (agente B5) | B5 debe leer `§3.3`, `§5.2`, `§7` y `§8`: reglas de plantilla, un documento por destinatario e idioma, perfil `archival`, boletín sin firma electrónica hasta `ADR-082` |
+
+**Para `ADR-082` (agente A6)**: este ADR le pide tres cosas (`§8`): que el contrato de firma reciba un PDF ya guardado y devuelva otro objeto; que diga si hace falta campo o hueco de firma visible; y que exija al prestador compatibilidad con el nivel de PDF/A de `§7.2`.
+
+---
 
 ## 13 · Fuentes y lo no verificado
 
-_(pendiente)_
+### 13.1 Fuentes (todas consultadas el 2026-11-12)
+
+| Dato | Fuente |
+|---|---|
+| Licencia, estado, lanzamientos, commits y contribuyentes de Gotenberg, WeasyPrint, Typst, dompdf, mPDF y wkhtmltopdf | API de GitHub: `repos/<org>/<repo>`, `/releases`, `/contributors`, `/commits?since=2026-08-12` |
+| Novedades e incompatibilidades de Gotenberg 9; `litho` y `lok` | Notas de `v9.0.0` y `v9.4.0` (GitHub Releases); `https://gotenberg.dev/docs/getting-started/upgrade` |
+| Licencia de `litho` (AGPL-3.0, distribuido bajo MIT dentro de Gotenberg) y su versión (`v0.0.10`) | `LICENSE` y `README` de `gotenberg/litho`; `go.mod` de `gotenberg/gotenberg` |
+| Valores por defecto de seguridad y capacidad de Gotenberg | `https://gotenberg.dev/docs/configuration` |
+| Tamaño de la imagen `9.4.0-chromium` | API pública de Docker Hub (tamaño comprimido, amd64) |
+| WeasyPrint 70.0: corrección de seguridad CVE-2026-55073 | Notas de `v70.0` (GitHub Releases) |
+| WeasyPrint: PDF/A, PDF/UA, rendimiento de tablas | `https://doc.courtbouillon.org/weasyprint/stable/common_use_cases.html` |
+| WeasyPrint: riesgos de seguridad y mitigaciones, ausencia de imagen oficial, Pango ≥ 1.44 | `https://doc.courtbouillon.org/weasyprint/stable/first_steps.html` |
+| WeasyPrint: valores de `pdf_variant`, `url_fetcher`, soporte CSS | `https://doc.courtbouillon.org/weasyprint/stable/api_reference.html` |
+| Typst: PDF/A, PDF/UA-1, incompatibilidad de PDF/UA-1 con PDF 2.0 | `https://typst.app/docs/reference/pdf/` (versión 0.15.1) |
+| Estado del repositorio | `grep` sobre `compose.yaml`, `infra/quadlet/`, `apps/api/config/queue.php`, `apps/api/composer.json` y la documentación citada |
+
+### 13.2 Sin verificar
+
+1. **Velocidad y memoria de cualquiera de los tres motores** con nuestras plantillas: no se ha ejecutado nada (este encargo no escribe código). Es el objeto de `§5.4`.
+2. Que WeasyPrint **no ejecute JavaScript**: es lo esperable en un maquetador sin navegador, pero ninguna de las páginas consultadas lo afirma.
+3. Combinación de **PDF/A-«a» y PDF/UA-1** en un mismo fichero con WeasyPrint.
+4. Creación de **campos de firma vacíos** con WeasyPrint y compatibilidad **PAdES con PDF/A** del prestador que elija `ADR-082`.
+5. Calidad de la **partición de palabras en alemán** y dependencias de Python transitivas de WeasyPrint (se inventarían al construir la imagen).
+6. **Soporte de la serie 8 de Gotenberg** tras la 9: la guía de migración no lo dice.
+7. Consumo en reposo de Chromium en Gotenberg y soporte actual de cajas de margen de `@page` en Chromium.
+8. **veraPDF** (mantenimiento, licencia, imagen) y la licencia de la familia tipográfica que se elija.
+9. Estado de los lectores de PDF respecto a PDF/UA-2 y precios de los motores comerciales.
+10. El contenido de `ADR-082` y de `ADR-080`: ambos estaban en redacción al cerrar este documento.
