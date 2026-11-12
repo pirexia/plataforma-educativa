@@ -445,20 +445,166 @@ Tres orígenes, un solo tratamiento: adeudo **devuelto** (`§4.4`), pago con tar
 
 ## 11 · Consecuencias, riesgos y reversión
 
-_Pendiente._
+### 11.1 Consecuencias
+
+- `REQ-FIN` se especifica con **deuda y movimientos separados** y el estado de la factura derivado. Es la consecuencia más cara de ignorar.
+- Aparecen **dependencias nuevas** (una por adaptador de proveedor, y quizá una librería de XML o de validación de XSD). Cada una pasa por `CLAUDE.md §1` al implementarse; este ADR no autoriza ninguna.
+- Aparece la **segunda excepción de CSRF** y una excepción nominal de `AR-07a` (`§7.4`).
+- El centro tiene **dos pasos manuales** en SEPA (presentar la remesa, traer las devoluciones). Es el precio de no cambiarle el banco ni los mandatos.
+- La plataforma **no gana dinero en el flujo de cobro** con esta decisión. Si el negocio quiere una comisión por operación, solo el modelo de cuenta conectada lo permite sin tocar fondos (`OPEN-PAY-02`).
+- Tamaño (`CLAUDE.md §2`, punto 7): no cabe en una entrega. Propuesta de partición, a confirmar por `spec-writer`: (a) deuda, movimientos, cobro manual y transferencia; (b) mandatos y remesa `pain.008`; (c) devoluciones e impagos; (d) puerto de pagos y primer adaptador de tarjeta con notificaciones; (e) conciliación por extracto. El orden (a)-(b)-(c) da valor al centro **sin ningún proveedor externo**.
+
+### 11.2 Riesgos
+
+| Riesgo | Gravedad | Mitigación |
+|---|---|---|
+| **Doble cargo** (dos remesas con la misma deuda, o remesa y tarjeta a la vez) | Crítica para la confianza del centro | Índice único parcial y un intento vivo por deuda (`§4.3`, `§7.2`); prueba de concurrencia |
+| Dar por pagado algo no cobrado (retorno del navegador, casamiento aproximado) | Alta | `§5.3` regla 2; `§8.2` regla 2 |
+| Notificación falsificada o atribuida a otro centro | Crítica (`INV-001`) | Firma verificada antes de resolver el tenant; cuarentena (`§7.4`) |
+| El banco del centro piloto rechaza el fichero por una variante de formato | Media | Versión por centro, validación XSD, y **una remesa de prueba real con el banco del piloto antes de darlo por terminado** (`OPEN-PAY-07`) |
+| Fuga de credenciales de cobro de un centro | Alta | Preferir cuenta conectada; si no, cifrado de campo y nunca devolverlas (`§10.2`) |
+| Datos de un menor en el concepto de un cargo | Media | `§10.4` |
+| Dependencia de las condiciones de un proveedor | Media | Interfaz propia; SEPA no depende de ningún proveedor |
+| Normativa que cambia (versión de `pain.008`, PSD3, criterios de SAQ A) | Media | Nada escrito como constante; revisión anual anotada en `SECURITY.md` |
+| **Este ADR se apoya en varias fuentes secundarias** | Media | `§14.2`; ninguna cifra sin verificar debe llegar a código sin contrastar |
+
+### 11.3 Pruebas de regresión que esta decisión exige (para la especificación)
+
+1. Dos peticiones concurrentes que incluyen la misma deuda en dos remesas: solo una lo consigue.
+2. La misma notificación del proveedor entregada dos veces, y dos notificaciones en orden inverso: un solo efecto y estado final correcto.
+3. Notificación con firma válida de un centro e identificadores de otro: rechazada, sin efecto y sin revelar existencia.
+4. Notificación con importe distinto del intento: cuarentena.
+5. Devolución de un adeudo ya dado por cobrado: la factura vuelve a pendiente y el mandato se suspende o no según el motivo.
+6. El mismo fichero de devoluciones o de extracto importado dos veces: sin duplicados.
+7. El fichero de remesa generado valida contra el XSD de la versión configurada.
+8. Ninguna columna del esquema casa con patrones de dato de tarjeta (`§6.3`, regla 6).
+9. Un tutor no puede ver ni pagar la deuda de otra unidad familiar, ni fijar el importe.
+10. Aislamiento entre tenants de todas las tablas nuevas (`RNF-MANT-006`).
+
+### 11.4 Reversión
+
+- **Cambiar de proveedor de tarjeta**: escribir otro adaptador y migrar la configuración del centro; el dominio no cambia. Los cobros históricos conservan el identificador del proveedor antiguo.
+- **Pasar SEPA de remesa a proveedor por API**: adaptador nuevo; exige migrar o volver a recoger mandatos (es el coste real, `§4.1`).
+- **Pasar de redirección a campos incrustados**: posible, pero cambia el alcance PCI y la CSP: exige ADR nuevo.
+- **Lo irreversible**: nada de este ADR, mientras se respete `§2.1`. Lo que sería irreversible es justo lo que se descarta (custodiar fondos, recoger tarjetas).
+
+---
 
 ## 12 · Alternativas descartadas
 
-_Pendiente._
+| Alternativa | Motivo |
+|---|---|
+| La plataforma como comercio que cobra y reparte (`§3.1`, C) | Custodia de fondos ajenos: actividad regulada, contracargos contra la plataforma, tesorería propia. Complejidad sin beneficio para un centro |
+| Formulario propio de tarjeta o campos incrustados (`§6.2`, B y C) | Amplían el alcance PCI y obligan a abrir la CSP a cambio de una mejora estética |
+| Tarjeta guardada y cargos recurrentes con tarjeta en la primera entrega (`§5.2`, B) | Duplica el adeudo SEPA, que es lo que los centros usan; añade consentimiento, caducidades y fallos sin el pagador presente |
+| Adeudo SEPA solo por proveedor de pago (`§4.1`, B como única vía) | Rompe la continuidad de los mandatos y cambia el coste bancario del centro; límites iniciales del proveedor incompatibles con una remesa mensual |
+| Conexión directa banco a banco (`§4.1`, C) | Un canal y un contrato por banco; fuera del alcance de un desarrollador y de un centro pequeño |
+| Agregador de cuentas para conciliar desde el primer día (`§8.1`, B) | Dependencia y encargado nuevos para ahorrar la subida de un fichero |
+| Usar el producto de facturación o suscripciones del proveedor para generar los recibos | El recibo consolidado, los descuentos y las becas son dominio de `REQ-FIN`/`REQ-BEC`; delegarlo ata el modelo de negocio del centro a un proveedor y duplica la fuente de verdad |
+| Integrar a la vez los tres proveedores que nombra `REQ-FIN-005` | Triplica el trabajo antes de tener un solo centro cobrando. Se ordenan, no se eliminan |
+| Otros proveedores europeos (Mollie, Adyen, GoCardless, MONEI…) como **primer** adaptador | No los nombra ningún requisito. No se evalúan a fondo aquí: su documentación solo se consultó de pasada (GoCardless admite migrar mandatos conservando el identificador de acreedor propio mediante un proceso caso a caso, según su ayuda, consultada el 2026-11-12; el resto, **sin verificar**). La interfaz los admite si un centro o el negocio los pide (`OPEN-PAY-01`) |
+| Estado «pagada» como columna editable de la factura | No admite pago parcial, devolución tardía ni reembolso sin lógica especial en cada caso |
+| Suspensión automática de servicios por impago (`§9.2`, C) | Contradice `REQ-TRAN-009` y traslada a un automatismo una decisión sobre un menor |
+| Fichero plano antiguo de remesas | Formato retirado o en retirada; no aporta nada frente al XML |
+
+---
 
 ## 13 · Preguntas abiertas
 
-_Pendiente._
+Todas llevan recomendación. «Bloquea» se refiere a especificar o implementar la parte indicada de `REQ-FIN`.
+
+### 13.1 Bloquean la especificación o la implementación
+
+| ID | Pregunta | Recomendación | Impacto si se decide otra cosa | Decide |
+|---|---|---|---|---|
+| `OPEN-PAY-01` | ¿Qué proveedor de tarjeta se integra primero y en qué orden los demás? | **Stripe (cuenta conectada del centro, cargo directo, página alojada) primero; Redsys por redirección segundo; PayPal solo si un centro lo pide.** Si el centro piloto ya tiene TPV virtual con su banco y no quiere otra relación, invertir el orden | Redsys primero: más trabajo de integración y secretos por centro, pero sin alta nueva ni tarifa nueva para el centro. Bloquea la entrega (d) de `§11.1`, **no** las entregas (a)-(c) | Usuario (negocio), con el centro piloto |
+| `OPEN-PAY-03` | Con un proveedor que exige credenciales por centro, ¿se admite guardar esos secretos cifrados en la base? | **Sí, con las condiciones de `§10.2`**, y preferir siempre el modelo sin secreto por centro cuando el proveedor lo ofrezca | Si no se admite, solo caben proveedores con cuentas conectadas: Redsys queda fuera | Usuario, con `security-reviewer` |
+| `OPEN-PAY-07` | ¿Qué versión de `pain.008` y qué formato de devoluciones y de extracto acepta y entrega el banco del centro piloto? | Implementar `pain.008.001.08`; pedir al centro la guía de su banco y **un fichero de ejemplo anonimizado**; hacer una remesa de prueba real antes de cerrar | Sin este dato se puede implementar contra la guía general, con riesgo de rechazo en el primer uso real. Bloquea el cierre de (b) y (c), no su inicio | Usuario, con el centro piloto |
+| `OPEN-PAY-08` | ¿Dónde viven el puerto de pagos y sus adaptadores? | **Contrato y adaptadores en `App\Support\Payments`; dominio del cobro en el módulo de `REQ-FIN`; ningún otro módulo habla con la pasarela** | Todo dentro de `REQ-FIN`: más simple hoy, pero `REQ-SAAS` (otro titular) tendría que importar internos de `REQ-FIN` o duplicar adaptadores. Módulo propio de pagos: un módulo más sin requisito propio | Usuario (técnico) |
+| `OPEN-PAY-11` | ¿Quién es el pagador de la deuda de un alumno y cómo se reparte entre varios (custodia compartida, empresa, familiar)? | **No inventarlo**: llevarlo a la especificación de `REQ-FIN` como pregunta de negocio, con propuesta mínima de «un pagador por defecto por alumno y excepciones por concepto» | Sin decidir, no se puede modelar a quién se emite el recibo ni qué mandato se usa. Bloquea (a) | Usuario (negocio), con `spec-writer` |
+
+### 13.2 Bloquean la activación con datos reales, no el desarrollo
+
+| ID | Pregunta | Recomendación | Impacto | Decide |
+|---|---|---|---|---|
+| `OPEN-PAY-04` | ¿Qué documentación PCI DSS entrega la plataforma a los centros para su SAQ A, y la exige algún adquirente? | Redactar una nota de integración («la plataforma no almacena, procesa ni transmite datos de tarjeta; integración por redirección») y validarla con el adquirente del centro piloto | Si un adquirente exige una declaración formal de proveedor de servicios, es trabajo de cumplimiento añadido | Usuario, con asesoría de cumplimiento |
+| `OPEN-PAY-06` | ¿Con qué nivel se firma un mandato nuevo en línea, y cuál es el texto del mandato y el plazo de preaviso pactado? | **Papel escaneado siempre disponible; N2 de `ADR-082` para los nuevos en línea; texto y preaviso redactados por asesoría** | Con N1 como única prueba, menor coste y prueba más débil durante 13 meses. Sin texto validado no se recogen mandatos nuevos (los migrados sí operan) | Usuario y asesoría jurídica |
+| `OPEN-PAY-16` | Papel de cada proveedor de pago (encargado o responsable), contrato, ubicación de datos y transferencias | Resolverlo en el expediente de cumplimiento (`ADR-083`, `OPEN-STO-04` en adelante) antes de activar un proveedor | Sin ello no se activa con datos reales | Usuario y asesoría jurídica |
+| `OPEN-PAY-17` | Plazos de conservación de cobros, remesas y mandatos, y su bloqueo ante una supresión | Fijarlos en el catálogo de `REQ-PRIV-006` con la asesoría; hasta entonces, no se borra nada | Afecta a `REQ-PRIV`, no al modelo | Asesoría jurídica |
+
+### 13.3 No bloquean
+
+| ID | Pregunta | Recomendación | Impacto | Decide |
+|---|---|---|---|---|
+| `OPEN-PAY-02` | ¿Cobra la plataforma una comisión por operación, y quién asume las comisiones del proveedor? | **No cobrar comisión por operación**: el ingreso de la plataforma es la suscripción (`REQ-SAAS`); las comisiones del proveedor las paga el centro, que es el comercio | Si se quiere comisión, solo es viable con cuentas conectadas y tiene implicaciones fiscales y contractuales | Usuario (negocio) |
+| `OPEN-PAY-05` | ¿Se ofrece Bizum? No está en los requisitos | No especificarlo ahora; si el negocio lo quiere, entra como requisito nuevo y refuerza la opción Redsys | Ninguno hoy | Usuario (negocio) |
+| `OPEN-PAY-09` | ¿Cómo cobra la plataforma a los centros (`REQ-SAAS-003`)? | ADR propio al abordar `REQ-SAAS`, reutilizando el puerto de `§3.4` con la plataforma como titular | Ninguno hoy, si se respeta la regla 2 de `§3.4` | Usuario |
+| `OPEN-PAY-10` | ¿Puede el centro repercutir a la familia la comisión bancaria de una devolución? | Permitirlo solo como línea explícita configurable, desactivada por defecto, previa validación jurídica | Ninguno técnico | Negocio y asesoría jurídica |
+| `OPEN-PAY-12` | ¿Tarjeta guardada y cargos recurrentes con tarjeta? | No en la primera entrega | Requiere ADR o enmienda de `§5` | Usuario |
+| `OPEN-PAY-13` | ¿Conexión bancaria automática para conciliar? | Después de medir cuánto cuesta al centro subir el extracto | Dependencia y encargado nuevos | Usuario |
+| `OPEN-PAY-14` | ¿La prohibición de suspender automáticamente un servicio a un menor por impago es regla de plataforma para todos los servicios? | **Sí** | Si no, cada módulo de servicio decide y habrá incoherencias | Usuario |
+| `OPEN-PAY-15` | ¿Puede figurar el nombre del alumno en el concepto del adeudo o del cargo? | **No por defecto**: centro y referencia de factura | Las familias con varios hijos identifican peor el recibo; se compensa con el detalle en el portal | Usuario y asesoría jurídica |
+
+**Total: 17 preguntas** (`OPEN-PAY-01` a `-17`); **5 bloquean** la especificación o la implementación y **4** bloquean solo la activación con datos reales.
+
+---
 
 ## 14 · Fuentes y lo no verificado
 
-_Pendiente._
+### 14.1 Fuentes consultadas (2026-11-12)
+
+| Fuente | Qué se tomó |
+|---|---|
+| Stripe, «SEPA Direct Debit payments», https://docs.stripe.com/payments/sepa-debit | Esquema básico únicamente; confirmación a 6 días hábiles; límites de 10.000 EUR por operación y semanal inicial; disputas a 8 semanas y hasta 13 meses, definitivas; preaviso de 14 días salvo pacto; identificador de acreedor propio; un mandato por cuenta conectada; capacidad `sepa_debit_payments` |
+| Stripe, «Create a charge» (Connect), https://docs.stripe.com/connect/charges | Tipos de cargo; en el cargo directo el pago, los reembolsos y los contracargos van contra la cuenta conectada; indicado para plataformas de software |
+| PCI SSC, FAQ 1588, https://www.pcisecuritystandards.org/faqs/1588/ | El criterio de *scripts* de SAQ A no aplica a la redirección; sí a la página incrustada |
+| Packagist, `stripe/stripe-php` | Licencia MIT y fecha de la última versión publicada (2026-11-11). No se fija versión |
+| Búsqueda web: guía de la AEB de órdenes ISO 20022 para adeudos directos SEPA, esquema básico, versión octubre de 2025 | Solo el resultado de búsqueda: `pain.008.001.08` y `pain.002.001.10` |
+| Búsqueda web: EBA, preguntas y respuestas sobre SCA (2018_4131, 2018_4048) | Solo el resumen: operaciones iniciadas por el beneficiario fuera de SCA |
+| Búsqueda web: ayuda de GoCardless sobre migración de mandatos SEPA | Solo el resumen: migración conservando identificador de acreedor propio, caso a caso |
+| Búsqueda web: estado de PSD3 y del Reglamento de Servicios de Pago (despachos y proveedores) | Texto acordado, publicación pendiente, aplicación a unos 21 meses |
+| Repositorio (`develop`, `b7995bc`) | Requisitos citados en `§1.1`; `ADR-029`, `ADR-031`, `ADR-038 §8`; existencia de `IdempotencyKey`; ausencia de `docs/modulos/REQ-FIN/` |
+| Borradores de la ola leídos en sus ramas | `ADR-082` (`§4.1`, `§4.5`, `§7.4`), `ADR-077` (`§2`, `§5.3`, `§6`). `ADR-079` tenía su decisión sin redactar: solo se cita como canal |
+
+### 14.2 Sin verificar (no debe llegar a código sin contrastar)
+
+1. **El *rulebook* del EPC** (adeudo básico): la página devolvió error 403. Quedan sin fuente primaria: plazo exacto de devolución por el banco, caducidad del mandato a 36 meses, vigencia del tipo de secuencia «primero», plazos mínimos de presentación, y obligación y plazo de conservación del mandato por el acreedor.
+2. **La guía de la AEB**: el PDF no se pudo abrir. La versión de mensaje y el catálogo de motivos de devolución se toman de ella al implementar.
+3. **Fecha de retirada de `pain.008.001.02`**: fuentes bancarias contradictorias.
+4. **Documentación oficial de Redsys**: el portal de desarrolladores no respondió en las direcciones probadas. Tipos de integración, algoritmo de firma vigente, formato del importe y del número de pedido, y soporte de Bizum constan solo por terceros.
+5. **PCI DSS**: no se leyó el SAQ A v4.0.1, solo la FAQ. No se ha comprobado si la plataforma es proveedor de servicios a efectos del estándar.
+6. **PSD2/PSD3**: no se leyó ni el Reglamento Delegado (UE) 2018/389 ni los textos nuevos. El encaje de las exclusiones de PSD2 para una plataforma que custodiara fondos no se ha analizado, porque se descarta custodiarlos.
+7. **Tarifas** de cualquier proveedor o banco: no se ha fijado ninguna, a propósito.
+8. **Estatus de protección de datos** de los proveedores (encargado o responsable, ubicación, transferencias).
+9. **Plazos legales de conservación** contable, mercantil y fiscal: no se citan cifras.
+10. **PayPal, Mollie, Adyen, MONEI**: sin consultar documentación.
+11. **Mantenimiento y licencia de librerías** para Redsys y para generar o validar XML SEPA: sin comprobar; se hace al implementar (`CLAUDE.md §1`).
+12. **Oferta de canales directos (EBICS u otros)** de la banca española para un centro pequeño.
+
+---
 
 ## 15 · Cambios propuestos en ficheros compartidos
 
-_Pendiente._
+No se ha tocado ninguno. Los aplica la sesión orquestadora al integrar (`docs/proceso/ola1-arquitectura-2026-11.md §8`).
+
+| Fichero | Cambio propuesto | Cuándo |
+|---|---|---|
+| `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md §18` | Fila nueva: `ADR-081` · «Pasarela de pago y adeudos SEPA: el centro es el comercio y el acreedor; tarjeta por redirección a proveedor tras interfaz propia; domiciliación por remesa `pain.008`; idempotencia en tres capas; cobro como libro de movimientos». Estado `PROPUESTA`. Concreta `ADR-029`, `ADR-038 §8`, `ADR-031`, `ADR-076`; no sustituye ninguno. Y la línea de historial de versiones correspondiente | Al integrar |
+| `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md`, `REQ-FIN-005` | **No se cambia el requisito.** Si el usuario acepta `OPEN-PAY-14` o `OPEN-PAY-05`, serían requisitos nuevos que añade el propietario del producto, no este ADR | Tras decidir |
+| `PLAN-IMPLEMENTACION.md` | En la fase 2, partir `REQ-FIN` (cobros) en las entregas (a)-(e) de `§11.1`, con (a)-(c) antes que (d); anotar que (d) depende de `OPEN-PAY-01` y que `REQ-TRAN` y `REQ-BEC` dependen de (a). Paso previo de especificación de `REQ-FIN` condicionado a `OPEN-PAY-08` y `OPEN-PAY-11` | Al integrar |
+| `ARCHITECTURE.md` | En el principio de aislamiento de terceros (línea de `RNF-MANT-007`), referencia a `ADR-081`; apartado breve «Cobros» con la regla de oro de `§2.1` | Al aceptar |
+| `SECURITY.md` | Tras aceptar e implementar: segunda excepción de CSRF (`§7.4`), regla «ningún dato de tarjeta» (`§6.3`), tratamiento de secretos de proveedor e IBAN (`§10.2`), y revisión anual de normativa (`§11.2`) | Al implementar |
+| `PRIVACY.md` | Tras aceptar: minimización hacia proveedor y banco (`§10.4`), proveedores de pago como destinatarios, conservación | Al implementar |
+| `SYSADMIN.md` y `RUNBOOK.md` | Al implementar: secretos por entorno, ruta pública de notificaciones, salida a Internet de `api` y `worker`, qué hacer si las notificaciones se retrasan (barrido) y si el banco rechaza una remesa | Al implementar |
+| `CHANGELOG.md` | Dentro de la entrada única de la ola 1: «`ADR-081` (propuesta): pasarela de pago y SEPA» | Al integrar |
+| `README.md` | Tabla de versiones, si lista ADR | Al integrar |
+| `memory.md` | Decisiones pendientes del usuario: `OPEN-PAY-01`, `-08`, `-11` (las que más desbloquean); pedir al centro piloto los datos de `OPEN-PAY-07` | Al integrar |
+| `CLAUDE.md` | Ninguno ahora. Tras implementar, una línea en `§8`: «Ningún dato de tarjeta entra en la plataforma (`ADR-081 §6`)» | Al implementar, con aprobación del usuario |
+| `.claude/**` | Ninguno | — |
+
+**Peticiones a otros borradores de la ola** (no son ficheros compartidos, pero los resuelve la orquestadora):
+
+- **`ADR-077`**: que la exportación previa a la purga incluya los datos de cobro del centro (`§10.4`, punto 5) y que el registro de recursos de terceros de su `§5.3` contemple la cuenta o las credenciales del proveedor de pago y la tabla de cuarentena de notificaciones.
+- **`ADR-082`**: fila «Mandato SEPA» de su `§4.1`: papel escaneado siempre, N2 para los nuevos en línea, sujeto a `OPEN-PAY-06`. El titular de la cuenta puede no ser usuario de la plataforma: su flujo de firma debe admitir un firmante sin cuenta.
+- **`ADR-079`**: eventos que este ADR necesita enviar: recibo con preaviso de cargo, recordatorio de vencimiento, aviso de devolución, justificante de pago y escalado interno. Todos transaccionales, al pagador, en su idioma.
+- **`ADR-080`** (staging): claves de prueba del proveedor y ruta pública de notificaciones en staging.
