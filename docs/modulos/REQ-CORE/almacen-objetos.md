@@ -368,6 +368,8 @@ No toca migraciones, RLS, `GRANT`, autenticación, permisos ni dinero. La sesió
 
 ## 16. Preguntas abiertas
 
+**Decididas por el usuario (2026-11-12), según la recomendación**: `OPEN-CORE-70` (el área admite segmentos ULID y el nombre es una etiqueta en minúsculas; el formato de `ADR-076 §3.3` queda intacto), `OPEN-CORE-71` (con una fila referenciada por clave ajena el objeto nunca se borra, la fila queda intacta, se registra el error sin la clave y el trabajo termina fallando de forma visible en `failed_jobs`; sin evento nuevo en `audit_logs`) y `OPEN-CORE-72` (se conserva `tenantPublicId` en los trabajos y se compara con el centro en curso). Con esto quedan decididas las tres que bloqueaban; `§16` conserva el razonamiento.
+
 Numeración: se usa el bloque `OPEN-CORE-70` a `-76`. El último identificador localizado en el repositorio es `OPEN-CORE-56`; `REQ-CORE/funcional.md` (461 kB) no se pudo recorrer entero en esta sesión, así que se deja hueco para no colisionar. La orquestadora renumera si procede.
 
 ### 16.1 Bloquean la implementación
