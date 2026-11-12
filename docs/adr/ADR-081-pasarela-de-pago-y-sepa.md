@@ -513,6 +513,8 @@ Tres orígenes, un solo tratamiento: adeudo **devuelto** (`§4.4`), pago con tar
 
 **Decidida por el usuario (2026-11-12)**: `OPEN-PAY-01`, según la recomendación de este ADR: primer proveedor de tarjeta **Stripe** con cuenta conectada del centro y cargo directo; Redsys segundo; PayPal solo si un centro lo pide. Se revisa si el centro piloto ya tiene TPV bancario y no quiere otra relación. Siguen abiertas `OPEN-PAY-03`, `-07`, `-08` y `-11`, que bloquean la especificación. El ADR continúa en `PROPUESTA`.
 
+**Decididas por el usuario (2026-11-12), según la recomendación**: `OPEN-PAY-11` (un pagador por defecto por alumno y excepciones por concepto; se concreta en la especificación de `REQ-FIN`) y `OPEN-PAY-08` (contrato y adaptadores de pago en `App\Support\Payments`, dominio en `REQ-FIN`, y ningún otro módulo habla con la pasarela). Siguen abiertas `OPEN-PAY-03` y `-07`.
+
 Todas llevan recomendación. «Bloquea» se refiere a especificar o implementar la parte indicada de `REQ-FIN`.
 
 ### 13.1 Bloquean la especificación o la implementación
