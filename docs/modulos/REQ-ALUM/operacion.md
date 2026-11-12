@@ -11,7 +11,7 @@ Ninguna nueva en `.env`. Configuración del módulo en `config/alum.php`, que co
 | Servicio | Para qué | Si no responde |
 |----------|----------|----------------|
 | PostgreSQL | Todo | Caída del módulo, como el resto |
-| Almacenamiento S3 (MinIO en desarrollo) | Fotografía (`OPEN-ALUM-08` = A) | La ficha se sirve igual (`has_photo` sale de la base de datos, no de S3); subir responde `503` sin escribir nada. Nada más depende de S3 [DERIVADA, precedente `OPEN-FAM-UNIT-47`] |
+| Almacenamiento S3 (Garage en desarrollo, `ADR-076`) | Fotografía (`OPEN-ALUM-08` = A) y artefacto CSV de las exportaciones | La ficha se sirve igual (`has_photo` sale de la base de datos, no de S3); subir responde `503` sin escribir nada; la exportación no se completa. Nada más depende de S3 [DERIVADA, precedente `OPEN-FAM-UNIT-47`]. El E2E real descarga la foto y el CSV de Garage por URL firmada (`alum-photo-real.spec.ts`, `alum-enrollments-real.spec.ts`) |
 | *Worker* de colas (`worker`, conexión `database`) | Exportación de listas de clase | La solicitud queda `pendiente` en `data_exports` hasta que el *worker* vuelva |
 
 ## 3. Despliegue: registro de módulos y permisos (`ADR-034 §5`)

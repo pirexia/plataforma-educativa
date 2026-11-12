@@ -29,7 +29,7 @@ Plataforma SaaS multi-tenant para la gestión integral de centros educativos. Mo
 | **UI** | Tailwind CSS + shadcn-vue (Reka UI) + TanStack Table | `ADR-023` |
 | **Base de datos** | PostgreSQL 18 | Único motor que cubre a la vez particionado por curso, seguridad a nivel de fila, full-text y PITR |
 | **Caché y colas** | Redis (caché); colas: `database` con worker `queue:work` (#128), Redis + Horizon elegido, no instalado | `INV-012` |
-| **Almacenamiento** | Compatible S3 (Garage en desarrollo, CI y E2E desde `ADR-076`; MinIO convive hasta `S-1b`) | `ADR-013`, `ADR-076` |
+| **Almacenamiento** | Compatible S3 (Garage en desarrollo, CI y E2E desde `ADR-076`) | `ADR-013`, `ADR-076` |
 | **Buscador** | Full-text nativo de PostgreSQL | `ADR-010` |
 | **PDF** | Servicio contenerizado HTML→PDF | Plantillas en HTML reutilizando el design system |
 | **Móvil** | PWA (fase 1) → Capacitor sobre la misma SPA (fase 3) | `ADR-008` |
@@ -306,7 +306,7 @@ Reglas derivadas de `ADR-028`, que resuelven dos fallos ya sufridos en despliegu
 
 | Componente | vCPU | RAM | Disco |
 |-----------|------|-----|-------|
-| Todo (api, web, PostgreSQL, Redis, workers, MinIO, PDF) | 4 | 8 GB | 80 GB NVMe |
+| Todo (api, web, PostgreSQL, Redis, workers, Garage, PDF) | 4 | 8 GB | 80 GB NVMe |
 
 **Desarrollo — WSL2 en equipo personal**
 
@@ -316,7 +316,7 @@ Reglas derivadas de `ADR-028`, que resuelven dos fallos ya sufridos en despliegu
 | Límite de WSL2 en `.wslconfig` | 10-11 GB |
 | Reservado a Windows | 5-6 GB |
 
-Con ese margen, la pila completa no cabe con holgura. **Perfil reducido obligatorio**: PostgreSQL, Redis, API y frontend en desarrollo; MinIO, servicio de PDF y workers solo cuando se prueban. `shared_buffers` de PostgreSQL en valores de desarrollo. Volumen de datos sintéticos bajo (300 alumnos) para el día a día; el volumen alto solo para medir.
+Con ese margen, la pila completa no cabe con holgura. **Perfil reducido obligatorio**: PostgreSQL, Redis, API y frontend en desarrollo; Garage (almacén S3), servicio de PDF y workers solo cuando se prueban. `shared_buffers` de PostgreSQL en valores de desarrollo. Volumen de datos sintéticos bajo (300 alumnos) para el día a día; el volumen alto solo para medir.
 
 Los ficheros del proyecto residen en el **sistema de ficheros de Linux**, nunca en `/mnt/c`.
 
@@ -328,7 +328,7 @@ Las mediciones de rendimiento aquí son **orientativas, no concluyentes**: las c
 |-----------|------|-----|-------|
 | Host con todos los servicios en Podman | 4 | 16 GB | 160 GB NVMe |
 
-Reparto orientativo en reposo: PostgreSQL ~2 GB, PHP-FPM ~1,5 GB, workers ~750 MB, servicio PDF ~1 GB en picos, Redis ~512 MB, MinIO ~512 MB, sistema y Podman ~1,1 GB. Las imágenes se construyen en CI, **nunca en el host**.
+Reparto orientativo en reposo: PostgreSQL ~2 GB, PHP-FPM ~1,5 GB, workers ~750 MB, servicio PDF ~1 GB en picos, Redis ~512 MB, Garage (cifra por medir; MinIO, al que sustituye, ocupaba ~512 MB), sistema y Podman ~1,1 GB. Las imágenes se construyen en CI, **nunca en el host**.
 
 **T1 ampliado — dos hosts**
 

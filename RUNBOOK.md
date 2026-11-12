@@ -24,7 +24,7 @@ Referencia completa de arranque, `compose.yaml` y red: `SYSADMIN.md`.
 
 ```bash
 podman compose up -d          # perfil reducido: postgres, redis, api, web
-podman compose --profile full up -d   # añade minio, garage (S3 de desarrollo, ADR-076; después `bash infra/garage/init.sh`) y el worker de colas
+podman compose --profile full up -d   # añade garage (S3 de desarrollo, ADR-076; después `bash infra/garage/init.sh`) y el worker de colas
 podman compose --profile worker up -d worker   # solo el worker de colas (§2.8)
 podman compose ps
 podman compose logs -f <servicio>

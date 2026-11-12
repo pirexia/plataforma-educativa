@@ -60,7 +60,7 @@ Estas son las que el issue [#8](https://github.com/pirexia/plataforma-educativa/
 | **PostgreSQL** | Todo, incluida la sesión (`SESSION_DRIVER=database`) | La API no sirve y nadie puede iniciar sesión. Sin degradación posible ni deseable |
 | **Redis** | Caché de configuración, colas y **límites de tasa** | La caché degrada a consulta directa. Las colas **no degradan**: sin Redis no salen los correos de recuperación ni de bloqueo. **El límite de tasa no degrada a "sin límite"**: si el almacén del limitador no responde, el endpoint responde `503`, nunca se abre. Un limitador que falla en abierto convierte una caída de caché en una ventana de fuerza bruta |
 | **Correo transaccional** | Recuperación de contraseña y aviso de bloqueo | Depende de `0.10c`, **sin decidir** (`OPEN-AUTH-07`). El trabajo reintenta; agotados los reintentos, **el token queda emitido y vivo** pero nadie lo ha recibido. El usuario queda sin poder recuperar su cuenta hasta que un administrador intervenga. Es la degradación más grave del módulo y no tiene rodeo técnico: es una dependencia de negocio |
-| **S3 / MinIO** | **No se usa.** Este módulo no escribe ni lee ficheros | — |
+| **Almacenamiento S3** | **No se usa.** Este módulo no escribe ni lee ficheros | — |
 
 Sin *circuit breaker*: no hay integración con un tercero de latencia impredecible más allá del correo, que ya va en cola con reintentos.
 
@@ -467,7 +467,7 @@ Las ocho guardas de §2.2 siguen en vigor sin modificación. Una de ellas gana p
 | **Redis** | Colas, caché y **los tres límites de tasa nuevos** | **El límite no degrada a «sin límite»**: si el almacén del limitador no responde, el endpoint responde `503`. Regla de §3, y aquí es más importante: un limitador abierto sobre `POST /auth/mfa-verifications` es una ventana de fuerza bruta contra seis dígitos |
 | **Correo transaccional** | **Método «código por correo»** y los tres avisos de `funcional.md §C.4.13` | Hereda íntegra la degradación de §3 y `OPEN-AUTH-07`: depende de `0.10c`, **sin decidir**. Consecuencia propia y grave: **un usuario cuyo único factor es el correo no puede entrar mientras el correo no salga.** Es el argumento operativo, además del de seguridad de `funcional.md §C.8`, para que `totp` no sea desactivable (`RN-AUTH-69`) |
 | **SMS** | **Ninguno.** No hay proveedor | No aplica. La guarda de `mfa_allowed_methods` impide llegar a este caso (`RN-AUTH-69`) |
-| **S3 / MinIO** | **No se usa.** Este módulo sigue sin escribir ficheros | — |
+| **Almacenamiento S3** | **No se usa.** Este módulo sigue sin escribir ficheros | — |
 
 **Sin dependencia de tiempo externo, y hay que decirlo porque TOTP invita a pensar lo contrario.** La verificación usa el reloj del servidor. **No se consulta ningún servicio NTP desde la aplicación**: el reloj lo mantiene el sistema operativo del contenedor, y eso es responsabilidad de `SYSADMIN.md`, no de este módulo. Lo que sí es responsabilidad de este documento es dejar escrito el síntoma: **si el reloj del servidor se desvía más de 30 segundos, empiezan a fallar códigos correctos de forma intermitente** (`§C.9`).
 
@@ -990,7 +990,7 @@ Lo que sí hay que custodiar como secreto nuevo es `AUTH_GOOGLE_CLIENT_SECRET`, 
 | PostgreSQL | La fila de vínculo y la sesión | Sin cambios respecto de §3 |
 | Redis | Límites de tasa | Sin cambios: **el limitador no degrada a «sin límite»**, responde `503` (§3) |
 | Correo transaccional | Los tres avisos de `funcional.md §E.4.7` | Depende de `0.10c`. El trabajo reintenta; agotados los reintentos, **el vínculo queda hecho y el titular no se ha enterado**. Es la degradación relevante de este paso: el aviso es la única defensa del titular ante una fusión que no hizo él |
-| S3 / MinIO | **No se usa** | — |
+| Almacenamiento S3 | **No se usa** | — |
 
 ---
 
@@ -1259,7 +1259,7 @@ Consecuencias concretas, encadenadas:
 | PostgreSQL | Catálogo, credenciales, vínculos y sesión | Sin cambios respecto de §3 |
 | Redis | Límites de tasa | Sin cambios: **el limitador no degrada a «sin límite»**, responde `503` (§3) |
 | Correo transaccional | El aviso de emparejamiento de `funcional.md §F.4.6` | Depende de `0.10c`. El trabajo reintenta; agotados los reintentos, **el vínculo queda hecho y el titular no se ha enterado**. Misma degradación que `§E.3`, con el mismo peso: el aviso es la única defensa del titular ante un vínculo que no hizo él |
-| S3 / MinIO | **No se usa** | — |
+| Almacenamiento S3 | **No se usa** | — |
 
 **Un modo de fallo compartido que hay que anotar y que 1.4 no tenía**: con un solo proveedor global, un IdP lento afectaba a un flujo. Con `N` proveedores de `N` centros, **un IdP lento de un centro consume trabajadores de la API que sirven a todos los demás**. El tiempo de espera corto es lo que acota el daño, y por eso es explícito y no heredado del cliente HTTP por defecto. **Se vigila con `auth.oidc.callback.duration` (`§F.8`)**, y si algún día no basta, la salida conocida es un *bulkhead* por proveedor — que **no se implementa hoy** porque sería complejidad sin medida detrás.
 
