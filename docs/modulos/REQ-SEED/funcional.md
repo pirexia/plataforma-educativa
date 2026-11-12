@@ -394,6 +394,8 @@ Formato Dado/Cuando/Entonces. Cada uno tiene un test que cita su ID (`INV-015`).
 
 ## 13. Preguntas abiertas
 
+**Decididas por el usuario (2026-11-12), según la recomendación**: `OPEN-SEED-01` (generador como herramienta de desarrollo fuera de `app/Modules`, cuyo código no entra en la imagen de producción), `OPEN-SEED-02` (`tenants.is_synthetic` inmutable por disparador; `e2e-real-tenant.php` marca sus centros), `OPEN-SEED-03` (pasaporte ficticio para casi todas las personas y un grupo pequeño fijo con DNI/NIE de dígito inválido) y `OPEN-SEED-06` (plantilla limitada a personal con cuenta y rol predefinido, porque RRHH no existe). Siguen abiertas las demás; `OPEN-SEED-04` bloquea solo `1.15b-c`.
+
 Ninguna está decidida. Cada una lleva recomendación, impacto y quién decide.
 
 ### 13.1 Bloquean la implementación
