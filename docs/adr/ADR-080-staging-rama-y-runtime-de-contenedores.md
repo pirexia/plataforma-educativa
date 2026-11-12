@@ -326,6 +326,8 @@ Precios **sin IVA**, leídos en la página del proveedor el 2026-11-12 (`§12`).
 
 **Decidida también el 2026-11-12**: `OPEN-STG-03`, según la recomendación (B1 de `§4.2`): la promoción a `staging` es **solo por avance rápido** (`git push <sha>:staging`), sin botón de mezclar. Quedan abiertas `OPEN-STG-02`, `-04`, `-05` y `-09`.
 
+**Decididas por el usuario (2026-11-12), según la recomendación**: `OPEN-STG-02` (dominio de staging: un dominio registrable aparte, no subdominio del comercial, con Cloudflare solo como DNS y sin proxy). Siguen abiertas `OPEN-STG-04`, `-05` y `-09`.
+
 ### 10.1 Bloquean la implementación
 
 | Id | Pregunta | Opciones | **Recomendada** | Bloquea | Decide |
