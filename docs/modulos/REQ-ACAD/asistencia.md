@@ -760,6 +760,8 @@ Pest en `apps/api/tests/Feature/<Módulo>/` (concurrencia en `tests/Concurrency/
 
 **Decidida por el usuario (2026-11-12)**: `OPEN-ACAD-45`, según la recomendación: la asistencia vive en un **módulo nuevo `asistencia`** con `depends_on: ['curso','acad','alum']`, lo que evita el ciclo con `alum`. Siguen abiertas `OPEN-ACAD-46`, `-47` y `-52`, que bloquean, y el ADR de lista sin conexión (número `ADR-084`, asignado por la orquestadora).
 
+**Decididas por el usuario (2026-11-12), según la recomendación**: `OPEN-ACAD-46` (el grano del pase admite ambos en una tabla: por sesión del horario o diario, excluyentes por grupo y día) y `OPEN-ACAD-52` (cola de salida propia en IndexedDB, control optimista por versión, fusión automática si los alumnos son distintos y pantalla de conflicto si coinciden; al cerrar sesión con pases pendientes se avisa y se borra todo). Esta última exige el ADR de lista sin conexión (`ADR-084`), que no está escrito. Sigue abierta `OPEN-ACAD-47` (base legal de nombres de menores en móviles personales, pendiente de validación jurídica).
+
 ### 14.1 Bloqueantes: sin decidirlas no se implementa
 
 | ID | Pregunta | Opciones | **Recomendación** e impacto | Bloquea | Decide |
