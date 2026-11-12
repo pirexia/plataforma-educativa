@@ -380,6 +380,16 @@ Todos referencian `REQ-PRIV-006` y este ADR (`INV-015`).
 
 ## 10 · Preguntas abiertas
 
+### 10.0 Decididas por el usuario (2026-11-12)
+
+El usuario aceptó la recomendación de este ADR en las tres decisiones de la tabla siguiente. Siguen marcadas en `§10.1` para conservar el razonamiento. El ADR continúa en `PROPUESTA` mientras queden preguntas abiertas.
+
+| ID | Decisión | Pendiente |
+|---|---|---|
+| `OPEN-PURGA-02` | Se purga `audit_logs` del centro (y `login_attempts`, `mfa_resets`) con el resto, devolviéndolo antes en la exportación | Validación jurídica (`ADR-083`, `OPEN-STO-12`) |
+| `OPEN-PURGA-04` | Sin `REQ-OPS-004`, la devolución se acredita solo con la instrucción escrita del responsable de destruir sin devolución, referenciada en la solicitud | Ninguno |
+| `OPEN-PURGA-11` | Se acepta `GRANT SET ON PARAMETER session_replication_role TO plataforma_owner` y la ejecución desde consola (D2-A) | Revisión de `db-reviewer` y `security-reviewer`, que `§10.1` exige |
+
 ### 10.1 Bloquean la implementación de `1.23b`
 
 | ID | Pregunta | Recomendación | Impacto | Decide |
