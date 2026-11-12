@@ -170,6 +170,8 @@ Volver atrás o cambiar a otra opción: (1) crear *bucket* y clave en el nuevo p
 
 **Decidida también el 2026-11-12**: `OPEN-STO-12` y `-04`, según la recomendación: lo jurídico (ENS, NIS2, base legal de datos de menores) lo valida un **asesor externo con encargo cerrado antes del primer dato real**. Hasta entonces toda la matriz de `docs/cumplimiento/` sigue «pendiente de validación jurídica». Pregunta clave para el asesor: si el ENS alcanza a la plataforma por tener clientes concertados.
 
+**Decididas por el usuario (2026-11-12), según la recomendación**: `OPEN-STO-08` y `-11` (dos buckets: datos vivos con versionado de caducidad corta y sin Object Lock, y copias con Object Lock; cifrado en servidor con claves del proveedor). Pendientes de comprobar con el proveedor (`§6`) antes de contratar.
+
 Las de cumplimiento están en [`preguntas-abiertas.md`](../cumplimiento/preguntas-abiertas.md). Las propias de este ADR:
 
 | ID | Pregunta | Recomendada | Bloquea |
