@@ -479,6 +479,8 @@ Esta rama no los toca; los aplica la sesión orquestadora al integrar (guion de 
 
 **Decidida por el usuario (2026-11-12)**: `OPEN-UI-01`, según la recomendación (A): la personalización va **ahora**, primero `1.15a-a` y después `1.15a-b`, ambas antes de `1.15b`, para regenerar `sign-in` una sola vez. Siguen abiertas `OPEN-UI-02` a `-06` y `-12`, que bloquean.
 
+**Decididas por el usuario (2026-11-12), según la recomendación**: `OPEN-UI-02` (tabla nueva `tenant_custom_texts`, una fila por texto, con RLS, sin tocar `ADR-062` ni `AR-16`) y `OPEN-UI-05` (ilustración por defecto: patrón monocromo translúcido sobre `bg-primary`). Siguen abiertas `OPEN-UI-03`, `-04`, `-06` y `-12`, que bloquean.
+
 No se resuelven aquí. La primera opción es siempre la recomendada.
 
 ### 16.1 Bloquean la implementación
