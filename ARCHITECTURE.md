@@ -232,7 +232,7 @@ Los detectores de llamadas y literales comparten **un único escáner de tokens*
   └──────────┘ └──────────┘   └───────────┘   └──────────┘ └──────────┘
 ```
 
-**Almacenamiento S3 (`ADR-076`)**: la aplicación solo habla la API S3 (Flysystem S3, SigV4) a través de `PrivateObjectStore`; en producción lo sirve el proveedor que decida `OPEN-STO-01`. **Garage** (un nodo, imagen fijada por digest, `infra/garage/`) es el S3 de desarrollo, CI y E2E, con datos sintéticos, y **nunca se despliega en un servidor**. Las URL se firman con un *endpoint* propio (`AWS_URL_SIGNING_ENDPOINT`, el que alcanza el navegador) distinto del de operación, con caducidad topada por `FILES_SIGNED_URL_MAX_TTL_MINUTES`. El test de conformidad (`composer test:conformance`) prueba el contrato contra un S3 real; en CI lo ejecuta el job `Conformidad del almacén (Garage)`.
+**Almacenamiento S3 (`ADR-076`)**: la aplicación solo habla la API S3 (Flysystem S3, SigV4); toda URL firmada y todo fichero privado nuevo pasan por `PrivateObjectStore`, y las llamadas directas heredadas al disco (escrituras, lecturas y borrados de jobs) se migran en `S-2`; en producción lo sirve el proveedor que decida `OPEN-STO-01`. **Garage** (un nodo, imagen fijada por digest, `infra/garage/`) es el S3 de desarrollo, CI y E2E, con datos sintéticos, y **nunca se despliega en un servidor**. Las URL se firman con un *endpoint* propio (`AWS_URL_SIGNING_ENDPOINT`, el que alcanza el navegador) distinto del de operación, con caducidad topada por `FILES_SIGNED_URL_MAX_TTL_MINUTES`. El test de conformidad (`composer test:conformance`) prueba el contrato contra un S3 real; en CI lo ejecuta el job `Conformidad del almacén (Garage)`.
 
 ### 4.2 Evolución de la infraestructura (`ADR-024`)
 

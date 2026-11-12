@@ -178,5 +178,17 @@ Solo cuota de OpenAI; no se mide en tokens de Claude. Registrar por revisión: p
 | S-1a cierre | security-reviewer | revisión (paso crítico) | 83538 | 12 | 1.2 | | |
 | S-1a cierre | doc-precheck | pasada mecánica | 109729 | 29 | 1.7 | | |
 | S-1a cierre | doc-reviewer | revisión | 105753 | 13 | 1.4 | | |
+| S-1b T1 | explorer | briefing | 126659 | 25 | 2.6 | | |
+| S-1b T1 | implementer | #625: firmas por `PrivateObjectStore` | 92100 | 31 | 9.3 | | |
+| S-1b T1 | verificador | suite completa | 29266 | 7 | 10.5 | | |
+| S-1b T2 | implementer | pila con Garage, retirada de MinIO y scripts/specs de E2E | 132873 | 31 | 15.9 | | Dejó una regresión (orden de `E2E_ONLY`) por no ejecutar `npm test` |
+| S-1b T3 | implementer | E2E de foto y CSV, documentación viva | 173610 | 52 | 17.7 | | |
+| S-1b cierre | verificador | suite completa, Vitest y E2E reales | 50062 | 28 | 20.0 | | Detectó el Vitest en rojo |
+| S-1b cierre | verificador | arreglos de scripts, Vitest y E2E | 34448 | 11 | 5.9 | | |
+| S-1b cierre | security-reviewer | revisión (paso crítico) | 102657 | 12 | 1.2 | | |
+| S-1b cierre | doc-precheck | 1.ª pasada | 134747 | 20 | 2.7 | | |
+| S-1b cierre | doc-reviewer | revisión | 171459 | 41 | 4.0 | | |
+| S-1b cierre | janitor | correcciones documentales (lista cerrada) | 127688 | 34 | 3.0 | | |
+| S-1b cierre | doc-precheck | 2.ª ronda | 117956 | 15 | 2.5 | | |
 
 Medias por tipo de `1.15-a` sin recalcular: el paso `1.15` no está cerrado (faltan `-b`..`-d`); se recalculan al cerrar `1.15`.
