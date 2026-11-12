@@ -258,7 +258,7 @@ No se fija ninguna regla (`OPEN-FAM-UNIT-18`, `OPEN-FIRMA-10`). Mientras no la h
 
 | | Opción | Ventajas | Riesgos | Coste de revertir |
 |---|---|---|---|---|
-| A | Solo un permiso (`…​.firmar`, acción ya prevista en `RPERM-003`) asignado a roles | Cero modelo nuevo | Es lo que el issue #82 rechaza: cualquier administrador se lo puede dar a cualquier rol; sin vigencia, sin documento que acredite el poder, sin alcance por tipo | Bajo |
+| A | Solo un permiso (`<recurso>.firmar`, acción ya prevista en `RPERM-003`) asignado a roles | Cero modelo nuevo | Es lo que el issue #82 rechaza: cualquier administrador se lo puede dar a cualquier rol; sin vigencia, sin documento que acredite el poder, sin alcance por tipo | Bajo |
 | B | Atributo en `Person` o `User` (`es_apoderado`) | Simple | Ensucia el núcleo de personas (`ADR-034`); sin vigencia, alcance ni acreditación; un booleano no se audita bien | Medio |
 | C | **Entidad propia de apoderamientos en el módulo dueño de `REQ-DOC`, exigida además del permiso** | Vigencia, alcance, acreditación y revocación; histórico; responde a #82 tal como está escrito | Una tabla y una pantalla de gestión más | Bajo: si sobra, se deja de exigir en el catálogo |
 | D | Delegar en el certificado de representante (N3): quien tiene el certificado, tiene el poder | La comprobación de facultades la hace el prestador (Ley 6/2020 art. 7.4) | Obliga a N3 para todo documento de apoderado; coste y fricción; la disponibilidad actual de esos certificados en la FNMT es confusa según su propia sede (**sin verificar**) | Medio |
@@ -491,7 +491,7 @@ No se ha tocado ninguno. Los aplica la sesión orquestadora al integrar, y solo 
 ### 11.2 Sin verificar
 
 - El texto literal de los arts. 25 y 26 de eIDAS, del art. 326 LEC, del art. 156 del Código Civil y del art. 7 de la LOPDGDD. Todo `§3` es marco de trabajo, **pendiente de validación jurídica**.
-- Que ningún candidato de `§4.2.4` cumpla los criterios: no se ha consultado la lista de confianza de la UE, ni condiciones, ni precios, ni idiomas de la interfaz del firmante.
+- Que alguno de los candidatos de `§4.2.4` cumpla los criterios: no se ha consultado la lista de confianza de la UE, ni condiciones, ni precios, ni idiomas de la interfaz del firmante.
 - Que una empresa privada no pueda integrarse con Cl@ve: no se ha encontrado fuente oficial que lo afirme o lo niegue.
 - Fechas de la cartera europea de identidad digital.
 - Que un PDF/A-2a o -3a de WeasyPrint siga siendo conforme tras una firma PAdES con validación a largo plazo de un prestador concreto (`§4.6.1` punto 3).
