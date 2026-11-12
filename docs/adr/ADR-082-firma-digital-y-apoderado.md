@@ -414,6 +414,8 @@ Además de las opciones descartadas en cada tabla de `§4` y `§5.1`:
 
 ## 9 · Preguntas abiertas
 
+**Decidida por el usuario (2026-11-12)**: `OPEN-FIRMA-01`, según la recomendación de este ADR: se sustituye en parte `ADR-012`. La firma simple con evidencias (N1: salidas, autorizaciones, acuses) se registra en la plataforma, y el prestador cualificado queda solo para firma avanzada y cualificada. Sigue **pendiente de validación jurídica** antes de usarse con datos reales (el texto literal de eIDAS arts. 25-26 no se pudo leer). El ADR continúa en `PROPUESTA` mientras queden abiertas las demás; el sustituto formal de `ADR-012` se escribe al aceptarlo.
+
 Ninguna se da por resuelta. «Decide» indica quién; todo lo marcado legal necesita además la validación jurídica de la cabecera.
 
 ### 9.1 Bloquean la implementación de `REQ-DOC-002` y `REQ-AUT`
