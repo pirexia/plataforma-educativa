@@ -218,3 +218,193 @@ La aplicación, las imágenes (`Containerfile`, formato OCI) y `compose.yaml` ya
 6. La documentación no se reescribe: una nota en `CLAUDE.md §1` (`§11`).
 
 No añade dependencias, no toca invariantes y no cambia nada en el servidor. La red interna del PDF (`OPEN-PDF-12`) no se ve afectada: es una función común a ambos runtimes y, en producción, la define Quadlet.
+
+## 6 · Criterios de salida de `0.10e`
+
+### 6.1 Entregas (cada una cabe en ≤3 tramos, `CLAUDE.md §2.7`; estimación sin medir)
+
+| Entrega | Contenido | Depende de | Clasificación |
+|---|---|---|---|
+| `0.10e-a` | Rama `staging`, gancho, skills, CI y reconciliación de `main` (`§4`) | `OPEN-STG-03` | Ordinario |
+| `0.10e-b` | Nivel 1 de runtime (`§5`) | `OPEN-STG-11` | Ordinario |
+| `0.10e-c` | Host, sistema, Quadlet sin privilegios, TLS comodín, cortafuegos, despliegue y reversión | `OPEN-STG-01`, `-02`, `-04`, `-05`, `-09` | **Crítico** (servidor expuesto, secretos, TLS) |
+| `0.10e-d` | Redes de `§3.7`, proxy de socket, segunda réplica, planificador (#453) | `0.10e-c`, `OPEN-STG-08` | **Crítico** |
+| `0.10e-e` | S3 real: *bucket* y claves de staging, conformidad y columna derecha de `ADR-076 §2.3` | `0.10e-c`, `ADR-083` aceptado, `OPEN-STO-01`, `-03`, `-08`, `-11`, `OPEN-083-02` | **Crítico** |
+
+`0.10e-a` y `0.10e-b` **no necesitan VPS ni dominio** y pueden hacerse en cuanto se acepte este ADR.
+
+### 6.2 Criterios (cada uno se ejecuta en staging y se anota con su resultado literal; ninguno se da por cumplido sin ejecutarlo)
+
+| Id | Criterio | Entrega |
+|---|---|---|
+| `CS-01` | Un *push* que no sea avance rápido a `staging` o `main` es rechazado; el gancho bloquea commits directos en `staging` y cualquier `--force` | a |
+| `CS-02` | Una promoción completa `develop` → `staging` → `main` con etiqueta `v0.x.y` de ensayo deja las tres ramas en la misma línea y publica la imagen de versión | a |
+| `CS-03` | Los E2E reales pasan con `CONTAINER_RUNTIME` sin definir (Podman). El resultado con `docker`, si alguien lo ejecuta, se anota; si no, queda «sin verificar» | b |
+| `CS-04` | El host arranca la pila sola tras reiniciar la máquina, sin sesión abierta (`linger`), con SELinux en `enforcing` y sin denegaciones en el registro de auditoría de SELinux | c |
+| `CS-05` | `https://<centro>.<dominio de staging>` sirve con certificado comodín de confianza; HTTP redirige a HTTPS; HSTS presente; cookie de sesión con `Secure`, `HttpOnly` y `SameSite`; CSP sin infracciones en el recorrido del E2E | c |
+| `CS-06` | La renovación del certificado funciona (forzada o esperada) sin intervención | c |
+| `CS-07` | Las tres pruebas obligatorias de `contenedores-y-red` pasan en el host | c |
+| `CS-08` | Despliegue de una etiqueta nueva y **reversión a la anterior** ejecutados con `install.sh`, con el tiempo medido y un trabajo encolado por la versión anterior procesado por la nueva (`RARQ-DEP-006`, `-013`) | c |
+| `CS-09` | Solo los puertos 22, 80 y 443 responden desde fuera; SSH solo con clave; PostgreSQL y Redis no son alcanzables desde Internet | c |
+| `CS-10` | La IP registrada en auditoría y en `admin_action_logs` es la del cliente; una petición a la API desde un contenedor de `plataforma-net` con `X-Forwarded-For` falso no cambia la IP registrada ni salta la lista blanca del *backoffice* | d |
+| `CS-11` | Traefik funciona con el proxy de socket y sin acceso directo al socket (`ADR-037 §6.3`) | d |
+| `CS-12` | Con `api@1` y `api@2`, recrear una de cada vez no devuelve ningún error a un cliente que hace peticiones en bucle (`RARQ-DEP-001`) | d |
+| `CS-13` | El planificador ejecuta una tarea programada conocida en el host (#453) | d |
+| `CS-14` | El test de conformidad de `ADR-076 §5` pasa contra el proveedor real por TLS; queda anotado el valor de las sumas de verificación que funciona | e |
+| `CS-15` | Versionado, cifrado en servidor y, si `OPEN-STO-08` lo exige, Object Lock y retención: activados y comprobados con una operación real (sobrescribir y recuperar la versión anterior; cabecera de cifrado; borrado rechazado dentro del plazo) | e |
+| `CS-16` | El *bucket* rechaza el acceso anónimo; la clave de staging no ve otros *buckets*; el aislamiento de `OPEN-STO-03` se comprueba tal como se decida | e |
+| `CS-17` | E2E real completo contra staging, con las contraseñas de la semilla generadas para el entorno (`§3.6`) | c y e |
+| `CS-18` | `SYSADMIN.md` y `RUNBOOK.md` dicen qué está probado en staging, con fecha, y qué sigue sin probar | todas |
+
+Cuando existan, se añaden sin reabrir este ADR: el servicio de PDF en su red sin salida (`ADR-078`); los registros SPF, DKIM y DMARC de los subdominios de envío en el dominio de staging y el Web Push, que exige TLS real (`ADR-079`).
+
+**`0.10e` se cierra con `CS-01` a `CS-18` ejecutados.** Un criterio que no se pueda ejecutar se deja escrito como no verificado y el paso queda `[~]`, no `[x]`.
+
+## 7 · Coste mensual
+
+Precios **sin IVA**, leídos en la página del proveedor el 2026-11-12 (`§12`). Cambian: se vuelven a mirar al contratar.
+
+| Concepto | Opción | Precio | Estado |
+|---|---|---|---|
+| VPS 2 vCPU, 4 GB | OVHcloud VPS-1 (40 GB NVMe, copia diaria incluida) | 3,81 €/mes | **V** precio; **SV** centros de datos, imágenes y permanencia |
+| | Hetzner CX23 (40 GB NVMe, 20 TB, IPv4 incluida) | 5,99 €/mes | **V** precio; la página lo mostraba **no disponible para contratar**, igual que toda la gama CX, CAX y CPX; **SV** en su consola |
+| | IONOS VPS M+ (120 GB NVMe; centro de datos en España; AlmaLinux y Rocky) | 4 €/mes tres meses, después 12 €/mes; alta de 10 € | **V**; el precio posterior a la promoción se deduce del ahorro anunciado |
+| | Scaleway | — | **SV**: su web rechazó la consulta automática |
+| S3 real | *Bucket* de staging en el proveedor de `ADR-083` | Céntimos: con el orden de magnitud de `ADR-083` (unos 14,6 €/TB al mes, pendiente de su petición P-12), 10 GB no llegan a 0,20 €/mes | Derivado de `ADR-083`, **SV** aquí |
+| Dominio | Uno registrable para staging | **SV** (depende del TLD; no se da cifra de memoria) | `OPEN-STG-02` |
+| DNS con API | Cloudflare, plan gratuito | 0 € según la propuesta del 2026-11-05 | **SV** el plan; **V** que Lego admite un *token* acotado |
+| Certificados | Let's Encrypt | 0 € | **V** |
+| Registro de imágenes | GHCR | 0 €: «gratis para paquetes públicos» y «el almacenamiento y el ancho de banda del registro de contenedores son actualmente gratuitos» | **V** el texto; **SV** que los paquetes del proyecto sean públicos |
+| Sentry, monitor, buzón de pruebas | — | 0 €: no se añaden (`§3.6`) | — |
+
+**Total previsto: entre 4 y 7 € al mes sin IVA, más el dominio**, con las dos primeras opciones de VPS. Techo propuesto: **15 € al mes**; por encima se vuelve a decidir (`OPEN-STG-12`). El coste que no aparece en la tabla es el tiempo: un servidor más que parchear, aproximadamente una revisión mensual.
+
+## 8 · Consecuencias, riesgos y reversión
+
+**Consecuencias**
+
+- Lo «escrito y no ejecutado» de `ADR-037` y la columna derecha de `ADR-076 §2.3` pasan a tener dónde verificarse, con criterios numerados.
+- Hay una tercera rama permanente. `CLAUDE.md §4`, el gancho y dos skills cambian (`§11`).
+- El proyecto declara por escrito qué promete a otro runtime y qué no.
+- `RARQ-CLOUD-005` y `RARQ-DEP-012` siguen sin cumplirse del todo, y queda dicho.
+
+**Riesgos**
+
+| Riesgo | Mitigación |
+|---|---|
+| Un servidor público desatendido con credenciales de demostración conocidas | `§3.6`, `CS-09`, `OPEN-STG-09`; solo datos sintéticos; se destruye sin pérdida |
+| Que alguien cargue datos reales «para probar» | Regla 1 de `§3.2`, sin excepción; se repite en `SYSADMIN.md` y `CLAUDE.md §11` |
+| Dar por probado en staging lo que no se ejecutó | `§6.2`: resultado literal por criterio; `CS-18` |
+| Staging mínimo que oculta problemas de dimensionado | No se usa para medir rendimiento (`§3.3`) |
+| Un *squash* o un `--force` en una promoción | B1 no pasa por el botón de mezclar; gancho; `CS-01` |
+| El camino con `docker` se rompe sin que nadie lo vea | Se declara de mejor esfuerzo (`§5.3`); no se promete |
+| Subidas de precio o falta de disponibilidad del proveedor (en 2026 ha ocurrido, según las páginas consultadas) | Nada del producto depende del proveedor; cambiar es reinstalar con `install.sh` |
+| `ADR-083` se acepta con otro proveedor o tarda | `0.10e-e` espera; `a` a `d` no dependen de él |
+
+**Reversión**
+
+- Staging: cancelar el VPS y borrar la zona DNS, el *bucket* y sus claves. Ningún otro entorno lo nota.
+- Rama `staging`: volver a dos ramas es dejar de promocionar a `staging`, restaurar `CLAUDE.md §4` y el gancho, y borrar la rama con un ADR que sustituya `§4` (borrar ramas permanentes no se hace sin él).
+- Nivel 1: la variable tiene valor por defecto; ignorarla devuelve al estado actual.
+
+## 9 · Alternativas descartadas
+
+- **PaaS para staging** (A5): descartado por el usuario; no valida lo que se quiere validar.
+- **Garage o SeaweedFS en staging** (propuesta del 2026-11-05): sustituida por `ADR-076 §2.2` (Garage nunca en un servidor) y `ADR-083 §2` punto 4 (staging y producción, mismo proveedor y clase).
+- **Despliegue por GitHub Actions con SSH** (D2) y **actualización automática** (D3): `§3.8`.
+- **Cloudflare como proxy o CDN delante de Traefik**: `§3.5`.
+- **Mailpit, Sentry, Uptime Kuma** en esta entrega: `§3.6`.
+- **Fijar la IP de Traefik** para confiar solo en ella: prohibido por `ADR-028 §4`.
+- **Staging como subdominio del dominio comercial**: no se descarta del todo; se desaconseja por las cookies (`§3.5`, `OPEN-STG-02`).
+- **Terraform u otra herramienta de infraestructura como código** para un solo VPS: `RARQ-CLOUD-002` la pide, pero con un host es más herramienta que problema, por el mismo argumento con que `ADR-037 §5.4` rechazó Ansible. Se revisa con el segundo host. Queda como incumplimiento conocido de `RARQ-CLOUD-002`, no como olvido.
+- **Segunda definición de producción y Kubernetes ya** (C2, C3): `§5.2`.
+- **Reescribir los documentos que mencionan Podman** y **editar la migración** por un comentario: `§5.1`.
+
+## 10 · Preguntas abiertas y lo no verificado
+
+### 10.1 Bloquean la implementación
+
+| Id | Pregunta | Opciones | **Recomendada** | Bloquea | Decide |
+|---|---|---|---|---|---|
+| `OPEN-STG-01` | Proveedor y plan del VPS | OVHcloud VPS-1; Hetzner CX23; IONOS VPS M+; otro europeo | **OVHcloud VPS-1**, tras comprobar región UE, imagen de la familia RHEL y ausencia de permanencia (`§3.9`). Impacto: unos 4 €/mes; misma cuenta que el S3 propuesto | `0.10e-c` | Usuario |
+| `OPEN-STG-02` | Dominio de staging y proveedor de DNS | (a) dominio registrable aparte; (b) subdominio del dominio comercial, que exige cerrar antes `OPEN-08`; (c) sin dominio propio: inviable, no hay comodín sin DNS-01. DNS: Cloudflare solo DNS, o el DNS del registrador si tiene API admitida por Lego (**SV**) | **(a) con Cloudflare solo como DNS** y *token* acotado a la zona. Impacto: desacopla staging de `OPEN-08` y aísla las cookies; un dominio más que pagar | `0.10e-c` | Usuario |
+| `OPEN-STG-03` | Forma de la promoción | B1 solo avance rápido; B2 PR con *merge commit*; B3 mixto | **B1** (`§4.2`). Impacto: las promociones no pasan por el botón de mezclar | `0.10e-a` | Usuario |
+| `OPEN-STG-04` | Sistema operativo del host | AlmaLinux o Rocky; Debian 13; Ubuntu 24.04; Fedora | **AlmaLinux o Rocky**, la versión que ofrezca el proveedor con Podman que valide las unidades en seco (`§3.4`) | `0.10e-c` | Técnico; lo confirma el usuario |
+| `OPEN-STG-05` | Podman sin privilegios o con ellos en el servidor | Sin privilegios con `linger` (`ADR-037 §6.3`); unidades de sistema (lo que hoy dicen `install.sh` y `RUNBOOK.md`); de sistema con `User=` | **Sin privilegios**, y corregir la documentación que diga otra cosa. Impacto: hay que resolver los puertos 80 y 443 | `0.10e-c` | Técnico; lo confirma el usuario |
+| `OPEN-STG-09` | Cómo se protege un staging público con credenciales de demostración conocidas | Contraseñas de semilla generadas por entorno; lista blanca de IP en Traefik para todo staging; autenticación básica delante; VPN | **Contraseñas generadas por entorno** si `REQ-SEED` lo admite (lo especifica B4); mientras no, **lista blanca de IP**. Una VPN es desproporcionada | Exponer staging (`0.10e-c`) | Usuario, con el técnico |
+| `OPEN-STO-01`, `-03`, `-08`, `-11`, `OPEN-083-02` | Proveedor S3, aislamiento, versionado y retención, cifrado, cuenta de prueba | En `ADR-083` y `docs/cumplimiento/` | Las de `ADR-083`; este ADR no las decide | `0.10e-e` | Los que allí se indican |
+
+### 10.2 No bloquean el arranque
+
+| Id | Pregunta | **Recomendada** | Impacto | Decide |
+|---|---|---|---|---|
+| `OPEN-STG-06` | Mecanismo de despliegue en staging | **D1, a mano con `install.sh`** | Revisable si se promociona más de una vez por semana | Usuario |
+| `OPEN-STG-07` | Sentry, monitor de salud y buzón de pruebas en staging | **No por ahora**; se decide con la observabilidad (`RARQ-CLOUD-003`, `-007`) y con `ADR-079` | Staging sin alertas: si cae, se ve al usarlo | Usuario |
+| `OPEN-STG-08` | Modelo de tres redes de `§3.7` | **Aceptarlo** como concreción de `ADR-028` y de la decisión sobre #484 | **Bloquea el primer dato real**, no staging | Usuario |
+| `OPEN-STG-10` | `RARQ-CLOUD-005` pide cuatro entornos y `RARQ-DEP-012` un ensayo con datos anonimizados | **Aceptar por escrito que hoy hay dos entornos** y que preproducción se decide con `OPEN-11`; no fabricar datos «anonimizados» a partir de reales en staging | Requisitos incumplidos de forma declarada hasta que haya producción | Usuario |
+| `OPEN-STG-11` | Nivel 1 de runtime y si `docker` se verifica en CI | **Nivel 1 sin trabajo de CI para `docker`** (mejor esfuerzo, declarado) | Bloquea solo `0.10e-b` | Usuario |
+| `OPEN-STG-12` | Staging permanente o destruido entre ensayos, y techo de gasto | **Permanente, techo de 15 €/mes** | Unos 50 a 85 € al año | Usuario |
+| `OPEN-STG-13` | ¿Se promociona la imagen ya construida a versión (misma imagen, etiqueta nueva) en vez de reconstruirla al etiquetar `v*`? | **No ahora**: cambiaría `ADR-037 §5.2`; anotarlo para la primera versión real | Hoy la imagen de versión se reconstruye del mismo commit, no es idéntica byte a byte a la probada | Técnico |
+
+### 10.3 No verificado en esta sesión
+
+- **Nada se ha ejecutado**: ni un VPS, ni un certificado, ni un *push* a `staging`, ni un guion con `CONTAINER_RUNTIME`. Todo `§6` son criterios por cumplir.
+- Disponibilidad real de alta en Hetzner (solo se leyó la página pública) y en OVHcloud; centros de datos, imágenes de sistema y permanencia de OVHcloud; precios de Scaleway; precio del dominio; condiciones del plan gratuito de Cloudflare.
+- Versión de Podman en AlmaLinux, Rocky y Fedora; desde qué versión existen `Notify=healthy` y las plantillas (la documentación actual las describe, **V**, sin decir versión); si las unidades actuales validan con Podman 4.9.3.
+- Protección de ramas del repositorio y comportamiento del *push* de avance rápido con comprobaciones obligatorias; visibilidad de los paquetes de GHCR.
+- Si 4 GB bastan para la pila con la semilla de 300 alumnos.
+- Si `REQ-SEED` permite fijar contraseñas por entorno y si los guiones de E2E real admiten apuntar a un host remoto.
+- Que `Internal=true` de Quadlet y la red interna de Docker se comporten igual para el servicio de PDF.
+- El recuento de `§5.1` (unas 18 invocaciones) sale de `grep -c -i podman` por fichero e incluye algún comentario.
+- `ADR-078`, `ADR-079` y `ADR-083` se leyeron en borrador, en lo que afecta a staging; pueden cambiar tras su revisión.
+
+### 10.4 Hallazgos fuera del ámbito de este encargo (no se corrigen aquí)
+
+1. `ADR-037 §6.3` dice Podman sin privilegios; `infra/install.sh` instala por defecto unidades de sistema y `RUNBOOK.md` habla de «systemd de sistema» en producción (`OPEN-STG-05`). Contradicción entre código, documento y ADR: Media (`CLAUDE.md §6.6`).
+2. `ADR-037 §5.1` razona la cuota de GHCR con repositorio privado; el repositorio es público.
+3. `PLAN-IMPLEMENTACION.md`, paso `0.10e`, sigue diciendo «S3 de pruebas (Garage o SeaweedFS)», contrario a `ADR-076 §2.2`.
+4. `SYSADMIN.md`: `TRUSTED_PROXIES` sigue pendiente de añadirse a los `.env.example`.
+
+## 11 · Cambios propuestos en ficheros compartidos
+
+Los aplica la sesión orquestadora al integrar, y solo los que correspondan a lo que el usuario acepte.
+
+| Fichero | Cambio |
+|---|---|
+| `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md §18` | Fila `ADR-080` en el índice (estado `PROPUESTA`). En «Decisiones abiertas vivas»: `OPEN-11` añade «staging no la cierra: solo datos sintéticos (`ADR-080 §3.2`)»; `OPEN-08` añade «el dominio de staging se decide aparte (`OPEN-STG-02`)». Historial de versiones |
+| `PLAN-IMPLEMENTACION.md` | `0.10e` se parte en `0.10e-a` a `0.10e-e` con el contenido, las dependencias y la clasificación de `§6.1`, y deja de depender de `0.10` (`OPEN-11`); se retira «Garage o SeaweedFS»; `a` y `b` en [SONNET], `c` a `e` críticos. Nota: el cierre exige `CS-01` a `CS-18` |
+| `CLAUDE.md §1` | Fila «Contenedores»: añadir «Los guiones aceptan `CONTAINER_RUNTIME` (por defecto `podman`; `docker` de mejor esfuerzo, sin verificar). Quadlet es la referencia de producción y lo único que se prueba (`ADR-080 §5`)» |
+| `CLAUDE.md §4` | Ramas permanentes: `main`, **`staging`** y `develop`. «`staging` y `main` solo avanzan por promoción de avance rápido, sin *squash*, sin `--force` y sin el botón de mezclar (`ADR-080 §4.3`); `main` solo recibe lo que ya está en `staging`; nunca se commitea en ninguna de las tres». Excepción de arreglo urgente de `§4.4`. Promocionar a `main` solo a petición del usuario |
+| `CLAUDE.md §9` | Añadir: «Staging: solo datos sintéticos; mismo procedimiento que producción; se puede destruir (`ADR-080 §3.2`)» |
+| `CLAUDE.md §11` | La prohibición de datos reales en desarrollo nombra también staging |
+| `.claude/hooks/block-protected-branch.sh` | Tratar `staging` como rama protegida para commits; permitir el *push* a `staging` y `main` únicamente con la forma `<sha>:refs/heads/<rama>` y sin `--force`, `-f` ni `+` en la referencia |
+| `.claude/skills/espera-ci`, `pr-check` | `espera-ci`: «no para promociones (`develop` → `staging` → `main`)»; nunca *squash* sobre un PR cuya base sea `staging` o `main`. `pr-check`: la base de un PR de trabajo es `develop`; a `staging` solo el arreglo urgente de `§4.4` |
+| `.claude/skills/contenedores-y-red` | Regla 2 en plural (las redes de `§3.7`, las mismas reglas para cada una); ejemplos con el runtime por defecto y mención de la variable |
+| `SYSADMIN.md` | Sección de staging: proveedor, sistema, usuario sin privilegios, variables propias, DNS y *token*, tabla «probado en staging / sin probar» con fecha (`CS-18`); entornos que existen de verdad (`OPEN-STG-10`); `CONTAINER_RUNTIME` en la tabla de variables |
+| `RUNBOOK.md` | Procedimiento de promoción (`§4.3`), arreglo urgente (`§4.4`), despliegue y reversión en staging con el tiempo medido (`CS-08`), destrucción y recreación del entorno |
+| `ARCHITECTURE.md` | Línea 71 («entornos dev, staging, prod»): reflejar que staging se despliega con Quadlet, no con `compose`; diagrama de redes de `§3.7`; nota en la decisión de hospedaje sobre staging y `OPEN-11` |
+| `README.md`, `CHANGELOG.md` | Tabla de versiones y entrada de la ola |
+| `memory.md` | Decisiones pendientes del usuario (`§10.1`), hallazgos de `§10.4` y la nota de que `0.10e-a` y `-b` no esperan al VPS |
+| `.github/workflows/ci-*.yml`, `dependency-scan.yml` (código, lo hace `implementer` en `0.10e-a`) | `staging` en `pull_request.branches` |
+| Issues a abrir (`CLAUDE.md §5`) | Los hallazgos 1 (Media) y 2 a 4 (Bajas) de `§10.4` |
+
+## 12 · Fuentes
+
+Consultadas el **2026-11-12**.
+
+| Dato | Fuente |
+|---|---|
+| Precios y disponibilidad de Hetzner (CX, CAX, CPX) | `https://www.hetzner.com/cloud/cost-optimized`, `https://www.hetzner.com/cloud/regular-performance` |
+| Precios de OVHcloud VPS | `https://www.ovhcloud.com/es-es/vps/` |
+| Precios, centros de datos e imágenes de IONOS VPS | `https://www.ionos.es/servidores/vps` |
+| Podman en Debian 13 y Ubuntu 24.04 | `https://packages.debian.org/trixie/podman`, `https://packages.ubuntu.com/noble/podman` |
+| Claves de Quadlet (`Notify=healthy`, plantillas, `AutoUpdate=`, rutas sin privilegios) | `https://docs.podman.io/en/latest/markdown/podman-systemd.unit.5.html` |
+| Comodín solo por DNS-01; almacenamiento `acme.json` | `https://doc.traefik.io/traefik/reference/install-configuration/tls/certificate-resolvers/acme/` |
+| Proveedor `cloudflare` de Lego y permisos del *token* | `https://go-acme.github.io/lego/dns/cloudflare/` |
+| Entorno de pruebas de Let's Encrypt | `https://letsencrypt.org/docs/staging-environment/` |
+| GHCR: paquetes públicos y registro de contenedores | `https://docs.github.com/en/billing/concepts/product-billing/github-packages` |
+| Métodos de mezcla, historia lineal y efecto del *squash* entre ramas de larga vida | `https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/configuring-pull-request-merges/about-merge-methods-on-github` |
+| Estado del repositorio | `gh repo view`, API de GitHub (métodos de mezcla), `git` sobre el clon local en `b7995bc` |
+| Sin poder leer | Scaleway (`403` a la consulta automática); la página de ajuste de precios de Hetzner (`404`) |
+
+Fuentes internas: memorias del usuario del 2026-11-05 sobre staging y runtime; `PLAN-IMPLEMENTACION.md` `0.10e`; `ADR-027`, `ADR-028`, `ADR-030`, `ADR-037`, `ADR-076`; borradores de `ADR-078`, `ADR-079` y `ADR-083`; skill `contenedores-y-red`; issues #453 y #484.
