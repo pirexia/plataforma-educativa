@@ -1,6 +1,6 @@
 # CLAUDE.md — Normas de trabajo del proyecto
 
-> **Versión 2.11.3** · 2026-11-09 · Fichero de contexto permanente. Se carga en **todas** las sesiones. Contiene solo reglas estables.
+> **Versión 2.11.4** · 2026-11-12 · Fichero de contexto permanente. Se carga en **todas** las sesiones. Contiene solo reglas estables.
 > Proyecto: **Plataforma de Gestión Educativa Multi-tenant**. Fuente de verdad funcional: `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md`.
 
 ---
@@ -32,7 +32,7 @@ Frases prohibidas: "¡Excelente idea!", "Tienes toda la razón" como apertura re
 | Base de datos | **PostgreSQL** (particionado, RLS, full-text, PITR). Tipos y identificadores según `ADR-029` |
 | Caché | **Redis**, instalado y en uso (prefijo por tenant, `ADR-033 §9`) |
 | Colas | **Hoy**: *driver* `database` de Laravel — `QUEUE_CONNECTION=database`, tablas `jobs` y `failed_jobs`, consumidas por `php artisan queue:work` en **dos procesos** (perfil `worker` de `compose.yaml`): `worker` (conexión `database`, `infra/quadlet/worker.container`; issue #128, resuelto) y `worker-long` (cola `long`, conexión `database_long`, `retry_after` 900 s, `infra/quadlet/worker-long.container`; `1.12b`, ratificado por el usuario el 2026-10-21 porque el `retry_after` es de la conexión con la que se lee la cola). **Elegido y no instalado**: Redis como cola + **Laravel Horizon**. Horizon **no está en `composer.json`** y no hay `config/horizon.php`; adoptarlo es una dependencia nueva sujeta a la regla de abajo y a `OPEN-BO-23` (`docs/modulos/REQ-BO/funcional.md §14`) |
-| Almacenamiento | Compatible S3 (MinIO en desarrollo) |
+| Almacenamiento | API S3 como contrato único; Garage en desarrollo, CI y E2E, nunca en servidores (`ADR-076`) |
 | PDF | Servicio contenerizado de renderizado HTML→PDF |
 | Tests | Pest (backend), Vitest + Playwright (frontend) |
 | Contenedores | **Podman**. Desarrollo en **WSL2** con perfil reducido (`ADR-030`); `compose.yaml` estándar con `podman compose`; Quadlet/systemd en producción. Kubernetes a partir de 3-5 centros |
@@ -114,7 +114,7 @@ Un relanzamiento que encuentra esa nota confía en los commits que cubre sin ree
 
 **Cuándo se ejecuta la suite (`ADR-060 §4.4`).** Durante el trabajo, solo los ficheros o directorios afectados (`php -d memory_limit=-1 vendor/bin/pest <rutas>`). La suite completa (`composer test`: Unit y Feature en paralelo, una base `plataforma_test_N` por proceso, y `Concurrency` en serie) se ejecuta **una vez en local antes de abrir el PR**, y CI la repite en cada *push*. Los revisores no la relanzan salvo necesidad justificada en su informe. El mensaje `Verificado` dice su alcance, `(suite completa)` o `(ficheros afectados: …)`, y un relanzamiento solo da por buena la suite completa con un `Verificado` de suite completa. Las bases por proceso se crean con el script de `SYSADMIN.md`; `composer test:serie` queda como vuelta atrás.
 
-**E2E contra la API real (norma del usuario, 2026-11-02).** Con el paso implementado y su suite en verde, se prueba además **de extremo a extremo contra la API real** en ejecución (Playwright o HTTP real con cookie de sesión y CSRF, datos de `REQ-SEED`), no solo con cliente de pruebas ni API simulada. Se permite **recrear el demo o la base** cuantas veces haga falta, sin pedir permiso. **Quién lo ejecuta (2026-11-06):** `verificador` (Haiku) lanza `npm run test:e2e:real[:prl]` y devuelve el resultado literal; si falla por código, la sesión reencarga a `implementer` solo el fallo; si falla por entorno (código 2, pila caída, S3), lo arregla la sesión. Un E2E parcial no se declara verde. El resultado (qué se probó y qué no, p. ej. S3/MinIO) se registra en `memory.md` y en el informe del paso.
+**E2E contra la API real (norma del usuario, 2026-11-02).** Con el paso implementado y su suite en verde, se prueba además **de extremo a extremo contra la API real** en ejecución (Playwright o HTTP real con cookie de sesión y CSRF, datos de `REQ-SEED`), no solo con cliente de pruebas ni API simulada. Se permite **recrear el demo o la base** cuantas veces haga falta, sin pedir permiso. **Quién lo ejecuta (2026-11-06):** `verificador` (Haiku) lanza `npm run test:e2e:real[:prl]` y devuelve el resultado literal; si falla por código, la sesión reencarga a `implementer` solo el fallo; si falla por entorno (código 2, pila caída, S3), lo arregla la sesión. Un E2E parcial no se declara verde. El resultado (qué se probó y qué no, p. ej. el S3 real del proveedor, `ADR-076 §2.3`) se registra en `memory.md` y en el informe del paso.
 
 ---
 
