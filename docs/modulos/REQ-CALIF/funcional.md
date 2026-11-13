@@ -290,4 +290,259 @@ Con `evaluacion.crear`: `POST /evaluation-periods/{id}/group-evaluations` para t
 | Comentario con marcado HTML | Se guarda como texto y se escapa al presentar y al maquetar |
 | Issue #60 | Comprobar en implementación que los códigos `calif.*` no salen con prefijo `core.` |
 
-<!-- CONTINUARÁ: §7 a §13 -->
+---
+
+## 7. Interacción con otros módulos
+
+Toda interfaz vive en `Domain` (nunca `Domain\Models`); ningún módulo lee tablas de otro (`INV-007`, `AR-01`, `AR-02`).
+
+### 7.1 Lo que consume
+
+| De | Qué | Estado |
+|----|-----|--------|
+| `curso` | `AcademicYearContext`, `AcademicYearDirectory`, `AcademicYearReadAccess`; registro de validaciones de cierre (`RN-CURSO-30`) | Existen |
+| `acad` | `GroupDirectory`, `TeachingMembership::groupIdsFor()` | Existen (`1.15-b`) |
+| `acad` | `TeachingMembership::classPairsFor()`, `SubjectDirectory`, `AcademicPeriodDirectory`, `GradingScaleDirectory`, registros de vetos de períodos y escalas | Escritas, no construidas: `1.16-a` T1 (§7.3) |
+| `alum` | `EnrollmentRoster`, `StudentEnrollmentDirectory`, registro de vetos de anulación de matrícula | Especificadas; se construyen con su primer consumidor (§7.3) |
+| `fam_unit` | `FamilyMembership` («alumnos alcanzados», solo vínculos activos) | Existe |
+| `Core` | `PersonDirectory` (nombre del alumno y del tutor de grupo), `UserDirectory`, `TenantSettingsReader`, marca del centro, `AuditRecorder::recordRead` | Existen; comprobar en implementación que la lectura de la marca tiene interfaz en `Core\Domain` y, si no, pedir su ampliación antes de escribirla |
+| núcleo | `TenantModel`, `Auditable`, `ScopedQuery`, `App\Support\I18n`, `App\Support\Files` (`PrivateObjectStore`, o `TenantObjectStore` si `S-2` está cerrada) | Existen |
+| `App\Support\Pdf` | `PdfRenderer`, `PdfDocument`, `PdfProfile`, `FakePdfRenderer` (`ADR-078 §4`) | **No existen** (`OPEN-CALIF-20`) |
+| `Core` (`ADR-079`) | Motor de notificaciones | **No existe** |
+
+### 7.2 Interfaces públicas que expone (`Calif\Domain`) [DERIVADA]
+
+Se especifican aquí y se construyen con su primer consumidor (`ADR-048`). Ids internos, una consulta por llamada, sin efectos, fallo en cerrado (módulo no contratado ⇒ conjunto vacío).
+
+| Interfaz | Operación | Devuelve | Primer consumidor |
+|----------|-----------|----------|-------------------|
+| `FinalGradesReader` | `definitiveGradesOf(list<int> enrollmentIds, int evaluationPeriodId)` | Por matrícula y asignatura: valor y si es aprobado, solo de evaluaciones `cerrada` | `1.17b` (`REQ-CURSO-003`: propuesta por número de suspensos) |
+| `GroupEvaluationReader` | `closureOf(int groupId, int evaluationPeriodId)` | Estado, quién cerró y cuándo | `1.17b` (dato del acta, C6) |
+
+### 7.3 Cambios que este paso pide en otros módulos (aditivos; requieren aprobación, `OPEN-CALIF-06`)
+
+| Módulo | Cambio | Motivo |
+|--------|--------|--------|
+| `acad` | Construir `classPairsFor()` (un `SELECT` de asignaciones vivas, `RN-ACAD-98`), `SubjectDirectory` (resumen: id, curso de etapa, etapa, `code`, `nameTranslations`; y «asignaturas que cursa un grupo»), `AcademicPeriodDirectory` y `GradingScaleDirectory` con la forma de `REQ-ACAD §7.2` | Primer consumidor |
+| `acad` | Registros de vetos de períodos lectivos y de escalas (`RN-ACAD-63`, `-77`), invocados por sus servicios de borrado y edición | Obligación escrita para `1.16` |
+| `acad` | Ampliar `StructureEntity` del registro de vetos de estructura con `subject` y el veto de `PUT /groups/{id}/subjects` al quitar una asignatura (`RN-CALIF-29`) | Hoy solo cubre `group` y `course` |
+| `alum` | Construir `EnrollmentRoster` y el registro de vetos de anulación de matrícula, si `1.13` no los ha construido; añadir a `StudentEnrollmentDirectory` «matrículas de estos alumnos (por persona)» para el resolutor `unidad_familiar` | Primer consumidor |
+| `curso` | Ninguno: `calif` solo registra su validación de cierre | — |
+
+La documentación de `REQ-ACAD` y `REQ-ALUM` la actualiza la sesión (fuera del ámbito de escritura de esta especificación).
+
+### 7.4 Eventos de dominio
+
+Se **especifican**; se emiten con su primer consumidor (`ADR-048`, precedente `OPEN-CURSO-18`): `GroupEvaluationPublished` (centro, evaluación de grupo, instante; sin datos personales) lo consume el aviso de `1.17-b`. `calif` no consume eventos.
+
+---
+
+## 8. Descriptor del módulo (`ADR-045`, `ADR-034 §5`)
+
+| Campo | Valor propuesto |
+|-------|-----------------|
+| `code` | `calif` |
+| `name_key` | `modules.calif` (es «Calificaciones y evaluación», en «Grades and assessment», de «Noten und Bewertung», fr «Notes et évaluation») |
+| `phase` | `1` |
+| `depends_on` | `['curso', 'acad', 'alum']` (`OPEN-CALIF-01`) |
+| `essential` | `false` |
+| `feature_flags` | Ninguno |
+
+Generación: `make:module Calif --code=calif …` sin `--entity`; los modelos se crean a mano con la política de auditoría de `datos.md §4`.
+
+## 9. Comportamiento con el módulo desactivado
+
+- API: toda ruta lleva `module-enabled:calif` antes de `permission:` ⇒ `403 urn:pge:error:module-disabled` (`RMOD-009`).
+- Interfaz: rutas, navegación y bloques del `shell` ocultos (`RMOD-008`).
+- Las validaciones y vetos que `calif` registra en `curso`, `acad` y `alum` **no se ejecutan** con el módulo no contratado (`RN-CURSO-60`, `ModuleAvailability`). Límite conocido y heredado (#597): al reactivar pueden existir referencias que el veto habría impedido romper; las FK `NO ACTION` y el borrado lógico evitan la pérdida de datos.
+- Los trabajos de boletines encolados antes de desactivar terminan `fallido` sin generar (comprueban la disponibilidad al empezar) [DERIVADA].
+- Los boletines ya emitidos se conservan en el almacén; su retención no depende del módulo (`datos.md §5`).
+
+---
+
+## 10. Interfaz: *shell* del frontend (`ADR-053`)
+
+### 10.1 Inventario (`1.16-d` y `1.17-b`)
+
+Módulo web `apps/web/src/modules/calif/` (las siete piezas y los dos registros de `AR-11`). Todas con `meta.layout` de aplicación y `meta.academicYearScoped: true`.
+
+| Nombre | Ruta | `meta.permissions` (anyOf) | Menú | Contenido | Entrega |
+|--------|------|----------------------------|------|-----------|---------|
+| `calif-config` | `/evaluacion/configuracion` | `['configuracion_evaluacion.leer']` | Sí | Períodos de evaluación por etapa y asignación de escalas | `1.16-d` |
+| `calif-group-evaluations` | `/evaluacion/grupos` | `['evaluacion.leer']` | Sí | Tabla de evaluaciones de grupo (`src/data-table`) con estado y publicación; abrir, cerrar, reabrir, publicar | `1.16-d` |
+| `calif-grading` | `/evaluacion/grupos/:id` | `['calificacion.leer']` | No | Rejilla de calificación de una clase: matrículas × (elementos, propuesta, nota, comentario) | `1.16-d` |
+| `calif-academic-record` | `/evaluacion/alumnos/:id` | `['calificacion.leer']` | No (se llega desde la ficha del alumno) | Historial académico | `1.16-d` |
+| `calif-report-cards` | `/evaluacion/boletines` | `['boletin.leer']` | Sí | Emisiones con progreso, boletines, descarga, validación | `1.17-b` |
+| `calif-report-settings` | `/evaluacion/boletines/ajustes` | `['configuracion_evaluacion.leer']` | No | Pie y opciones del boletín | `1.17-b` |
+
+Sección de navegación y bloques del panel de inicio: sin decidir (`OPEN-CALIF-29`).
+
+### 10.2 Lo que falta para implementar la interfaz
+
+La rejilla de calificación **no es una tabla de datos**: es una rejilla de edición, y `RN-CORE-53` mantiene una lista cerrada de ellas (precedente `RolePermissionMatrix.vue`, `OPEN-PERM-08`). Añadirla exige aprobación expresa. Las reglas y criterios de interfaz (teclado, guardado, estados vacíos, móvil, WCAG 2.2 AA, `docs/design-system.md §22`) se escriben como ampliación de este fichero **antes** de `1.16-d`, como se hizo en `REQ-PERM §20` y `REQ-FAM-UNIT §23`; no se inventan aquí. Requisitos que esa ampliación debe cumplir: `RNF-UX-006` (≤3 clics desde el panel para calificar), `RUX-RESP-004`, `INV-009`.
+
+---
+
+## 11. Criterios de aceptación
+
+Cada criterio tiene un test que cita su ID (`INV-015`). Entre paréntesis, la entrega.
+
+### 11.1 Configuración (`1.16-a`)
+
+- **`CA-CALIF-001`** *Dado* un usuario con `configuracion_evaluacion.crear`, *cuando* crea un período `parcial` con un período lectivo vivo de la misma etapa, *entonces* `201`, hereda el curso académico de la etapa y queda auditado `created` con el nombre desglosado por idioma.
+- **`CA-CALIF-002`** *Dado* un período lectivo de **otra** etapa, o un `final` con `academic_period`, *cuando* se crea, *entonces* `422` con el código de `RN-CALIF-10` y nada se escribe.
+- **`CA-CALIF-003`** *Dado* un período de evaluación vivo sobre un período lectivo, *cuando* se crea otro sobre el mismo, o dos peticiones simultáneas lo intentan, *entonces* una sola `201` y la otra `422 evaluation_period_exists`, nunca `500`.
+- **`CA-CALIF-004`** *Dado* un período lectivo referenciado por un período de evaluación vivo, *cuando* se borra en `acad`, *entonces* `409 acad.conflict.has_dependents` (veto de `RN-CALIF-14`); con `calif` no contratado en el centro, el veto no se ejecuta.
+- **`CA-CALIF-005`** *Dado* una etapa con escala por defecto y una asignatura con escala propia, *cuando* se resuelve la escala de cada asignatura, *entonces* la propia gana y las demás usan la de la etapa; sin ninguna, calificar da `409 scale_not_assigned`.
+- **`CA-CALIF-006`** *Dado* una asignación de escala con calificaciones vivas, *cuando* se cambia o borra, *entonces* `409 scale_in_use`; y editar en `acad` el umbral o un valor de esa escala da `409` por el veto de `RN-CALIF-17`, mientras que cambiar su nombre o etiquetas da `200`.
+- **`CA-CALIF-007`** *Dado* una escala de otro curso académico, *cuando* se asigna, *entonces* `422 parent_not_found` (y la FK compuesta lo impediría en el motor).
+
+### 11.2 Evaluaciones de grupo y calificaciones (`1.16-a`)
+
+- **`CA-CALIF-010`** *Dado* un período de evaluación de una etapa con tres grupos, *cuando* se abre para todos dos veces, *entonces* existen exactamente tres evaluaciones de grupo `abierta` y la segunda llamada no escribe ni audita.
+- **`CA-CALIF-011`** *Dado* un docente con `calificacion.actualizar` en ámbito `clase` asignado a Matemáticas del grupo A, *cuando* guarda las calificaciones de esa clase, *entonces* `200`, una fila por matrícula y auditoría `created`/`updated` con el valor y sin el comentario.
+- **`CA-CALIF-012`** *Dado* ese docente, *cuando* intenta guardar Lengua del grupo A (que no imparte) o Matemáticas del grupo B, *entonces* `404` con el mismo cuerpo que un recurso inexistente y nada se escribe.
+- **`CA-CALIF-013`** *Dado* ese docente, que además es tutor del grupo A, *cuando* intenta escribir una asignatura de A que no imparte, *entonces* `404` (`RN-CALIF-34`).
+- **`CA-CALIF-014`** (listado **y** detalle, `ADR-044 §4.2`) *Dado* un docente con `calificacion.leer` solo en `clase`, *cuando* lista las calificaciones de una evaluación de grupo, *entonces* solo ve las de sus pares; y *cuando* pide por `public_id` una calificación de otra clase, *entonces* `404`.
+- **`CA-CALIF-015`** (listado **y** detalle) *Dado* un tutor de grupo con `calificacion.leer` en `grupo`, *cuando* lista, *entonces* ve todas las asignaturas de su grupo y ninguna de otros; el detalle de una calificación de otro grupo es `404`.
+- **`CA-CALIF-016`** *Dado* un valor fuera del rango, con más decimales que la escala, un `scale_value` de otra escala o el campo del tipo equivocado, *cuando* se guarda, *entonces* `422` con el código de `RN-CALIF-31` en el elemento afectado y **ninguna** calificación del conjunto se escribe.
+- **`CA-CALIF-017`** *Dado* una matrícula en `baja`, de otro grupo o de otro centro en el conjunto, *cuando* se guarda, *entonces* `422 enrollment_not_in_group` sin revelar a quién pertenece.
+- **`CA-CALIF-018`** *Dado* un `PUT` idéntico al estado guardado, *cuando* se repite, *entonces* `200` sin escritura ni auditoría.
+- **`CA-CALIF-019`** *Dado* una escala `mixta`, *cuando* se lee una calificación, *entonces* trae el valor como cadena con los decimales de la escala, la etiqueta del tramo resuelta en el idioma pedido e `is_passing` derivado.
+- **`CA-CALIF-020`** *Dado* una matrícula con calificaciones vivas, *cuando* se anula en `alum`, *entonces* `409` por el veto; *dado* un grupo con evaluaciones de grupo vivas o una asignatura con calificaciones, *cuando* se borran o se quita la asignatura del grupo, *entonces* `409 acad.conflict.has_dependents`.
+- **`CA-CALIF-021`** (curso cerrado, listado **y** detalle; `RN-CURSO-33`) *Dado* un usuario con `calificacion.leer` y sin `curso_historico.leer`, *cuando* lista las calificaciones de un curso `cerrado` y *cuando* pide una por `public_id`, *entonces* `404` como si no existiera; con `curso_historico.leer` recibe los datos. Lo mismo para períodos de evaluación, asignaciones, evaluaciones de grupo, elementos y boletines.
+- **`CA-CALIF-022`** *Dado* un curso `cerrado`, *cuando* se intenta cualquier escritura del módulo, *entonces* `409 urn:pge:error:academic-year-closed` (criterio de `§5.28`: «el sistema lo impide e indica el motivo»).
+- **`CA-CALIF-023`** (aislamiento, `INV-001`) *Dado* dos centros con datos equivalentes, *cuando* un usuario del primero usa cualquier *endpoint* del módulo con identificadores del segundo, *entonces* ninguno devuelve, modifica ni cuenta datos del otro; las tablas del módulo pasan `IsolationBatteryTest`.
+- **`CA-CALIF-024`** *Dado* cualquier lectura que devuelve calificaciones, *cuando* responde `200`, *entonces* existe una fila `read` en `audit_logs` con el actor, el recurso y los filtros, sin valores; una respuesta `404` o `403` no la crea.
+- **`CA-CALIF-025`** *Dado* la siembra de un centro nuevo y el comando `calif:grant-permissions` sobre uno existente, *cuando* se ejecutan, *entonces* los roles predefinidos tienen exactamente las concesiones de `permisos.md §4`; `docente` no tiene `todos` sobre `calificacion`; el comando es idempotente y no toca roles personalizados.
+- **`CA-CALIF-026`** *Dado* el módulo no contratado, *cuando* se llama a cualquier ruta, *entonces* `403 module-disabled`; `./vendor/bin/pest --group=arch` en verde con las ampliaciones aprobadas de `AR-10`.
+- **`CA-CALIF-027`** *Dado* `classPairsFor(u, curso)`, *cuando* el usuario tiene una asignación a un subgrupo, *entonces* el par se proyecta sobre el grupo (`RN-ACAD-98`); asignaciones borradas o de otro curso no cuentan.
+
+### 11.3 Elementos, transiciones, publicación e historial (`1.16-b`)
+
+- **`CA-CALIF-030`** *Dado* elementos con pesos 40, 40 y 20 y notas 6, 7 y 9 en una escala 0-10 con un decimal, *cuando* se lee la clase, *entonces* `calculated_value` es `"7.0"`; si falta una nota de elemento, es `null`.
+- **`CA-CALIF-031`** *Dado* pesos que no suman 100, o una clase con escala `cualitativa`, *cuando* se guardan los elementos, *entonces* `422` (`RN-CALIF-41`, `-40`).
+- **`CA-CALIF-032`** *Dado* una media cuyo tercer decimal es 5 (p. ej. 6,95 con un decimal), *cuando* se calcula, *entonces* redondea hacia arriba (`"7.0"`) y el resultado es idéntico en cien ejecuciones (aritmética decimal exacta).
+- **`CA-CALIF-033`** *Dado* una propuesta `"6.5"`, *cuando* el docente guarda `"7"`, *entonces* la calificación es `"7"` y la representación conserva ambas.
+- **`CA-CALIF-034`** *Dado* una evaluación de grupo con calificaciones pendientes, *cuando* se cierra sin `confirm_missing`, *entonces* `409 missing_grades` con el recuento; con `confirm_missing: true`, `200`, estado `cerrada` y una fila de transición con actor e instante.
+- **`CA-CALIF-035`** *Dado* una evaluación `cerrada`, *cuando* un docente guarda calificaciones, elementos o notas de elemento, *entonces* `409 evaluation_closed`.
+- **`CA-CALIF-036`** (dos procesos reales) *Dado* un cierre y un `PUT` de calificaciones simultáneos, *entonces* o el `PUT` confirma antes del cierre o recibe `409`; nunca queda una calificación escrita después del instante de cierre.
+- **`CA-CALIF-037`** *Dado* una evaluación `abierta`, *cuando* se publica, *entonces* `409 not_closed`; *dado* una `cerrada`, `200` y `published_at` fijado; repetirlo no escribe.
+- **`CA-CALIF-038`** (criterio de `§5.5`) *Dado* una evaluación de grupo sin publicar, *cuando* un tutor legal con vínculo activo lista las calificaciones de su hijo, pide una por `public_id`, pide el historial o lista sus boletines, *entonces* no ve ninguna calificación de ese período (lista vacía, `404`).
+- **`CA-CALIF-039`** *Dado* la evaluación publicada, *cuando* ese tutor legal consulta, *entonces* ve las de su hijo y de ningún otro alumno del grupo; un tutor con el vínculo revocado recibe `404`.
+- **`CA-CALIF-040`** *Dado* una evaluación publicada, *cuando* se reabre con motivo, *entonces* pasa a `abierta`, `published_at` queda nulo, la familia deja de verla y hay dos filas de transición (reapertura y retirada); sin motivo, `422`.
+- **`CA-CALIF-041`** *Dado* un curso `activo` con una evaluación de grupo `abierta` o `cerrada` sin publicar, *cuando* se cierra el curso, *entonces* `curso` responde su `409` de validaciones de cierre con la entrada `calif.conflict.unpublished_evaluations` y sus recuentos, sin identificadores.
+- **`CA-CALIF-042`** *Dado* un alumno con matrículas en dos cursos académicos, *cuando* un usuario con `todos` y `curso_historico.leer` pide el historial, *entonces* recibe las calificaciones definitivas de ambos agrupadas por curso; sin `curso_historico.leer`, el curso cerrado no aparece.
+- **`CA-CALIF-043`** *Dado* un docente en ámbito `clase`, *cuando* pide el historial de un alumno de sus clases, *entonces* solo ve sus asignaturas; de un alumno ajeno, `404`.
+
+### 11.4 Boletines (`1.17-a`)
+
+- **`CA-CALIF-050`** *Dado* una evaluación de grupo `cerrada` con 25 matrículas, *cuando* se pide la emisión, *entonces* la respuesta es `202` en menos del tiempo de `RNF-PERF-001`, no se ha llamado a `PdfRenderer` durante la petición y hay un trabajo por boletín en la cola `calif-pdf`.
+- **`CA-CALIF-051`** *Dado* una evaluación `abierta`, o una emisión en curso, *cuando* se pide otra, *entonces* `409` (`RN-CALIF-50`).
+- **`CA-CALIF-052`** *Dado* un alumno con dos tutores legales activos con idiomas `de` y `es-ES` y un centro con idioma por defecto `es-ES`, *cuando* termina la emisión, *entonces* existen exactamente dos boletines (`de`, `es-ES`); un tutor revocado no aporta idioma.
+- **`CA-CALIF-053`** *Dado* un boletín en cada uno de los cuatro idiomas, *cuando* se inspecciona el `PdfDocument` recibido por `FakePdfRenderer`, *entonces* `lang` es el del boletín, ningún literal de plantilla queda sin traducir (paridad de claves `calif.report_card.*`), el nombre de la asignatura sale por la cadena de reserva de `ADR-062`, el perfil es `archival` y no hay ninguna referencia `http(s):`, `file:` ni `<script>`.
+- **`CA-CALIF-054`** *Dado* un comentario del docente y un pie del centro con marcado HTML, *cuando* se maqueta, *entonces* llegan escapados como texto.
+- **`CA-CALIF-055`** *Dado* un trabajo de boletín ejecutado dos veces, *cuando* termina el segundo, *entonces* hay un solo objeto en el almacén y la huella no cambia.
+- **`CA-CALIF-056`** *Dado* `PdfRendererUnavailable`, *cuando* el trabajo falla, *entonces* se reintenta; *dado* `PdfRenderingFailed`, queda `fallido` sin reintento y la emisión termina `completada_con_errores` con el recuento.
+- **`CA-CALIF-057`** *Dado* un trabajo en el *worker*, *cuando* se ejecuta, *entonces* fija el centro antes de leer nada y el objeto queda bajo el prefijo del centro; un trabajo con el identificador de un boletín de otro centro no genera nada (`INV-001`).
+- **`CA-CALIF-058`** (listado **y** detalle) *Dado* un tutor de grupo con `boletin.leer` en `grupo`, *cuando* lista, *entonces* solo ve los de su grupo; el detalle y la descarga de uno ajeno son `404`.
+- **`CA-CALIF-059`** *Dado* un boletín `generado` de una evaluación publicada, *cuando* el tutor legal pide la descarga, *entonces* recibe una URL firmada de caducidad corta y queda una fila `read`; sin publicar, `404` y ninguna URL.
+- **`CA-CALIF-060`** *Dado* una reemisión tras reabrir y volver a cerrar, *cuando* termina, *entonces* los boletines anteriores están `sustituido`, sus objetos siguen en el almacén sin modificar y la familia solo ve los vigentes.
+- **`CA-CALIF-061`** (criterio de `§5.5`, parte de marca) *Dado* un boletín publicado, *cuando* se genera, *entonces* la petición a `PdfRenderer` lleva el logotipo del centro como recurso con nombre y los datos del centro. La parte «firma digital del tutor» es `CA-CALIF-071`.
+- **`CA-CALIF-062`** (conformidad, trabajo de CI aparte con el servicio real, `ADR-078 §4` regla 4) *Dado* la plantilla del boletín en los cuatro idiomas, *cuando* se maqueta con el motor real, *entonces* el resultado es un PDF con fuentes incrustadas, etiquetado y con el perfil pedido. **No se ejecuta en la suite ordinaria.**
+- **`CA-CALIF-063`** (medición, `ADR-078 §5.4`; sin umbral propio: los fija `OPEN-PDF-04`) *Dado* 1.200 boletines con datos de `REQ-SEED`, *cuando* se emiten, *entonces* se anotan tiempo total, mediana, percentil 95 y memoria en `CHANGELOG.md`.
+- **`CA-CALIF-064`** (E2E contra la API real) Emisión de un grupo y descarga del PDF desde el almacén con una cookie de sesión real.
+
+### 11.5 Validación y aviso (`1.17-b`, condicionados a `ADR-082` y `ADR-079`)
+
+- **`CA-CALIF-070`** *Dado* la validación activada y un boletín sin validar, *cuando* se publica la evaluación, *entonces* `409 report_cards_not_validated`.
+- **`CA-CALIF-071`** *Dado* un tutor de grupo con `boletin.firmar` en `grupo`, *cuando* valida un boletín de su grupo, *entonces* queda una evidencia de solo anexar con la huella del PDF, el PDF no cambia, y el de otro grupo es `404`.
+- **`CA-CALIF-072`** *Dado* la publicación de una evaluación, *cuando* se procesan los avisos, *entonces* cada tutor legal activo recibe uno en su idioma con un enlace que exige sesión; el mensaje no contiene ninguna calificación, ni el PDF adjunto, ni una URL firmada del almacén; el tutor revocado no recibe nada.
+
+Los criterios de interfaz (`CA-CALIF-080` en adelante) se escriben con la ampliación de §10.2.
+
+---
+
+## 12. Preguntas abiertas
+
+No se resuelve ninguna aquí. «Decide»: U = usuario, N = negocio, L = legal, T = técnico (con el usuario). La primera opción es la **recomendada**.
+
+### 12.1 Bloquean `1.16-a`
+
+| ID | Pregunta | Opciones | Recomendación e impacto | Decide |
+|----|----------|----------|-------------------------|--------|
+| `OPEN-CALIF-01` | `depends_on` y esencialidad (C1) | **A** `['curso','acad','alum']`, no esencial. **B** literal `['acad']` | **A**: B deja contratar `calif` sin matrículas, que son su eje. Exige corregir «Depende de» en `§5.5` | U |
+| `OPEN-CALIF-02` | ¿Dónde vive el estado de una evaluación (abierta, cerrada, publicada)? | **A** por grupo (`group_evaluations`), con acciones en bloque. **B** por período y etapa. **C** por clase | **A**: la junta de evaluación y el boletín son por grupo; pasar después de B a A es migrar datos, de A a B es una acción en bloque. C multiplica estados sin requisito que lo pida | U |
+| `OPEN-CALIF-03` | Asignación de escalas (`OPEN-ACAD-18`) | **A** por etapa con excepción por asignatura. **B** solo por asignatura. **C** solo por etapa | **A**: una fila configura una etapa entera y admite la asignatura que se califica distinto (p. ej. cualitativa). C no cubre «mixta» por asignatura | U |
+| `OPEN-CALIF-04` | `RPERM-008` (C4) | **A** regla de negocio: se califica solo con la evaluación de grupo `abierta`. **B** motor genérico de permisos condicionales (ADR nuevo sobre `ADR-044`) | **A**: cubre el único caso que cita el requisito sin columna ni motor nuevos; B es semanas de trabajo en el núcleo de autorización sin otro caso de uso | U |
+| `OPEN-CALIF-05` | Ámbitos, siembra y mapa de `AR-10` (`permisos.md §3`, `§4`) | **A** la tabla de `permisos.md §4` (docente `clase`; tutor de grupo `grupo`; familia `unidad_familiar`; estudiante y orientador sin nada). **B** además `propios` para estudiante | **A**: `propios` necesita la relación usuario → alumno que llega con `1.23`; ampliar `applicable_scopes` después es compatible. La ampliación de `AR-10` exige aprobación expresa | U |
+| `OPEN-CALIF-06` | Cambios aditivos en `acad` y `alum` (§7.3) | **A** aprobarlos como parte de `1.16-a` T1. **B** entrega previa separada | **A**: son las interfaces ya escritas en sus especificaciones; B solo si T1 no cabe | U |
+
+### 12.2 Bloquean `1.16-b`
+
+| ID | Pregunta | Opciones | Recomendación e impacto | Decide |
+|----|----------|----------|-------------------------|--------|
+| `OPEN-CALIF-07` | Media ponderada: ¿propuesta o nota impuesta? Pesos y redondeo | **A** propuesta editable, pesos enteros que suman 100, redondeo mitad hacia arriba. **B** la media es la nota. **C** pesos libres normalizados | **A**: el redondeo y el criterio final son del docente (mismo patrón que `REQ-CURSO-003`, «siempre editable»); B obliga a fijar reglas de redondeo que ningún requisito da | U |
+| `OPEN-CALIF-08` | Reabrir una evaluación ya publicada | **A** retira la publicación; los boletines emitidos se conservan y se sustituyen al reemitir. **B** sigue visible con los datos antiguos. **C** prohibido reabrir lo publicado | **A**: la familia nunca ve datos en revisión; C deja sin vía la corrección de un error | U |
+| `OPEN-CALIF-09` | Cierre con calificaciones pendientes | **A** se permite con confirmación explícita. **B** se bloquea siempre. **C** se permite sin aviso | **A**: hay alumnos sin nota legítimamente (exenciones, incorporaciones tardías) y ningún requisito lo prohíbe | U |
+
+### 12.3 Bloquean `1.16-c`
+
+| ID | Pregunta | Opciones | Recomendación e impacto | Decide |
+|----|----------|----------|-------------------------|--------|
+| `OPEN-CALIF-12` | Competencias LOMLOE: fuente del catálogo, quién evalúa y con qué escala (`OPEN-ACAD-19`) | **A** catálogo que define el centro por curso académico y etapa (código, nombre y descriptores traducibles), evaluado por evaluación de grupo y matrícula con una escala cualitativa del centro. **B** catálogo oficial sembrado por la plataforma. **C** evaluación por competencia **y** asignatura | **A**: B exige fijar textos normativos estatales y autonómicos con fuente verificada y mantenerlos; C multiplica por diez la carga del docente. Tras decidir, `1.16-c` necesita su propio detalle (tablas, *endpoints*, criterios) antes de implementarse | U, L (textos oficiales si B) |
+
+### 12.4 Bloquean `1.17-a`
+
+| ID | Pregunta | Opciones | Recomendación e impacto | Decide |
+|----|----------|----------|-------------------------|--------|
+| `OPEN-CALIF-20` | ¿Quién y cuándo construye el servicio `pdf` y `PdfRenderer`? | **A** paso propio previo a `1.17-a` (aceptar `ADR-078`, construir servicio, contrato y test de conformidad con una plantilla de referencia). **B** dentro de `1.17-a` | **A**: con el motor dentro, `1.17-a` no cabe en tres tramos y mezcla infraestructura con negocio. Esta especificación no decide el motor | U |
+| `OPEN-CALIF-21` | Idiomas de cada boletín (`ADR-078 §7.3` lo deja a esta especificación) | **A** uno por idioma distinto de los tutores legales activos, más el del centro. **B** uno por destinatario. **C** siempre los cuatro. **D** solo el del centro | **A**: cumple `ADR-021` con el mínimo de documentos; B duplica PDF idénticos; C cuadruplica el lote; D incumple «idioma del destinatario» | U |
+| `OPEN-CALIF-22` | ¿Publicar la evaluación publica también sus boletines? | **A** un solo acto. **B** publicación separada del boletín | **A**: un solo interruptor de visibilidad, coherente con el criterio de `§5.5` | U |
+| `OPEN-CALIF-23` | Contenido: imagen de firma del tutor de grupo, aviso de «documento no oficial», pie | **A** sin imagen de firma (nombre del tutor de grupo y, cuando exista, la línea de validación N1); pie de texto plano traducible; aviso de no oficialidad fijo en etapas regladas. **B** imagen de firma subida por el docente | **A**: `ADR-078 §8` prohíbe presentar una imagen como firma, y subirla añade un fichero personal más que custodiar. El aviso de no oficialidad deriva de `ADR-016`, pero su texto es legal: no se traduce automáticamente | U, L (texto) |
+| `OPEN-CALIF-24` | Perfil de PDF y retención del boletín | **A** `archival` (`ADR-078 §7.2`, P1) y conservación según el catálogo de `ADR-077`. **B** `accessible` | **A**: es un documento emitido. El plazo de conservación del historial académico interno no está fijado: pendiente de validación jurídica | U, L |
+
+### 12.5 Bloquean `1.17-b`
+
+| ID | Pregunta | Opciones | Recomendación e impacto | Decide |
+|----|----------|----------|-------------------------|--------|
+| `OPEN-CALIF-25` | Entrega a familias (C9) | **A** aviso por el motor de `ADR-079` con enlace autenticado, sin PDF ni notas. **B** PDF adjunto al correo (literal del requisito) | **A**: B envía datos de menores por un canal sin control de acceso ni revocación (custodia) y contradice `ADR-079`. Exige `ADR-079` aceptada e implementada | U |
+| `OPEN-CALIF-26` | Validación del tutor de grupo (C8) | **A** N1 de `ADR-082`, opcional por centro, evidencia en tabla de solo anexar de `calif` hasta que exista `REQ-DOC`. **B** esperar a `REQ-DOC`. **C** obligatoria siempre | **A** si `ADR-082` se acepta con N1 para boletines; la reautenticación depende de `OPEN-FIRMA-06`. Hasta entonces el criterio de `§5.5` queda cumplido solo en la parte de marca | U, L |
+
+### 12.6 No bloquean (rige la recomendación mientras no se decida)
+
+| ID | Pregunta | Recomendación | Decide |
+|----|----------|---------------|--------|
+| `OPEN-CALIF-10` | Nivel de auditoría de lectura | **A** una fila `read` por consulta en todo *endpoint* que devuelve calificaciones (`RN-CALIF-08`). B solo descarga de boletín e historial. A es más estricta y su volumen es acotado por petición, no por fila | U, L |
+| `OPEN-CALIF-11` | Política de valor de auditoría de `Grade` | **A** `Selective`: valor registrado, comentario no. B `Full`. C sin valores | U, L |
+| `OPEN-CALIF-13` | Alertas de riesgo, comparativas y gráficos (`REQ-CALIF-003`) | Diferir a un paso tras `1.19`, con umbrales definidos por el usuario; el historial de `1.16-b` es su base | U |
+| `OPEN-CALIF-14` | Informes y plantillas configurables (`REQ-CALIF-004`) | Diferir hasta resolver `OPEN-PDF-07` (contenido del centro en plantillas) | U |
+| `OPEN-CALIF-15` | Acta de evaluación como documento | En `1.17b`, sobre `GroupEvaluationReader` y `FinalGradesReader` | U |
+| `OPEN-CALIF-16` | Participante de `calif` en el *rollover* (períodos de evaluación y asignación de escalas) | Entrega pequeña aparte tras `1.16-b`; el contrato de `curso` lo hace aditivo | U |
+| `OPEN-CALIF-17` | Cambio de grupo a mitad de evaluación | Las notas se quedan en el grupo de origen (`RN-CALIF-37`); no se copian | U |
+| `OPEN-CALIF-18` | Historial de cursos cerrados para familias | Se respeta el contrato: solo con `curso_historico.leer`; sembrarlo o no a `tutor_legal` se decide en `1.22` | U |
+| `OPEN-CALIF-19` | Rectificación tras el cierre del curso (`OPEN-CURSO-19`) | Sin vía propia: reapertura de `ADR-059` | U |
+| `OPEN-CALIF-27` | `INV-008`: base legal de calificaciones y comentarios | Cobertura parcial; condición previa a datos reales junto con `OPEN-13` (precedente `OPEN-ALUM-29`). Un comentario libre puede acabar conteniendo datos de salud o NEAE: la interfaz lo advierte, pero no hay control técnico | L |
+| `OPEN-CALIF-28` | Particionado de `grades` y `component_grades` por curso académico | No particionar en fase 1 (`datos.md §3.1`); revisar con `db-reviewer` y con volumen de `REQ-SEED` | T |
+| `OPEN-CALIF-29` | Sección de navegación y bloques del panel | Sección académica existente; sin bloques de panel hasta `1.21` | U |
+| `OPEN-CALIF-30` | Un docente de un grupo lee, con `grupo`, todas las asignaturas de todos los grupos donde imparte (consecuencia de `RN-ACAD-98`) | Aceptarlo: es el equipo docente del grupo. Si no, sembrar a `docente` solo `clase` (ya es lo propuesto) y reservar `grupo` a `tutor_grupo` | U |
+
+---
+
+## 13. Cambios propuestos en ficheros compartidos
+
+No los aplica esta especificación (`docs/proceso/ola1-arquitectura-2026-11.md §2`); los aplica la sesión al integrar.
+
+| Fichero | Cambio propuesto |
+|---------|------------------|
+| `PLAN-IMPLEMENTACION.md` | `1.16` pasa a `[OPUS + SONNET]` ⚠️ crítico, partido en `1.16-a` a `-d`; `1.17` en `1.17-a` y `-b`; nota de que `1.17-a` exige el paso del servicio `pdf` (`OPEN-CALIF-20`) y `1.17-b` exige `ADR-079` y `ADR-082`; `1.17b` gana la nota de que el acta consume `Calif\Domain`; `1.15b` (`REQ-SEED`) se amplía con calificaciones tras `1.16-a` |
+| `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` | `§5.5`: «Depende de: CURSO, ACAD, ALUM» (si `OPEN-CALIF-01` = A); historial de versiones. Sin tocar el índice de ADR |
+| `CHANGELOG.md` | Entrada de la ola: especificación de `REQ-CALIF` (`1.16`, `1.17`) |
+| `memory.md` | Especificación propuesta, lista de preguntas bloqueantes por entrega, dependencias de `ADR-078`/`-079`/`-082` |
+| `ARCHITECTURE.md §3.4` | Al implementar: referencia del patrón «resolutor de ámbito `clase`» |
+| `SYSADMIN.md` | Al implementar `1.17-a`: cola `calif-pdf` en el `worker` |
+| `docs/modulos/REQ-ACAD/`, `REQ-ALUM/`, `REQ-CURSO/` (no compartidos, pero fuera de esta carpeta) | `REQ-ACAD §7.2`/`§18.7`: interfaces construidas y vetos (§7.3); `REQ-ALUM §7.2`: operación nueva; `REQ-CURSO §15`: `OPEN-CURSO-19` resuelta por `OPEN-CALIF-19` |
+
+---
+
+¿Se aprueba esta especificación, con las decisiones de §12.1 para `1.16-a`, antes de pasar a implementación?
