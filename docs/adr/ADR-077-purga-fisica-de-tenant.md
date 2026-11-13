@@ -34,13 +34,13 @@ Consultas de solo lectura al catálogo de la base de desarrollo (PostgreSQL 18.6
 | Roles | `plataforma_owner` (sin `SUPERUSER`, sin `BYPASSRLS`), `plataforma_app` (ídem), `plataforma_platform` (`BYPASSRLS`) | El propietario está sujeto a RLS por `FORCE` (`ADR-033 §5`) |
 | Datos de tenant en tablas **sin** `tenant_id` | `jobs` y `failed_jobs` (el tenant viaja en `payload`), `sessions` (enlazada por `user_sessions.session_id`), `feature_flag_rules`, `admin_action_logs`, `tenant_lifecycle_events`, `dual_authorizations`, `platform_idempotency_keys` | El barrido por `tenant_id` no las alcanza |
 | Redis | Caché con prefijo `t{tenant_id}:` (`TenantContext`); la caché de resolución de tenant va bajo el prefijo base (`TenantResolutionCache`) | Sesiones en base de datos (`SESSION_DRIVER=database`), colas en base de datos (`CLAUDE.md §1`) |
-| S3 | Prefijo `tenants/{public_id}/` (`ADR-076`). Quedan 16 llamadas directas al disco sin pasar por el contrato (`ADR-076 §3.2`) | **Sin verificar** que las 16 escriban siempre bajo el prefijo del centro |
+| S3 | Prefijo `tenants/{public_id}/` (`ADR-076`). Quedan **13 llamadas directas** al disco en 12 ficheros sin pasar por el contrato: `ADR-076 §3.2` contaba 16, y `S-1b` migró tres (issue #625). Inventario en `docs/modulos/REQ-CORE/almacen-objetos.md §5` (especificación de `S-2`, rama del PR #643, a `b7995bc`); recuento repetido el 2026-11-13 sobre `develop` (`786c94e`): 13 llamadas en 12 ficheros | Las 13 componen bajo `tenants/<public_id>/`, pero cuatro escritoras toman el `public_id` de un argumento que puede llegar vacío (`almacen-objetos.md §10` y `§18`): riesgo `tenants//…` de `§5.6` |
 | Purga existente | `apps/web/scripts/lib/e2e-purge.sh`: superusuario del contenedor de desarrollo, `session_replication_role = replica`, borrado por catálogo | Solo desarrollo. No toca S3, Redis, colas ni sesiones |
 | Copias de seguridad | `REQ-BKP` no existe (`1.26`, `RUNBOOK.md §4`). Hay volcados manuales (`RUNBOOK.md`, actualización de PostgreSQL) | La purga llega al plan **antes** que las copias |
 
 ### 1.3 Por qué merece ADR
 
-Es la operación más destructiva del producto, decide qué rol de base de datos puede saltarse disparadores y claves foráneas, fija qué sobrevive a un centro y condiciona `REQ-BKP`, el proveedor S3 de producción (`ADR-083`, en curso) y el contrato de encargado.
+Es la operación más destructiva del producto, decide qué rol de base de datos puede saltarse disparadores y claves foráneas, fija qué sobrevive a un centro y condiciona `REQ-BKP`, el proveedor S3 de producción (`ADR-083`, en `PROPUESTA`) y el contrato de encargado.
 
 ---
 
@@ -48,7 +48,7 @@ Es la operación más destructiva del producto, decide qué rol de base de datos
 
 1. **El derecho de supresión de un interesado** (art. 17 RGPD, `REQ-PRIV-003`): se ejerce dentro del centro, por anonimización (`ADR-004` nivel 2). Aquí se trata el fin del servicio a un centro entero.
 2. **El catálogo de retención por entidad** de `REQ-PRIV-006` ni los tres mínimos de `ADR-035 §10` (purga de `audit_logs` por plazo, anonimización de `people`, registro de supresiones individuales). El texto de `1.23b` los incluye; la purga de tenant **no los necesita**, porque su regla es uniforme (ver `OPEN-PURGA-08`).
-3. **La exportación de salida** (`REQ-OPS-004`, `REQ-BKP-002`): no existe. Este ADR la exige como condición previa y no la diseña.
+3. **La exportación de salida** (`REQ-OPS-004`, `REQ-BKP-002`): no existe. Este ADR la exige como condición previa y no la diseña. Sí le impone su contenido mínimo conocido: cuando exista el cobro de `ADR-081`, la exportación incluye cobros, movimientos, mandatos con su documento, ficheros de remesa, devoluciones y conciliaciones en formato legible, porque son lo que el centro está obligado a conservar (`ADR-081 §10.4` punto 5, aceptado el 2026-11-13).
 4. **La retención de `admin_action_logs`** (`OPEN-BO-06`, abierta) ni la política de retención de copias de `REQ-BKP`: se les imponen condiciones (`§5.9`, `§5.10`), no valores.
 5. **El proveedor S3 de producción** (`OPEN-STO-01`, `ADR-083`): se le imponen requisitos (`§5.6`).
 6. **Recursos de terceros** (pasarela de pago, correo, SSO externo): hoy ningún módulo guarda datos del centro fuera de PostgreSQL, Redis y S3. `§5.3` fija la regla para cuando ocurra.
@@ -61,7 +61,7 @@ No soy asesor jurídico: lo que sigue ordena las fuentes para que **legal decida
 
 | Norma | Qué dice (resumen; el literal solo donde se indica) | Efecto en el diseño |
 |---|---|---|
-| RGPD art. 28.3.g | El encargado, «a elección del responsable», suprime o devuelve todos los datos al terminar la prestación y suprime las copias existentes, salvo que el Derecho exija conservarlos. En esta redacción: literal parcial leído en gdpr-info.eu (reproducción no oficial). **Fila N-03 de `docs/cumplimiento/matriz-normas.md`** (rama de `ADR-083`): art. 28.3 a)-h) **«Verificada»** en el texto español de la Oficina de Publicaciones de la UE, consulta del 2026-11-12, con lectura jurídica pendiente de validación ([PVJ], `OPEN-STO-12`) | **Es la base de la purga de tenant.** La plataforma es encargado; el centro, responsable. No hay plazo legal cerrado: lo fija el contrato de encargado |
+| RGPD art. 28.3.g | El encargado, «a elección del responsable», suprime o devuelve todos los datos al terminar la prestación y suprime las copias existentes, salvo que el Derecho exija conservarlos. En esta redacción: literal parcial leído en gdpr-info.eu (reproducción no oficial). **Fila N-03 de `docs/cumplimiento/matriz-normas.md`** (rama de `ADR-083`: el fichero no existe en `develop` y **este ADR se mezcla con `ADR-083`, PR #642**, o después): art. 28.3 a)-h) **«Verificada»** en el texto español de la Oficina de Publicaciones de la UE, consulta del 2026-11-12, con lectura jurídica pendiente de validación ([PVJ], `OPEN-STO-12`) | **Es la base de la purga de tenant.** La plataforma es encargado; el centro, responsable. No hay plazo legal cerrado: lo fija el contrato de encargado |
 | LOPDGDD art. 33.3 | El responsable decide si los datos se destruyen, se devuelven o se entregan a otro encargado. «No procederá la destrucción de los datos cuando exista una previsión legal que obligue a su conservación»: se devuelven al responsable, que garantiza la conservación (BOE, texto consolidado) | **La devolución va antes que la destrucción.** El expediente académico y la contabilidad los conserva el centro, no la plataforma. Purga condicionada a devolución acreditada (`§5.2`) |
 | LOPDGDD art. 33.4 | El encargado «podrá conservar, debidamente bloqueados, los datos en tanto pudieran derivarse responsabilidades» de su relación con el responsable (BOE) | Ampara el periodo de gracia y el estado `eliminado` como bloqueo, y la conservación de la auditoría de plataforma. No ampara conservar sin plazo |
 | LOPDGDD art. 32 | Bloqueo: datos reservados, sin tratamiento salvo puesta a disposición de jueces, fiscalía y autoridades durante la prescripción; después, destrucción (BOE, apartados 1 a 4 leídos; el 5, incompleto) | Obligación del responsable. Se cita por la definición de bloqueo |
@@ -176,7 +176,7 @@ El quinto cerrojo es consecuencia de `§5.5`, no un adorno: las credenciales del
 | Almacén | Regla de descubrimiento | Garantía de que no se escapa nada |
 |---|---|---|
 | PostgreSQL, tablas de tenant | Toda tabla de `public` con columna `tenant_id` (tablas ordinarias y raíces particionadas), leída de `pg_catalog` en cada ejecución. **Incluye las nueve de solo anexar** (`audit_logs`, `login_attempts`, `mfa_resets`, etc.) | Test de esquema #8 de `ADR-033 §10`: no existe tabla sin `tenant_id` que no esté registrada |
-| S3 | Todo objeto, versión, marcador de borrado y subida multiparte incompleta bajo `tenants/{public_id}/` | `ADR-076 §3.3` regla 6 (prohibido `Storage` fuera del almacén). **Condición**: las 16 llamadas directas de `ADR-076 §3.2` migradas o comprobadas (`OPEN-PURGA-05`) |
+| S3 | Todo objeto, versión, marcador de borrado y subida multiparte incompleta bajo `tenants/{public_id}/` | `ADR-076 §3.3` regla 6 (prohibido `Storage` fuera del almacén). **Condición**: las 13 llamadas directas (`almacen-objetos.md §5`) migradas al contrato por `S-2`, y comprobado que no hay objetos bajo `tenants//` (`§5.6`, `OPEN-PURGA-05`) |
 | Redis | Toda clave `<prefijo base>t{tenant_id}:*` y la entrada del centro en la caché de resolución | `ADR-033 §9` |
 | Lo que no sigue la convención | **Registro explícito** `purge` en `config/tenancy.php` (tabla siguiente) | Test nuevo (`§9`, T3): toda tabla sin `tenant_id` que tenga clave foránea a `tenants` o a una tabla de tenant debe figurar en el registro |
 
@@ -199,6 +199,16 @@ Registro inicial de tablas sin `tenant_id`:
 Las tres filas de proveedores de pago y correo vienen de los hallazgos `C2-05` y `C2-06` de la revisión de la ola 1 (2026-11-13); `ADR-079` y `ADR-081` están en `PROPUESTA` y la forma final de esas tablas la fija su especificación. **Regla para la cuenta conectada**: en las llamadas salientes al proveedor de pago, la cuenta conectada del centro se obtiene **solo** del `TenantContext` activo (configuración del centro en curso), **nunca** de un dato de la petición. En las entrantes, el centro se resuelve por el dato autenticado por la firma (`ADR-081 §7.4` regla 1).
 
 **Regla para módulos futuros**: un módulo que guarde datos de un centro fuera de estas convenciones (servicio de terceros, otra base, otro *bucket*) no se aprueba sin declarar en su especificación cómo se purgan. Solo entonces se crea un contrato `PurgesExternalTenantData` en `REQ-CORE` (`ADR-048 §4.9`). No se construye ahora. Primer candidato conocido: el módulo `doc` de `ADR-082` (copias del prestador de firma, `ADR-082 §4.5`), y el adaptador de pago de `ADR-081 §10.4`; los dos en `PROPUESTA`.
+
+**Recursos de terceros ya previstos** (peticiones de `ADR-079 §6.4`/`§10` y de `ADR-081 §10.4` punto 5/`§15`, aceptadas en la corrección de coherencia de la ola 1, 2026-11-13; los dos ADR en `PROPUESTA`):
+
+| Tercero | Qué conserva del centro | Tratamiento en la purga |
+|---|---|---|
+| Proveedor de correo (`ADR-079`) | Registros de envío y lista de supresión con direcciones de personas del centro | Antes de la fase 9, petición de borrado al proveedor por su API o, si no la ofrece, caducidad documentada en su contrato. El certificado (`§5.11`) dice cuál de las dos y la fecha |
+| Servicios de *push* (`ADR-079`) | Puntos de entrega de los dispositivos | Sus suscripciones viven en una tabla con `tenant_id` (`ADR-079 §4.4` punto 4) y las barre la fase 6; lo que el servicio de *push* conserve tras dejar de recibir envíos caduca por su cuenta, y el certificado lo nombra como residuo |
+| Proveedor de pago (`ADR-081`) | Cuenta conectada o credenciales del centro, rutas de notificación, intentos vivos y lo que el proveedor guarde por sus propias obligaciones legales | Antes de la fase 5: desconectar la cuenta o invalidar las credenciales, retirar las rutas de notificación y cancelar los intentos vivos; después, borrar la fila de la correspondencia (tabla de arriba). Lo que el proveedor conserve por obligación legal propia no lo controla la plataforma: el certificado lo declara como excepción |
+
+Cada uno entra por el contrato `PurgesExternalTenantData` cuando su módulo se especifique; hasta entonces es un requisito que esa especificación debe cubrir, no código.
 
 **Límite del criterio de colas**: un trabajo despachado **sin** contexto de tenant lleva `tenant_id = null` en el *payload* aunque su constructor reciba un centro (p. ej. `PurgeUnlockTokens(int $tenantId)` en `Auth`). Esos trabajos no los alcanza el criterio de igualdad. Si existen trabajos así despachados fuera de contexto **no está verificado**: la especificación lo comprueba y, si los hay, o los despacha dentro del contexto del centro o se decide su tratamiento (`§12`).
 
@@ -241,6 +251,7 @@ Entre fases el centro está en `eliminado` y responde `503`: un estado intermedi
 - El prefijo lo compone la implementación a partir del `public_id` de la lápida; el motor no recibe ni construye rutas.
 - **Requisitos para el proveedor de producción** (`ADR-083`, `OPEN-STO-01`): listado y borrado de versiones y de marcadores, o caducidad de versiones no vigentes con plazo acotado; listado y aborto de subidas multiparte por prefijo; si hay retención WORM en el *bucket* de datos, su plazo no puede superar el tope de `§5.10`. `ADR-083 §6` los recoge como peticiones por escrito `P-15` (borrado de versiones y marcadores y aborto de multiparte por prefijo) y `P-16` (retención de Object Lock configurable por debajo del tope de `§5.10`).
 - **Garage** (desarrollo, CI, E2E) no tiene versiones ni bloqueo de objetos según su documentación (sin verificar, `ADR-076 §10`): el camino con versiones **solo se prueba en staging**.
+- **Riesgo `tenants//`** (`almacen-objetos.md §10` y `§18`, `OPEN-CORE-76`): cuatro trabajos escritores (`GenerateUserExport`, `GenerateAuditLogExport`, `GenerateImageConsentsExport` y `ValidateUserImport`) componen la clave con un `public_id` recibido como argumento y no rechazan la cadena vacía; con ella escribirían en `tenants//…`, fuera del prefijo de todo centro. La fase 4 lista `tenants/{public_id}/` y la verificación de `§5.7` el mismo prefijo: **un objeto así no lo vería ninguna de las dos**. `S-2` lo hace imposible para lo nuevo; para lo ya escrito, antes de la primera purga con datos reales se comprueba cada *bucket* en busca de objetos fuera de `tenants/<public_id de un centro existente>/` (`OPEN-CORE-76`, recomendada A) y, si aparecen, se tratan a mano y constan en el certificado.
 - Las copias por centro de `REQ-BKP-002`, cuando existan, deben vivir bajo el prefijo del centro o en una tabla con `tenant_id`, para que esta fase las destruya sin conocerlas (`§5.10`).
 
 ### 5.7 Verificación de borrado
@@ -267,7 +278,7 @@ El resultado (cifras por almacén, antes y después) se guarda en `tenant_purges
 | Copias de seguridad | Donde `REQ-BKP` las tenga | No se pueden reescribir | Tope de `§5.10` |
 | Datos de facturación y contrato con el centro | Fuera del tenant (`REQ-SAAS`, no existe) | La plataforma es responsable de esos datos, no encargado | No es de este ADR |
 
-**Auditoría del centro (`audit_logs`)**: **se purga con el resto** (`OPEN-PURGA-02`, decidida el 2026-11-12; `C1-02`, decidida el 2026-11-13). Es el registro de rendición de cuentas del responsable; se le devuelve en la exportación y se destruye. **Nueva lectura de `REQ-CORE-005`**: la retención mínima de dos años rige mientras dura el servicio, no después de la purga del centro. Esto sustituye en parte a `ADR-035` (cabecera) y es un cambio decidido **pendiente de validación jurídica** (`OPEN-STO-12`); se propone anotarlo en el historial de `REQUISITOS` (`§11`). Es la decisión con más carga jurídica del documento.
+**Auditoría del centro (`audit_logs`)**: **se purga con el resto** (`OPEN-PURGA-02`, decidida el 2026-11-12; `C1-02`, decidida el 2026-11-13). Es el registro de rendición de cuentas del responsable; se le devuelve en la exportación y se destruye. **Nueva lectura de `REQ-CORE-005`**: la retención mínima de dos años rige mientras dura el servicio, no después de la purga del centro. Esto sustituye en parte a `ADR-035` (cabecera) y es un cambio decidido **pendiente de validación jurídica** (`OPEN-STO-12`); se propone anotarlo **en el propio `REQ-CORE-005`**, marcado «pendiente de validación jurídica», y en el historial de `REQUISITOS` (`§11`). Es la decisión con más carga jurídica del documento.
 
 **Comprobación pendiente antes de aceptar que `admin_action_logs` sobrevive**: que sus columnas `changes`, `reason` y `context` no contengan datos personales de personas del centro (por ejemplo, el correo del primer administrador en el alta). No verificado aquí. Si los contienen, hace falta decidir su redacción con `OPEN-BO-06`.
 
@@ -295,7 +306,7 @@ Una restauración a un punto anterior a la purga devuelve los datos del centro *
 
 `REQ-OPS-004` lo exige. Contenido: centro, fechas de baja, eliminación y purga; quién solicitó y quién aprobó (rol, no más datos de los necesarios); referencia de la devolución; cifras por almacén antes y después; resultado de la verificación; **qué sobrevive y hasta cuándo** (auditoría de plataforma, copias y su fecha de caducidad, residuo físico). No promete un borrado que no se ha hecho.
 
-Es un documento generado y un texto legal: cuatro idiomas (`INV-009`), sin traducción automática (`CLAUDE.md §2`, punto 9). Su formato depende del motor de PDF (`ADR-078`, en curso); mientras no exista, el certificado es el registro de `tenant_purges` exportado. El texto lo valida legal (`OPEN-PURGA-09`).
+Es un documento generado y un texto legal: cuatro idiomas (`INV-009`), sin traducción automática (`CLAUDE.md §2`, punto 9). Su formato depende del motor de PDF (`ADR-078`, en `PROPUESTA`); mientras no exista, el certificado es el registro de `tenant_purges` exportado. El texto lo valida legal (`OPEN-PURGA-09`).
 
 ### 5.12 Reparto entre módulos (`INV-007`)
 
@@ -432,7 +443,7 @@ Todos referencian `REQ-PRIV-006` y este ADR (`INV-015`).
 |---|---|---|---|---|
 | `OPEN-PURGA-01` | Plazo máximo entre eliminación y purga | **30 días**, constante en `config/backoffice.php` sin `env()` (mismo criterio que los 90 días) | Va al contrato de encargado y a `PRIVACY.md` | Legal |
 | `OPEN-PURGA-03` | Tope de retención de copias con datos personales, ubicación y protección del libro externo; confirmación de que la AEPD admite la caducidad en copias | **Tope de 90 días** para toda copia de plataforma, incluida la inmutable; libro en el almacén de copias, fuera del *host*. Ambas cifras son propuesta sin respaldo en requisitos | Condiciona `REQ-BKP-001` («anuales») y el texto del certificado | Legal y usuario, al especificar `REQ-BKP` |
-| `OPEN-PURGA-05` | ¿Escriben siempre bajo `tenants/{public_id}/` las 16 llamadas directas al disco de `ADR-076 §3.2`? | **Comprobarlo con `explorer` antes de especificar**; si alguna no, migrarla antes que la purga | Un objeto fuera del prefijo sobrevive a la purga sin que la verificación lo vea | Técnico |
+| `OPEN-PURGA-05` | ¿Escriben siempre bajo `tenants/{public_id}/` las llamadas directas al disco (16 en `ADR-076 §3.2`, **13 desde `S-1b`**)? | **Respondida en el código por `almacen-objetos.md §5` y `§10`**: las 13 componen bajo el prefijo, salvo el riesgo `tenants//` de cuatro escritoras (`§5.6`). Queda: `S-2` antes que la purga y la comprobación de *buckets* de `OPEN-CORE-76` | Un objeto fuera del prefijo sobrevive a la purga sin que la verificación lo vea | Técnico |
 | `OPEN-PURGA-09` | Texto del certificado de destrucción, de la declaración de conservación del responsable (`§5.2`, cerrojo 3) y cláusula del contrato de encargado (devolución, gracia, plazo, copias) | Redacción por legal en es-ES; traducción humana a en, de, fr | Sin texto validado no se entrega certificado a un centro real | Legal |
 | `OPEN-PURGA-12` | ¿Contienen `admin_action_logs` o `tenant_lifecycle_events` datos personales de personas del centro? | **Auditar las columnas `changes`, `reason` y `context`** al especificar; si los hay, decidir con `OPEN-BO-06` | Lo que «sobrevive» podría incluir datos que debían destruirse | Técnico, luego legal |
 
@@ -455,7 +466,8 @@ No se ha tocado ninguno. Los aplica la sesión orquestadora al integrar.
 | Fichero | Cambio propuesto |
 |---|---|
 | `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md §18` | Fila nueva: `ADR-077` · Purga física de un tenant (**sustituye en parte** a `ADR-004` nivel 3 y a `ADR-035` en el caso de la purga de un tenant completo; entrada de `1.23b`; issue #371). **Estado: `PROPUESTA`**. Al aceptar: nota «sustituido en parte por `ADR-077`» junto a `ADR-004` y en la fila de `ADR-035` (el texto de un ADR no se reescribe) |
-| `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md`, historial de versiones | Entrada: «`REQ-CORE-005`: la retención mínima de dos años de los registros de auditoría rige mientras dura el servicio al centro; en la purga física de un tenant (`ADR-077`), `audit_logs` del centro se devuelve al responsable y se destruye. **Cambio decidido por el usuario el 2026-11-13, pendiente de validación jurídica** (`OPEN-STO-12`)». No se cambia el texto del requisito hasta esa validación |
+| `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md`, `REQ-CORE-005` | En el propio requisito, tras «Retención mínima de 2 años, configurable por compliance», una nota marcada **«pendiente de validación jurídica (`OPEN-STO-12`)»**: «La retención mínima rige mientras dura el servicio al centro. En la purga física de un tenant (`ADR-077`), `audit_logs` del centro se devuelve al responsable y se destruye». El texto original del requisito no se borra hasta esa validación; la nota se quita o se consolida cuando legal la confirme o la rechace |
+| `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md`, historial de versiones | Entrada: «`REQ-CORE-005`: la retención mínima de dos años de los registros de auditoría rige mientras dura el servicio al centro; en la purga física de un tenant (`ADR-077`), `audit_logs` del centro se devuelve al responsable y se destruye. **Cambio decidido por el usuario el 2026-11-13, pendiente de validación jurídica** (`OPEN-STO-12`); anotado en el propio requisito». No se reescribe el texto del requisito hasta esa validación |
 | `PLAN-IMPLEMENTACION.md` | `1.23b`: enlazar este ADR; corregir «31 tablas, 85 claves foráneas» por «66 y 261, a 2026-11-12»; partir en `1.23b-a/b/c` (`§7`); separar el catálogo de retención según `OPEN-PURGA-08`; anotar la dependencia de `REQ-OPS-004` (`OPEN-PURGA-04`). `1.26` (`REQ-BKP`): añadir las cinco condiciones de `§5.10`. Nota «No olvidar» de la línea 276: misma corrección de cifras |
 | `memory.md` | Decisiones pendientes del usuario: `OPEN-PURGA-02`, `-04`, `-11` |
 | `ARCHITECTURE.md` | Tras aceptar: apartado del ciclo de vida del tenant con la fase de purga y qué sobrevive |
@@ -471,6 +483,8 @@ No se ha tocado ninguno. Los aplica la sesión orquestadora al integrar.
 - `docs/modulos/REQ-BO/` (`funcional.md §5.5.3`, `datos.md`, `api.md`, `permisos.md`, `operacion.md`): necesitará la acción `tenant.purgar`, `tenant_purges` y la alarma. Es trabajo de `spec-writer`.
 - `ADR-083`: los requisitos de `§5.6` quedan recogidos como `P-15` y `P-16` de su `§6` (lote 3 de correcciones, 2026-11-13).
 - `ADR-079 §4.9` y `ADR-081 §7.4` (en `PROPUESTA`): las tablas de plataforma que registra `§5.3` deben declarar su categoría en `config/tenancy.php` cuando se especifiquen.
+- `ADR-079 §10` y `ADR-081 §15` pedían a este ADR los recursos de terceros y el contenido de la exportación: recogidos en `§5.3` y `§2.3` (2026-11-13).
+- `docs/modulos/REQ-CORE/almacen-objetos.md` (rama del PR #643): su `§17` pide esta misma corrección de cifras, ya aplicada en `§1.2`, `§5.3` y `OPEN-PURGA-05`.
 
 ---
 
@@ -488,7 +502,7 @@ No se ha tocado ninguno. Los aplica la sesión orquestadora al integrar.
 | AWS, `DeleteObjects`: https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteObjects.html | Hasta 1.000 claves por petición, resultado por clave, marcadores de borrado con versiones. Es la referencia de la API S3, no un proveedor elegido |
 | BOE, Ley Orgánica 3/2018, texto consolidado: https://www.boe.es/buscar/act.php?id=BOE-A-2018-16673 | Arts. 32 (apartados 1 a 4) y 33 |
 | RGPD art. 28: https://gdpr-info.eu/art-28-gdpr/ (reproducción no oficial, en inglés) | Art. 28.3.g |
-| `docs/cumplimiento/matriz-normas.md`, fila N-03 (rama de `ADR-083`; consulta del agente A7 del 2026-11-12 al texto español de la Oficina de Publicaciones de la UE, CELEX `32016R0679`) | Art. 28.3 a)-h) en estado «Verificada»; lectura jurídica [PVJ]. Citado en el lote 3 de correcciones (2026-11-13); no releído en esta corrección |
+| `docs/cumplimiento/matriz-normas.md`, fila N-03 (rama de `ADR-083`, PR #642: dependencia de mezcla, no existe en `develop`; consulta del agente A7 del 2026-11-12 al texto español de la Oficina de Publicaciones de la UE, CELEX `32016R0679`) | Art. 28.3 a)-h) en estado «Verificada»; lectura jurídica [PVJ]. Citado en el lote 3 de correcciones (2026-11-13); no releído en esta corrección |
 | Código del repositorio, consultado el 2026-11-13 sobre `develop` (`786c94e`): `app/Providers/TenancyServiceProvider.php`, `config/queue.php`, migración `2026_09_15_100200_create_platform_idempotency_keys_table.php`, `RequirePlatformIdempotencyKey.php`, `Backoffice/Http/routes.php` | Criterio de `jobs`/`failed_jobs` y de `platform_idempotency_keys` (`§5.3`) |
 | `ADR-079 §4.9` y `ADR-081 §7.4`, `§10.4`, en sus ramas (`PROPUESTA`), leídos el 2026-11-13 | Tablas de proveedores del registro de `§5.3` |
 | Búsquedas sobre copias y supresión (ICO, CNIL) | `§3`, solo como orientación |
@@ -501,7 +515,7 @@ No se ha tocado ninguno. Los aplica la sesión orquestadora al integrar.
 4. Documentación de Redis sobre `SCAN`: la página se descargó pero no se leyó entera; el uso de `SCAN` con `MATCH` y `UNLINK` es práctica conocida, a confirmar en la especificación.
 5. Que Garage carezca de versiones y bloqueo de objetos (heredado de `ADR-076 §10`).
 6. Formato real de las claves de limitación de tasa en Redis y que caigan bajo el prefijo `t{tenant_id}:`.
-7. Que las 16 llamadas directas al disco escriban bajo el prefijo del centro (`OPEN-PURGA-05`).
+7. Que no existan ya objetos bajo `tenants//` en ningún *bucket* (`OPEN-CORE-76`). El código de las 13 llamadas directas está inventariado en `almacen-objetos.md §5` (rama del PR #643); este ADR no lo ha releído llamada a llamada, solo ha repetido el recuento.
 8. Que un trabajo en cola o una tarea programada no puedan entrar en un tenant `eliminado` (`§5.4`).
 9. Que la revocación de sesiones de la eliminación borre las filas de `sessions`.
 10. Contenido de `admin_action_logs` respecto a datos personales del centro (`OPEN-PURGA-12`).
