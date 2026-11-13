@@ -1,10 +1,13 @@
 {
   // Worker de solo activos estáticos (ADR-072 §4.7). Sin `main`: no hay código de Worker.
-  // Sin `routes` ni dominios personalizados: el DNS de adagiox.com aún no existe (OPEN-072-04).
+  // Dominio canónico (ADR-072 §4.3): solo el ápice, sin `www`. Cloudflare crea el registro DNS
+  // del ápice y el certificado al desplegar. `www` y los demás dominios se redirigen con reglas
+  // de redirección de la zona (no están en este fichero).
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "adagiox-landing",
   "compatibility_date": "2026-11-09",
   "workers_dev": true,
+  "routes": [{ "pattern": "adagiox.com", "custom_domain": true }],
   // Sin Workers Logs: la landing no registra peticiones propias (privacidad, ADR-073).
   "observability": { "enabled": false },
   "assets": {
