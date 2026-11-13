@@ -80,7 +80,7 @@ Modelo de integración, proveedores candidatos, remesa `pain.008` y mandatos, de
 - **`REQ-SHOP-002`** «pago a plazos» y cupones; **`REQ-FIN-002`** factura electrónica; **`REQ-FIN-006`** contabilidad (este ADR solo fija qué eventos de cobro debe poder asentar).
 - **Motor de descuentos y becas** (`REQ-BEC`): el cobro recibe un importe ya calculado. La única regla que `REQ-BEC` hereda de aquí está en `§9.4`.
 - **Bizum**: no aparece en los requisitos. No se especifica (`CLAUDE.md §11`). Se anota en `OPEN-PAY-05` porque condiciona la elección de proveedor.
-- **Texto legal del mandato y de la cláusula de preaviso**: redacción legal, no se escribe aquí ni se traduce automáticamente (`CLAUDE.md §2`, punto 9).
+- **Texto legal del mandato y de la cláusula de preaviso**: redacción legal, no se escribe aquí. **Traducción humana, sin automática** (`CLAUDE.md §2`, punto 9): la asesoría lo redacta en es-ES y una persona lo traduce a en, de y fr; ni la sesión ni `traductor` lo traducen (`OPEN-PAY-06`).
 
 ---
 
@@ -387,7 +387,7 @@ Tres orígenes, un solo tratamiento: adeudo **devuelto** (`§4.4`), pago con tar
 
 ### 9.3 Reglas
 
-1. **Recordatorios** (`REQ-FIN-005`): calendario configurable por centro (antes del vencimiento, al vencer, después). Los envía el canal de `ADR-079`; este ADR solo emite el evento. Son comunicaciones transaccionales al **pagador**, no al alumno, en el idioma del destinatario (`INV-009`); sus plantillas son texto del centro o de la plataforma, no texto legal, salvo las que anuncien consecuencias contractuales.
+1. **Recordatorios** (`REQ-FIN-005`): calendario configurable por centro (antes del vencimiento, al vencer, después). Los envía el canal de `ADR-079`; este ADR solo emite el evento. Son comunicaciones transaccionales al **pagador**, no al alumno, en el idioma del destinatario (`INV-009`); sus plantillas son texto del centro o de la plataforma, no texto legal, salvo las que anuncien consecuencias contractuales o cumplan una obligación legal (preaviso de cargo, aviso de devolución): esas son texto legal, con **traducción humana, sin automática**, igual que el mandato (`OPEN-PAY-06`).
 2. **Reintento de un adeudo devuelto**: solo por falta de saldo, con un máximo configurable, **incluyéndolo en una remesa posterior** (nunca un fichero automático sin que nadie lo presente). Un adeudo devuelto por mandato inválido, revocado o por rechazo del deudor **no se reintenta**: requiere intervención.
 3. **Escalado**: niveles configurables (aviso a administración, a dirección). Cada cambio de nivel queda registrado.
 4. **Ninguna suspensión automática de un servicio a un menor.** Para transporte es requisito (`REQ-TRAN-009`). **Propuesta**: que sea regla de plataforma para todos los servicios (comedor, aula matinal, extraescolares): el sistema **avisa**, la decisión la toma una persona del centro con permiso y queda registrada con motivo. `OPEN-PAY-14`.
@@ -541,7 +541,7 @@ Todas llevan recomendación. «Bloquea» se refiere a especificar o implementar 
 | ID | Pregunta | Recomendación | Impacto | Decide |
 |---|---|---|---|---|
 | `OPEN-PAY-04` | ¿Qué documentación PCI DSS entrega la plataforma a los centros para su SAQ A, y la exige algún adquirente? | Redactar una nota de integración («la plataforma no almacena, procesa ni transmite datos de tarjeta; integración por redirección») y validarla con el adquirente del centro piloto | Si un adquirente exige una declaración formal de proveedor de servicios, es trabajo de cumplimiento añadido | Usuario, con asesoría de cumplimiento |
-| `OPEN-PAY-06` | ¿Con qué nivel se firma un mandato nuevo en línea, y cuál es el texto del mandato y el plazo de preaviso pactado? | **Papel escaneado siempre disponible; N2 de `ADR-082` para los nuevos en línea; texto y preaviso redactados por asesoría** | Con N1 como única prueba, menor coste y prueba más débil durante 13 meses. Sin texto validado no se recogen mandatos nuevos (los migrados sí operan) | Usuario y asesoría jurídica |
+| `OPEN-PAY-06` | ¿Con qué nivel se firma un mandato nuevo en línea, y cuál es el texto del mandato y el plazo de preaviso pactado? | **Papel escaneado siempre disponible; N2 de `ADR-082` para los nuevos en línea; texto y preaviso redactados por asesoría en es-ES y traducidos por una persona a en, de y fr (sin traducción automática)** | Con N1 como única prueba, menor coste y prueba más débil durante 13 meses. Sin texto validado no se recogen mandatos nuevos (los migrados sí operan) | Usuario y asesoría jurídica |
 | `OPEN-PAY-16` | Papel de cada proveedor de pago (encargado o responsable), contrato, ubicación de datos y transferencias | Resolverlo en el expediente de cumplimiento (`ADR-083`, `OPEN-STO-04` en adelante) antes de activar un proveedor | Sin ello no se activa con datos reales | Usuario y asesoría jurídica |
 | `OPEN-PAY-17` | Plazos de conservación de cobros, remesas y mandatos, y su bloqueo ante una supresión | Fijarlos en el catálogo de `REQ-PRIV-006` con la asesoría; hasta entonces, no se borra nada | Afecta a `REQ-PRIV`, no al modelo | Asesoría jurídica |
 
