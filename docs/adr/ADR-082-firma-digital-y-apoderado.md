@@ -61,7 +61,7 @@ Un centro de 1.200 alumnos emite del orden de decenas de miles de aceptaciones a
 | Ley 6/2020, art. 3 | Los documentos electrónicos privados tienen el valor que corresponda a su naturaleza; su prueba se rige por el art. 326.3 LEC si el servicio de confianza no es cualificado y por el 326.4 si lo es (presunción a favor del servicio cualificado). | BOE, texto consolidado (última actualización 2023-05-09), consultado 2026-11-12 |
 | Ley 6/2020, art. 7.4 | En certificados de sello y de firma con atributo de representante, el prestador comprueba la personalidad jurídica y las facultades de representación. | Ídem |
 | Código Civil, art. 156 | Patria potestad conjunta; validez de los actos de uno solo conforme al uso social o en urgencia. De aquí sale la distinción «acto usual» / «acto que exige a ambos» de `§4.7`. | **Sin verificar**; la búsqueda no encontró criterio aplicable a salidas escolares |
-| LOPDGDD (LO 3/2018), art. 7 | Edad de consentimiento en protección de datos: 14 años. | Citada por `ADR-066 §5.6`; no reverificada |
+| LOPDGDD (LO 3/2018), art. 7 | Edad de consentimiento en protección de datos: 14 años. | **Fila N-09 de `docs/cumplimiento/matriz-normas.md`** (rama de `ADR-083`): «Verificada» en el BOE consolidado (`BOE-A-2018-16673`), consulta del agente A7 del 2026-11-12: el consentimiento del menor solo vale si es «mayor de catorce años». No releído en esta corrección (2026-11-13). Su aplicación a la firma por menores, pendiente de validación jurídica |
 | Reglamento (UE) 2024/1183 (eIDAS 2) | Cartera europea de identidad digital; fechas de disponibilidad (finales de 2026) y de aceptación por el sector privado (finales de 2027) **discrepan entre fuentes**. | **Sin verificar** |
 
 Consecuencia de trabajo: **el nivel de firma no determina la validez, determina quién carga con la prueba y cuánto cuesta sostenerla**. Una aceptación con buenas evidencias vale; lo que cambia con un servicio cualificado es la presunción. Por eso la frontera se pone por riesgo del documento, no por tipo de usuario. `ADR-012` afirma en su motivo que «la validez eIDAS exige sello de tiempo cualificado y evidencia custodiada por un tercero»: con el marco anterior esa frase es más estricta que la norma; se señala para la validación jurídica y no se corrige aquí.
@@ -104,7 +104,7 @@ Criterios de evaluación, los del proyecto: coste de implementación en solitari
 | Contrato o ficha de matrícula; inscripción en extraescolar con contrato | `REQ-ALUM-002`, `REQ-EXTRA-003` | Tutores legales y firmante del centro | N2 | Tiene contenido económico |
 | Mandato SEPA | (`ADR-081`) | Titular de la cuenta | Lo fija `ADR-081` | Se recomienda N2 |
 | Boletín e informe de desarrollo | `REQ-CALIF-002`, `REQ-INF-002` | Docente tutor (y dirección, en `REQ-INF-002`) | N1 | Es una validación interna previa a publicar, no un contrato |
-| Acta de evaluación interna | `REQ-CURSO-003`, `REQ-SEC-002` | Equipo docente | N1, varios firmantes | Las oficiales están en Raíces (`ADR-016`) |
+| Acta de evaluación interna | `REQ-CURSO-003` | Equipo docente | N1, varios firmantes | `REQ-CURSO-003` pide el «acta de evaluación final firmada digitalmente por el equipo docente». `REQ-SEC-002` define las actas internas por grupo y período pero **no pide firma**: extender la firma a esas actas es **propuesta** de este ADR. Las oficiales están en Raíces (`ADR-016`) |
 | Acta de órgano colegiado | `REQ-GOB-002` | Secretario y presidente | N1 | Elevable a N3 por el centro |
 | Certificado propio del centro | `REQ-SEC-001` | Firmante autorizado | N1 más código de verificación | `SELLO` si el centro lo contrata (`OPEN-FIRMA-12`) |
 | Informe psicopedagógico interno | `REQ-NEAE-002` | Orientador | N1 con reautenticación | Categoría especial; el oficial vive en Raíces |
@@ -146,7 +146,7 @@ Opciones: (a) la plataforma contrata una cuenta y el prestador es subencargado d
 
 #### 4.2.4 Criterios de selección (no se elige proveedor en este ADR)
 
-Obligatorios: figurar como prestador cualificado en la lista de confianza de la UE **para el servicio concreto que se use**; tratamiento y alojamiento en el EEE; contrato de encargado (`REQ-PRIV-005`); API con entorno de pruebas; PDF devuelto con firma PAdES de validación a largo plazo **que conserve la conformidad PDF/A del original** (`§4.6.1` punto 3); documento de evidencias descargable (portabilidad); interfaz del firmante en es, en, de y fr; firma de terceros sin cuenta; precio por firma sin compromiso mínimo desproporcionado. Valorables: sello electrónico remoto del centro; entrega certificada; aceptación de certificados cualificados y DNI electrónico para N3.
+Obligatorios: figurar como prestador cualificado en la lista de confianza de la UE **para el servicio concreto que se use**; tratamiento y alojamiento en el EEE; contrato de encargado (`REQ-PRIV-005`); API con entorno de pruebas; PDF devuelto con firma PAdES de validación a largo plazo **que conserve la conformidad PDF/A del original** (`§4.6.1` punto 3); documento de evidencias descargable (portabilidad); **borrado por API de los documentos, evidencias y copias de un proceso o de todos los de un centro, con confirmación verificable del borrado** (lo necesita la purga de tenant, `§4.5` y `ADR-077 §5.3`); interfaz del firmante en es, en, de y fr; firma de terceros sin cuenta; precio por firma sin compromiso mínimo desproporcionado. Valorables: sello electrónico remoto del centro; entrega certificada; aceptación de certificados cualificados y DNI electrónico para N3.
 
 Candidatos a pedir presupuesto (**sin verificar** ninguno contra los criterios): Signaturit (nombrado en `REQ-API-003`; según su web, en integración en el grupo Namirial, y su sello de tiempo lo presta un tercero), Docusign (nombrado en `REQ-API-003`), Viafirma, Lleida.net, Logalty. Los precios públicos encontrados son de terceros y contradictorios: no se anota ninguno.
 
@@ -196,7 +196,11 @@ Reautenticación en N1 (propuesta, `OPEN-FIRMA-06`): en el acto de firmar, el us
 
 **Recomendación: C.** Los objetos van por `PrivateObjectStore` con el prefijo del centro (`ADR-076`), sin acceso público, con URL firmada de caducidad corta tras comprobar permiso (`ADR-013`, `INV-002`).
 
-**Retención** (`REQ-PRIV-006`, `REQ-DOC-003`): la evidencia vive lo que viva el documento que firma, más el plazo de prescripción que fije la asesoría (`OPEN-FIRMA-08`). `ip_address` y `user_agent` son datos personales en una tabla sin `UPDATE`: su supresión sigue el procedimiento pendiente de `1.23b` (issue #371), el mismo problema ya abierto para `image_consent_decisions` (issue #480). No se inventa otro. La purga física de un centro (`ADR-077`, borrador) debe incluir evidencias, manifiestos y objetos, y pedir al prestador el borrado de sus copias.
+**Copias del prestador y purga de un centro** (`ADR-077 §5.3`, en `PROPUESTA`): las tablas de evidencias, revocaciones, manifiestos y procesos llevan `tenant_id` y los objetos viven bajo el prefijo del centro, así que la purga de `ADR-077` los alcanza por convención. Lo que el prestador guarda **fuera** de la plataforma no: por eso **`doc` implementará el contrato `PurgesExternalTenantData` de `ADR-077 §5.3`** para las copias del prestador (es el primer módulo que lo necesita). Su implementación pide al prestador, por API, el borrado de los documentos y evidencias de todos los procesos del centro y guarda la confirmación; sin confirmación, la purga no se da por completa. De ahí el criterio obligatorio de `§4.2.4`. Lo que el prestador deba conservar por obligación legal propia consta en el certificado de purga como excepción declarada.
+
+**Exportación de salida** (`REQ-OPS-004`, `REQ-BKP-002`; exigida por `ADR-077 §5.2`): incluye, del centro, las evidencias de firma, los PDF firmados y los documentos de evidencias del prestador (la copia local de la custodia C). Sin ellos, el centro no puede sostener sus firmas después de la purga.
+
+**Retención** (`REQ-PRIV-006`, `REQ-DOC-003`): la evidencia vive lo que viva el documento que firma, más el plazo de prescripción que fije la asesoría (`OPEN-FIRMA-08`). `ip_address` y `user_agent` son datos personales en una tabla sin `UPDATE`: su **supresión individual** (antes de que venza el plazo del documento) se remite al **paso propio del catálogo de retención** (`OPEN-PURGA-08` de `ADR-077`, que lo separa de `1.23b`, y los mínimos de `ADR-035 §10`), el mismo problema ya abierto para `image_consent_decisions` (issue #480). No se inventa otro. `1.23b` (issue #371) es solo la purga de un centro entero y no resuelve la supresión individual.
 
 ### 4.6 D6 · PDF firmado (PAdES)
 
@@ -339,13 +343,14 @@ No es un esquema: es lo que la especificación de `REQ-DOC`/`REQ-AUT` debe respe
 - **Solicitud y consulta de firmas** (entrada para consumidores): un módulo pide firmar un documento de un tipo que él mismo declaró y pregunta el estado vigente por lotes (una consulta para un grupo entero, no una por alumno). No recibe evidencias ni datos del firmante más allá de lo que su permiso permita.
 - **Firmantes autorizados**: «¿puede esta persona firmar este tipo de documento en nombre del centro ahora?». Respuesta sí o no; nunca el documento acreditativo.
 - **Desde `fam_unit`** (contrato que `fam_unit` debe publicar; hoy no existe): quiénes deciden por un alumno ahora, con la referencia al vínculo. Es la misma definición que usa `ADR-066 §5.4`, para que no haya dos.
+- **`PurgesExternalTenantData`** (hacia `REQ-CORE`, `ADR-077 §5.3`): `doc` lo implementa para las copias del prestador (`§4.5`).
 - **Eventos**: no se define ninguno. Se publicarán los que tengan consumidor cuando lo tengan (`ADR-048`).
 
 ## 6 · Invariantes y seguridad
 
 | Regla | Cómo se cumple |
 |---|---|
-| `INV-001` | Todas las tablas con `tenant_id` y política de aislamiento del proyecto; objetos bajo el prefijo del centro; el manifiesto diario y la recepción de notificaciones del prestador fijan el centro explícitamente (no hay petición con sesión). El identificador del proceso en el prestador no basta para localizar un centro: se resuelve por una tabla propia, nunca confiando en un dato del mensaje |
+| `INV-001` | Todas las tablas con `tenant_id` y política de aislamiento del proyecto; objetos bajo el prefijo del centro; el manifiesto diario y la recepción de notificaciones del prestador fijan el centro explícitamente (no hay petición con sesión). El identificador del proceso en el prestador no basta para localizar un centro y nunca se confía en un dato del mensaje sin verificar. **No se crea tabla de correspondencia sin `tenant_id`** (mismo criterio que `ADR-079 §4.9`): el identificador del proceso en el prestador es una columna, con índice único, de la tabla de procesos de `doc`, que lleva `tenant_id`. Tras verificar la firma de la notificación con el secreto de la plataforma (`§4.2.3`, una sola cuenta), el centro se resuelve con **una consulta de solo lectura por la conexión `pgsql_platform`** (`BYPASSRLS`) sobre esa columna, y el trabajo en cola fija el contexto del centro explícitamente. Si la especificación prefiriera una tabla de correspondencia, tendría que declararla como tabla compartida de categoría «Plataforma» en `config/tenancy.php` (`ADR-033 §7`, test de esquema #8 de `ADR-033 §10`) y en el registro de purga de `ADR-077 §5.3` |
 | `INV-002` | Permisos propios por acción (`firmar`, de `RPERM-003`; gestionar apoderamientos; registrar firma presencial; leer evidencias). Firmar exige permiso **y** calidad (`§4.7.1`, `§4.8`). Único acceso sin sesión: la verificación por código de `§4.6`, si se aprueba |
 | `INV-003` | `§4.10` |
 | `INV-004` | Evidencias, revocaciones y manifiestos son de solo anexar (más fuerte que el borrado lógico); apoderamientos y procesos, con borrado lógico |
@@ -398,8 +403,8 @@ No es un esquema: es lo que la especificación de `REQ-DOC`/`REQ-AUT` debe respe
 | `ADR-078` | `PdfRenderer`, perfil `archival`, objeto inmutable con huella | Si el nivel de PDF/A cambia, se repite la prueba de `§4.6.1` punto 3 |
 | `ADR-079` | Canal de envío de peticiones y recordatorios; entrega certificada | Sin él, las peticiones solo se ven en el portal |
 | `ADR-081` | Decide el nivel del mandato SEPA | Fila de `§4.1` |
-| `ADR-077` | Purga de evidencias, manifiestos, objetos y copias del prestador | `§4.5` |
-| `ADR-083` | Proveedor S3 de producción y expediente de cumplimiento, donde debe constar el prestador de firma | — |
+| `ADR-077` | Purga de evidencias, manifiestos y objetos por convención; contrato `PurgesExternalTenantData` para las copias del prestador | `§4.5`, `§5.3` |
+| `ADR-083` | Proveedor S3 de producción y expediente de cumplimiento. El expediente **excluye hoy eIDAS** (`docs/cumplimiento/matriz-normas.md §4`) y no tiene evidencia `EV-*` del prestador de firma; queda anotado como pendiente en esa misma sección (lote 3 de correcciones, 2026-11-13). Cuando se elija prestador (`OPEN-FIRMA-03`), se propone añadir su fila y sus evidencias (cualificación en la lista de confianza de la UE, contrato de encargado) | — |
 
 ## 8 · Alternativas descartadas
 
@@ -442,7 +447,7 @@ Ninguna se da por resuelta. «Decide» indica quién; todo lo marcado legal nece
 | `OPEN-FIRMA-09` | ¿Se admite el canal presencial (firma en papel registrada por el centro, con escaneo)? | **Sí**, con permiso propio | Sin él, los tipos `todos` se bloquean con familias sin medios digitales o con acceso revocado | Usuario |
 | `OPEN-FIRMA-10` | Alumnado de 14 años o más y mayor de edad: ¿quién firma? (es `OPEN-FAM-UNIT-18`) | No inventar regla; **resolver antes de datos reales** | Puede hacer no conforme toda firma de tutores sobre alumnado adulto | Legal |
 | `OPEN-FIRMA-16` | En autorizaciones de vigencia continuada, ¿deja de contar la firma de quien pierde la representación legal? | **Sí**, estado calculado como en `ADR-066 §5.4` | Define el cálculo de vigencia | Legal |
-| `OPEN-FIRMA-08` | Plazo de conservación de evidencias y de IP y agente de usuario | Ligado al documento más la prescripción que fije la asesoría; supresión según `1.23b` | Catálogo de retención (`REQ-PRIV-006`) | Legal |
+| `OPEN-FIRMA-08` | Plazo de conservación de evidencias y de IP y agente de usuario | Ligado al documento más la prescripción que fije la asesoría; supresión individual de IP y agente de usuario en el paso propio del catálogo de retención (`OPEN-PURGA-08` de `ADR-077`, `ADR-035 §10`), no en `1.23b` | Catálogo de retención (`REQ-PRIV-006`) | Legal |
 | `OPEN-FIRMA-13` | ¿Las asociaciones internas (#78) son entidad representada con firmantes propios? | **Aplazar** a la especificación de #78; ahora solo el centro | Si se decide después, es un cambio aditivo en apoderamientos | Usuario |
 
 ### 9.3 No bloquean
@@ -496,7 +501,8 @@ No se ha tocado ninguno. Los aplica la sesión orquestadora al integrar, y solo 
 
 ### 11.2 Sin verificar
 
-- El texto literal de los arts. 25 y 26 de eIDAS, del art. 326 LEC, del art. 156 del Código Civil y del art. 7 de la LOPDGDD. Todo `§3` es marco de trabajo, **pendiente de validación jurídica**.
+- El texto literal de los arts. 25 y 26 de eIDAS, del art. 326 LEC y del art. 156 del Código Civil. El art. 7 de la LOPDGDD figura como «Verificada» en la fila N-09 de la matriz de cumplimiento (2026-11-12); este ADR no lo ha releído. Todo `§3` es marco de trabajo, **pendiente de validación jurídica**.
+- Que el prestador que se elija ofrezca borrado por API con confirmación (`§4.2.4`) y que una consulta por `pgsql_platform` desde el receptor de notificaciones pase la revisión de `security-reviewer` (`§6`, `INV-001`).
 - Que alguno de los candidatos de `§4.2.4` cumpla los criterios: no se ha consultado la lista de confianza de la UE, ni condiciones, ni precios, ni idiomas de la interfaz del firmante.
 - Que una empresa privada no pueda integrarse con Cl@ve: no se ha encontrado fuente oficial que lo afirme o lo niegue.
 - Fechas de la cartera europea de identidad digital.
