@@ -36,19 +36,20 @@ No hay llamadas a servicios externos al despliegue: ni cortacircuitos ni tiempos
 Orden por entrega, con la pila parada solo lo que exige el procedimiento general de `SYSADMIN.md`:
 
 1. **Migraciones** (`php artisan migrate --database=pgsql_owner`), todas aditivas (*expand*) y en `apps/api/app/Modules/Inf/Database/migrations/`:
-   - `1.18-a`: `infant_cycle_levels`, `infant_groups`, `infant_ratio_rules`, `infant_ratio_exceptions` (solo anexar), `infant_ratio_records` (solo anexar), `infant_cycle_authorizations`.
+   - `1.18-a1`: `infant_cycle_levels`, `infant_groups`, `infant_ratio_rules`. Sin migraciones en `acad` ni en `alum` (los cambios de `funcional.md §7.5` son de código; el bloqueo por grupo recomendado, de aviso, no crea objetos de esquema).
+   - `1.18-a2`: `infant_ratio_exceptions` (solo anexar), `infant_ratio_records` (solo anexar), `infant_cycle_authorizations`.
    - `1.18-b`: `infant_daily_logs`, `infant_daily_log_entries`.
    - `1.18-c`: `infant_development_indicators`, `infant_development_reports`, `infant_development_report_ratings`, `infant_development_report_area_notes`; y `infant_cycle_levels.development_scale_id` (columna nula, *expand*).
    - `1.18-d`: `infant_adaptation_plans`, `infant_adaptation_plan_days`.
    - Las FK compuestas hacia `education_levels`, `groups`, `academic_periods`, `enrollments` y `people` exigen en el destino un único `(tenant_id, id)` o `(tenant_id, academic_year_id, id)`. **Sin verificar** que existan todos (`groups` y `enrollments` sí, por precedente de `REQ-ALUM/operacion.md §3`); si falta alguno, la migración de `inf` va precedida de un índice único `CONCURRENTLY` + `USING INDEX` en el módulo dueño, con su revisión de `db-reviewer`.
    - Ninguna toca una tabla existente salvo esos posibles índices.
-2. **`php artisan platform:sync-registry`**: añade el módulo `inf` (`depends_on ['curso','acad','alum','fam_unit']`, `OPEN-INF-02`) y sus permisos por entrega: 3 en `-a` (`ciclo_infantil.*`), 5 en `-b`, 6 en `-c`, 5 en `-d` (`permisos.md §2`). **Aborta** si `depends_on` cita un código inexistente: con la cabecera literal del documento (`ACAD, CALIF, ALUM, FIN, SALUD`) abortaría, porque `calif`, `fin` y `salud` no existen (`OPEN-INF-02`). Ningún permiso con `is_special_category = true` (`AR-09`).
+2. **`php artisan platform:sync-registry`**: añade el módulo `inf` (`depends_on ['curso','acad','alum','fam_unit']`, `OPEN-INF-02`) y sus permisos por entrega: 2 en `-a1` (`ciclo_infantil.leer`, `.actualizar`), 1 en `-a2` (`ciclo_infantil.aprobar`), 5 en `-b`, 6 en `-c`, 5 en `-d` (`permisos.md §2`). **Aborta** si `depends_on` cita un código inexistente: con la cabecera literal del documento (`ACAD, CALIF, ALUM, FIN, SALUD`) abortaría, porque `calif`, `fin` y `salud` no existen (`OPEN-INF-02`). Ningún permiso con `is_special_category = true` (`AR-09`).
 3. **`php artisan inf:grant-permissions`** para los centros existentes (siembra de `permisos.md §4`), idempotente; se ejecuta tras cada entrega que añade permisos. No concede nada si falta un permiso del catálogo (precedente `alum:grant-permissions`, #387).
 4. **Contratar `inf`** por centro desde el *backoffice* (`REQ-BO-002`); exige `curso`, `acad`, `alum` y `fam_unit` contratados.
 
 **Reversión** (`CLAUDE.md §9`; se prueba antes del PR): código anterior sin rutas de `inf`; las tablas nuevas pueden quedar (nadie las lee) y se retiran con `down()` en orden inverso solo si no hay datos que conservar. El veto de ratio de `alum` vuelve a no existir: la versión anterior matricula sin control, que es el comportamiento previo. Descontratar `inf` no borra nada (`RMOD-003`).
 
-**Compatibilidad entre versiones**: el registro de vetos de alta y cambio de grupo de `alum` (`OPEN-INF-06`) se despliega en `1.18-a`; una instancia de la versión anterior no lo consulta, así que durante el despliegue progresivo (si lo hubiera) una matrícula podría pasar sin veto. Con un único contenedor de API (situación actual) no aplica; se anota para cuando haya varias réplicas.
+**Compatibilidad entre versiones**: el registro de vetos de alta y cambio de grupo de `alum` (`OPEN-INF-06`) se despliega en `1.18-a1`; una instancia de la versión anterior no lo consulta, así que durante el despliegue progresivo (si lo hubiera) una matrícula podría pasar sin veto. Con un único contenedor de API (situación actual) no aplica; se anota para cuando haya varias réplicas.
 
 **Workers**: la tarea diaria es un *job* nuevo; un *worker* de la versión anterior no lo recibe porque solo lo encola el comando nuevo. Desplegar API y *workers* juntos.
 

@@ -72,9 +72,11 @@ Los indicadores no son por grupo: mantenerlos exige `informe_desarrollo.actualiz
 | (`grupo`, `agenda_infantil`) | `group_id IN TeachingMembership::groupIdsFor(u, academic_year_id)` sobre `DailyLog`; las anotaciones, por su parte |
 | (`grupo`, `informe_desarrollo`) | Ídem sobre `DevelopmentReport`; valoraciones y observaciones, por su informe |
 | (`grupo`, `adaptacion_infantil`) | Ídem sobre `AdaptationPlan`; días, por su plan |
-| (`unidad_familiar`, `agenda_infantil`) | `student_person_id IN` alumnos alcanzados por vínculos **activos** (`FamilyMembership`) **y** `status = 'publicado'` |
-| (`unidad_familiar`, `informe_desarrollo`) | Ídem **y** `status = 'publicado'` (nunca `sustituido`, ni borradores) |
-| (`unidad_familiar`, `adaptacion_infantil`) | Ídem **y** `status = 'publicado'` |
+| (`unidad_familiar`, `agenda_infantil`) | `student_person_id IN FamilyMembership::studentPersonIdsReachedBy(persona, 'salud')` (vínculos **activos** que no restringen la categoría `salud`) **y** `status = 'publicado'` |
+| (`unidad_familiar`, `informe_desarrollo`) | `student_person_id IN FamilyMembership::studentPersonIdsReachedBy(persona)` (vínculos **activos**, sin categoría) **y** `status = 'publicado'` (nunca `sustituido`, ni borradores) |
+| (`unidad_familiar`, `adaptacion_infantil`) | Como `agenda_infantil`: con la categoría `'salud'`, **y** `status = 'publicado'` |
+
+- **Categoría `salud` en el parte y la adaptación** (revisión C4-07; propuesta pendiente de `OPEN-INF-04`): el contenido de ambos roza la salud (`funcional.md` C3), así que el resolutor pide los alumnos con la categoría `'salud'`, que `fam_unit` ya admite y que excluye los vínculos que la restringen. Es la opción más restrictiva y reversible. Si el usuario decide que no aplica, se quita el argumento.
 
 - La condición de publicación forma parte del resolutor de familia: es regla de negocio, pero colocarla ahí evita que un *endpoint* la olvide [DERIVADA]. Se comprueba además en el servicio.
 - Sujeto sin asignación o sin vínculo: conjunto vacío. Sin caché entre peticiones. Unión entre ámbitos de roles distintos y `deny` ciego al ámbito (`ADR-044`, `RPERM-007`).

@@ -63,7 +63,8 @@ Reglas de nombre [DERIVADA]: código de módulo `inf`, prefijo de traducciones y
 
 | Entrega | Qué se entrega | Requisito |
 |---------|----------------|-----------|
-| `1.18-a` | Módulo `inf`; marca del primer ciclo y fecha de corte; tramo de cada grupo; reglas de ratio, veto de matrícula al superarla, excepción justificada y registro diario; autorización administrativa con vigencia. Solo API | `REQ-INF-001` |
+| `1.18-a1` | Módulo `inf`; marca del primer ciclo y fecha de corte; tramo de cada grupo; reglas de ratio y veto de matrícula al superarla, con el registro de vetos en `alum` y los cambios en `acad` de §7.5 (etapa en `StructureEntity`, `EducationLevelDirectory`, bloqueo por grupo). Solo API | `REQ-INF-001` |
+| `1.18-a2` | Excepción justificada de ratio (y su consumo en el veto), registro diario de ratio, autorización administrativa con vigencia. Solo API | `REQ-INF-001` |
 | `1.18-b` | Parte diario: alta, anotaciones, registro masivo por grupo con excepciones, publicación a la familia, lectura por la familia e histórico. Solo API | `REQ-INF-003` (sin fotos, sin conexión, *push* ni PDF) |
 | `1.18-c` | Indicadores por área y tramo; informe de desarrollo por período con observaciones, comentario global, validación de dirección, publicación controlada e histórico inmutable; informe final de ciclo. Solo API | `REQ-INF-002` (sin PDF ni firma digital) |
 | `1.18-d` | Plan de adaptación por alumno y evolución diaria. Solo API | `REQ-INF-004` (sin facturación) |
@@ -136,7 +137,7 @@ Ninguna regla compara roles (`AR-08`): se comprueban permisos, y todo funciona c
 ### 4.2 Matrícula con control de ratio (`1.18-a`, en `alum`)
 
 1. Secretaría matricula en `alum` (flujo de `REQ-ALUM §4.2`) o se aprueba un cambio de grupo.
-2. `alum` consulta su registro de vetos; el veto de `inf`, dentro de la misma transacción y con el grupo bloqueado, cuenta las matrículas activas del grupo destino y las compara con el máximo de su tramo más las excepciones sin consumir.
+2. `alum` consulta su registro de vetos; el veto de `inf`, dentro de la misma transacción, **toma primero un bloqueo exclusivo por grupo** (propuesta de `OPEN-INF-06`: `pg_advisory_xact_lock` sobre una clave derivada de `(tenant_id, group_id)`, §7.5) y solo después cuenta las matrículas activas del grupo destino y las compara con el máximo de su tramo más las excepciones sin consumir. El bloqueo compartido que `alum` ya toma sobre el grupo (`GroupDirectory::lockAliveForShare`, `FOR SHARE`) **no basta**: dos altas simultáneas lo obtienen a la vez, cuentan lo mismo y ambas caben.
 3. Si no cabe: `409` con el código de `inf` y sin efecto. Si cabe gracias a una excepción, la excepción queda consumida por esa matrícula.
 4. Para una excepción, quien tiene `ciclo_infantil.aprobar` la registra antes, con justificación obligatoria.
 
@@ -179,7 +180,7 @@ Todas se validan en servidor (`INV-010`).
 - **RN-INF-03** Solo un grupo de una etapa marcada admite tramo; un grupo tiene un tramo como mucho.
 - **RN-INF-04** Regla de ratio: una por tramo y curso; `max_students_per_group` entero ≥ 1; referencia normativa obligatoria. No hay valores por defecto (`OPEN-INF-07`).
 - **RN-INF-05** Un grupo infantil sin tramo o un tramo sin regla **no** bloquean la matrícula; el estado de ratio lo señala como «sin control» [DERIVADA: fallar en cerrado aquí impediría matricular antes de configurar].
-- **RN-INF-06** Con regla vigente, ninguna alta de matrícula con grupo, asignación de grupo ni cambio de grupo deja al grupo con más matrículas activas que `max + excepciones vigentes` (criterio 1 del documento). La comprobación es transaccional y serializada por grupo.
+- **RN-INF-06** Con regla vigente, ninguna alta de matrícula con grupo, asignación de grupo ni cambio de grupo deja al grupo con más matrículas activas que `max + excepciones vigentes` (criterio 1 del documento). La comprobación es transaccional y **serializada por grupo con un bloqueo exclusivo** tomado antes de contar y retenido hasta el final de la transacción de `alum` (mecanismo en §7.5, decisión en `OPEN-INF-06`). El `FOR SHARE` de `GroupDirectory::lockAliveForShare` no serializa: es compatible consigo mismo. El recuento se lee **después** de obtener el bloqueo, en una sentencia nueva (en `READ COMMITTED` ve la matrícula que confirmó la transacción anterior).
 - **RN-INF-07** Una excepción de ratio exige justificación no vacía, autoriza **una** plaza en **un** grupo, es de solo anexar y se consume con la matrícula que la usa. No se edita ni se borra; se **anula** con otro registro si no se ha consumido.
 - **RN-INF-08** Bajar el máximo por debajo de la ocupación real se admite, no expulsa a nadie y deja el grupo «excedido» en el estado de ratio.
 - **RN-INF-09** El registro diario de ratio es de solo anexar, uno por grupo y fecha; la tarea es idempotente.
@@ -228,7 +229,7 @@ Todas se validan en servidor (`INV-010`).
 ### 5.5 Transversales
 
 - **RN-INF-70** Curso cerrado: toda lectura invoca `AcademicYearReadAccess` (`RN-CURSO-33`); la escritura la bloquea el disparador (`ADR-057`). Qué ocurre con la familia y el histórico de cursos cerrados es `OPEN-INF-17`.
-- **RN-INF-71** El alcance de la familia se resuelve por vínculos **activos** (`FamilyMembership`): un tutor con el acceso revocado a un alumno no alcanza nada de él (`REQ-FAM-UNIT-002`).
+- **RN-INF-71** El alcance de la familia se resuelve por vínculos **activos** (`FamilyMembership`): un tutor con el acceso revocado a un alumno no alcanza nada de él (`REQ-FAM-UNIT-002`). Para el parte y la adaptación, además, el vínculo no debe restringir la categoría `salud` (propuesta, `OPEN-INF-04`, `permisos.md §3.1`).
 - **RN-INF-72** Ningún módulo de `inf` da `todos` a `docente` como sustituto de la asignación (`ADR-063 §5.4`).
 - **RN-INF-73** Ningún aviso que se construya después (`1.18-j`, `ADR-079`) lleva datos del parte ni del informe en el cuerpo ni como adjunto: solo un enlace que exige sesión.
 - **RN-INF-74** Escrituras por instancia sobre modelos `Auditable` (`AR-15`).
@@ -239,9 +240,9 @@ Todas se validan en servidor (`INV-010`).
 
 | Caso | Comportamiento |
 |------|----------------|
-| Dos matrículas simultáneas a la última plaza | Una `201`, otra `409 inf.conflict.ratio_exceeded` (test de `Concurrency`) |
+| Dos matrículas simultáneas a la última plaza | Una `201`, otra `409 inf.conflict.ratio_exceeded` (test de `Concurrency`, `CA-INF-009`). Solo puede pasar con el bloqueo exclusivo por grupo de `RN-INF-06`/§7.5: con el `FOR SHARE` actual de `GroupDirectory` las dos responderían `201` |
 | Excepción registrada y nunca consumida | Sigue vigente hasta que se anula; se ve en el estado de ratio |
-| Etapa marcada que `acad` quiere borrar | `409` por veto de borrado de estructura (`RN-ACAD-21`) |
+| Etapa marcada que `acad` quiere borrar | `409` por veto de borrado de estructura (`RN-ACAD-21`). **Exige ampliar `acad`**: `StructureEntity` hoy solo tiene `Group` y `Course` (comprobado en el código, 2026-11-13); hay que añadir la etapa (§7.5) |
 | Grupo infantil que `acad` quiere borrar con partes, informes o planes | `409` por el mismo registro de vetos |
 | Matrícula que `alum` quiere anular con partes, informes o planes | `409` por el registro de vetos de borrado de matrícula (`REQ-ALUM §7.2`) |
 | Alumno dado de baja a mitad de curso | Sus partes e informes se conservan; no se crean partes posteriores a la fecha de baja |
@@ -253,7 +254,7 @@ Todas se validan en servidor (`INV-010`).
 | Informe: valorar un indicador de otro tramo | `422` |
 | Informe: publicar sin validar | `409 inf.conflict.report_invalid_transition` |
 | Rectificar un informe ya sustituido | `409` |
-| Período de `acad` borrado con informes | `409` por veto |
+| Período de `acad` borrado con informes | `409` por veto. **Depende del registro de vetos sobre períodos** que construye `REQ-CALIF` en `1.16-a` (§7.5): sin él, `acad` no consulta a nadie al borrar un período |
 | Curso cerrado | Escritura `409 academic-year-closed`; lectura `404` sin `curso_historico.leer` |
 | Módulo `inf` no contratado | `403 urn:pge:error:module-disabled` (`RMOD-009`) |
 | Cupo de lecturas agotado | `429` con `Retry-After` |
@@ -269,9 +270,10 @@ Toda interfaz vive en `Domain` (nunca `Domain\Models`); `inf` no lee tablas de o
 | De | Qué | Estado |
 |----|-----|--------|
 | `curso` | `AcademicYearContext`, `AcademicYearDirectory`, `AcademicYearReadAccess` | Existen |
-| `acad` | `GroupDirectory`; `TeachingMembership::groupIdsFor()` | Construidas en `1.15-b` |
-| `acad` | Lectura de etapa (`stage`, `regime`), de períodos y de escalas con sus valores | **Sin verificar** si hay interfaz pública; si falta, se especifica y construye en `acad` con `inf` como primer consumidor (`ADR-048`) y aprobación del usuario (`OPEN-INF-09`) |
-| `acad` | Registro de vetos de borrado de estructura (`RN-ACAD-21`) | Creado en `1.15-b` |
+| `acad` | `GroupDirectory` (`findById`, `findManyById`, `lockAliveForShare`); `TeachingMembership::groupIdsFor()` | Construidas en `1.15-b`. `GroupDirectory` solo ofrece bloqueo **compartido**: no sirve para serializar la ratio (§7.5) |
+| `acad` | Lectura de etapa (`stage`, `regime`) | **No existe** (comprobado en el código, 2026-11-13): `Acad\Domain` tiene `CourseDirectory` y `GroupDirectory`, ninguna interfaz de etapa. Se añade `EducationLevelDirectory` en `acad` (§7.5) |
+| `acad` | Lectura de períodos y de escalas con sus valores | No verificado en esta corrección; si falta, se especifica y construye en `acad` con `inf` como primer consumidor (`ADR-048`) y aprobación del usuario (`OPEN-INF-09`). `REQ-CALIF` (B5) consume las mismas: coordinar |
+| `acad` | Registro de vetos de borrado de estructura (`RN-ACAD-21`) | Creado en `1.15-b`, pero `StructureEntity` solo cubre `Group` y `Course` (comprobado): la etapa necesita ampliarlo y el período depende del registro de `1.16-a` (§7.5) |
 | `alum` | `StudentEnrollmentDirectory`, `EnrollmentRoster`, registro de vetos de borrado de matrícula (`REQ-ALUM §7.2`) | Especificados; se construyen con su primer consumidor. **Sin verificar** si `1.13` o `1.14b-d2` los construyen antes; si no, los construye `1.18-b` dentro de `alum` |
 | `alum` | **Registro de vetos de alta y de cambio de grupo** | **No existe ni está especificado**: ampliación de `Alum\Domain` (`OPEN-INF-06`) |
 | `fam_unit` | `FamilyMembership` (alumnos alcanzados por vínculos activos) | Existe |
@@ -294,6 +296,30 @@ Ni emite ni consume en `1.18` (`ADR-048`). Candidatos para `1.19`/`1.18-j`: `Dai
 ### 7.4 Apertura del curso siguiente
 
 `inf` **no** participa en el *rollover* en `1.18` (`OPEN-INF-15`): la marca de ciclo, los tramos, las reglas de ratio y los indicadores se configuran en cada curso hasta `1.17b`.
+
+### 7.5 Cambios que `inf` exige en otros módulos (revisión C4, 2026-11-13)
+
+Todos son **aditivos** sobre interfaces aprobadas y necesitan aprobación expresa del usuario (`ADR-048`). Entran en `1.18-a1` (§13).
+
+| Módulo | Cambio | Por qué | Comprobado |
+|--------|--------|---------|------------|
+| `acad` | `StructureEntity` gana el caso de la **etapa** (`EducationLevel`) | Vetar el borrado de una etapa marcada como primer ciclo (`CA-INF-015`, §6) | Hoy `StructureEntity` solo tiene `Group` y `Course` (código, 2026-11-13) |
+| `acad` | Interfaz nueva **`EducationLevelDirectory`**: resumen de una etapa viva del centro con su `stage` y su `regime` (forma de `CourseDirectory`) | `RN-INF-01` y el veto de §4.1 | `Acad\Domain` no tiene interfaz de etapa (código, 2026-11-13) |
+| `acad` | **Registro de vetos de borrado de períodos** | Vetar el borrado de un período con informes (`CA-INF-054`) | Lo construye `REQ-CALIF` en `1.16-a`, que además amplía `StructureEntity` con la asignatura (`subject`), según la revisión C4; no se ha leído en la especificación de B5 |
+| `alum` | Registro de vetos de alta, asignación y cambio de grupo | `RN-INF-06` | No existe (`OPEN-INF-06`) |
+| `alum`/`acad` | **Bloqueo exclusivo por grupo** para la ratio | `RN-INF-06`, `CA-INF-009` | `GroupDirectory` solo tiene `lockAliveForShare` (código, 2026-11-13) |
+
+**Coordinación con `REQ-CALIF`.** `StructureEntity` lo amplían las dos especificaciones (etapa aquí, asignatura en `1.16-a`). Para no tocar el mismo enumerado dos veces con dos revisiones, la propuesta es **fijar el orden `1.16-a` → `1.18-a1`** y que `1.18-a1` añada solo la etapa sobre lo que deje `1.16-a`; si el usuario prefiere otro orden, las dos ampliaciones se hacen como un único cambio en la primera entrega que llegue. Sin el registro de períodos de `1.16-a`, `CA-INF-054` no puede cumplirse.
+
+**Mecanismo del bloqueo por grupo** (`OPEN-INF-06`, parte b). Opciones:
+
+| Opción | Cómo | Ventajas | Riesgos |
+|--------|------|----------|---------|
+| **A (Recomendada)**: bloqueo de aviso | El veto de `inf`, dentro de la transacción de `alum`, llama a `pg_advisory_xact_lock` con una clave de 64 bits derivada de `(tenant_id, group_id)` y con un espacio de nombres propio de `inf`, **antes** de contar. Se libera solo al confirmar o revertir | No toca `acad` ni el orden de bloqueos existente: es independiente de los bloqueos de fila, así que convive con el `FOR SHARE` de `alum` y con el `FOR UPDATE` del borrado de `acad` sin crear ciclos de espera. Solo serializa las altas al mismo grupo infantil | Es el primer bloqueo de aviso del proyecto (no se ha comprobado si hay precedente): la fórmula de la clave (la forma de dos argumentos de PostgreSQL es `int4`, insuficiente para dos `bigint`) y el espacio de nombres los revisa `db-reviewer` |
+| B: método aditivo `GroupDirectory::lockAliveForUpdate()` en `acad` | `SELECT … FOR UPDATE` sobre la fila del grupo | Bloqueo de fila, patrón ya usado en `acad` | Si `alum` ya retiene el `FOR SHARE` del grupo y el veto lo **sube** a `FOR UPDATE`, dos altas simultáneas que tengan ambas el `FOR SHARE` se esperan mutuamente: interbloqueo (`40P01`), una acaba en `500` salvo reintento. Para evitarlo, `alum` tendría que tomar el `FOR UPDATE` en lugar del `FOR SHARE` en los grupos infantiles, lo que cambia un flujo aprobado de `alum`. Además bloquea toda escritura de `acad` sobre la fila mientras dura la matrícula |
+| C: contador con `UPDATE` atómico | Fila de ocupación por grupo en `inf` actualizada con `UPDATE … WHERE ocupación < máximo` | Sin bloqueos explícitos | Segunda fuente de verdad de la ocupación que hay que mantener en altas, bajas y cambios de grupo hechos por `alum`; se desincroniza ante cualquier camino que no pase por el veto |
+
+El test de concurrencia (`CA-INF-009`) se escribe con dos procesos reales en el grupo `Concurrency` y debe fallar si se quita el bloqueo.
 
 ---
 
@@ -458,18 +484,21 @@ Criterios 3 (PDF en alemán) y 4 (bloqueo de foto sin consentimiento) del docume
 
 ## 13. Entregas y tramos (`CLAUDE.md §2.7`)
 
-Cada entrega cabe en ≤3 tramos secuenciales de `implementer`; cada una con su revisión y cierre. Orden forzado: `-a` antes que todas; `-b`, `-c`, `-d` independientes entre sí; `-e1` tras `-b` y `-d`; `-e2` tras `-c`.
+Cada entrega cabe en ≤3 tramos secuenciales de `implementer`; cada una con su revisión y cierre. Orden forzado: `1.16-a` (registro de vetos de períodos y ampliación de `StructureEntity` de `REQ-CALIF`, §7.5) antes que `-a1`; `-a1` antes que `-a2`; `-a2` antes que todas las demás; `-b`, `-c`, `-d` independientes entre sí; `-e1` tras `-b` y `-d`; `-e2` tras `-c`.
+
+`1.18-a` se parte en `-a1` y `-a2` (revisión C4, 2026-11-13): con el veto en `alum`, los cambios en `acad` y el bloqueo por grupo no cabía en tres tramos. El alcance no cambia. Donde `datos.md`, `api.md`, `permisos.md` u `operacion.md` dicen `1.18-a`, se entiende `-a1` + `-a2` con el reparto de esta tabla.
 
 | Entrega | Tramo 1 | Tramo 2 | Tramo 3 |
 |---------|---------|---------|---------|
-| `1.18-a` | Módulo (`make:module`), seis tablas, permisos `ciclo_infantil.*`, siembra | Servicios y *endpoints* de configuración, estado de ratio, autorización | Registro de vetos en `alum` y veto de `inf`, excepciones, tarea diaria, test de `Concurrency` |
+| `1.18-a1` | Cambios en `acad` (§7.5: etapa en `StructureEntity`, `EducationLevelDirectory`) y registro de vetos de alta, asignación y cambio de grupo en `alum` (`OPEN-INF-06`) | Módulo (`make:module`), tablas `infant_cycle_levels`, `infant_groups`, `infant_ratio_rules`; permisos `ciclo_infantil.leer` y `.actualizar`, siembra; *endpoints* de configuración y estado de ratio | Veto de `inf` con el bloqueo por grupo (§7.5) contando solo el máximo; test de `Concurrency` (`CA-INF-009`); `CA-INF-001` a `-006`, `-011`, `-014`, `-015` |
+| `1.18-a2` | Tablas `infant_ratio_exceptions` (solo anexar), `infant_ratio_records` (solo anexar), `infant_cycle_authorizations`; permiso `ciclo_infantil.aprobar`, siembra | Excepciones (alta, anulación, consumo dentro del veto); autorización y su estado calculado | Tarea diaria de ratio (`OPEN-INF-26`); `CA-INF-007`, `-008`, `-010`, `-012`, `-013` |
 | `1.18-b` | Dos tablas, permisos `agenda_infantil.*`, resolutores `grupo` y `unidad_familiar`, contratos de `alum` si faltan | *Endpoints* de personal: día del grupo, parte, anotaciones, masivo, publicación | Lectura de familia, histórico, auditoría de lectura con cupo, vetos de borrado |
 | `1.18-c` | Cuatro tablas, permisos `informe_desarrollo.*`, resolutores, interfaces de `acad` si faltan | Indicadores; informe en borrador y valoraciones | Flujo (envío, validación, devolución, publicación, rectificación), familia, auditoría de lectura |
 | `1.18-d` | Dos tablas, permisos, resolutores | *Endpoints*, publicación, evolución, familia | — |
 | `1.18-e1` | Módulo web, configuración del ciclo y ratio | Día del grupo, parte, masivo | Adaptación; *specs* de E2E real (`CA-INF-081`, `-083`) |
 | `1.18-e2` | Indicadores | Informes: redacción, bandeja, validación, publicación, versiones | *Specs* de E2E real (`CA-INF-082`) |
 
-La ejecución final del E2E real la lanza `verificador`. Si un tramo 3 de `-a` no cabe (el veto toca `alum`), se parte en `1.18-a1` (configuración) y `1.18-a2` (veto y tarea), sin cambiar el alcance.
+La ejecución final del E2E real la lanza `verificador`.
 
 ---
 
@@ -483,13 +512,13 @@ Ninguna se resuelve aquí. La opción **A es siempre la recomendada**. «Decide�
 |----|----------|----------|-------------------------|---------|--------|
 | `OPEN-INF-01` | Alcance de `1.18` con módulos dependientes sin hacer (C1) | **A (Recomendada)**: lo de §1.1, diferir §1.2 y §1.3. B: esperar a `CALIF`, `FIN` y `SALUD` y hacer `REQ-INF` entero en fase 2. C: solo `-a` y `-b` ahora | A entrega el uso diario del aula y el informe sin esperar a fase 2; deja dos criterios del documento (PDF en alemán, foto) sin cubrir hasta `-f`/`-g`. B retrasa un MUST de fase 1 | Todo | Usuario |
 | `OPEN-INF-02` | `depends_on` real | **A (Recomendada)**: `curso, acad, alum, fam_unit`, y corregir §5.50. B: mantener `ACAD, CALIF, ALUM, FIN, SALUD` | Con B el módulo no puede registrarse: `platform:sync-registry` aborta con códigos inexistentes | Todo | Usuario |
-| `OPEN-INF-04` | ¿El parte diario (comida, sueño, pañal, deposiciones, ánimo) es dato de salud? (C3) **Pendiente de validación jurídica** | **A (Recomendada)**: cuidados rutinarios con vocabulario cerrado = dato ordinario delicado de menor, con auditoría de lectura; lo sanitario, solo en la tabla cifrada de `-h`; advertencia en textos libres. B: todo el parte es categoría especial. C: A, pero sin ningún texto libre | A permite `-b` y `-d` ahora con riesgo residual en el texto libre. B bloquea `-b` y `-d` hasta el ADR de `OPEN-INF-03` y obliga a permiso especial fuera de los roles por defecto (los educadores lo recibirían uno a uno). C reduce riesgo y utilidad | `-b`, `-d` | Asesor jurídico y usuario |
+| `OPEN-INF-04` | ¿El parte diario (comida, sueño, pañal, deposiciones, ánimo) es dato de salud? (C3) **Pendiente de validación jurídica** | **A (Recomendada)**: cuidados rutinarios con vocabulario cerrado = dato ordinario delicado de menor, con auditoría de lectura; lo sanitario, solo en la tabla cifrada de `-h`; advertencia en textos libres. B: todo el parte es categoría especial. C: A, pero sin ningún texto libre | A permite `-b` y `-d` ahora con riesgo residual en el texto libre. B bloquea `-b` y `-d` hasta el ADR de `OPEN-INF-03` y obliga a permiso especial fuera de los roles por defecto (los educadores lo recibirían uno a uno). C reduce riesgo y utilidad. **Pregunta explícita adicional (revisión C4-07)**: un vínculo familiar puede restringir la categoría `salud` (`FamilyMembership::studentPersonIdsReachedBy($personId, 'salud')` excluye esos vínculos). ¿Respeta el parte y la adaptación esa restricción? **Recomendado: sí**: los resolutores `unidad_familiar` de `agenda_infantil` y `adaptacion_infantil` llaman con `'salud'` (`permisos.md §3.1`), que es lo más restrictivo y reversible (quitar el argumento después amplía el acceso sin migrar nada); el tutor con la salud restringida no ve el parte ni el plan de ese alumno | `-b`, `-d` | Asesor jurídico y usuario |
 | `OPEN-INF-05` | Cómo se reconoce el primer ciclo (C4) | **A (Recomendada)**: tabla propia `infant_cycle_levels` en `inf`. B: columna de ciclo en `education_levels` (cambia `acad`). C: valor nuevo de `stage` | A no toca `acad` ni su `CHECK`; exige `InfantCycleDirectory` para quien pregunte. B y C migran una tabla aprobada y afectan a `prl` y `alum` | `-a` | Usuario |
-| `OPEN-INF-06` | Bloqueo de matrícula por ratio desde `inf` (C5) | **A (Recomendada)**: registro de vetos de alta, asignación y cambio de grupo en `Alum\Domain`, forma de `RN-CURSO-30`. B: `inf` solo avisa después (no bloquea). C: la ratio se implementa dentro de `alum` | A cumple el criterio 1 del documento y amplía una interfaz aprobada de `alum` (necesita aprobación expresa). B incumple el criterio. C mete conocimiento de Infantil en `alum` | `-a` (tramo 3) | Usuario |
+| `OPEN-INF-06` | (a) Bloqueo de matrícula por ratio desde `inf` (C5). (b) Cómo se serializa por grupo (revisión C4-03) | (a) **A (Recomendada)**: registro de vetos de alta, asignación y cambio de grupo en `Alum\Domain`, forma de `RN-CURSO-30`. B: `inf` solo avisa después (no bloquea). C: la ratio se implementa dentro de `alum`. (b) **A (Recomendada)**: `pg_advisory_xact_lock` sobre una clave derivada de `(tenant_id, group_id)` dentro de la transacción de `alum`, antes de contar. B: método aditivo `GroupDirectory::lockAliveForUpdate()` en `acad`. C: contador de ocupación con `UPDATE` atómico (§7.5) | (a) A cumple el criterio 1 del documento y amplía una interfaz aprobada de `alum` (necesita aprobación expresa). B incumple el criterio. C mete conocimiento de Infantil en `alum`. (b) Sin un bloqueo exclusivo, dos altas simultáneas superan la ratio: el `FOR SHARE` actual de `GroupDirectory` no las excluye y `CA-INF-009` no puede pasar. A no toca `acad` ni el orden de bloqueos; B arriesga interbloqueo al subir un `FOR SHARE` ya retenido o cambia el flujo aprobado de `alum`; C duplica la ocupación | `-a1` | Usuario (b: técnico, con `db-reviewer`) |
 | `OPEN-INF-07` | Qué mide la ratio y qué cifras (C6) | **A (Recomendada)**: máximo de alumnos **por grupo y tramo**, sin valor por defecto, con referencia normativa escrita por el centro; «ratio real» = matrículas activas del día. B: además alumnos por educador presente. C: valores por defecto de la norma autonómica | A es comprobable hoy. B necesita asistencia (`1.13`) y presencia de personal (`REQ-JOR`). C exige verificar la norma vigente con fuente primaria: **no se ha hecho** | `-a` | Negocio y asesor jurídico |
 | `OPEN-INF-08` | Qué son los «descriptores por tramo» (C7) | **A (Recomendada)**: indicadores evaluables por área y tramo, cada uno valorado con la escala. B: solo un texto que describe cada valor de la escala por tramo, y una valoración por área. C: ambos | Cambia las tablas de `-c`. A da informes más ricos y más trabajo al educador | `-c` | Negocio (centro piloto) |
 | `OPEN-INF-09` | Escala del informe (C8) e interfaces de `acad` | **A (Recomendada)**: reutilizar `grading_scales` de `acad` por interfaz pública (construirla si falta, con aprobación). B: escala propia en `inf`. C: esperar a lo que decida `REQ-CALIF` (B5) | A evita dos conceptos de escala; depende de que `REQ-CALIF` no cambie su forma. B duplica | `-c` | Usuario, con B5 |
-| `OPEN-INF-10` | Cómo se vincula el educador (y el de apoyo) a un grupo infantil, sin asignaturas | **A (Recomendada)**: por la tutoría de grupo de `acad`, que ya entra en `groupIdsFor` (`RN-ACAD-98`), admitiendo varios por grupo. B: asignación propia en `inf`. C: rol con `todos` | **Sin verificar** si `acad` admite varios tutores por grupo; si no, A exige enmendar `acad`. B crea una segunda fuente de pertenencia. C lo prohíbe `ADR-063 §5.4` | `-b`, `-c`, `-d` | Usuario, tras comprobar `acad` |
+| `OPEN-INF-10` | Cómo se vincula el educador (y el de apoyo) a un grupo infantil, sin asignaturas | **A (Recomendada)**: por la tutoría de grupo de `acad`, que ya entra en `groupIdsFor` (`RN-ACAD-98`), admitiendo varios por grupo. B: asignación propia en `inf`. C: rol con `todos` | `acad` **ya admite varios tutores por grupo**: el índice único de `group_tutors` es `(tenant_id, group_id, user_id) WHERE deleted_at IS NULL` (`REQ-ACAD/datos.md §9.1`), así que A no necesita enmendar `acad`; el educador de apoyo es un tutor más del grupo. Efecto colateral de A: `groupIdsFor` incluye también los grupos donde el usuario tiene una asignación docente, de modo que el ámbito `grupo` alcanza a quien imparte en el aula sin ser tutor. B crea una segunda fuente de pertenencia. C lo prohíbe `ADR-063 §5.4` | `-b`, `-c`, `-d` | Usuario |
 | `OPEN-INF-11` | ¿Se publica el informe a la familia sin firma digital ni PDF? (C9) | **A (Recomendada)**: sí, en pantalla, con autoría, validación y publicación registradas; firma y PDF en `-g`. B: `-c` llega hasta `validado` y la publicación espera a `-g`. C: firma simple propia ahora | A da valor antes; el documento pide «las mismas garantías que un boletín», que A no alcanza hasta `-g`. B deja `-c` sin su criterio 2 completo. C adelanta `ADR-082` | `-c` (publicación) | Usuario y asesor jurídico |
 | `OPEN-INF-22` | Rejilla del día (alumno × anotación) frente a `RN-CORE-53` | **A (Recomendada)**: aprobar una rejilla de edición nueva en la lista cerrada. B: tarjetas por alumno sin rejilla | A es lo que pide «pocos toques»; amplía una lista que solo debería reducirse | `-e1` | Usuario |
 
@@ -526,11 +555,11 @@ No se han tocado. Los aplica la sesión orquestadora si el usuario aprueba.
 
 | Fichero | Cambio propuesto |
 |---------|------------------|
-| `PLAN-IMPLEMENTACION.md` | `1.18`: marcar ⚠️ *paso crítico*, especificación PROPUESTA, y partirlo en `1.18-a`, `-b`, `-c`, `-d`, `-e1`, `-e2`; añadir como diferidas `1.18-f` (fotos; `S-2`, `OPEN-INF-12`), `-g` (PDF y firma; `1.17`, `ADR-078`, `ADR-082`), `-h` (salud; ADR de categoría especial, `REQ-SALUD`), `-i` (entradas y salidas), `-j` (sin conexión y avisos; `1.13`, `1.19`). En `1.17b`: obligación heredada de `OPEN-INF-15`. En `1.15b`: ampliar el centro concertado con 0-3 privado cuando exista `-a`. En `1.19`: obligación heredada de los avisos de `inf` (`RN-INF-73`). En `1.22`: pantallas de familia de parte, informe y adaptación, y `OPEN-INF-17` |
+| `PLAN-IMPLEMENTACION.md` | `1.18`: marcar ⚠️ *paso crítico*, especificación PROPUESTA, y partirlo en `1.18-a1` (veto en `alum`, cambios en `acad`, ratio; tras `1.16-a`), `1.18-a2` (excepciones, registro diario, autorización), `-b`, `-c`, `-d`, `-e1`, `-e2`; añadir como diferidas `1.18-f` (fotos; `S-2`, `OPEN-INF-12`), `-g` (PDF y firma; `1.17`, `ADR-078`, `ADR-082`), `-h` (salud; ADR de categoría especial, `REQ-SALUD`), `-i` (entradas y salidas), `-j` (sin conexión y avisos; `1.13`, `1.19`). En `1.17b`: obligación heredada de `OPEN-INF-15`. En `1.15b`: ampliar el centro concertado con 0-3 privado cuando exista `-a`. En `1.19`: obligación heredada de los avisos de `inf` (`RN-INF-73`). En `1.22`: pantallas de familia de parte, informe y adaptación, y `OPEN-INF-17` |
 | `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` | §5.50, línea «Depende de», y la fila del índice de módulos, según `OPEN-INF-02`; historial de versiones. Si `OPEN-INF-05` = A, nota en §16 de que el ciclo es de `inf` |
 | Índice de ADR (§18) | ADR nuevo solicitado, sin número: «Mecanismo de datos de categoría especial» (`OPEN-INF-03`) |
 | `docs/modulos/REQ-ALUM/` | Si `OPEN-INF-06` = A: especificar en `funcional.md §7.2` el registro de vetos de alta, asignación y cambio de grupo, y el error que devuelve; lo redacta `spec-writer` con aprobación, no esta entrega |
-| `docs/modulos/REQ-ACAD/` | Si `OPEN-INF-09`/`-10` = A y faltan: interfaces públicas de lectura de etapa, períodos y escalas; varios tutores por grupo |
+| `docs/modulos/REQ-ACAD/` | `EducationLevelDirectory`, la etapa en `StructureEntity` y, si `OPEN-INF-06` (b) = B, `GroupDirectory::lockAliveForUpdate()` (§7.5); si `OPEN-INF-09` = A y faltan, interfaces de lectura de períodos y escalas. Varios tutores por grupo ya existen (`OPEN-INF-10`) |
 | `ARCHITECTURE.md` | Al implementar: módulo `inf` en el mapa de módulos y entradas de `AR-10` |
 | `CHANGELOG.md` | Una línea en la entrada de la ola 1: especificación de `REQ-INF` (PROPUESTA) |
 | `memory.md` | Nota: `1.18` especificado, 26 `OPEN-INF`, 11 bloquean; ADR de categoría especial pendiente; #453 (planificador) condiciona la tarea diaria de ratio (`OPEN-INF-26`) |
@@ -545,7 +574,8 @@ Esta sesión no tuvo `Bash`, `Grep` ni `Glob`; se leyó por tramos y con la bús
 - `ADR-079` y `ADR-082` (borradores de A3 y A6) no están en este *worktree*; en la continuación del 2026-11-13 se leyeron sus primeras secciones en los *worktrees* de sus agentes: `ADR-079` recomienda el motor de notificaciones en `Core` con tipos de aviso declarados por módulo (afecta a `1.18-j`, `RN-INF-73`); `ADR-082 §4.1` cita `REQ-INF-002` entre sus consumidores (afecta a `1.18-g`). No se ha leído su tabla de niveles ni el resto: ninguna decisión de esta especificación depende de ellos fuera de `-g` y `-j`.
 - La especificación de `REQ-CALIF` (B5) y la arquitectura sin conexión de `1.13` (B2), en curso en paralelo, no se han leído.
 - No se ha leído el texto de `REQ-SALUD`, `REQ-BEC-001`, `REQ-PRL-004` ni `RMOB-COM-001` del documento de requisitos; su fase se toma de `REQ-ALUM/funcional.md` C1 y del encargo.
-- No se ha verificado en el código: qué interfaces públicas expone `Acad\Domain` para etapas, períodos y escalas; si `acad` admite varios tutores por grupo; si `StudentEnrollmentDirectory` y `EnrollmentRoster` están ya construidas; la firma exacta del registro de vetos de `RN-CURSO-30`; el estado del mecanismo de bloques del panel (#261).
+- Comprobado en la corrección del 2026-11-13 (revisión C4): `StructureEntity` solo tiene `Group` y `Course`; `Acad\Domain` no tiene interfaz de etapa (`CourseDirectory` y `GroupDirectory` sí); `GroupDirectory` solo bloquea con `FOR SHARE`; `FamilyMembership::studentPersonIdsReachedBy()` admite la categoría `salud`; `group_tutors` es único por `(tenant_id, group_id, user_id)` según `REQ-ACAD/datos.md §9.1` (no se abrió la migración). No se ha leído en la especificación de `REQ-CALIF` el registro de vetos de períodos de `1.16-a` ni su ampliación de `StructureEntity`: se toman de la revisión C4. No se ha comprobado si existe ya algún bloqueo de aviso (`pg_advisory_xact_lock`) en el código.
+- No se ha verificado en el código: qué interfaces públicas expone `Acad\Domain` para períodos y escalas; si `StudentEnrollmentDirectory` y `EnrollmentRoster` están ya construidas; la firma exacta del registro de vetos de `RN-CURSO-30`; el estado del mecanismo de bloques del panel (#261).
 - Ninguna cifra de ratio ni plazo de retención procede de una fuente verificada: por eso no aparece ninguna.
 - No se ha medido si cada entrega cabe en tres tramos: es una estimación por analogía con `1.15-a`..`-d`.
 
