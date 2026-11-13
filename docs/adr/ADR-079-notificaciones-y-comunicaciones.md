@@ -93,7 +93,7 @@ Requisitos que debe cumplir cualquier candidato: SMTP estándar (el contrato que
 
 | Opción | Ventajas | Riesgos | Coste (fuente en `§11`) | Coste de revertir |
 |---|---|---|---|---|
-| **A. Scaleway Transactional Email** (Francia) | Empresa y jurisdicción de la UE; pago por uso sin cuota; plan superior con IP dedicada y SLA cuando haga falta; posible proveedor común si `ADR-083` elige su S3 | Producto más joven que los especializados; **sin verificar**: *webhooks* de rebote y queja, límites de envío de una cuenta nueva, región y texto del contrato de encargado (la documentación devolvió 403 al consultarla) | Esencial: 0 €/mes, 300 correos incluidos, 0,25 € por 1.000 adicionales. Scale: 80 €/mes con 100.000 incluidos, 0,20 € por 1.000, IP dedicada y SLA 99,9 % (antes de impuestos) | Bajo: variables `MAIL_*` y registros DNS |
+| **A. Scaleway Transactional Email** (Francia) | Empresa y jurisdicción de la UE; pago por uso sin cuota; plan superior con IP dedicada y SLA cuando haga falta; posible proveedor común si `ADR-083` elige su S3 | Producto más joven que los especializados; **sin verificar**: *webhooks* de rebote y queja, límites de envío de una cuenta nueva, región y texto del contrato de encargado (la documentación devolvió 403 al consultarla) | **Indirecto, sin verificar** (`§11`): Esencial: 0 €/mes, 300 correos incluidos, 0,25 € por 1.000 adicionales. Scale: 80 €/mes con 100.000 incluidos, 0,20 € por 1.000, IP dedicada y SLA 99,9 % (antes de impuestos) | Bajo: variables `MAIL_*` y registros DNS |
 | **B. Brevo** (Francia) | Empresa de la UE; correo y SMS en el mismo proveedor; plan gratuito para pruebas | Orientado a marketing: riesgo de mezclar corrientes y de marca del proveedor en planes bajos; **sin verificar**: precios actuales (la página oficial no devolvió cifras; fuentes de terceros: 300 correos/día gratis, desde 9 USD/mes por 5.000), alojamiento (terceros dicen AWS París) e IP dedicada | Sin verificar | Bajo |
 | **C. Mailjet** (grupo Sinch, Suecia) | Infraestructura en la UE según terceros; subcuentas | Precios publicados en USD; cuota mensual desde el primer plan útil; matriz sueca con filiales en EE. UU. (**sin verificar** el alcance) | Gratis: 6.000/mes con tope de 200/día. De pago: 9 USD (8.000/mes), 19 USD (15.000), 29 USD (15.000, IP dedicada y 20 subcuentas) | Bajo |
 | **D. Amazon SES en región de la UE** | El más barato y probado; entregabilidad alta | Proveedor estadounidense: transferencia internacional a justificar ante cada centro; el proyecto ha evitado esta clase de proveedor para datos de menores (`ADR-076`, `ADR-083`) | No consultado | Bajo |
@@ -116,7 +116,7 @@ Requisitos que debe cumplir cualquier candidato: SMTP estándar (el contrato que
 
 | Opción | Ventajas | Riesgos | Coste de revertir |
 |---|---|---|---|
-| **A. Web Push estándar** (Push API + VAPID, RFC 8030/8291/8292), enviado desde el servidor con `minishlink/web-push` tras interfaz propia | Sin proveedor intermedio ni SDK en la SPA; el contenido viaja cifrado de extremo a extremo hasta el navegador; coste 0 €; sirve a Android, escritorio e iOS | En iPhone y iPad solo funciona si la familia añade la aplicación a la pantalla de inicio (iOS 16.4+): alcance real limitado; exige manifiesto y *service worker* en `apps/web`, que hoy no existen; una dependencia nueva | Bajo: se retira el canal y quedan correo y aviso en la aplicación |
+| **A. Web Push estándar** (Push API + VAPID, RFC 8030/8291/8292), enviado desde el servidor con `minishlink/web-push` tras interfaz propia | Sin SDK en la SPA ni contrato con un proveedor de *push* propio; la carga útil viaja cifrada (RFC 8291) hasta el navegador, aunque el **servicio de push del navegador** (en Chrome, infraestructura de Google/FCM) la transporta y recibe metadatos (punto de entrega, momento, tamaño); coste 0 €; sirve a Android, escritorio e iOS | En iPhone y iPad solo funciona si la familia añade la aplicación a la pantalla de inicio (iOS 16.4+): alcance real limitado; exige manifiesto y *service worker* en `apps/web`, que hoy no existen; una dependencia nueva | Bajo: se retira el canal y quedan correo y aviso en la aplicación |
 | **B. Firebase Cloud Messaging para web** | Un único SDK, luego reutilizable en la aplicación de fase 3 | Google como encargado desde fase 1 y SDK de terceros en la SPA (choca con la CSP estricta de `CLAUDE.md §8`); no evita la limitación de iOS | Medio |
 | **C. Servicio de terceros** (OneSignal, Pushpad) | Panel y segmentación hechos | Encargado adicional con identificadores de dispositivo de familias; coste recurrente | Medio |
 | **D. Sin *push* hasta la aplicación empaquetada de fase 3** | Cero trabajo | `REQ-COM-003` y `REQ-AUT-001` piden *push* en fases 1-2; el aviso de recogida se queda en correo y aplicación abierta | — |
@@ -127,7 +127,7 @@ Requisitos que debe cumplir cualquier candidato: SMTP estándar (el contrato que
 
 | Opción | Ventajas | Riesgos | Coste de revertir |
 |---|---|---|---|
-| **A. Sondeo**: la SPA pide el recuento de no leídos al cargar, al recuperar el foco y cada cierto intervalo | Sin estado en servidor, sin servicio nuevo, compatible con «aplicación stateless» (`CLAUDE.md §9`) | Latencia de hasta un intervalo; peticiones periódicas por usuario conectado | Nulo |
+| **A. Sondeo**: la SPA pide el recuento de no leídos al cargar, al recuperar el foco y cada cierto intervalo | Sin estado en servidor, sin servicio nuevo, compatible con «aplicación stateless» (`CLAUDE.md §9`) | Latencia de hasta un intervalo; peticiones periódicas por usuario conectado. **Cada sondeo es una petición autenticada que, tal como está hoy `EnforceSessionIdleTimeout`, refresca la marca de actividad** (`REQ-AUTH/funcional.md §4.6`): una pestaña abierta no caducaría nunca y rompería `REQ-AUTH-005` (30 min). Lo resuelve la regla obligatoria de `§4.5` punto 5 | Nulo |
 | **B. Server-Sent Events** | Casi inmediato, HTTP normal | Una conexión PHP abierta por usuario: no encaja con el servidor de aplicación actual sin un proceso aparte | Medio |
 | **C. WebSocket** (Laravel Reverb) | Tiempo real; serviría al panel de recepción de `REQ-PRL-001` | Servicio nuevo que desplegar, vigilar y asegurar por tenant; dependencia nueva | Medio-alto |
 
@@ -186,6 +186,7 @@ Todo lo que sigue es propuesta hasta que el usuario la acepte. Los nombres de cl
 7. **Sin seguimiento de aperturas ni reescritura de enlaces.** El píxel de apertura es un rastreador que exige consentimiento propio, y reescribir enlaces rompe la alineación de dominio y enseña a las familias a pulsar enlaces que no son del centro. La «apertura» de `REQ-COM-003` se mide con la lectura en la aplicación y el acuse de `REQ-COM-002`. Es una interpretación de un requisito: `OPEN-079-07`.
 8. **Rebotes y quejas**: un rebote permanente marca la dirección como no entregable, deja de enviársele y se avisa a quien administra los usuarios del centro. Esto importa más que la estadística: un usuario cuyo correo rebota no puede recuperar su contraseña. Una queja de *spam* da de baja al destinatario de la categoría del mensaje.
 9. **Desarrollo, CI y E2E**: siguen con `log`/`array`. No se añade ningún servicio de correo de pruebas al `compose`.
+10. **Staging** (revisión C2-01, en coherencia con `ADR-080 §3.6`): `MailEnvironmentGuard` impide arrancar con `log` o `array` fuera de `local`/`testing` (`apps/api/app/Support/Mail/MailEnvironmentGuard.php`, comprobado el 2026-11-13), y staging corre con `APP_ENV=production`. Staging usa por tanto **SMTP real al proveedor de `OPEN-079-01`**, en un subdominio de envío del dominio de staging, dentro de la franja gratuita del proveedor (precio sin verificar, `§8.1`). Sirve además para probar SPF, DKIM y DMARC antes de producción. El guard no se toca.
 
 ### 4.3 SMS (D4)
 
@@ -217,6 +218,8 @@ Todo lo que sigue es propuesta hasta que el usuario la acepte. Los nombres de cl
 3. **Los parámetros no llevan datos de categoría especial** (`§4.11`): el aviso enlaza al recurso y el recurso aplica sus permisos.
 4. **Es el canal base**: todo aviso se crea en la aplicación aunque los demás canales fallen o estén desactivados. No se puede desactivar.
 5. **Entrega a la SPA por sondeo** del recuento de no leídos (al cargar, al recuperar el foco y a intervalo). Sin WebSocket ni SSE en fase 1.
+   - **Obligatorio (revisión C2-02, `REQ-AUTH-005`)**: el *endpoint* de recuento de no leídos **no refresca la marca de actividad** de la sesión. Hoy `EnforceSessionIdleTimeout` la refresca en toda petición autenticada (`apps/api/app/Http/Middleware/EnforceSessionIdleTimeout.php`, comprobado el 2026-11-13); se añade una excepción explícita y nominal para esa ruta: la petición **sí** comprueba la caducidad (si la sesión ha caducado responde `401`), pero no la prolonga. Test que referencia `REQ-AUTH-005`: con sondeos cada minuto y sin otra actividad, la sesión caduca a los 30 minutos.
+   - Además, la SPA solo sondea con la pestaña visible (`document.visibilityState`). Esto ahorra peticiones, pero **no sustituye** la excepción anterior: una pestaña visible y desatendida tampoco debe mantener viva la sesión.
 6. **API** (`INV-006`): listar, contar no leídos, marcar leído uno o todos. Solo el destinatario lee sus avisos (`INV-002`); el soporte de plataforma no los lee.
 7. `RDB-001` cita «notificaciones» entre las tablas a particionar: el particionado y la retención los fija la especificación con `db-reviewer` (`OPEN-079-09`).
 
@@ -237,6 +240,7 @@ El responsable del tratamiento es el centro; la plataforma es encargada y el pro
 |---|---|---|---|
 | **Seguridad de la cuenta** | Código MFA, restablecer contraseña, acceso desde dispositivo nuevo, cambio de factor | Ejecución del servicio y seguridad del tratamiento (RGPD 6.1.b y 32) | No |
 | **Urgente** | Persona no autorizada en la recogida, alumno no recogido, emergencia de `REQ-PRL-001` | Misión de interés público del centro (6.1.e, LOE DA 23.ª) e interés vital en emergencias (6.1.d) | No |
+| **Obligación contractual o legal** (decidida por el usuario el 2026-11-13, revisión C2-03) | Preaviso de un adeudo SEPA y aviso de devolución de un adeudo (`ADR-081`); otros que un módulo declare con la misma justificación | Ejecución del contrato (6.1.b) u obligación legal del responsable (6.1.c), según el tipo; propuesta pendiente de `OPEN-079-06` | **No**, en ningún canal declarado por el tipo. Contenido mínimo declarado por tipo (regla 7) |
 | **Servicio educativo** | Calificaciones, faltas, circulares, autorizaciones pendientes, recordatorios de firma (`ADR-082`), mensajes | Función educativa del centro (6.1.e) u obligación legal (6.1.c), según el caso | En la aplicación, no. Correo y *push*: sí, por categoría, salvo los tipos que el centro marque como de acuse obligatorio (`REQ-COM-002`) |
 | **Administración de la plataforma** | Módulo contratado, mantenimiento, límites del plan | Ejecución del contrato con el centro (6.1.b) | En la aplicación, no. Correo: sí |
 | **Informativa o comercial** | Noticias del centro, oferta de extraescolares o servicios de pago, novedades del producto | **Consentimiento previo** (LSSI art. 21, RGPD 6.1.a), salvo la excepción de relación contractual previa por servicios similares, que debe valorar un jurista | Desactivada por defecto. Baja en cada mensaje y con un clic |
@@ -249,6 +253,7 @@ Reglas:
 4. **Menores como destinatarios** (cuentas de estudiante): solo aviso en la aplicación por defecto; correo y *push* a un menor quedan como pregunta (`OPEN-079-08`, `INV-008`, `RSEC-GDPR-009`).
 5. **Quién recibe los avisos de un alumno** (todos los tutores, el principal, y qué pasa con custodias restringidas) lo decide `fam_unit` (`§4.1` punto 4). El motor no tiene una regla propia.
 6. No se incluyen horas de silencio ni resúmenes agrupados: no están en los requisitos.
+7. **Categoría «obligación contractual o legal»** (decidida por el usuario el 2026-11-13): el usuario no puede desactivarla porque el aviso es lo que cumple una obligación (p. ej. el preaviso SEPA). A cambio, **cada tipo de esta categoría declara en su descriptor su contenido mínimo** (`§4.1` punto 2), que es el único que lleva: importe, fecha, referencia (del mandato, del recibo o de la factura) y, si aplica, identificador de acreedor; **ningún dato del alumno** (`§4.11`, `INV-008`). Un módulo no puede meter en esta categoría un aviso que no responda a una obligación: el uso se justifica en la especificación del tipo y lo revisa `security-reviewer`. Los canales son los que declare el tipo; el aviso en la aplicación siempre.
 
 ### 4.8 Prioridad, colas y reintentos (D7)
 
@@ -261,7 +266,7 @@ Reglas:
 | **Masiva** | Circulares y envíos a segmentos | `notify-bulk`, la **última** del `worker` | Según preferencias |
 
 1. **Un trabajo por entrega** (un destinatario, un canal), corto: `timeout` muy por debajo del `retry_after` de la conexión y tiempo de espera de red explícito hacia el proveedor (`RARQ-ARC-005`). Un envío masivo es un trabajo que reparte en lotes, no un trabajo que envía a mil personas.
-2. **Aislamiento del urgente, opción A ahora**: con colas por prioridad, un urgente espera como mucho a que acabe el trabajo en curso. **Disparadores para pasar al proceso dedicado `worker-urgent` (opción B)**, cualquiera de los dos: se implementa `REQ-PRL-001`, o la espera en cola de `notify-urgent` supera el objetivo que el usuario fije (`OPEN-079-05`) en la medición real. B es un cambio de despliegue, no de código.
+2. **Aislamiento del urgente, opción A ahora**: con colas por prioridad, un urgente espera como mucho a que acabe el trabajo en curso. **Disparadores para pasar al proceso dedicado `worker-urgent` (opción B)**, cualquiera de los tres: se implementa `REQ-PRL-001`; la espera en cola de `notify-urgent` supera el objetivo que el usuario fije (`OPEN-079-05`) en la medición real; o **llega el primer consumidor de PDF en lote** (`1.17`, `ADR-078`) y la medición de `ADR-078 §5.4` (que incluye la espera de `notify-urgent` con el lote de 1.200 documentos en marcha, hasta 60 s cada uno) no cumple ese objetivo (revisión C2-09). B es un cambio de despliegue, no de código.
 3. **Toda cola nueva se añade a `worker.container` y a `compose.yaml`** en la misma entrega (`QueueWorkerTest`), y a la comprobación `core:queue-health`.
 4. **Reintentos**: los que ya tiene el `worker` (3 intentos) con espera creciente para normal y masiva, y espera corta para urgente. Agotados, la entrega queda `fallida` y visible (`§4.9`); se reenvía desde soporte (`REQ-SUP-004`), nunca con `queue:retry` a ciegas.
 5. **Cortacircuitos por canal**: si el proveedor falla de forma repetida, los trabajos se devuelven a la cola con retraso en vez de gastar sus intentos, y se alerta a operación. El aviso en la aplicación no depende de ningún proveedor y sale siempre.
@@ -275,7 +280,10 @@ Reglas:
 1. **Una fila por entrega** (aviso × destinatario × canal), con `tenant_id` y RLS: estado, instantes, número de intentos, identificador del mensaje en el proveedor y motivo normalizado del fallo.
 2. **Estados**: `pendiente` → `enviado` (aceptado por el proveedor) → `entregado` (confirmado por el proveedor, si lo confirma) o `rebotado` / `queja` / `fallido`; y `omitido` cuando no se envía por preferencias, falta de consentimiento, dirección no entregable o límite. `omitido` guarda el motivo: es la respuesta a «¿por qué no le llegó?».
 3. **No se guarda el cuerpo del mensaje ni la dirección completa.** Se guarda a quién (persona o usuario) y un indicio enmascarado del destino para soporte. El contenido se puede recomponer desde el tipo y los parámetros.
-4. **Recepción de eventos del proveedor**: un endpoint público de plataforma, con verificación de firma o secreto, idempotente, con límite de ritmo y sin datos personales en la respuesta. Localiza la entrega por un identificador opaco propio que viaja en el mensaje y fija el centro explícitamente (no hay sesión). **No se crea ninguna tabla de correspondencia sin `tenant_id`**: la purga de `ADR-077` descubre por catálogo las tablas con `tenant_id` y cada tabla que no lo lleva exige una excepción registrada.
+4. **Recepción de eventos del proveedor**: un endpoint público de plataforma, con verificación de firma o secreto, idempotente, con límite de ritmo y sin datos personales en la respuesta. No hay sesión: el centro se fija explícitamente antes de buscar nada.
+   - **Resolución del centro con RLS** (revisión C2-05): con RLS no se puede buscar la entrega sin conocer antes el centro. El identificador opaco propio que viaja en el mensaje lleva el **`public_id` del centro, el `public_id` de la entrega y un HMAC** de ambos con un secreto de la plataforma (mismo patrón que `ADR-081 §7.4`). El receptor verifica la firma del proveedor, después el HMAC, fija el centro y solo entonces busca la entrega. Un HMAC inválido no fija nada y no revela existencia.
+   - **Condición sobre el proveedor (`OPEN-079-01`)**: que devuelva en sus eventos de rebote, queja y entrega una **cabecera o metadato propio** del mensaje original. Si no lo hiciera, la correspondencia «identificador del proveedor → centro» exige una **tabla de plataforma sin `tenant_id`**, que solo es admisible registrada como excepción en `ADR-077` (la registra allí el agente que lo corrige, no este ADR) y en el registro de tablas compartidas de `ADR-047`.
+   - **Excepciones que declara este ADR** (revisión C2-08): el endpoint es una **excepción de CSRF** (los eventos llegan del proveedor, sin cookie ni token) y una ruta sin `permission:` (**excepción nominal de `AR-07a`**, `ADR-056`). La sustitución equivalente es la firma del proveedor más el HMAC del identificador. Grupo de rutas propio, sin cookies, con límite de peticiones; se documenta en `SECURITY.md` con el rigor de la del ACS SAML (`§2.1`), dentro de un apartado común de «excepciones de webhooks» que comparte con `ADR-081 §7.4` (`§10`).
 5. **Lectura**: el instante de lectura del aviso en la aplicación y, para circulares, el acuse de `REQ-COM-002`. No hay «abierto» de correo (`§4.2` punto 7).
 6. **Quién ve la traza**: el personal del centro con permiso propio, sobre los envíos de su centro; el soporte de plataforma ve estados y recuentos, no destinatarios, salvo por el mecanismo de acceso con propósito declarado de `ADR-046`.
 7. **Retención**: propuesta de 12 meses para la traza de entrega y purga por lotes; pendiente de decisión (`OPEN-079-09`).
@@ -316,7 +324,7 @@ Un correo, un SMS o una notificación en pantalla de bloqueo salen del control d
 3. **SMTP como contrato.** Es lo único que hace reversible la elección de proveedor: el riesgo de equivocarse con Scaleway se reduce a una tarde de DNS y variables de entorno. Por eso se puede recomendar un proveedor con cuatro puntos sin verificar: equivocarse es barato.
 4. **Proveedor de la UE.** El cuerpo de los correos lleva direcciones de familias y nombres de pila de menores. Es el mismo criterio que el proyecto aplica al almacenamiento (`ADR-076`, `ADR-083`), y evita explicar una transferencia internacional a cada centro.
 5. **Sin SMS todavía.** No hay consumidor en fase 1 que lo exija por requisito (`REQ-PRL-004` pide «aviso», no SMS), los teléfonos no están verificados, cuesta dos órdenes de magnitud más que el correo y obliga a un registro administrativo. Contratar ahora es pagar complejidad sin beneficio proporcional. Lo que protege al menor hoy es la llamada del conserje, que ya existe.
-6. **Web Push estándar.** Es la única opción de *push* sin un encargado nuevo ni un SDK de terceros en la SPA. Su limitación en iOS es real y por eso nunca es canal único; aun así, es el único canal inmediato que llega con la aplicación cerrada sin coste por mensaje.
+6. **Web Push estándar.** Es la única opción de *push* sin un contrato con un proveedor de *push* propio ni un SDK de terceros en la SPA. No es «sin intermediario»: el servicio de push de cada navegador (en Chrome, infraestructura de Google/FCM) transporta el mensaje; la carga útil va cifrada (RFC 8291), pero ese servicio recibe metadatos (punto de entrega, momento y tamaño). Por eso los servicios de *push* figuran como subencargados en `OPEN-079-15`. Su limitación en iOS es real y por eso nunca es canal único; aun así, es el único canal inmediato que llega con la aplicación cerrada sin coste por mensaje.
 7. **Sondeo y no WebSocket.** Nada en fase 1 necesita menos de un minuto de latencia en la aplicación abierta; el urgente ya va por correo y *push*. Un servicio de tiempo real se justificará con el panel de `REQ-PRL-001`, no antes.
 8. **Colas por prioridad y no proceso dedicado, por ahora.** El peor caso de espera es acotado y conocido (un trabajo en curso), y el paso al proceso dedicado es un cambio de despliegue con disparador escrito. Se prioriza lo reversible sobre lo óptimo.
 9. **Avisar y enlazar.** Es la única regla que hace compatibles los requisitos de «enviar por correo» con `CLAUDE.md §8`: el correo no tiene control de acceso, ni caducidad, ni auditoría de lectura.
@@ -364,7 +372,7 @@ Un correo, un SMS o una notificación en pantalla de bloqueo salen del control d
 
 ### 6.4 Relación con `ADR-077` (purga de tenant)
 
-- Tablas nuevas con `tenant_id`: las barre el catálogo. Ninguna tabla de plataforma nueva.
+- Tablas nuevas con `tenant_id`: las barre el catálogo. Ninguna tabla de plataforma nueva, **salvo** la correspondencia de `§4.9` punto 4 si el proveedor de correo no devuelve metadato propio en sus eventos; en ese caso, excepción registrada en `ADR-077` y `ADR-047`.
 - Trabajos con `tenantId` en el *payload*, en la misma posición que los actuales, para que la purga de `jobs` y `failed_jobs` los encuentre.
 - Contadores y cortacircuitos por centro bajo `t{tenant_id}:`. El cortacircuitos **global** por canal va bajo el prefijo base y no contiene datos de ningún centro.
 - **Datos en terceros**: el proveedor de correo conserva registros y listas de supresión con direcciones; los servicios de *push* conservan los puntos de entrega. La purga debe pedir su borrado o documentar su caducidad: es exactamente el caso que `ADR-077` deja previsto para recursos de terceros. Se propone a `ADR-077` que lo recoja (`§10`).
@@ -391,16 +399,16 @@ Un correo, un SMS o una notificación en pantalla de bloqueo salen del control d
 16. **Píxel de apertura y reescritura de enlaces**: `§5` punto 10.
 17. **Adjuntar el PDF al correo**: saca el documento del control de acceso y de la auditoría de lectura.
 18. **Guardar el texto ya compuesto del aviso**: fija el idioma del momento del envío y duplica datos personales.
-19. **Tabla global «identificador del mensaje → centro»** para los eventos del proveedor: dato de tenant sin `tenant_id`, invisible a la purga.
+19. **Tabla global «identificador del mensaje → centro»** como primera opción para los eventos del proveedor: dato de tenant sin `tenant_id`, invisible a la purga si no se registra. Solo se admite como último recurso y registrada (`§4.9` punto 4).
 20. **Dominio propio de cada centro como remitente**: no está en los requisitos y multiplica la gestión de DNS por centro.
 
 ---
 
 ## 8. Coste
 
-Precios consultados el 2026-11-12 (`§11`), antes de impuestos. **Los volúmenes son hipótesis de trabajo, no datos**: no hay ningún centro en producción.
+Precios consultados el 2026-11-12 (`§11`), antes de impuestos. **Los de Scaleway son indirectos y están sin verificar** (las páginas oficiales devolvieron 403; `§11.1`): las cifras de `§8.1` valen como orden de magnitud, no como precio. **Los volúmenes son hipótesis de trabajo, no datos**: no hay ningún centro en producción.
 
-### 8.1 Correo (Scaleway, pago por uso: 0,25 € por 1.000 tras 300 gratis)
+### 8.1 Correo (Scaleway, pago por uso: 0,25 € por 1.000 tras 300 gratis; indirecto, sin verificar)
 
 | Hipótesis | Correos al mes | Coste al mes |
 |---|---|---|
@@ -434,11 +442,13 @@ Un SMS cuesta lo que unos 200 correos. Por eso el tope por centro y la medición
 
 **Decididas por el usuario (2026-11-12), según la recomendación**: `OPEN-079-01` (proveedor de correo: Scaleway Transactional Email, con Brevo de reserva; precios sin verificar), `OPEN-079-07` (la «apertura» se mide por lectura y acuse en la aplicación, sin píxel de seguimiento) y `OPEN-079-03` (boletines, nóminas y facturas se envían como enlace a descarga autenticada, nunca como adjunto).
 
+**Decidida por el usuario (2026-11-13), revisión C2-03**: se añade la categoría de aviso «obligación contractual o legal», no desactivable por el usuario y con contenido mínimo declarado por tipo, sin datos del alumno (`§4.7`, regla 7). `ADR-081` declara con ella el preaviso SEPA y el aviso de devolución.
+
 ### 9.1 Bloquean
 
 | ID | Pregunta | Recomendación | Impacto | Bloquea | Decide |
 |---|---|---|---|---|---|
-| `OPEN-079-01` | Proveedor de correo (sustituye a `OPEN-09`) | Scaleway Transactional Email, pago por uso, tras verificar contrato de encargado y región, eventos de rebote y queja, límites de cuenta nueva y DKIM con dominio propio. Si falla alguno, Brevo | Sin proveedor no sale ningún correo real | `0.10c` y la operación en producción. **No** la implementación (contrato SMTP) | Usuario |
+| `OPEN-079-01` | Proveedor de correo (sustituye a `OPEN-09`) | Scaleway Transactional Email, pago por uso, tras verificar contrato de encargado y región, eventos de rebote y queja **que devuelvan una cabecera o metadato propio del mensaje original** (`§4.9` punto 4), límites de cuenta nueva y DKIM con dominio propio. Si falla alguno, Brevo | Sin proveedor no sale ningún correo real | `0.10c` y la operación en producción. **No** la implementación (contrato SMTP) | Usuario |
 | `OPEN-079-02` | Dominio y subdominios de envío | Dos subdominios del dominio de la plataforma (individual y masivo), nunca el ápice | Depende de `OPEN-08` | `0.10c` | Usuario |
 | `OPEN-079-04` | Motor en `Core` y avisos de `prl` sin depender de `com` (matiza la recomendación aprobada de `OPEN-FAM-UNIT-33`) | Sí: el *listener* es de `prl` y llama al contrato de `Core` | Si se mantiene «consumido por `COM`», hay que declarar `com` esencial o aceptar que un centro sin `com` no recibe avisos de recogida | `1.19` y `1.14b-d3` | Usuario |
 | `OPEN-079-07` | «Estadísticas de apertura» sin píxel de seguimiento | Medir lectura en la aplicación y acuse; sin píxel ni reescritura de enlaces | Con píxel: consentimiento propio y peor entregabilidad | Estadísticas de `1.19` | Usuario, con criterio legal |
@@ -474,7 +484,7 @@ No se ha tocado ninguno. Los aplica la sesión orquestadora al integrar.
 | `ARCHITECTURE.md` | Apartado del motor de notificaciones en `Core`: contrato, tipos declarados por módulo, canales, prioridades y colas |
 | `SYSADMIN.md` | Registros DNS de los subdominios de envío (SPF, DKIM, DMARC) y su comprobación; variables `MAIL_*` del proveedor; colas `notify-urgent`, `notify`, `notify-bulk` y su orden; claves VAPID y su rotación; secreto del endpoint de eventos |
 | `RUNBOOK.md` | Proveedor de correo caído; subida de rebotes o quejas; dominio en lista negra; lectura de informes DMARC; reenvío de entregas fallidas |
-| `SECURITY.md` | Endpoint público de eventos del proveedor; regla de datos personales en mensajes (`§4.11`); actualizar la mención de `OPEN-09` (l. 84) |
+| `SECURITY.md` | Endpoint público de eventos del proveedor como **excepción de CSRF y de `AR-07a`** declarada por este ADR (`§4.9` punto 4), en un apartado común de «excepciones de webhooks» junto a la de `ADR-081 §7.4`; `§2.1` deja de decir «primera y única excepción». Regla de datos personales en mensajes (`§4.11`); actualizar la mención de `OPEN-09` (l. 84) |
 | `PRIVACY.md` | Proveedor de correo como subencargado; servicios de *push* de los navegadores; categorías y bases legales (pendientes de `OPEN-079-06`); retención de la traza |
 | `CLAUDE.md §1` | Cuando se implemente: fila «Colas» con las colas nuevas; fila nueva «Notificaciones» (motor en `Core`, SMTP a proveedor de la UE, Web Push) |
 | `.claude/skills/colas-y-workers` | Cuando se implemente: tabla de colas y la regla «un trabajo por entrega» |
@@ -487,7 +497,6 @@ No se ha tocado ninguno. Los aplica la sesión orquestadora al integrar.
 
 1. `apps/web` no tiene manifiesto ni *service worker*: «PWA en fase 1» (`ADR-008`) no está construida ni figura como paso en el plan que he leído. No es una contradicción todavía (la fase 1 no está cerrada), pero ningún paso la recoge.
 2. La tabla de módulos de requisitos (l. 399) declara que `REQ-PRL` depende de `COM`; con este ADR `REQ-PRL-004` no lo necesita. Se propone la nota de arriba, no se ha editado.
-3. `ADR-077` anota que `apps/api/.env.example` declara `QUEUE_CONNECTION=redis` frente a `database` en `CLAUDE.md §1`: afecta a todo lo que este ADR dice de colas. No lo he comprobado yo ni he abierto issue.
 
 ---
 
@@ -507,6 +516,7 @@ No se ha tocado ninguno. Los aplica la sesión orquestadora al integrar.
 | `minishlink/web-push` (`web-push-libs/web-push-php`): MIT, `v11.0.0` del 2026-07-23, actividad hasta 2026-09-09 | API de GitHub | Directa |
 | Registro de alias de SMS de la CNMC y aplazamiento del bloqueo (Orden TDF/558/2026) | Resumen de búsqueda sobre notas de `cnmc.es` | **Indirecta** |
 | Estado del código (colas, correo, `apps/web`, `composer.json`, `laravel/framework` `v13.40.0` en `composer.lock`) | Repositorio, rama `develop` en `b7995bc` | Directa |
+| `MailEnvironmentGuard` (rechaza `log`/`array` fuera de `local`/`testing`), `EnforceSessionIdleTimeout` (refresca `pge_last_activity_at` en cada petición autenticada) y `QUEUE_CONNECTION=database` en `apps/api/.env.example` (consultado el 2026-11-13) | Repositorio, rama `develop` en `786c94e` | Directa |
 
 ### 11.2 Sin verificar
 
@@ -521,3 +531,6 @@ No se ha tocado ninguno. Los aplica la sesión orquestadora al integrar.
 9. Los volúmenes de `§8` son hipótesis.
 10. Qué expone hoy `fam_unit` para resolver «tutor principal» y «todos los tutores» con custodias restringidas: no se ha leído su contrato; lo comprueba la especificación.
 11. Que `core:queue-health` y `QueueWorkerTest` acepten las colas nuevas sin más cambio que la lista.
+12. Que el servicio de push de Chrome sea infraestructura de Google/FCM y qué metadatos exactos reciben los servicios de push de cada navegador (afirmación del revisor C2-12; no consultada en documentación oficial en esta sesión).
+13. Que Scaleway (o Brevo) devuelva en sus eventos una cabecera o metadato propio del mensaje original (`§4.9` punto 4, `OPEN-079-01`).
+14. La franja gratuita del proveedor para el correo de staging (`§4.2` punto 10).
