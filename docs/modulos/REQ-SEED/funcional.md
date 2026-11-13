@@ -9,7 +9,7 @@
 | Depende de | Según el requisito: `CORE`, `CURSO`, `ALUM`, `RRHH`. **`RRHH` no está implementado** (§0.2). Dependencias reales de `1.15b`: `Core`, `Auth`, `Curso`, `Acad`, `Alum`, `FamUnit`, `Prl` y `Backoffice` (aprovisionamiento) |
 | Esencial | No aplica: se propone que no sea un módulo del catálogo (`OPEN-SEED-01`) |
 | Naturaleza | Herramienta interna. **No se despliega en producción** (`§5.53`) |
-| Estado | PROPUESTO (2026-11-12). Ninguna pregunta de §13 está decidida |
+| Estado | PROPUESTO (2026-11-12; correcciones de la revisión `C3` el 2026-11-13). **Decididas por el usuario (2026-11-12)**: `OPEN-SEED-01`, `-02`, `-03` y `-06`; el resto de §13 sigue abierto |
 | **Clasificación del paso** | **crítico** las tres entregas (`ADR-069 §4.2`), motivo por entrega en §11 |
 | Decisiones vinculantes de partida | `ADR-020`, `ADR-029`, `ADR-030`, `ADR-033`, `ADR-034`, `ADR-035`, `ADR-039`, `ADR-045`, `ADR-048`, `ADR-057`, `ADR-060`, `ADR-066`, `ADR-068`, `ADR-076`. En `PROPUESTA` y no leídos (§15): `ADR-077` (purga de tenant) y `ADR-080` (staging) |
 
@@ -27,7 +27,7 @@ Precedentes que sustituye o absorbe:
 ### 0.2 Avisos que el usuario debe conocer antes de aprobar
 
 1. **Dependencia no implementada: `RRHH`.** `REQ-SEED-003` pide plantilla completa con jornadas, contratos y personal de empresa externa. No existe `Employee` ni nada de `REQ-RRHH` (fase 2). En `1.15b` solo se puede representar al personal como persona con cuenta y rol predefinido. La parte de plantilla que exige `RRHH` se difiere a su bloque (`OPEN-SEED-06`, bloqueante de alcance).
-2. **Contradicción entre `REQ-SEED-005` y una regla ya implementada.** `REQ-SEED-005` exige documentos de identidad con dígito de control deliberadamente incorrecto. `Core` valida el dígito de control de `dni`/`nie` (`RN-CORE-90` a `-93`, `PersonDocumentRules`) en el alta y **revalida el par resultante en cada edición**. Un documento con dígito inválido solo puede escribirse por debajo de esa validación, y la persona resultante no se podría editar desde la aplicación (cualquier `PATCH` devolvería `422`). El precedente E2E lo esquivó con `pasaporte` ficticio (`REQ-PRL/operacion.md`). **No lo resuelvo**: `OPEN-SEED-03`, bloqueante.
+2. **Contradicción entre `REQ-SEED-005` y una regla ya implementada.** `REQ-SEED-005` exige documentos de identidad con dígito de control deliberadamente incorrecto. `Core` valida el dígito de control de `dni`/`nie` (`RN-CORE-90` a `-93`, `PersonDocumentRules`) en el alta y **revalida el par resultante en cada edición**. Un documento con dígito inválido solo puede escribirse por debajo de esa validación, y la persona resultante no se podría editar desde la aplicación (cualquier `PATCH` devolvería `422`). El precedente E2E lo esquivó con `pasaporte` ficticio (`REQ-PRL/operacion.md`). **Decidido por el usuario (2026-11-12, `OPEN-SEED-03` = A)**: pasaporte ficticio para casi todas las personas y un grupo pequeño y fijo con `dni`/`nie` de dígito inválido. Esa decisión **se aparta del texto vigente de `REQ-SEED-005` y de `CLAUDE.md §11`**: §14 deja el texto exacto propuesto para ambos, que se aplica solo con aprobación del usuario.
 3. **`REQ-SEED-004` casi entero queda fuera de `1.15b`** porque sus módulos no existen: asistencia (`1.13`), calificaciones (`1.16`), convivencia, comunicaciones (`1.19`), transporte, cuotas, becas y facturación. También NEAE (`REQ-SEED-002`): no hay tabla de categoría especial y `AR-09` es un cable trampa. Entran con el bloque de cada módulo (§6.3). El paso `1.15b` del plan dice «datos operativos»: con lo construido hoy, el único dato operativo disponible son horarios y asignación docente (`Acad`) y, si se aprueba, movimientos de puerta (`OPEN-SEED-13`).
 4. **No existe hoy ninguna marca de «sintético» en el esquema** (búsqueda en `apps/api` sin resultados). `REQ-SEED-005` y la guarda de `REQ-SEED-006` («detecta datos no sintéticos») la necesitan: `OPEN-SEED-02`, bloqueante, toca la tabla de plataforma `tenants`.
 5. **No hay purga física de un centro en la aplicación.** Las tablas con `tenant_id` no tienen cascada y el rol de plataforma no puede borrar de las de solo anexar; el E2E purga con el superusuario del contenedor de desarrollo desde un guion de *shell*. El «comando complementario de purga» de `REQ-SEED-006` depende de esa decisión (`ADR-077`, en `PROPUESTA`): `OPEN-SEED-04`, bloquea solo la entrega `1.15b-c`.
@@ -73,7 +73,7 @@ Precedentes que sustituye o absorbe:
 2. **Guardas** (`RN-SEED-01` a `-07`), antes de cualquier escritura. Si alguna falla, el comando termina con código distinto de cero, un mensaje que dice qué guarda falló, y no escribe nada.
 3. Se valida la entrada completa (perfiles conocidos, bloques conocidos y con sus dependencias, semilla entera, slugs libres, contraseña conforme a `RN-SEED-30`). Un error aquí tampoco escribe nada.
 4. Se crea la ejecución (`seed_runs`, estado `pendiente`) con sus parámetros, y un registro por centro y por bloque (`datos.md`).
-5. Por cada perfil, el bloque `centros` crea el centro por la superficie pública de aprovisionamiento (`ADR-048`), **marcado como sintético en la misma operación** (`RN-SEED-09`), y contrata sus módulos.
+5. Por cada perfil, el bloque `centros` **inserta él mismo la fila de `tenants`** por la conexión de plataforma, con `is_synthetic = true` **en el mismo `INSERT`** (`RN-SEED-09`), y después llama a la superficie pública de aprovisionamiento de `Core` (`TenantProvisioner::provision`, `ADR-048`) con ese `Tenant` ya creado; por último contrata sus módulos. Motivo: `ADR-048` no crea la fila (`TenantProvisioner` recibe un `Tenant` existente); quien la crea en la aplicación es `Backoffice\TenantLifecycleService::create()`/`clone()` (`Tenant::create` en las líneas ~80 y ~260, comprobado el 2026-11-13), que exige un `PlatformAdmin` como actor y registra transición y `admin_action_log`, y que el generador de consola no tiene. Es el mismo camino que ya sigue `e2e-real-tenant.php` (crea la fila y llama a `TenantProvisioner::provision`). **Es una ampliación de `REQ-BO`, aprobada con esta especificación** (`RN-SEED-44`): una segunda vía de alta de centros, fuera del backoffice, solo para centros sintéticos y solo en entornos permitidos.
 6. Se encolan los lotes de los demás bloques en orden de dependencias (§6.2). Cada lote fija el contexto del centro, repite las guardas, escribe en una transacción y anota su resultado y sus recuentos.
 7. El comando informa del identificador de la ejecución y termina; el progreso se consulta con `demo:status`. Con la opción síncrona (`OPEN-SEED-15`) espera y muestra el progreso.
 8. Al completarse todos los bloques de todos los centros, la ejecución pasa a `completada`, se calcula la huella del conjunto (`RN-SEED-23`) y se ejecuta el verificador de la convención sintética (§4.3). Si el verificador falla, la ejecución queda `fallida`.
@@ -90,7 +90,7 @@ Cuando un paso posterior añade un bloque, se ejecuta ese bloque sobre los centr
 
 1. Guardas (las mismas; además `RN-SEED-40` a `-43`).
 2. El operador indica una ejecución o un centro y confirma escribiendo su slug.
-3. Se retiran las filas de todas las tablas con `tenant_id` de ese centro, los objetos de su prefijo en el almacén, sus claves de caché y la fila de `tenants`. El mecanismo es `OPEN-SEED-04`.
+3. Se retiran las filas de todas las tablas con `tenant_id` de ese centro, los objetos de su prefijo en el almacén, sus claves de caché y la fila de `tenants`. El mecanismo de las filas es `OPEN-SEED-04`. **Los objetos del almacén** se retiran calculando el prefijo del centro **solo** con la función de prefijo de `RN-STO-09` (`REQ-CORE/almacen-objetos.md`, entrega `S-2`) y, cuando exista, por la interfaz de borrado por prefijo de `ADR-077 §5.6`; nunca componiendo la ruta a mano ni llamando a `Storage` directamente (`RN-STO-04`). Revisión `C3-08`.
 4. Se anota la purga en la ejecución (`purgada`) con recuentos por tabla.
 
 ### 3.5 Medir (§10)
@@ -104,7 +104,7 @@ No es un flujo del generador: es el uso del conjunto generado para las medicione
 - **RN-SEED-01** El generador y la purga solo se ejecutan si el entorno de la aplicación está en una **lista cerrada de entornos permitidos**. Se comprueba por lista de permitidos, no por lista de prohibidos: `production`, un valor desconocido o vacío se rechazan igual. Lista: `local` y `testing`; `staging` solo si se aprueba (`OPEN-SEED-05`).
 - **RN-SEED-02** No existe parámetro, variable de entorno, opción ni confirmación interactiva que permita saltar `RN-SEED-01` ni `RN-SEED-03`. Un test lo comprueba sobre la firma de los comandos y sobre el comportamiento (`CA-SEED-003`).
 - **RN-SEED-03** El generador se niega a ejecutarse si detecta **datos no sintéticos** en la base. Definición propuesta (`OPEN-SEED-07`): existe al menos un centro sin la marca de sintético. El mensaje dice cuántos y sus slugs, y no escribe nada.
-- **RN-SEED-04** El código del generador **no forma parte de la imagen de producción**, si se aprueba `OPEN-SEED-01` = A: en producción el comando no existe. Las guardas en ejecución se mantienen igualmente (defensa en profundidad): la ausencia del código no sustituye a `RN-SEED-01`.
+- **RN-SEED-04** El código del generador **no forma parte de la imagen de producción** (`OPEN-SEED-01` = A, decidida): en producción el comando no existe. **Ruta fijada** (revisión `C3-07`): todo el código del generador —comandos, trabajos de lote, bloques, catálogos y verificador— vive bajo **`apps/api/tests/Support/Seed/`**. Esa ruta ya queda fuera de la imagen por la línea `tests/Support` de `apps/api/.dockerignore` (comprobado el 2026-11-13: es su única línea efectiva); el tramo T1 de `1.15b-a` amplía el comentario de ese fichero para nombrar también el generador. Ni `app/` (entraría en la imagen y bajo `AR-17`) ni un `tools/` fuera de `apps/api` (fuera del contexto de construcción y del contenedor de desarrollo). Cómo se registran los comandos y se resuelven las clases de esa ruta solo fuera de producción (autocarga de desarrollo, proveedor condicionado al entorno) lo fija el *briefing* de `explorer` de T1, sin añadir nada a `app/` salvo, si hiciera falta, un registro condicionado que no referencie clases inexistentes en la imagen. Las guardas en ejecución se mantienen igualmente (defensa en profundidad): la ausencia del código no sustituye a `RN-SEED-01`.
 - **RN-SEED-05** Solo se ejecuta por consola. No hay ruta HTTP, tarea programada ni disparador que lo invoque.
 - **RN-SEED-06** Las guardas se evalúan en el comando **y al comienzo de cada lote en cola**. Un lote que no las supera se marca `fallido` y no escribe.
 - **RN-SEED-07** Las guardas se evalúan antes de leer cualquier otro parámetro que pueda escribir, y antes de `platform:sync-registry` o cualquier otra orden con efectos.
@@ -122,6 +122,7 @@ No es un flujo del generador: es el uso del conjunto generado para las medicione
 - **RN-SEED-16** La ejecución, sus parámetros, su resultado, sus recuentos y su purga quedan registrados en `seed_runs` (`datos.md`): es el rastro de qué hizo el generador, cuándo y con qué semilla.
 - **RN-SEED-17** Un curso académico cerrado no se escribe (`ADR-057`). Si un bloque futuro necesita histórico de cursos cerrados, crea los datos con el curso activo y lo cierra después por el flujo de `REQ-CURSO`; nunca siembra como propietario. En `1.15b` solo se genera el curso activo (`OPEN-SEED-17`).
 - **RN-SEED-18** El generador vive fuera de `app/Modules` y no añade ninguna excepción a las listas cerradas de los tests de arquitectura. Si un tramo necesitara ampliarlas, para y lo reporta.
+- **RN-SEED-44** (ampliación de `REQ-BO`, aprobada con esta especificación; revisión `C3-06`) La fila de `tenants` de un centro sintético la inserta el bloque `centros` por la conexión de plataforma, con `is_synthetic = true` en el propio `INSERT`, `status` de alta y slug de la lista cerrada de `RN-SEED-26`; a continuación llama a `TenantProvisioner::provision` (`ADR-048`). No usa `Backoffice\TenantLifecycleService` ni ningún código de `Backoffice` (`INV-007`; el generador no tiene `PlatformAdmin` que figure como actor). Consecuencias que se aceptan: el alta de un centro sintético no deja transición en `tenant_lifecycle_events` ni fila en `admin_action_log`; su rastro es `seed_runs`/`seed_run_tenants` (`RN-SEED-16`). El alta del backoffice **no cambia**: sigue insertando sin la columna, que toma su valor por defecto `false`. Que el `status` inicial y las comprobaciones de slug reservado del backoffice se repliquen o se invoquen por una interfaz pública lo fija el *briefing* de `explorer` del tramo T2 de `1.15b-a`; si exigiera tocar `Backoffice`, el tramo para y lo reporta.
 
 ### 4.3 Convención de datos sintéticos (`REQ-SEED-005`)
 
@@ -133,7 +134,7 @@ No es un flujo del generador: es el uso del conjunto generado para las medicione
 | Personas | Nombres y apellidos de catálogos propios con localización española (portados de `seed/catalogos.py`) | Ninguno fuera del catálogo |
 | Correos | Solo `@example.com` y `@example.org`, de acceso y de contacto | Cero filas fuera de esos dominios |
 | Teléfonos | Rangos no asignables a personas reales. **El rango concreto se verifica con fuente primaria antes de implementar** (§15) | Todos dentro del rango |
-| Documentos de identidad | Según `OPEN-SEED-03` | Ningún `dni`/`nie` con dígito de control válido |
+| Documentos de identidad | `OPEN-SEED-03` = A (decidida): `pasaporte` ficticio con prefijo reconocible para casi todas las personas; un grupo pequeño y fijo por centro con `dni`/`nie` de dígito de control inválido, escrito por debajo de la validación y documentado como no editable hasta corregir el documento | Ningún `dni`/`nie` con dígito de control válido; todo `pasaporte` con el prefijo ficticio; el grupo de `dni`/`nie` existe y tiene el tamaño fijado |
 | Direcciones | Vías inexistentes en municipios reales | Vía de catálogo ficticio |
 | Fotografías | Ninguna, o marcadores sin rostro generados por el propio generador (`OPEN-SEED-12`). Nunca fotos de personas reales ni de bancos de imágenes | Ningún fichero de imagen de origen externo en el repositorio |
 | Fechas de nacimiento | Sintéticas, coherentes con el curso | Edad dentro del rango del curso, salvo repetidores |
@@ -187,7 +188,7 @@ No es un flujo del generador: es el uso del conjunto generado para las medicione
 - **RN-SEED-40** Solo se purga un centro que cumpla **las tres** condiciones: marca de sintético, slug con prefijo `demo-` y estar registrado en `seed_run_tenants` como creado por el generador. Precedente: la triple marca del escaparate en `e2e-real-tenant.php`.
 - **RN-SEED-41** La purga nunca se ejecuta sin que el operador escriba el slug del centro. No hay purga «de todo» sin enumerar.
 - **RN-SEED-42** La purga valida el `tenant_id` y el slug antes de usarlos y nunca construye SQL por concatenación (`CLAUDE.md §8`).
-- **RN-SEED-43** Tras purgar se verifica que no queda ninguna fila con ese `tenant_id` en ninguna tabla que lo tenga, ni objetos bajo su prefijo, y el resultado se anota en la ejecución.
+- **RN-SEED-43** Tras purgar se verifica que no queda ninguna fila con ese `tenant_id` en ninguna tabla que lo tenga (salvo `seed_run_tenants` y `seed_run_blocks`, que lo conservan sin clave foránea como rastro, `datos.md §1.4`-`§1.5`), ni objetos bajo su prefijo, y el resultado se anota en la ejecución. El prefijo, tanto para borrar como para verificar, sale de la función de prefijo de `RN-STO-09` (`REQ-CORE/almacen-objetos.md`) y el borrado va por la interfaz de borrado por prefijo de `ADR-077 §5.6` cuando exista; mientras no exista, por `TenantObjectStore` de `S-2`, nunca por `Storage` (`RN-STO-04`). Dependencia: `1.15b-c` va después de `S-2`; si `S-2` no está mezclada al empezar `1.15b-c` T1, el tramo para y lo reporta. La coordinación figura en la tabla de `REQ-CORE/almacen-objetos.md §10` (la añade la sesión orquestadora).
 
 ## 5. Casos límite y errores
 
@@ -234,7 +235,7 @@ Bloques futuros (no se especifican aquí; cada uno entra en la especificación d
 
 | Bloque | Paso | Requisito de `REQ-SEED` que cubre |
 |---|---|---|
-| `asistencia` | `1.13` | `-004`: un trimestre con faltas y retrasos |
+| `asistencia` | `1.13` (va **antes** que `1.15b`) | `-004`: un trimestre con faltas y retrasos. **Excepción (revisión `C3-12`)**: `1.13` se implementa cuando el generador aún no existe, así que **no lleva bloque de siembra propio**; su bloque entra en `1.15b-b` si cabe en su T3 sin pasar de tres tramos, y si no, en una entrega posterior de `REQ-SEED` con sufijo de letra (`1.15b-d`). Lo mismo vale para cualquier otro paso que se mezcle antes de `1.15b-a` |
 | `calif` | `1.16` | `-004`: una evaluación completa |
 | `inf` | `1.18` | `-001`, `-004`: 0-3 |
 | `com` | `1.19` | `-004`: comunicaciones |
@@ -305,7 +306,7 @@ Concurrencia y picos (`RNF-PERF-002`, `-008`): requieren una herramienta de carg
 
 | Entrega | Contenido | Tramos | Clasificación |
 |---|---|---|---|
-| **`1.15b-a` Cimientos** | T1: migraciones (marca de sintético en `tenants`, tablas `seed_*`), guardas, cambio en `e2e-real-tenant.php`. T2: comandos `demo:seed` y `demo:status`, cola y progreso, semilla y subsemillas, bloque `centros`. T3: bloques `curso`, `personal` y `estructura`, contraseñas por entorno, verificador, *spec* de E2E real (acceso a un centro generado) | 3 | **crítico**: migración que crea tablas y cambia una tabla de plataforma; autenticación (cuentas, contraseñas, exención de MFA); tablas que cruzan tenants |
+| **`1.15b-a` Cimientos** | Antes de T1: `db-reviewer` revisa el diseño de las migraciones (`datos.md §1.5`, `GRANT` nuevo sobre tabla de plataforma). T1: migraciones (marca de sintético en `tenants`, tablas `seed_*` con RLS y `GRANT` de `seed_run_blocks`), guardas, cambio en `e2e-real-tenant.php`. T2: comandos `demo:seed` y `demo:status`, cola y progreso, semilla y subsemillas, bloque `centros`. T3: bloques `curso`, `personal` y `estructura`, contraseñas por entorno, verificador, *spec* de E2E real (acceso a un centro generado) | 3 | **crítico**: migración que crea tablas y cambia una tabla de plataforma; autenticación (cuentas, contraseñas, exención de MFA); tablas que cruzan tenants |
 | **`1.15b-b` Alumnado y familias** | T1: bloque `alumnado`. T2: bloque `familias`. T3: bloque `puerta` si se aprueba, huella de reproducibilidad, ampliación por bloque (§3.3), volumen `full`, E2E real | 3 | **crítico**: sin migraciones ni *endpoints*, pero escribe datos con forma de datos de menores, ficheros si entra `OPEN-SEED-12`, y vínculos revocados. Duda: crítico |
 | **`1.15b-c` Purga y medición** | T1: `demo:purge` según `OPEN-SEED-04`. T2: guion de medición y resultados de §10. T3: destino de `seed/` (`OPEN-SEED-16`), documentación | 3 | **crítico**: borrado físico por encima de RLS y de tablas de solo anexar |
 
@@ -325,7 +326,7 @@ Formato Dado/Cuando/Entonces. Cada uno tiene un test que cita su ID (`INV-015`).
 - **CA-SEED-004** *Dado* un entorno permitido y un centro sin marca de sintético, *cuando* se ejecuta `demo:seed`, *entonces* se niega, el mensaje indica cuántos centros no sintéticos hay, y no escribe nada.
 - **CA-SEED-005** *Dado* un lote ya encolado, *cuando* el trabajador lo toma en un entorno no permitido o con un centro no sintético en la base, *entonces* el lote no escribe y queda `fallido`.
 - **CA-SEED-006** *Dado* un entorno no permitido, *cuando* se ejecuta `demo:seed`, *entonces* no se ha ejecutado `platform:sync-registry` ni ninguna otra orden con efectos.
-- **CA-SEED-007** (si `OPEN-SEED-01` = A) *Dado* el árbol de ficheros que entra en la imagen de producción, *cuando* se busca el código del generador, *entonces* no está, y `demo:seed` no figura entre los comandos disponibles.
+- **CA-SEED-007** (`OPEN-SEED-01` = A, `RN-SEED-04`) *Dado* `apps/api/.dockerignore`, *cuando* se analiza, *entonces* excluye `tests/Support` (y con ello `tests/Support/Seed/`); *y dado* el contexto de construcción de la imagen de producción con esas exclusiones aplicadas, *cuando* se busca `tests/Support/Seed`, *entonces* no está; *y dado* un contenedor de esa imagen, `php artisan list` no muestra `demo:seed`, `demo:status` ni `demo:purge` y arranca sin error. *Y dado* el código de `app/`, ninguna clase referencia un espacio de nombres de `tests/Support/Seed` sin comprobar antes que existe.
 - **CA-SEED-008** *Dado* un centro creado por `e2e-real-tenant.php` en cualquiera de sus modos, *cuando* se consulta, *entonces* lleva la marca de sintético y no impide ejecutar `demo:seed`.
 - **CA-SEED-009** *Dado* un centro existente, *cuando* se intenta cambiar su marca de sintético en cualquier sentido, por la conexión de plataforma o por la de tenant, *entonces* la base de datos lo rechaza.
 
@@ -345,7 +346,7 @@ Formato Dado/Cuando/Entonces. Cada uno tiene un test que cita su ID (`INV-015`).
 ### 12.3 Convención sintética (`REQ-SEED-005`)
 
 - **CA-SEED-020** *Dado* un conjunto generado, *cuando* se buscan correos de acceso o de contacto fuera de `@example.com` y `@example.org`, *entonces* no hay ninguno.
-- **CA-SEED-021** *Dado* un conjunto generado, *cuando* se valida el dígito de control de cada documento `dni`/`nie`, *entonces* ninguno es válido. (La redacción final depende de `OPEN-SEED-03`.)
+- **CA-SEED-021** *Dado* un conjunto generado, *cuando* se valida el dígito de control de cada documento `dni`/`nie`, *entonces* ninguno es válido; *y cuando* se revisan los documentos `pasaporte`, *entonces* todos llevan el prefijo ficticio; *y* cada centro tiene el grupo fijo de personas con `dni`/`nie` de dígito inválido (`OPEN-SEED-03` = A).
 - **CA-SEED-022** *Dado* un conjunto generado, *cuando* se revisan los teléfonos, *entonces* todos están en el rango no asignable documentado.
 - **CA-SEED-023** *Dado* un conjunto generado, *cuando* se revisan los nombres de centro y los slugs, *entonces* están en la lista cerrada de `RN-SEED-26`.
 - **CA-SEED-024** *Dado* el repositorio, *cuando* se revisan los ficheros que añade el generador, *entonces* no hay ninguna imagen de origen externo ni ninguna fotografía de una persona.
@@ -382,7 +383,7 @@ Formato Dado/Cuando/Entonces. Cada uno tiene un test que cita su ID (`INV-015`).
 ### 12.7 Purga (`1.15b-c`)
 
 - **CA-SEED-045** *Dado* un centro que no cumple las tres condiciones de `RN-SEED-40` (cada una por separado), *cuando* se ejecuta `demo:purge` sobre él, *entonces* se niega y no borra nada.
-- **CA-SEED-046** *Dado* un centro generado y purgado, *cuando* se cuenta su `tenant_id` en toda tabla que lo tenga y los objetos de su prefijo, *entonces* el resultado es cero, y los otros dos centros conservan exactamente sus recuentos.
+- **CA-SEED-046** *Dado* un centro generado y purgado, *cuando* se cuenta su `tenant_id` en toda tabla que lo tenga (salvo las dos tablas de rastro de `RN-SEED-43`) y los objetos de su prefijo calculado con la función de `RN-STO-09`, *entonces* el resultado es cero, y los otros dos centros conservan exactamente sus recuentos.
 - **CA-SEED-047** *Dado* el entorno `production`, *cuando* se ejecuta `demo:purge`, *entonces* el resultado es el de `CA-SEED-001`.
 - **CA-SEED-048** *Dado* un centro purgado, *cuando* se vuelve a generar con la misma semilla, *entonces* la huella coincide con la original.
 
@@ -396,16 +397,16 @@ Formato Dado/Cuando/Entonces. Cada uno tiene un test que cita su ID (`INV-015`).
 
 **Decididas por el usuario (2026-11-12), según la recomendación**: `OPEN-SEED-01` (generador como herramienta de desarrollo fuera de `app/Modules`, cuyo código no entra en la imagen de producción), `OPEN-SEED-02` (`tenants.is_synthetic` inmutable por disparador; `e2e-real-tenant.php` marca sus centros), `OPEN-SEED-03` (pasaporte ficticio para casi todas las personas y un grupo pequeño fijo con DNI/NIE de dígito inválido) y `OPEN-SEED-06` (plantilla limitada a personal con cuenta y rol predefinido, porque RRHH no existe). Siguen abiertas las demás; `OPEN-SEED-04` bloquea solo `1.15b-c`.
 
-Ninguna está decidida. Cada una lleva recomendación, impacto y quién decide.
+Las cuatro decididas se conservan en la tabla de §13.1 como registro, marcadas «Decidida»; las demás siguen abiertas. Cada una lleva recomendación, impacto y quién decide.
 
 ### 13.1 Bloquean la implementación
 
 | ID | Pregunta | Opciones | **Recomendada** | Impacto | Decide | Bloquea |
 |---|---|---|---|---|---|---|
-| `OPEN-SEED-01` | ¿Dónde vive el generador y con qué forma? | **A** Herramienta de desarrollo fuera de `app/Modules`, cuyo código no entra en la imagen de producción; sin descriptor. **B** Módulo normal `Seed` con descriptor. **C** Módulo de plataforma como `Backoffice` (excepción nominal en los tests de arquitectura) | **A** | A cumple «no se despliega en producción» de forma estructural y no amplía listas cerradas; exige comprobar cómo se construye la imagen (§15). B lo hace contratable y visible en el catálogo. C amplía excepciones cerradas. Revertir A a B es barato; B a A, no una vez sincronizado el catálogo | Usuario | `-a` |
-| `OPEN-SEED-02` | ¿Cómo se marca un registro como sintético? | **A** Marca en el centro (`tenants`), inmutable; todo registro es sintético por su `tenant_id`. **B** Columna en cada tabla de negocio. **C** Tabla de registro de identificadores generados | **A** | A es una columna y un disparador en una tabla de plataforma; no admite mezclar datos sintéticos y reales en un mismo centro, que es justo lo que se quiere prohibir. B toca más de treinta tablas y todo módulo futuro. C no impide la mezcla y crece con el volumen. Si «todo registro» se lee de forma literal, A lo cumple por derivación: es una interpretación y por eso se pregunta | Usuario | `-a` |
-| `OPEN-SEED-03` | Documentos de identidad: `REQ-SEED-005` (dígito inválido) contra `RN-CORE-90` a `-93` (se valida en alta y en cada edición) | **A** Pasaporte ficticio con prefijo reconocible para casi todos, y un grupo pequeño y fijo por centro con `dni`/`nie` de dígito inválido, escrito por debajo de la validación y documentado como no editable hasta corregir el documento. **B** Literal: todos con `dni`/`nie` de dígito inválido; ninguna persona generada se puede editar. **C** Relajar la validación de `Core` en centros sintéticos. **D** Enmendar `REQ-SEED-005` y usar solo pasaporte | **A** | A mantiene la demo utilizable y conserva casos para probar la validación. B rompe la edición de toda persona de la demo. C hace que la demo se comporte distinto que producción: lo desaconsejo. D es A sin casos de dígito inválido. Cualquiera salvo B exige enmendar o aclarar `REQ-SEED-005` | Usuario | `-a` (`personal`), `-b` |
-| `OPEN-SEED-06` | Plantilla de `REQ-SEED-003` sin `RRHH` | **A** En `1.15b` solo personal con cuenta y rol predefinido; el resto, con el bloque `rrhh`. **B** Crear además a los puestos sin cuenta como personas sueltas, sin puesto. **C** Aplazar todo `1.15b` hasta `RRHH` | **A** | B deja personas sin ningún papel en el modelo, que ninguna pantalla muestra y que habría que reconciliar después. C contradice `ADR-030` (habilitante). Con A, `REQ-SEED-003` queda cubierto parcialmente y así debe constar en el plan | Usuario | `-a` |
+| `OPEN-SEED-01` (**Decidida: A**, 2026-11-12) | ¿Dónde vive el generador y con qué forma? | **A** Herramienta de desarrollo fuera de `app/Modules`, cuyo código no entra en la imagen de producción; sin descriptor. **B** Módulo normal `Seed` con descriptor. **C** Módulo de plataforma como `Backoffice` (excepción nominal en los tests de arquitectura) | **A** | A cumple «no se despliega en producción» de forma estructural y no amplía listas cerradas; exige comprobar cómo se construye la imagen (§15). B lo hace contratable y visible en el catálogo. C amplía excepciones cerradas. Revertir A a B es barato; B a A, no una vez sincronizado el catálogo | Usuario | `-a` |
+| `OPEN-SEED-02` (**Decidida: A**, 2026-11-12) | ¿Cómo se marca un registro como sintético? | **A** Marca en el centro (`tenants`), inmutable; todo registro es sintético por su `tenant_id`. **B** Columna en cada tabla de negocio. **C** Tabla de registro de identificadores generados | **A** | A es una columna y un disparador en una tabla de plataforma; no admite mezclar datos sintéticos y reales en un mismo centro, que es justo lo que se quiere prohibir. B toca más de treinta tablas y todo módulo futuro. C no impide la mezcla y crece con el volumen. Si «todo registro» se lee de forma literal, A lo cumple por derivación: es una interpretación y por eso se pregunta | Usuario | `-a` |
+| `OPEN-SEED-03` (**Decidida: A**, 2026-11-12; exige enmendar `REQ-SEED-005` y `CLAUDE.md §11`, texto en §14) | Documentos de identidad: `REQ-SEED-005` (dígito inválido) contra `RN-CORE-90` a `-93` (se valida en alta y en cada edición) | **A** Pasaporte ficticio con prefijo reconocible para casi todos, y un grupo pequeño y fijo por centro con `dni`/`nie` de dígito inválido, escrito por debajo de la validación y documentado como no editable hasta corregir el documento. **B** Literal: todos con `dni`/`nie` de dígito inválido; ninguna persona generada se puede editar. **C** Relajar la validación de `Core` en centros sintéticos. **D** Enmendar `REQ-SEED-005` y usar solo pasaporte | **A** | A mantiene la demo utilizable y conserva casos para probar la validación. B rompe la edición de toda persona de la demo. C hace que la demo se comporte distinto que producción: lo desaconsejo. D es A sin casos de dígito inválido. Cualquiera salvo B exige enmendar o aclarar `REQ-SEED-005` | Usuario | `-a` (`personal`), `-b` |
+| `OPEN-SEED-06` (**Decidida: A**, 2026-11-12) | Plantilla de `REQ-SEED-003` sin `RRHH` | **A** En `1.15b` solo personal con cuenta y rol predefinido; el resto, con el bloque `rrhh`. **B** Crear además a los puestos sin cuenta como personas sueltas, sin puesto. **C** Aplazar todo `1.15b` hasta `RRHH` | **A** | B deja personas sin ningún papel en el modelo, que ninguna pantalla muestra y que habría que reconciliar después. C contradice `ADR-030` (habilitante). Con A, `REQ-SEED-003` queda cubierto parcialmente y así debe constar en el plan | Usuario | `-a` |
 | `OPEN-SEED-04` | Mecanismo de la purga | **A** Guion de desarrollo que generaliza el del E2E (superusuario del contenedor de desarrollo), restringido por `RN-SEED-40`; se sustituye por el mecanismo de `ADR-077` cuando se implemente. **B** Esperar a `ADR-077` y reutilizarlo. **C** No hay purga por centro: se recrea la base | **A** | A no sirve en un entorno donde no haya superusuario disponible (staging). B retrasa `-c` a un paso sin fecha. C incumple «comando complementario de purga» | Usuario, con el `architect` de `ADR-077` | Solo `-c` |
 
 ### 13.2 No bloquean (hay valor por defecto si no se deciden)
@@ -433,8 +434,9 @@ No se tocan desde esta rama; los aplica la sesión orquestadora.
 
 | Fichero | Cambio |
 |---|---|
-| `PLAN-IMPLEMENTACION.md` | Partir `1.15b` en `1.15b-a`, `-b` y `-c` (§11). Cambiar «plantilla completa de personal y datos operativos» por el alcance real: personal con cuenta; el resto por bloques. Añadir a cada paso posterior con módulo nuevo (`1.13`, `1.16`, `1.18`, `1.19` y fase 2) la línea «incluye su bloque de `REQ-SEED`». Anotar que `1.15b-c` depende de `OPEN-SEED-04` |
-| `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` | Solo si el usuario decide: aclarar `REQ-SEED-005` según `OPEN-SEED-03` y `-02`; anotar en `§5.53` que `REQ-SEED-003` depende de `RRHH` para la plantilla sin cuenta. Es contenido de requisito, no índice: lo aprueba el usuario |
+| `PLAN-IMPLEMENTACION.md` | Partir `1.15b` en `1.15b-a`, `-b` y `-c` (§11). Cambiar «plantilla completa de personal y datos operativos» por el alcance real: personal con cuenta; el resto por bloques. Añadir a cada paso posterior **a `1.15b`** con módulo nuevo (`1.16`, `1.18`, `1.19` y fase 2) la línea «incluye su bloque de `REQ-SEED`»; a `1.13`, que va antes, la línea «sin bloque de siembra propio: su bloque entra en `1.15b-b` o en `1.15b-d`» (`C3-12`). Anotar que `1.15b-c` depende de `OPEN-SEED-04` |
+| `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` | **Hay que modificar `REQ-SEED-005`** (`§5.53`): `OPEN-SEED-03` = A, decidida, se aparta de su texto vigente («documentos de identidad con dígito de control deliberadamente incorrecto»). Texto exacto propuesto en §14.1. Además, anotar en `§5.53` que `REQ-SEED-003` depende de `RRHH` para la plantilla sin cuenta (`OPEN-SEED-06` = A) y que la marca de sintético es del centro (`OPEN-SEED-02` = A). Es contenido de requisito: **se aplica solo con aprobación expresa del usuario** |
+| `CLAUDE.md` | **Hay que modificar `§11`** por el mismo motivo: su línea «documentos de identidad con dígito de control inválido» deja de describir la convención decidida. Texto exacto propuesto en §14.1. **Esta rama no edita `CLAUDE.md`**; lo aplica la sesión orquestadora solo con aprobación del usuario (sube la versión de `CLAUDE.md` y su entrada de `CHANGELOG.md`) |
 | `memory.md` | Nota viva de `1.15b`; quitar «`STATE_SQL` con miles de alumnos» de lo no probado cuando cierre `-c` |
 | `CHANGELOG.md` | Entrada de la especificación y, después, una por entrega |
 | `SYSADMIN.md` | Variables de `operacion.md §1`, orden de uso de los comandos y nota de orígenes permitidos en desarrollo |
@@ -444,6 +446,27 @@ No se tocan desde esta rama; los aplica la sesión orquestadora.
 | `.claude/skills/modulo-nuevo` | Añadir al checklist de alta: «bloque de `REQ-SEED` del módulo» |
 | `docs/modulos/_PLANTILLA/funcional.md` | Sección «Bloque de `REQ-SEED`» (no es fichero compartido de la lista, pero es de todos: se propone, no se toca) |
 | `docs/modulos/REQ-FAM-UNIT/operacion.md` | Nota con el resultado de la medición de `STATE_SQL` (al cerrar `-c`) |
+| `docs/modulos/REQ-CORE/almacen-objetos.md §10` (rama de `S-2`) | Fila de coordinación con `demo:purge` (`RN-SEED-43`, revisión `C3-08`); la añade la orquestadora |
+
+### 14.1 Texto exacto propuesto para `REQ-SEED-005` y `CLAUDE.md §11` (revisión `C3-11`)
+
+Pendiente de aprobación del usuario. Solo cambia la parte de documentos de identidad; el resto de cada texto queda igual.
+
+**`REQ-SEED-005`** (`docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md §5.53`): la cláusula de documentos de identidad del texto vigente se sustituye por esta, literal:
+
+> Documentos de identidad ficticios: tipo pasaporte con un prefijo reconocible como ficticio para la generalidad de las personas generadas, y un grupo pequeño y fijo por centro con DNI/NIE de dígito de control deliberadamente incorrecto, para probar la validación. Ningún DNI/NIE generado tiene un dígito de control válido.
+
+(La sesión que lo aplique copia antes el texto vigente de `§5.53`, que esta especificación no pudo leer literalmente, y solo sustituye esa cláusula.)
+
+**`CLAUDE.md §11`**: la línea vigente
+
+> - Los datos de prueba siguen la convención de `REQ-SEED-005`: dominios `@example.com`, documentos de identidad con dígito de control inválido, centros con nombre explícitamente ficticio, y nunca fotografías de personas reales.
+
+pasa a ser, literal:
+
+> - Los datos de prueba siguen la convención de `REQ-SEED-005`: dominios `@example.com`, documentos de identidad ficticios (pasaporte con prefijo reconocible y, en un grupo pequeño y fijo, DNI/NIE con dígito de control inválido; nunca un DNI/NIE válido), centros con nombre explícitamente ficticio, y nunca fotografías de personas reales.
+
+**Mismo resumen en otros ficheros** (no los exige la revisión; se proponen para que no queden desfasados, con el mismo paréntesis): `PRIVACY.md` (párrafo de desarrollo en WSL2 y párrafo de Codex), `SECURITY.md §2.2` solo si se considera que cita la convención en detalle (hoy cita solo `REQ-SEED-005`) y `.claude/skills/revision-con-codex/contexto-codex.md` («documentos con dígito de control inválido»). Todos son ficheros compartidos o `.claude/**`: los aplica la orquestadora con la misma aprobación.
 
 ## 15. Lo que no se pudo comprobar
 
@@ -451,16 +474,16 @@ Esta sesión no disponía de búsqueda local ni de consola; se localizó con lec
 
 1. **`ADR-080` y `OPEN-STG-09`**: la rama `chore/adr-080-staging-y-runtime-de-contenedores` no está publicada y no se pudo leer. `OPEN-SEED-05` se formula sin conocer su texto; hay que contrastarlos al integrar.
 2. **`ADR-077`** (purga de tenant): no leído. `OPEN-SEED-04` depende de él.
-3. **Cómo se construye la imagen de producción** (si excluye dependencias y código de desarrollo): sin verificar. De ello depende que `OPEN-SEED-01` = A sea estructural (`CA-SEED-007`).
+3. **Cómo se construye la imagen de producción**: comprobado solo que `apps/api/.dockerignore` excluye `tests/Support` (2026-11-13), que es la ruta fijada en `RN-SEED-04`. Sin verificar: el `Containerfile` (si copia `tests/` y si instala dependencias de desarrollo) y cómo se registran comandos cuyo código no está en la imagen. `CA-SEED-007` lo prueba sobre la imagen construida.
 4. **Rango de teléfonos no asignables en España**: no verificado con fuente primaria (CNMC). No se fija ningún rango de memoria.
 5. **Si `Acad` modela hoy el régimen por etapa** (`ADR-020`) y qué calendario tiene `Curso`: sin verificar (`RN-SEED-26`, bloque `curso`).
 6. **Lista de roles predefinidos**: vistos `administrador_centro`, `direccion`, `secretaria`, `docente`, `conserjeria_pas` y `tutor_legal` en el precedente E2E. No se comprobó si existen jefatura de estudios u orientación como roles propios.
 7. **Si `audit_logs` admite un identificador de correlación** con el que enlazar cada registro a su ejecución: sin verificar. Si no existe, el enlace es por intervalo de tiempo y `actor_type`; no se propone columna nueva.
-8. **Que el aprovisionamiento público (`ADR-048`) admita pasar la marca de sintético en la creación**: no existe hoy; es parte de `1.15b-a` y toca `Core`.
+8. ~~Que el aprovisionamiento público (`ADR-048`) admita pasar la marca de sintético en la creación~~ **Resuelto el 2026-11-13 (`C3-06`)**: `TenantProvisioner` recibe un `Tenant` ya creado y no crea la fila; la crea `Backoffice\TenantLifecycleService` (líneas ~80 y ~260). La marca se fija en el `INSERT` que hace el propio generador (`RN-SEED-44`), como el precedente `e2e-real-tenant.php`; `Core` no cambia por esto. Queda por comprobar en el *briefing* qué `status` inicial y qué comprobaciones de slug reservado replicar.
 9. **Orígenes permitidos en desarrollo**: el precedente dice que solo `demo` está permitido; no se leyó la configuración.
 10. No existe tabla de lotes de trabajos del framework (búsqueda sin resultados): el progreso se lleva en las tablas `seed_*`, que es lo especificado.
 11. **Tamaño de lote y duración total** con 1.200 alumnos: sin medir; se calibra en `1.15b-a` T2.
 
 ---
 
-¿Se aprueba esta especificación para pasar a implementación? Antes hacen falta, como mínimo, las decisiones de `OPEN-SEED-01`, `-02`, `-03` y `-06`.
+¿Se aprueba esta especificación para pasar a implementación? `OPEN-SEED-01`, `-02`, `-03` y `-06` ya están decididas; falta además aprobar el texto de §14.1 (`REQ-SEED-005` y `CLAUDE.md §11`) y la decisión de `datos.md §1.5` (escritura de `seed_run_blocks` por el rol de tenant), y `OPEN-SEED-04` antes de `1.15b-c`.

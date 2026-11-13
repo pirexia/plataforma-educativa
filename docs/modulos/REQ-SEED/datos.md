@@ -1,6 +1,6 @@
 # REQ-SEED · Modelo de datos
 
-Estado: PROPUESTO (2026-11-12). Depende de `OPEN-SEED-01`, `-02` y `-19` (`funcional.md §13`). Sin código: los tipos se describen, no se escriben migraciones.
+Estado: PROPUESTO (2026-11-12; correcciones de la revisión `C3` el 2026-11-13). Se apoya en `OPEN-SEED-01` y `-02`, **decididas por el usuario el 2026-11-12** (A en ambas), y en `OPEN-SEED-19` (abierta, no bloquea). Sin código: los tipos se describen, no se escriben migraciones.
 
 El generador **no crea tablas de negocio**. Aporta una columna en una tabla de plataforma y tres tablas de plataforma propias. Los datos que genera viven en las tablas de cada módulo, documentadas en su carpeta.
 
@@ -15,7 +15,7 @@ El generador **no crea tablas de negocio**. Aporta una columna en una tabla de p
 Reglas en base de datos:
 
 - **Inmutable tras la inserción** (`RN-SEED-09`): un disparador rechaza cualquier `UPDATE` que cambie el valor, también para la conexión de plataforma. Motivo: pasar un centro real a sintético lo haría purgable (`RN-SEED-40`); pasar uno sintético a real ocultaría datos falsos entre los reales.
-- Solo la escriben, en la creación, el bloque `centros` y `e2e-real-tenant.php`. El alta del backoffice no la expone y siempre inserta `false`.
+- Solo la escriben, en el `INSERT` de la fila, el bloque `centros` (`funcional.md RN-SEED-44`: el generador inserta la fila por la conexión de plataforma y luego llama a `TenantProvisioner`) y `e2e-real-tenant.php`. El alta del backoffice (`TenantLifecycleService`) no la expone, no cambia y toma el valor por defecto `false`.
 - Migración aditiva (`CLAUDE.md §9`): columna con valor por defecto, compatible con la versión anterior del código. Los centros existentes quedan en `false`; los de E2E de una base de desarrollo ya creada hay que retirarlos y recrearlos (`operacion.md §6`).
 - En producción la columna existe y vale siempre `false`.
 
@@ -73,6 +73,7 @@ Progreso por centro y bloque (`RN-SEED-37`) y base de la reanudación (`RN-SEED-
 | Campo | Tipo | Nulo | Descripción |
 |---|---|---|---|
 | `id` | `bigint` | No | |
+| `tenant_id` | `bigint` | No | Centro al que pertenece el bloque; eje de la política de RLS (decisión de abajo). **Sin clave foránea**, como `seed_run_tenants.tenant_id`: el progreso sobrevive a la purga del centro como rastro |
 | `seed_run_tenant_id` | `bigint` | No | FK a `seed_run_tenants`, `NO ACTION` |
 | `block_code` | `text` | No | Código del bloque (`funcional.md §6.3`) |
 | `status` | `text` + `CHECK` | No | `pendiente`, `en_curso`, `completado`, `fallido`, `omitido` |
@@ -91,7 +92,13 @@ Unicidad: `(seed_run_tenant_id, block_code)`.
 1. Conceder al rol de tenant la escritura de `seed_run_blocks` restringida por política a las filas de su propio `tenant_id` (habría que añadir `tenant_id` a la tabla y RLS), y anotar el lote en la misma transacción.
 2. Hacer cada lote idempotente por construcción (clave natural determinista por subsemilla y comprobación de existencia), y anotar después por la conexión de plataforma.
 
-Recomendación: **1**, porque la idempotencia por comprobación es frágil con tablas de solo anexar. Supone que `seed_run_blocks` sí lleve `tenant_id` y política de RLS; se indica aquí para que no se descubra a mitad de tramo.
+**Decisión de esta especificación (revisión `C3-09`): solución 1**, porque la idempotencia por comprobación es frágil con tablas de solo anexar. No queda para el tramo. En concreto:
+
+- `seed_run_blocks` lleva `tenant_id` (columna de la tabla de arriba), **RLS activada y forzada** con la misma política de tenant que el resto (`tenant_id` = centro del contexto), y entra en `IsolationBatteryTest`.
+- Es un **`GRANT` nuevo del rol de tenant sobre una tabla de plataforma** (`ADR-033 §5`): `SELECT` y `UPDATE` sobre `seed_run_blocks`, **sin** `INSERT` ni `DELETE` (las filas las crea la conexión de plataforma al encolar, `funcional.md §3.1` paso 4) y sin ningún permiso sobre `seed_runs` ni `seed_run_tenants`. La política restringe además el `UPDATE` a las filas del propio centro (`USING` y `WITH CHECK`).
+- Si la base de producción tuviera la tabla (las migraciones se despliegan en todos los entornos, `operacion.md §3`), el `GRANT` existe también allí sobre una tabla vacía; se acepta, porque el esquema debe ser idéntico (`CLAUDE.md §9`) y la política impide leer o tocar filas de otro centro.
+- Consecuencia para la clasificación: `1.15b-a` T1 es **crítico** también por este `GRANT` y por la política (`ADR-069 §4.2`). **`db-reviewer` revisa el diseño de la migración antes de empezar el tramo T1** (no solo el diff al final), con esta sección y `ADR-033 §5` delante.
+- Rechazada la solución 2 por el motivo de arriba; si `db-reviewer` la prefiere, se reabre aquí como `OPEN-SEED-*` antes de T1, no se cambia en el tramo.
 
 ## 2. Relaciones
 
@@ -118,11 +125,11 @@ Ninguno sobre `tenants.is_synthetic`: la guarda de `RN-SEED-03` recorre una tabl
 
 ## 4. Checklist obligatorio
 
-- [x] `tenant_id`: **no aplica** a `seed_runs` ni a `seed_run_tenants` como tablas de tenant (son de plataforma y cruzan centros; `seed_run_tenants.tenant_id` es un dato, no un eje de aislamiento). `seed_run_blocks` lo lleva si se elige la solución 1 de §1.5
-- [ ] **RLS**: las tablas de plataforma no llevan política de tenant; sus permisos de base de datos se limitan a la conexión de plataforma (`ADR-033 §5`, `ADR-047`). Si `seed_run_blocks` lleva `tenant_id`, lleva política y entra en `IsolationBatteryTest`. *Revisión de `db-reviewer` obligatoria: tablas nuevas, `GRANT` y cambio en `tenants`*
+- [x] `tenant_id`: **no aplica** a `seed_runs` ni a `seed_run_tenants` como tablas de tenant (son de plataforma y cruzan centros; `seed_run_tenants.tenant_id` es un dato, no un eje de aislamiento). `seed_run_blocks` **lo lleva** (decisión de §1.5)
+- [ ] **RLS**: `seed_runs` y `seed_run_tenants` no llevan política de tenant; sus permisos de base de datos se limitan a la conexión de plataforma (`ADR-033 §5`, `ADR-047`). `seed_run_blocks` **lleva política de tenant, RLS forzada, `GRANT` de `SELECT`/`UPDATE` al rol de tenant** y entra en `IsolationBatteryTest` (§1.5). *Revisión de `db-reviewer` obligatoria: tablas nuevas, `GRANT` y cambio en `tenants`*
 - [x] `academic_year_id`: no aplica (ninguna tabla propia depende del curso; `reference_academic_year` es un parámetro, no una clave)
 - [ ] `created_at`, `updated_at`: sí. `deleted_at`, `created_by`, `updated_by` (`INV-005`): **no aplican, se justifica**: no son entidades de negocio; no hay usuario autenticado que las cree (consola) y no se borran lógicamente (la purga se anota como estado). Excepción a confirmar por `db-reviewer`
-- [x] Claves foráneas y `CHECK` en base de datos: sí, salvo `seed_run_tenants.tenant_id`, sin FK a propósito (§1.4)
+- [x] Claves foráneas y `CHECK` en base de datos: sí, salvo `seed_run_tenants.tenant_id` y `seed_run_blocks.tenant_id`, sin FK a propósito (§1.4, §1.5)
 - [ ] **Política de valor de auditoría** (`ADR-035`): las tablas `seed_*` no son modelos de tenant ni `Auditable`; son ellas mismas el rastro. Si se implementan como modelos Eloquent de plataforma, siguen el precedente de `Backoffice`. Sin alias en el *morph map*
 
 ### Convenciones de tipos (`ADR-029`)
