@@ -49,7 +49,7 @@ Orden por entrega, con la pila parada solo lo que exige el procedimiento general
 
 **Reversión** (`CLAUDE.md §9`; se prueba antes del PR): código anterior sin rutas de `inf`; las tablas nuevas pueden quedar (nadie las lee) y se retiran con `down()` en orden inverso solo si no hay datos que conservar. El veto de ratio de `alum` vuelve a no existir: la versión anterior matricula sin control, que es el comportamiento previo. Descontratar `inf` no borra nada (`RMOD-003`).
 
-**Compatibilidad entre versiones**: el registro de vetos de alta y cambio de grupo de `alum` (`OPEN-INF-06`) se despliega en `1.18-a1`; una instancia de la versión anterior no lo consulta, así que durante el despliegue progresivo (si lo hubiera) una matrícula podría pasar sin veto. Con un único contenedor de API (situación actual) no aplica; se anota para cuando haya varias réplicas.
+**Compatibilidad entre versiones**: el registro único de vetos de `alum` llega con `1.13` (`REQ-ACAD/asistencia.md §8.2.1`); el veto de ratio de `inf` que se registra en él (`OPEN-INF-06`) se despliega en `1.18-a1`; una instancia de la versión anterior no lo consulta, así que durante el despliegue progresivo (si lo hubiera) una matrícula podría pasar sin veto. Con un único contenedor de API (situación actual) no aplica; se anota para cuando haya varias réplicas.
 
 **Workers**: la tarea diaria es un *job* nuevo; un *worker* de la versión anterior no lo recibe porque solo lo encola el comando nuevo. Desplegar API y *workers* juntos.
 

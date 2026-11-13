@@ -47,7 +47,7 @@ Los indicadores no son por grupo: mantenerlos exige `informe_desarrollo.actualiz
 
 | No se declara | Motivo |
 |---------------|--------|
-| `salud_infantil.*` (`is_special_category = true`) | `1.18-h`, bloqueado por `OPEN-INF-03`. Declararlo antes rompe `AR-09` |
+| `salud_infantil.*` (`is_special_category = true`) | `1.18-h`, bloqueado por `ADR-085` (`OPEN-INF-03`). Declararlo antes rompe `AR-09` |
 | `informe_desarrollo.firmar` | `1.18-g`, `ADR-082` |
 | `*.exportar` | Ningún listado se exporta en estas entregas; el PDF del histórico es `1.18-g`. Cuando llegue: en cola, con enlace caducable y auditoría de lo exportado |
 | `*.importar` | `REQ-ONB` |
@@ -106,7 +106,7 @@ No se crea un rol «educador infantil»: el centro puede clonar `docente` (`RPER
 ## 5. Datos de categoría especial
 
 - **En estas entregas, no**, con la propuesta de `OPEN-INF-04`. Aun así, por tratarse de datos delicados de menores, **toda lectura** de parte, informe y plan se audita antes de devolver y con cupo (`RN-INF-30`, `-51`, `-63`), y sus valores no entran en `audit_logs` (`datos.md §5`).
-- **`REQ-INF-006` (salud) sí lo es** y no se implementa aquí: permiso propio `is_special_category = true`, fuera de todo rol por defecto (`RPERM-012`), concedido a personas concretas, con auditoría de lectura (`RPERM-015`) y tabla cifrada. Espera a `OPEN-INF-03`.
+- **`REQ-INF-006` (salud) sí lo es** y no se implementa aquí: permiso propio `is_special_category = true`, fuera de todo rol por defecto (`RPERM-012`), concedido a personas concretas, con auditoría de lectura (`RPERM-015`) y tabla cifrada. Espera a `ADR-085` (`OPEN-INF-03`).
 - Si `OPEN-INF-04` se decide como B (todo el parte es salud), `agenda_infantil.*` y `adaptacion_infantil.*` pasan a `is_special_category = true`, salen de la tabla de §4 y `1.18-b`/`-d` quedan bloqueadas.
 
 ## 6. MFA
