@@ -4,7 +4,7 @@
 **Fecha**: 2026-11-12
 **Origen**: decisiones del usuario del 2026-11-05 (staging barato con dominio propio; flujo `develop` → `staging` → `main` sin *squash*; separación de redes de #484; proyecto agnóstico al runtime de contenedores, aplazado hasta tratar staging) y `PLAN-IMPLEMENTACION.md`, paso `0.10e`.
 **Afecta a**: `PLAN-IMPLEMENTACION.md` (`0.10e`), `CLAUDE.md §1`, `§4` y `§9`, `infra/quadlet/`, `infra/install.sh`, `.github/workflows/`, `.claude/hooks/block-protected-branch.sh`, skills `espera-ci`, `pr-check` y `contenedores-y-red`, `SYSADMIN.md`, `RUNBOOK.md`, los guiones de `apps/web/scripts/` e `infra/` que invocan `podman`. Este ADR **no toca ninguno**: los cambios se proponen en `§11`.
-**Concreta sin sustituir**: `ADR-028` (sus reglas se aplican a cada red de `§3.7`), `ADR-030` (staging hereda «solo datos sintéticos»; Podman sigue siendo el runtime por defecto), `ADR-037` (`§6.3`, `§6.4`, `§6.5` punto 3 y la tabla de `§8`: este ADR dice dónde y cuándo se verifican), `ADR-076 §2.3` (columna «Staging contra el proveedor real»).
+**Concreta sin sustituir**: `ADR-028` (sus reglas se aplican a cada red de `§3.7`), `ADR-030` (staging hereda «solo datos sintéticos»; Podman sigue siendo el runtime por defecto), `ADR-037` **salvo su `§5.2`, que sustituye en parte (abajo)** (concreta `§6.3`, `§6.4`, `§6.5` punto 3 y la tabla de `§8`: este ADR dice dónde y cuándo se verifican), `ADR-076 §2.3` (columna «Staging contra el proveedor real»).
 **Sustituye en parte a**:
 - `CLAUDE.md §4` como norma de proceso (no es un ADR, pero es donde vive la decisión): «Ramas permanentes: `main` y `develop`» y «`main` solo recibe merges desde `develop`» pasan a leerse con `staging` en medio (`§4`).
 - `ADR-037 §5.2`, columna «Para qué» de la fila «`push` a `develop`»: la imagen `sha-<7>` construida en `develop` sigue siendo la que se despliega en staging, pero **solo la del commit al que apunta la rama `staging`**; la etiqueta móvil `develop` deja de usarse para desplegar (`§4.5`).
@@ -64,7 +64,7 @@ Sin staging, todo lo anterior se estrenaría con el primer centro. `OPEN-11` (d�
 1. **Solo datos sintéticos** (`REQ-SEED`, `REQ-SEED-005`). La prohibición de `ADR-030` se extiende a staging sin excepción: ni una exportación real, ni una copia de producción «anonimizada a mano». Por eso staging no necesita contrato de encargado y puede existir antes de `OPEN-07`, y por eso **no es la preproducción de `RARQ-DEP-012`**.
 2. **Región de la UE** (`RARQ-CLOUD-006`), aunque no haya datos reales: se ensaya lo que será.
 3. **Staging se puede destruir y recrear** en cualquier momento. Nada vive solo allí. Sus secretos son propios y distintos de los de cualquier otro entorno (`APP_KEY`, claves S3, contraseñas de base de datos).
-4. **Mismo procedimiento que producción**: unidades Quadlet de `infra/quadlet/`, `install.sh <tag>` con etiqueta exacta `sha-<7>`, `EnvironmentFile` propio, descarga desde GHCR. Lo que difiera se escribe en `SYSADMIN.md` como diferencia conocida.
+4. **Mismo procedimiento que producción**: unidades Quadlet de `infra/quadlet/`, `install.sh <tag>` con etiqueta exacta `sha-<7>`, `EnvironmentFile` propio, descarga desde GHCR, y **`APP_ENV=production`** (revisión C2-01: es lo que se ensaya; arrastra las guardas de arranque de producción, como `MailEnvironmentGuard`, `§3.6`). Lo que difiera se escribe en `SYSADMIN.md` como diferencia conocida.
 5. **Nunca `compose` en el servidor** (`ADR-028`, `CLAUDE.md §9`) y **nunca Garage** (`ADR-076 §2.2`).
 6. `RARQ-CLOUD-005` pide cuatro entornos. Con este ADR existen **dos**: desarrollo y staging. Preproducción y producción no existen; se dice así en `SYSADMIN.md` (`OPEN-STG-10`).
 
@@ -79,7 +79,7 @@ Sin staging, todo lo anterior se estrenaría con el primer centro. `OPEN-11` (d�
 | S3 real (`ADR-076 §2.3`, `ADR-083`) | Test de conformidad de `ADR-076 §5` contra el proveedor; TLS del *endpoint*; valor de las sumas de verificación del SDK; versionado; cifrado en servidor; Object Lock y retención si `OPEN-STO-08` lo exige; ciclo de vida; bloqueo de acceso público; aislamiento de `OPEN-STO-03` | Garage no lo implementa (según su documentación, `ADR-076 §10`) |
 | Operación | Cortafuegos del host, acceso SSH solo por clave, actualizaciones del sistema, espacio en disco tras semanas | No existe en local |
 
-**Lo que staging tampoco prueba** y no debe darse por probado: rendimiento y dimensionado (máquina mínima, datos sintéticos), copias y restauración (`OPEN-10`, `0.10d`), entrega real de correo (`OPEN-09`), y nada que dependa de datos reales.
+**Lo que staging tampoco prueba** y no debe darse por probado: rendimiento y dimensionado (máquina mínima, datos sintéticos), copias y restauración (`OPEN-10`, `0.10d`), la reputación y entregabilidad del **dominio de producción** (staging envía desde un subdominio del dominio de staging, `§3.6`), y nada que dependa de datos reales.
 
 ### 3.4 Máquina y sistema operativo
 
@@ -108,8 +108,9 @@ Condición de la recomendación: que el proveedor elegido ofrezca la imagen (ION
 
 ### 3.6 Exposición, acceso y servicios auxiliares
 
-- **Staging es público en Internet y las credenciales de demostración de `REQ-SEED` están en un repositorio público.** Sin más medidas, cualquiera entraría, subiría ficheros al *bucket* y usaría el entorno. Medida mínima propuesta: en staging la semilla se ejecuta con **contraseñas generadas en el momento**, no las de por defecto, y el *backoffice* mantiene su lista blanca de IP. No se ha comprobado que `REQ-SEED` permita hoy fijar las contraseñas (**SV**; B4 lo especifica en esta misma ola). Si no lo permite, staging **no se expone** hasta que lo haga: se limita por lista blanca de IP en Traefik (`OPEN-STG-09`, bloqueante).
-- **Correo**: `MAIL_MAILER=log` hasta que `ADR-079` decida. **No se añade Mailpit**: no está en `compose.yaml`, sería una pieza nueva, y un buzón de pruebas accesible desde Internet es otra superficie que proteger.
+- **Staging es público en Internet.** Corrección (revisión C2-16, comprobado en el repositorio el 2026-11-13, `develop` en `786c94e`): hoy **no hay credenciales de demostración en el repositorio**. `REQ-SEED` (`PLAN 1.15b`) no está implementado, y el centro del E2E real lo crea `apps/api/tests/Support/e2e-real-tenant.php` con contraseñas aleatorias por ejecución (`'E2e-'.Str::random(20)`). El riesgo es de futuro: que una semilla de demostración llegue con contraseñas fijas. Regla: **en staging ninguna cuenta tiene una contraseña escrita en el repositorio**; el *backoffice* mantiene su lista blanca de IP. Mientras no haya forma de preparar el centro con contraseñas generadas, staging **no se expone**: lista blanca de IP en Traefik (`OPEN-STG-09`, bloqueante).
+- **Cómo se prepara el centro para el E2E real en staging** (se define en `0.10e-c`, `CS-17`). Hecho comprobado que lo condiciona: `tests/Support` **no viaja en la imagen de producción** (`apps/api/.containerignore`: «no debe viajar en la imagen de producción», `CA-PERM-133`), así que no basta con «SSH + el mismo script» sobre el contenedor desplegado. Opciones: (a) por SSH, un contenedor de un solo uso con **la misma imagen** y el guion montado en solo lectura desde el *checkout* del mismo commit, con `E2E_ALLOW_DESTRUCTIVE` solo en ese contenedor; (b) la semilla de `REQ-SEED` con contraseñas generadas para el entorno, cuando exista (`1.15b`). **Recomendación: (a) hasta que exista (b)**; las contraseñas generadas viajan por la salida del guion, nunca a un fichero del repositorio ni a los registros. Que montar el guion en el contenedor de producción sea compatible con SELinux y `:Z` es **SV** y se comprueba en `0.10e-c`.
+- **Correo** (revisión C2-01): staging **no puede usar `MAIL_MAILER=log`**. `MailEnvironmentGuard` aborta el arranque con `log` o `array` fuera de `local`/`testing` (`apps/api/app/Support/Mail/MailEnvironmentGuard.php`, comprobado el 2026-11-13) y staging corre con `APP_ENV=production` (es la configuración que se ensaya). Staging usa **SMTP real al proveedor de `OPEN-079-01`** (`ADR-079 §4.2`, decidido por el usuario: Scaleway, con Brevo de reserva), en un **subdominio de envío del dominio de staging** (`OPEN-STG-02`) y dentro de la franja gratuita del proveedor (cifras **SV**, `ADR-079 §8.1`). Sirve además para probar SPF, DKIM y DMARC antes de producción (`CS-19`). El guard no se toca. **No se añade Mailpit**: no está en `compose.yaml`, sería una pieza nueva, y un buzón de pruebas accesible desde Internet es otra superficie que proteger.
 - **Sentry, Uptime Kuma y similares: no, por ahora.** Ninguno hace falta para los criterios de `§6`; un monitor en el mismo host cae con él; y la observabilidad (`RARQ-CLOUD-003`, `-007`) merece su propia decisión con datos reales a la vista. Añadirlos aquí es complejidad sin beneficio proporcional (`OPEN-STG-07`).
 - **Servicio de PDF (`ADR-078`, `OPEN-PDF-12`)**: entra en staging cuando exista, en la red interna de `§3.7`.
 
@@ -121,7 +122,7 @@ Hoy hay una red. El usuario decidió el 2026-11-05 que `api@` solo sea alcanzabl
 |---|---|---|---|
 | `plataforma-edge` (nueva) | Traefik, `api@`, `web` | Sí | Único camino de entrada. `TRUSTED_PROXIES` pasa a ser **esta** subred, donde no hay *workers* ni servicios de datos |
 | `plataforma-net` (la actual) | `api@`, *workers*, planificador, PostgreSQL, Redis | Sí (la API y los *workers* llaman al S3 y al correo) | Datos y colas |
-| `plataforma-pdf` (nueva, cuando exista el servicio) | `api@`, *workers*, `pdf` | **No** (`Internal=true`) | Control principal contra SSRF de `ADR-078` |
+| `plataforma-pdf` (nueva, cuando exista el servicio) | `worker` (y `worker-pdf` si `ADR-078` pasa a Q2), `pdf`. **`api@` no**: ningún PDF se genera en la petición (`ADR-078 §5.1`; revisión C2-13) | **No** (`Internal=true`) | Control principal contra SSRF de `ADR-078` |
 
 Las cuatro reglas de `ADR-028` se aplican a **cada** red: externa, subred declarada, nunca destruida, referencias por nombre. Ninguna IP escrita a mano: no se fija la IP de Traefik para confiar solo en ella. Límite conocido: `web` comparte `plataforma-edge` y podría, en teoría, falsear la cabecera; es un nginx de estáticos sin código propio y se acepta. Docker y Podman ofrecen ambos redes internas, así que el nivel 1 de `§5` no cambia esto. Esta separación **bloquea el primer dato real, no el arranque de staging** (`OPEN-STG-08`).
 
@@ -181,7 +182,7 @@ Sin comprobar (**SV**): si existe protección de ramas en `develop` y `main` (el
 
 ### 4.6 Puesta en marcha
 
-`main` tiene hoy un commit que `develop` no tiene (`e2c6456`). Antes de la primera promoción hay que reconciliar una vez: PR `main` → `develop` con *merge commit*. Después, `staging` se crea apuntando al commit de `main` y avanza. El gancho `block-protected-branch.sh` y las skills se actualizan según `§11`.
+`main` tiene hoy un commit que `develop` no tiene (`e2c6456`); `origin/main` **no es ancestro** de `develop`, que lleva 289 commits por delante (comprobado el 2026-11-13 con `git rev-list --left-right --count origin/main...origin/develop` y `git merge-base --is-ancestor`). Antes de la primera promoción hay que reconciliar una vez: PR `main` → `develop` con *merge commit*. Después, `staging` se crea apuntando al commit de `main` y avanza. El gancho `block-protected-branch.sh` y las skills se actualizan según `§11`.
 
 ## 5 · Decisión C: runtime de contenedores, nivel 1
 
@@ -253,12 +254,13 @@ No añade dependencias, no toca invariantes y no cambia nada en el servidor. La 
 | `CS-14` | El test de conformidad de `ADR-076 §5` pasa contra el proveedor real por TLS; queda anotado el valor de las sumas de verificación que funciona | e |
 | `CS-15` | Versionado, cifrado en servidor y, si `OPEN-STO-08` lo exige, Object Lock y retención: activados y comprobados con una operación real (sobrescribir y recuperar la versión anterior; cabecera de cifrado; borrado rechazado dentro del plazo) | e |
 | `CS-16` | El *bucket* rechaza el acceso anónimo; la clave de staging no ve otros *buckets*; el aislamiento de `OPEN-STO-03` se comprueba tal como se decida | e |
-| `CS-17` | E2E real completo contra staging, con las contraseñas de la semilla generadas para el entorno (`§3.6`) | c y e |
+| `CS-17` | E2E real completo contra staging, con el centro preparado según `§3.6` (contenedor de un solo uso con la misma imagen, o semilla con contraseñas generadas) y ninguna contraseña escrita en el repositorio | c y e |
 | `CS-18` | `SYSADMIN.md` y `RUNBOOK.md` dicen qué está probado en staging, con fecha, y qué sigue sin probar | todas |
+| `CS-19` | La API y los *workers* arrancan con `APP_ENV=production` y `MAIL_MAILER=smtp` al proveedor de `OPEN-079-01`; un correo transaccional del E2E (p. ej. restablecer contraseña) llega a un buzón de prueba con SPF, DKIM y DMARC en `pass` según sus cabeceras `Authentication-Results` (`§3.6`) | c |
 
 Cuando existan, se añaden sin reabrir este ADR: el servicio de PDF en su red sin salida (`ADR-078`); los registros SPF, DKIM y DMARC de los subdominios de envío en el dominio de staging y el Web Push, que exige TLS real (`ADR-079`).
 
-**`0.10e` se cierra con `CS-01` a `CS-18` ejecutados.** Un criterio que no se pueda ejecutar se deja escrito como no verificado y el paso queda `[~]`, no `[x]`.
+**`0.10e` se cierra con `CS-01` a `CS-19` ejecutados.** Un criterio que no se pueda ejecutar se deja escrito como no verificado y el paso queda `[~]`, no `[x]`.
 
 ## 7 · Coste mensual
 
@@ -266,7 +268,7 @@ Precios **sin IVA**, leídos en la página del proveedor el 2026-11-12 (`§12`).
 
 | Concepto | Opción | Precio | Estado |
 |---|---|---|---|
-| VPS 2 vCPU, 4 GB | OVHcloud VPS-1 (40 GB NVMe, copia diaria incluida) | 3,81 €/mes | **V** precio; **SV** centros de datos, imágenes y permanencia |
+| VPS 2 vCPU, 4 GB | OVHcloud VPS-1 (40 GB NVMe, copia diaria incluida) | 3,81 €/mes | **V** precio el 2026-11-12; **SV** centros de datos, imágenes y permanencia. El revisor C2 (2026-11-13) avisa de que la ficha 2 vCPU/4 GB/40 GB puede no coincidir con la gama real: **volver a comprobar al contratar** |
 | | Hetzner CX23 (40 GB NVMe, 20 TB, IPv4 incluida) | 5,99 €/mes | **V** precio; la página lo mostraba **no disponible para contratar**, igual que toda la gama CX, CAX y CPX; **SV** en su consola |
 | | IONOS VPS M+ (120 GB NVMe; centro de datos en España; AlmaLinux y Rocky) | 4 €/mes tres meses, después 12 €/mes; alta de 10 € | **V**; el precio posterior a la promoción se deduce del ahorro anunciado |
 | | Scaleway | — | **SV**: su web rechazó la consulta automática |
@@ -292,7 +294,7 @@ Precios **sin IVA**, leídos en la página del proveedor el 2026-11-12 (`§12`).
 
 | Riesgo | Mitigación |
 |---|---|
-| Un servidor público desatendido con credenciales de demostración conocidas | `§3.6`, `CS-09`, `OPEN-STG-09`; solo datos sintéticos; se destruye sin pérdida |
+| Un servidor público desatendido con credenciales conocidas (hoy no las hay en el repositorio; riesgo si una semilla futura las fija, `§3.6`) | `§3.6`, `CS-09`, `OPEN-STG-09`; solo datos sintéticos; se destruye sin pérdida |
 | Que alguien cargue datos reales «para probar» | Regla 1 de `§3.2`, sin excepción; se repite en `SYSADMIN.md` y `CLAUDE.md §11` |
 | Dar por probado en staging lo que no se ejecutó | `§6.2`: resultado literal por criterio; `CS-18` |
 | Staging mínimo que oculta problemas de dimensionado | No se usa para medir rendimiento (`§3.3`) |
@@ -337,7 +339,7 @@ Precios **sin IVA**, leídos en la página del proveedor el 2026-11-12 (`§12`).
 | `OPEN-STG-03` | Forma de la promoción | B1 solo avance rápido; B2 PR con *merge commit*; B3 mixto | **B1** (`§4.2`). Impacto: las promociones no pasan por el botón de mezclar | `0.10e-a` | Usuario |
 | `OPEN-STG-04` | Sistema operativo del host | AlmaLinux o Rocky; Debian 13; Ubuntu 24.04; Fedora | **AlmaLinux o Rocky**, la versión que ofrezca el proveedor con Podman que valide las unidades en seco (`§3.4`) | `0.10e-c` | Técnico; lo confirma el usuario |
 | `OPEN-STG-05` | Podman sin privilegios o con ellos en el servidor | Sin privilegios con `linger` (`ADR-037 §6.3`); unidades de sistema (lo que hoy dicen `install.sh` y `RUNBOOK.md`); de sistema con `User=` | **Sin privilegios**, y corregir la documentación que diga otra cosa. Impacto: hay que resolver los puertos 80 y 443 | `0.10e-c` | Técnico; lo confirma el usuario |
-| `OPEN-STG-09` | Cómo se protege un staging público con credenciales de demostración conocidas | Contraseñas de semilla generadas por entorno; lista blanca de IP en Traefik para todo staging; autenticación básica delante; VPN | **Contraseñas generadas por entorno** si `REQ-SEED` lo admite (lo especifica B4); mientras no, **lista blanca de IP**. Una VPN es desproporcionada | Exponer staging (`0.10e-c`) | Usuario, con el técnico |
+| `OPEN-STG-09` | Cómo se protege un staging público frente a credenciales conocidas (hoy no hay ninguna en el repositorio, `§3.6`) | Contraseñas de semilla generadas por entorno; lista blanca de IP en Traefik para todo staging; autenticación básica delante; VPN | **Contraseñas generadas por entorno** si `REQ-SEED` lo admite (lo especifica B4); mientras no, **lista blanca de IP**. Una VPN es desproporcionada | Exponer staging (`0.10e-c`) | Usuario, con el técnico |
 | `OPEN-STO-01`, `-03`, `-08`, `-11`, `OPEN-083-02` | Proveedor S3, aislamiento, versionado y retención, cifrado, cuenta de prueba | En `ADR-083` y `docs/cumplimiento/` | Las de `ADR-083`; este ADR no las decide | `0.10e-e` | Los que allí se indican |
 
 ### 10.2 No bloquean el arranque
@@ -412,5 +414,6 @@ Consultadas el **2026-11-12**.
 | Métodos de mezcla, historia lineal y efecto del *squash* entre ramas de larga vida | `https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/configuring-pull-request-merges/about-merge-methods-on-github` |
 | Estado del repositorio | `gh repo view`, API de GitHub (métodos de mezcla), `git` sobre el clon local en `b7995bc` |
 | Sin poder leer | Scaleway (`403` a la consulta automática); la página de ajuste de precios de Hetzner (`404`) |
+| Correcciones de la revisión C2 (consultado el **2026-11-13**, `develop` en `786c94e`) | `apps/api/app/Support/Mail/MailEnvironmentGuard.php`; `apps/api/tests/Support/e2e-real-tenant.php` (contraseñas `Str::random`); `apps/api/.containerignore` (excluye `tests/Support`); `apps/web/scripts/e2e-real-api.sh`; `PLAN-IMPLEMENTACION.md` (`1.15b` sin hacer); `git rev-list`/`merge-base` sobre `origin/main` y `origin/develop` |
 
 Fuentes internas: memorias del usuario del 2026-11-05 sobre staging y runtime; `PLAN-IMPLEMENTACION.md` `0.10e`; `ADR-027`, `ADR-028`, `ADR-030`, `ADR-037`, `ADR-076`; borradores de `ADR-078`, `ADR-079` y `ADR-083`; skill `contenedores-y-red`; issues #453 y #484.
