@@ -50,7 +50,7 @@ Cadena de *middleware* de toda ruta: `RequireAuthenticatedUser` → `module-enab
 | Verbo y ruta | Permiso | Notas |
 |--------------|---------|-------|
 | `GET /group-evaluations/{public_id}/grades` (L) | `calificacion.leer` · `todos`, `grupo`, `clase`, `unidad_familiar` | Filtro `subject` (obligatorio con ámbito solo `clase` si se quiere una sola; sin él, todas las clases alcanzables). Devuelve matrículas (nombre del alumno por `PersonDirectory`) × asignaturas con `value`, `scale_value`, `label`, `is_passing`, `comment`, `status` (`provisional`/`definitiva`) y, desde `1.16-b`, `calculated_value`. Sin paginar, tope 2.000 celdas (`422 calif.validation.view_too_large`) [DERIVADA, precedente `RN-ACAD-127`] |
-| `PUT /group-evaluations/{public_id}/subjects/{subject_public_id}/grades` | `calificacion.actualizar` · `todos`, `clase` | Cuerpo: `grades`: lista de `{enrollment, value? \| scale_value?, comment?}`. Conjunto de la clase, todo o nada (`RN-CALIF-33`). `200` con el estado resultante. `409 evaluation_closed`, `scale_not_assigned`; `422` de `RN-CALIF-30`, `-31`, `-32` en `grades.<n>.<campo>`. **Idempotente** |
+| `PUT /group-evaluations/{public_id}/subjects/{subject_public_id}/grades` | `calificacion.actualizar` · `todos`, `clase` | Cuerpo: `grades`: lista de `{enrollment, value? \| scale_value?, comment?}`. Conjunto de la clase, todo o nada (`RN-CALIF-33`). `200` con el estado resultante. `409 evaluation_closed`, `scale_not_assigned`; `422` de `RN-CALIF-30`, `-31`, `-32` en `grades.<n>.<campo>`. **Idempotente**. Concurrencia: `FOR SHARE` de la evaluación de grupo y bloqueo de aviso por clase (`RN-CALIF-33`); dos `PUT` simultáneos nunca dan `500` (`CA-CALIF-028`) |
 | `GET /grades/{public_id}` (L) | `calificacion.leer` · los cuatro ámbitos | Detalle; para `unidad_familiar`, solo publicada (`RN-CALIF-26`) |
 
 No hay `POST` ni `DELETE` de una calificación suelta: se escribe por conjunto [DERIVADA: una sola vía sancionada para `AR-10`]. Un cliente que quiere cambiar una sola envía una lista de un elemento.
@@ -62,8 +62,8 @@ No hay `POST` ni `DELETE` de una calificación suelta: se escribe por conjunto [
 | `GET /group-evaluations/{id}/subjects/{subject}/components` | `calificacion.leer` · `todos`, `grupo`, `clase` | Elementos y sus notas por matrícula (L). **No** admite `unidad_familiar`: los elementos son trabajo interno del docente [DERIVADA] |
 | `PUT /group-evaluations/{id}/subjects/{subject}/components` | `calificacion.actualizar` · `todos`, `clase` | `components`: conjunto completo `{public_id?, name, weight}` (`RN-CALIF-40`, `-41`, `-45`). `422 weights_must_sum_100`, `components_not_applicable`, `component_not_in_class` |
 | `PUT /group-evaluations/{id}/subjects/{subject}/component-grades` | `calificacion.actualizar` · `todos`, `clase` | `grades`: lista de `{component, enrollment, value \| null}`. Todo o nada |
-| `POST /group-evaluations/{public_id}/closure` | `evaluacion.aprobar` · `todos`, `grupo` | Cuerpo: `confirm_missing?`. `200`. `409 missing_grades` (`params.missing`), `already_closed` |
-| `POST /group-evaluations/{public_id}/reopening` | `evaluacion.aprobar` · `todos`, `grupo` | Cuerpo: `reason` (1-500). `409 calif.conflict.not_closed` |
+| `POST /group-evaluations/{public_id}/closure` | `evaluacion.aprobar` · `todos`, `grupo` | Cuerpo: `confirm_missing?`. `200`. `409 missing_grades` (`params.missing`), `already_closed`. Con solo `grupo`, el grupo debe estar en `tutoredGroupIdsFor`; si no, `404` (`RN-CALIF-09`) |
+| `POST /group-evaluations/{public_id}/reopening` | `evaluacion.aprobar` · `todos`, `grupo` | Cuerpo: `reason` (1-500). `409 calif.conflict.not_closed`. Con solo `grupo`, como `closure` (`RN-CALIF-09`) |
 | `POST /group-evaluations/{public_id}/publication` | `evaluacion.publicar` · `todos` | `200`; `409 not_closed`; desde `1.17-b`, `409 report_cards_not_validated` |
 | `POST /evaluation-periods/{public_id}/publication` | `evaluacion.publicar` · `todos` | En bloque: `200` con `{published, already_published, still_open}` |
 | `GET /group-evaluations/{public_id}/transitions` | `evaluacion.leer` · `todos`, `grupo` | Registro de cierres, reaperturas y publicaciones; el motivo solo con `evaluacion.aprobar` |
@@ -77,7 +77,7 @@ No hay `POST` ni `DELETE` de una calificación suelta: se escribe por conjunto [
 |--------------|---------|-------|
 | `GET /report-card-settings` | `configuracion_evaluacion.leer` | |
 | `PATCH /report-card-settings` | `configuracion_evaluacion.actualizar` | `footer_translations` (fusión; texto plano); `tutor_validation_required` (`1.17-b`) |
-| `POST /report-card-runs` | `boletin.crear` · `todos`, `grupo` | Cuerpo: `group_evaluation` **o** `evaluation_period` (este solo con `todos`). **`202`** con la emisión o emisiones en `pendiente`. No genera nada en la petición (`INV-012`). `409 not_closed`, `run_in_progress`; `503 calif.unavailable.pdf_renderer` solo si el contrato no está configurado, nunca por carga |
+| `POST /report-card-runs` | `boletin.crear` · `todos`, `grupo` | Cuerpo: `group_evaluation` **o** `evaluation_period` (este solo con `todos`). **`202`** con la emisión o emisiones en `pendiente`. No genera nada en la petición (`INV-012`). `409 not_closed`, `run_in_progress`; `503 calif.unavailable.pdf_renderer` solo si el contrato no está configurado, nunca por carga. Con solo `grupo`, la evaluación de grupo debe ser de un grupo de `tutoredGroupIdsFor`; si no, `404` (`RN-CALIF-09`) |
 | `GET /report-card-runs` · `GET /report-card-runs/{public_id}` | `boletin.leer` · `todos`, `grupo` | Estado y recuentos para el progreso; la SPA consulta periódicamente |
 | `GET /report-cards` | `boletin.leer` · `todos`, `grupo`, `unidad_familiar` | Filtros `academic_year`, `group_evaluation`, `student`, `status`, `locale`. Es el «historial de boletines por alumno y curso» de `REQ-CALIF-002`. Para `unidad_familiar`: solo `generado` de evaluaciones publicadas |
 | `GET /report-cards/{public_id}` | Ídem | Metadatos: evaluación, alumno, idioma, estado, páginas, tamaño, fecha. **Nunca** `object_key` |
@@ -90,7 +90,9 @@ No hay `POST` ni `DELETE` de una calificación suelta: se escribe por conjunto [
 | `POST /report-cards/{public_id}/validation` | `boletin.firmar` · `todos`, `grupo` | Evidencia N1 (`ADR-082`). Si `OPEN-FIRMA-06` se aprueba, exige reautenticación reciente. Idempotente por usuario y huella |
 | `POST /group-evaluations/{public_id}/report-card-validations` | Ídem | Valida en bloque los boletines vigentes del grupo |
 
-El aviso a familias no tiene *endpoint* propio: lo dispara la publicación.
+En los dos, con solo ámbito `grupo`, el grupo del boletín o de la ruta debe estar en `tutoredGroupIdsFor`; si no, `404` sin evidencia (`RN-CALIF-09`, `CA-CALIF-073`).
+
+El aviso a familias no tiene *endpoint* propio: lo dispara la publicación (enlace autenticado, nunca adjunto: `OPEN-079-03`, decidida el 2026-11-12).
 
 ## 6. Paginación, filtrado y ordenación
 

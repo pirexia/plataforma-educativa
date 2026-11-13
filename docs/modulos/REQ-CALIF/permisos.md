@@ -72,6 +72,8 @@ Reglas comunes: sujeto sin asignación docente o sin faceta de tutor legal ⇒ c
 
 **Escritura con ámbito**: `calificacion.actualizar` en `clase` comprueba el par de la **ruta** (evaluación de grupo y asignatura) contra `classPairsFor` antes de leer nada del cuerpo; fuera de ámbito ⇒ `404`.
 
+**Acciones de tutoría con ámbito `grupo`** (`funcional.md RN-CALIF-09`, `OPEN-CALIF-30`): el resolutor (`grupo`, …) usa `groupIdsFor`, que une tutorías **y** asignaciones (`RN-ACAD-98`). Para `evaluacion.aprobar` (cerrar, reabrir), `boletin.crear` (emitir) y `boletin.firmar` (validar, una a una o en bloque), cuando el sujeto tiene la acción solo con `grupo` (sin `todos`), el servicio sancionado exige además que el grupo de la evaluación de grupo de la **ruta** o del cuerpo esté en `TeachingMembership::tutoredGroupIdsFor(u, academic_year_id)` (cambio aditivo en `acad`, `funcional.md §7.3`), antes de leer o escribir nada más; si no, `404`. Sin esta regla, un tutor de A con una asignación en B cerraría, reabriría, emitiría y validaría en B (`CA-CALIF-044`, `-065`, `-073`). La regla depende del ámbito, no del rol: vale igual para un rol personalizado con esas acciones en `grupo` (`AR-08`).
+
 **Regla de negocio que no es permiso y se comprueba además**: evaluación `abierta` para escribir (`RN-CALIF-22`), publicación para familias (`RN-CALIF-26`), curso cerrado (`AcademicYearReadAccess`, disparador). La publicación se evalúa **dentro** del resolutor de `unidad_familiar` para que listado, detalle, historial y descarga no puedan divergir.
 
 **Mapa cerrado de `AR-10`** (ampliación que requiere aprobación **expresa** del usuario, `OPEN-CALIF-05`): `evaluacion` → `GroupEvaluation` (servicio sancionado de evaluaciones de grupo y la validación de cierre del curso, que cuenta del centro entero); `calificacion` → `Grade`, `GradingComponent`, `ComponentGrade` (servicio de calificaciones y los vetos, que cuentan del centro entero sin ámbito de actor); `boletin` → `ReportCard`, `ReportCardRun` (servicio de boletines y el trabajo de generación, que corre con el actor que pidió la emisión). El test no ve accesos por relación ni `DB::table()`: lo cubren `CA-CALIF-012` a `-015`, `-038`, `-039`, `-043`, `-058`, `-059` (listado **y** detalle).
@@ -88,11 +90,11 @@ Denegación por defecto (`RPERM-011`). Siembra en `ProvisionTenantDefaults` para
 | `direccion` | `configuracion_evaluacion.*`, `evaluacion.*`, `calificacion.leer`, `boletin.leer`, `boletin.crear` | `todos` | «Informes académicos, aprobaciones»; es quien publica (`REQ-CALIF-001`). Sin `calificacion.actualizar`: no pone notas de clases ajenas |
 | `secretaria` | `configuracion_evaluacion.leer`, `evaluacion.leer`, `calificacion.leer`, `boletin.leer` | `todos` | «Documentación» |
 | `docente` | `configuracion_evaluacion.leer`, `calificacion.leer`, `calificacion.actualizar` | **`clase`** (`configuracion_evaluacion.leer` en `todos`) | «Sus clases, calificaciones». Nunca `todos` (`ADR-063 §5.4`, #471) |
-| `tutor_grupo` | `evaluacion.leer`, `evaluacion.aprobar`, `calificacion.leer`, `boletin.leer`, `boletin.crear`, `boletin.firmar` | **`grupo`** | «Acceso ampliado a su grupo: seguimiento, boletines» |
+| `tutor_grupo` | `evaluacion.leer`, `evaluacion.aprobar`, `calificacion.leer`, `boletin.leer`, `boletin.crear`, `boletin.firmar` | **`grupo`** | «Acceso ampliado a su grupo: seguimiento, boletines». `evaluacion.aprobar`, `boletin.crear` y `boletin.firmar` quedan acotados a los grupos que tutoriza (`§3.1`, `RN-CALIF-09`), no a todos los de `groupIdsFor` |
 | `tutor_legal` | `calificacion.leer`, `boletin.leer` | **`unidad_familiar`** | «Información de los estudiantes vinculados» (API; pantallas en `1.22`) |
 | `orientador`, `estudiante`, `administrativo` y resto | — | — | Sin base suficiente en este paso (`OPEN-CALIF-05`) |
 
-Consecuencia que el usuario debe conocer (`OPEN-CALIF-30`): un usuario con los roles `docente` y `tutor_grupo` lee con `grupo` todas las asignaturas de **todos** los grupos donde tutoriza o imparte (`RN-ACAD-98` une ambos conjuntos). Escribir sigue acotado a sus clases.
+Consecuencia que el usuario debe conocer (`OPEN-CALIF-30`): un usuario con los roles `docente` y `tutor_grupo` lee con `grupo` todas las asignaturas de **todos** los grupos donde tutoriza o imparte (`RN-ACAD-98` une ambos conjuntos). Escribir calificaciones sigue acotado a sus clases, y cerrar, reabrir, emitir y validar, a los grupos que tutoriza (`RN-CALIF-09`).
 
 ## 5. Datos de categoría especial
 

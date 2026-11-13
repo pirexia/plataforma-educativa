@@ -10,7 +10,7 @@ Ninguna nueva en `1.16`. En `1.17-a`, ninguna propia del módulo: la dirección 
 |-------|-----------|-----|
 | `calif.grades.max_items` | 100 | Tope de `RN-CALIF-33` |
 | `calif.grades.max_cells` | 2.000 | Tope de la rejilla (`api.md §2`) |
-| `calif.report_cards.queue` | `calif-pdf` | Cola de generación |
+| `calif.report_cards.queue` | `calif-pdf` | Cola de generación (si el trabajo la lee de aquí en vez del literal, ver `§4` punto 4) |
 | `calif.report_cards.tries` / `backoff` | A fijar con la medición de `ADR-078 §5.4` | Reintentos ante `PdfRendererUnavailable` |
 | `calif.report_cards.url_ttl` | La caducidad corta ya usada por `App\Support\Files` | URL firmada de descarga |
 
@@ -38,10 +38,18 @@ Ningún dato del módulo sale a un tercero salvo el aviso de `1.17-b`, que no ll
 
 | Trabajo | Cola y proceso | Disparo | Notas |
 |---------|----------------|---------|-------|
-| Generación de un boletín (`1.17-a`) | `calif-pdf`, en el proceso `worker` existente, **al final** de su lista de prioridad (`ADR-078 §5.3`, opción Q1) | `POST /report-card-runs`, agrupados con `Bus::batch` | Uno por boletín; carga = identificadores; fija centro e idioma; idempotente; cabe en `--timeout=120`. La cola se añade a la orden del `worker` en `compose.yaml` y en `infra/quadlet/worker.container`, y a `core:queue-health` (`QueueWorkerTest` lo exige). Pasar a un proceso dedicado solo con la medición en la mano (`OPEN-PDF-09`) |
+| Generación de un boletín (`1.17-a`) | `calif-pdf`, en el proceso `worker` existente, **al final** de su lista de prioridad (`ADR-078 §5.3`, opción Q1) | `POST /report-card-runs`, agrupados con `Bus::batch` | Uno por boletín; carga = identificadores; fija centro e idioma; idempotente; cabe en `--timeout=120`. Pasar a un proceso dedicado solo con la medición en la mano (`OPEN-PDF-09`). Alta de la cola: ver la lista de abajo |
 | Cierre de la emisión | Retrollamada del lote | Fin del lote | Fija `completada`, `completada_con_errores` o `fallida` y los recuentos |
 | Aviso a tutores legales (`1.17-b`) | La que defina `ADR-079` | Evento `GroupEvaluationPublished` | Un aviso por destinatario y alumno |
 | Tareas programadas | — | — | **Ninguna.** No hay cierre ni publicación automáticos por fecha [DERIVADA: ningún requisito lo pide] |
+
+**Alta de la cola `calif-pdf`, en la misma entrega (`1.17-a`) que crea el trabajo** (como las colas `notify-*` de `REQ-COM`). Comprobado el 2026-11-13 contra el código de `develop`:
+
+1. `compose.yaml`, servicio `worker` (perfiles `worker` y `full`): añadir `calif-pdf` **al final** de `--queue=…` (hoy termina en `core-exports,core-imports`) y al final de `--queues=…` de su `healthcheck` (`core:queue-health`).
+2. `infra/quadlet/worker.container`: lo mismo en `Exec=` (`--queue=`) y en `HealthCmd=` (`core:queue-health --queues=`).
+3. `core:queue-health` no necesita código nuevo: recibe las colas por `--queues`; basta el punto 1 y el 2.
+4. `apps/api/tests/Feature/Core/QueueWorkerTest.php` ya lo vigila sin cambios si el trabajo usa la forma literal `->onQueue('calif-pdf')`: su detector busca `onQueue('…')` en `app/` y exige que la cola esté en el `worker` de `compose.yaml` y en las unidades Quadlet, y otro test exige que `--queues` del `HealthCmd`/`healthcheck` coincida **exactamente** con `--queue` del proceso. Si el trabajo fijara la cola de otra forma (propiedad `$queue`, constante o el valor de `calif.report_cards.queue`), el detector no la vería: o se usa el literal o la entrega amplía el test para cubrirla. Lo decide la implementación; omitirlo deja trabajos sin consumidor (issue #128).
+5. No va a `worker-long` (`database_long`): el trabajo cabe en `--timeout=120` del `worker` (fila de arriba).
 
 **Compatibilidad entre versiones** (`CLAUDE.md §9`): un trabajo encolado por la versión anterior se resuelve con la plantilla vigente porque su carga son identificadores. Un cambio de plantilla **no** altera boletines ya emitidos.
 

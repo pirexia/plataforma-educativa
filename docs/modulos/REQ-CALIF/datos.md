@@ -65,7 +65,7 @@ Que la asignatura sea de un curso de esa etapa lo valida el servicio (`SubjectDi
 | `weight` | `smallint` | No | `CHECK` 1-100 |
 | `position` | `integer` | No | La fija el servidor por el orden de la lista |
 
-La suma 100 es validación de servicio bajo `FOR UPDATE` de la evaluación de grupo, no del motor (precedente `datos.md §8.3` de `REQ-ACAD`).
+La suma 100 es validación de servicio, no del motor (precedente `datos.md §8.3` de `REQ-ACAD`), bajo los mismos bloqueos que las calificaciones (`funcional.md RN-CALIF-33`): `FOR SHARE` de la evaluación de grupo y bloqueo de aviso por (evaluación de grupo, asignatura), que serializa dos escrituras de la misma clase, no frena las de otras clases y excluye el cierre concurrente.
 
 ### 1.6 `component_grades` (`1.16-b`)
 
