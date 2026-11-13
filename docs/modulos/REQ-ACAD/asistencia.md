@@ -63,10 +63,10 @@
 | **H3** | **«Alertas automáticas a tutores»**: «tutores» puede ser el tutor legal (uso habitual del documento, `REQ-FAM-UNIT`) o el tutor de grupo (`§11.1`). Y avisar a una familia exige `REQ-COM` (`1.19`), que no existe | `REQ-ACAD-003`, `§11.1`, `§5.12` | **`OPEN-ACAD-49`**. `1.13-b` registra la alerta y la muestra en la aplicación; el envío a familias llega con `1.19` (§8.4) |
 | **H4** | **«Justificaciones» sin definir**: quién justifica, con qué motivo y con qué documento. Un motivo médico es un dato de salud (categoría especial, `CLAUDE.md §8`) | `REQ-ACAD-003`, `RPERM-012` | **`OPEN-ACAD-48`**. Recomendación: sin motivo ni texto libre ni fichero en `1.13` |
 | **H5** | **El alumnado no pertenece a subgrupos**: `enrollments` tiene `group_id` y nada más. Una sesión de desdoble no tiene lista propia | `REQ-ALUM/datos.md §1.2`, `RN-ACAD-93` | `RN-ACAD-167` (lista del grupo entero) y `OPEN-ACAD-55` |
-| **H6** | **No existe ninguna pieza de PWA en `apps/web`** (sin *service worker*, sin almacenamiento local, sin dependencia relacionada; comprobado por búsqueda en el repositorio). `RMOB-COM-001` y el plan piden funcionamiento sin conexión | `RMOB-COM-001`, `ADR-008`, código | §10 y **solicitud de ADR** (§10.9). Entrega propia `1.13-c` |
+| **H6** | **No existe ninguna pieza de PWA en `apps/web`** (sin *service worker*, sin almacenamiento local, sin dependencia relacionada; comprobado por búsqueda en el repositorio). `RMOB-COM-001` y el plan piden funcionamiento sin conexión | `RMOB-COM-001`, `ADR-008`, código | §10 y **`ADR-084`** (§10.9). Entrega propia `1.13-c` |
 | **H7** | **`RMOB-COM-004`** (borrar datos locales al cerrar sesión) choca con no perder pases sin enviar | `RMOB-COM-004`, `RMOB-COM-001` | **`OPEN-ACAD-52`** |
 | **H8** | **Primer permiso de escritura con ámbito `grupo`/`clase`** del producto. `ScopeResolver::constrain()` restringe una consulta; un alta todavía no tiene fila | `ADR-044 §4.2`, `ADR-063 §5.2` | `RN-ACAD-181` [DERIVADA] y `OPEN-ACAD-56` (técnica) |
-| **H9** | Las interfaces de `alum` que `1.13` necesita (`EnrollmentRoster`, registro de vetos de anulación de matrícula) están **especificadas y no construidas** (`Alum\Domain` solo contiene `Models`) | `REQ-ALUM/funcional.md §7.2`, código | Se construyen en `1.13-a` con este primer consumidor (no se construye una interfaz sin consumidor: principio aplicado en `ADR-048 §4.6`; `ADR-048` trata del aprovisionamiento de centros); es trabajo en `alum` y en `acad` que debe aprobarse con esta especificación (§8.2) |
+| **H9** | Las interfaces de `alum` que `1.13` necesita (`EnrollmentRoster`, registro de vetos, operación «matrículas por persona») están **especificadas y no construidas** (`Alum\Domain` solo contiene `Models`) | `REQ-ALUM/funcional.md §7.2`, código | Se construyen en `1.13` con este primer consumidor, y **este documento es la fuente de la tabla de dueños** (§8.2.1): `REQ-CALIF` (`1.16-a`) y `REQ-INF` (`1.18-a1`) solo las consumen (no se construye una interfaz sin consumidor: principio aplicado en `ADR-048 §4.6`; `ADR-048` trata del aprovisionamiento de centros); es trabajo en `alum` y en `acad` que debe aprobarse con esta especificación (§8.2) |
 
 ---
 
@@ -78,7 +78,7 @@
 |---------|-----------|-----------|
 | **`1.13-a`** | Pase de lista **en línea**, pensado para móvil: hoja del día del docente, lista del grupo, marcar faltas y retrasos, corregir y anular un pase; tablas `attendance_rolls` y `attendance_marks`; permisos `asistencia.*` con ámbitos `todos`, `grupo` y `clase`; resolutores; interfaces nuevas en `acad` y `alum` (§8.2); veto de anulación de matrícula con asistencia | `REQ-ACAD-003` puntos 1 y 2 (sin justificaciones), `REQ-PROF-002` |
 | **`1.13-b`** | Justificación de faltas y retrasos; informes por alumno, por grupo y por intervalo de fechas; umbral configurable y registro de alertas; ámbito `unidad_familiar` en la lectura (API); contrato de presencia para `1.14b-d4` (especificado, no construido) | `REQ-ACAD-003` puntos 2, 3 y 4; `REQ-FAM-PORTAL-001` (solo API) |
-| **`1.13-c`** | Paso de lista **sin conexión** en la PWA: caché de la hoja del día, cola de salida, sincronización y resolución de conflictos (§10). **Solo después de aceptarse su ADR** | `RMOB-COM-001`, `-002`, `-003`, `-004` |
+| **`1.13-c`** | Paso de lista **sin conexión** en la PWA: caché de la hoja del día, cola de salida, sincronización y resolución de conflictos (§10). **Solo después de aceptarse `ADR-084`** | `RMOB-COM-001`, `-002`, `-003`, `-004` |
 
 ### 1.2 Qué NO entra, explícitamente
 
@@ -479,13 +479,25 @@ Generado con `php artisan make:module` (`ADR-056 §3.5`). Sin ciclo: `alum` no d
 | `acad` | **Interfaz nueva de lectura del horario** (nombre propuesto `TimetableSessionDirectory`): sesiones de un usuario en una fecha (con grupo, asignatura, franja y marco vigente ese día), y resolver una sesión por `public_id` con «¿ocurre en esta fecha?» (`RN-ACAD-165`) | **No existe**; `§18.7` la anuncia como hueco («portales y PDF leerán las sesiones por una interfaz de `Acad\Domain`») | **Ampliación de `acad` a aprobar con esta especificación.** Ids internos, solo filas vivas, memoizada por petición |
 | `acad` | `GroupDirectory` (resolver grupo por `public_id`, nombre), nombre de asignatura; `StructureDeletionVetoRegistry` | Existen (`1.15-b`); **comprobar** que hay resolución del nombre traducido de una asignatura por id | Si falta, ampliación mínima a aprobar |
 | `alum` | **`EnrollmentRoster::activeEnrollmentsOfGroup(int $groupId, date)`** | Especificada (`REQ-ALUM/funcional.md §7.2`), no construida | Se construye en `1.13-a`. Debe devolver id de matrícula, `public_id` e id de persona |
-| `alum` | **Registro de vetos de anulación de matrícula** | Especificado, no construido | Se construye en `1.13-a` (`RN-ACAD-175`) |
-| `alum` | **Traducción persona de alumno → matrículas** para (`unidad_familiar`, `asistencia`) | No especificada con esa firma. La más cercana, `StudentEnrollmentDirectory::currentEnrollmentsFor` (por fecha), está **especificada, no construida**: `apps/api/app/Modules/Alum/Domain/StudentEnrollmentDirectory.php` no existe (comprobado; según la revisión C3, `Alum\Domain` solo contiene `Models`) | **Ampliación de `alum` a aprobar** (`1.13-b`): matrículas de un conjunto de personas de alumno en un curso |
+| `alum` | **Registro único de vetos de `alum`** | Especificado (solo anulación), no construido | Se construye en `1.13-a` (`RN-ACAD-175`) como **un único registro** con todos los casos: anulación de matrícula, alta y cambio de grupo (§8.2.1). La asistencia solo registra el de anulación |
+| `alum` | **Traducción persona de alumno → matrículas** («matrículas por persona») para (`unidad_familiar`, `asistencia`) | No especificada con esa firma. La más cercana, `StudentEnrollmentDirectory::currentEnrollmentsFor` (por fecha), está **especificada, no construida**: `apps/api/app/Modules/Alum/Domain/StudentEnrollmentDirectory.php` no existe (comprobado; según la revisión C3, `Alum\Domain` solo contiene `Models`) | **Ampliación de `alum` a aprobar** (`1.13-b`): matrículas de un conjunto de personas de alumno en un curso |
 | `fam_unit` | `FamilyMembership` | Existe | `1.13-b` |
 | `Core` | `UserDirectory` (nombres de quien pasó lista), `PersonDirectory` (nombre visible de alumnos por id de persona) | Existen; **comprobar** que `PersonDirectory` devuelve nombres visibles por lote | Si falta, ampliación mínima a aprobar antes de escribirla (precedente I-1) |
 | núcleo | `TenantModel`, `Auditable`, `ScopedQuery`, `RequireIdempotencyKey` | Existen | — |
 
 Ninguna de estas ampliaciones se escribe sin que el usuario la apruebe con esta especificación (`REQ-ACAD/funcional.md §18.7`: «ampliarla es un cambio que debe aprobarse antes de escribirlo»).
+
+#### 8.2.1 Tabla de dueños de las piezas de `alum` (revisión de coherencia H5, 2026-11-13)
+
+Este documento es la **fuente** de esta tabla; `REQ-CALIF` (`1.16-a`) y `REQ-INF` (`1.18-a1`) remiten aquí y **solo consumen** estas piezas: no construyen nada en `alum`.
+
+| Pieza de `Alum\Domain` | La construye | La consumen |
+|------------------------|--------------|-------------|
+| `EnrollmentRoster` (lista del grupo en una fecha) | `1.13` — en `1.13-a` (`1.13-a1`), porque el pase de lista de `1.13-a` la necesita (`RN-ACAD-167`) | `1.13-a`, `1.16-a`, `1.18-a1` |
+| Operación «matrículas por persona» (matrículas de un conjunto de personas de alumno en un curso) | `1.13-b` (resolutor `unidad_familiar`) | `1.13-b`, `1.16-a`, `1.18-a1` |
+| **Registro único de vetos de `alum`**: un solo registro para todos los casos (anulación de matrícula, alta, cambio de grupo, incluida la asignación de grupo a una matrícula sin grupo que pide `REQ-INF` en `RN-INF-06`); cada módulo registra el suyo | `1.13` — en `1.13-a` (`1.13-a1`), porque `RN-ACAD-175` lo usa en `1.13-a` | `1.13-a` (anulación), `1.16-a`, `1.18-a1` |
+
+**Aviso a la orquestadora**: el criterio H5 de la revisión dice «`1.13-b` construye `EnrollmentRoster`» y el registro de vetos. Aplicado al pie de la letra, `1.13-a` quedaría sin la lista del grupo (`RN-ACAD-167`) y sin el veto de anulación (`RN-ACAD-175`). Se ha leído como «dentro de `1.13`, antes de `1.16-a` y `1.18-a1`», con el reparto de la tabla. Si la intención era otra, hay que mover el pase de lista o esas dos reglas a `1.13-b`.
 
 ### 8.3 Contrato de presencia para `1.14b-d4` (obligación heredada): especificado, **no construido**
 
@@ -544,7 +556,7 @@ Todo literal en `lang/{es,en,de,fr}/<código>.php` y `apps/web/src/modules/<mód
 
 ## 10. Paso de lista sin conexión: decisión de arquitectura (borrador de ADR)
 
-> **Esta sección es una propuesta, no una decisión.** Introduce el primer *service worker* del producto, el primer almacenamiento de datos personales de menores en el dispositivo y, según la opción, una dependencia nueva. Es una decisión estructural que `CLAUDE.md §6.3` manda fijar en un ADR. **Pido número a la orquestadora** (§10.9); no tomo ninguno. `1.13-c` no se implementa hasta que ese ADR esté aceptado.
+> **Esta sección es una propuesta, no una decisión.** Introduce (o extiende, §10.9) el *service worker* del producto, el primer almacenamiento de datos personales de menores en el dispositivo y, según la opción, una dependencia nueva. Es una decisión estructural que `CLAUDE.md §6.3` manda fijar en un ADR: **`ADR-084`** (número asignado por la orquestadora, §10.9). `1.13-c` no se implementa hasta que `ADR-084` esté aceptado.
 
 ### 10.1 Contexto y restricciones
 
@@ -633,7 +645,9 @@ Sincronización con la aplicación cerrada; consulta de informes sin conexión; 
 
 ### 10.9 Solicitud de ADR
 
-**Pido a la orquestadora el siguiente número libre (`ADR-084` en adelante)** para «Paso de lista sin conexión en la PWA: almacenamiento local de datos de menores, sincronización y conflictos». Debe decidir, con fuentes actuales: opción A/B/C/D, librería o *service worker* propio, cifrado y caducidades de §10.3, política de conflictos de §10.5, cierre de sesión con cola pendiente, y la matriz de navegadores soportados. Autor: `architect`. Estado de salida: `PROPUESTA`. Las secciones §10.1 a §10.8 son su borrador.
+**Número asignado por la orquestadora: `ADR-084`**, «Paso de lista sin conexión en la PWA: almacenamiento local de datos de menores, sincronización y conflictos». Debe decidir, con fuentes actuales: opción A/B/C/D, librería o *service worker* propio, cifrado y caducidades de §10.3, política de conflictos de §10.5, cierre de sesión con cola pendiente, y la matriz de navegadores soportados. Autor: `architect`. Estado de salida: `PROPUESTA`. Las secciones §10.1 a §10.8 son su borrador.
+
+**Un solo *service worker* y un solo manifiesto en `apps/web`** (revisión de coherencia H6, 2026-11-13). Web Push de `REQ-COM` (`1.19e`, `ADR-079 §4.5`) necesita también *service worker* y manifiesto. Regla: **los crea la primera entrega que llegue** (`1.13-c` o `1.19e`) y **la otra los extiende**; nunca dos *service workers* ni dos manifiestos. `ADR-084` y `ADR-079` lo acuerdan en su texto y se anota en `PLAN-IMPLEMENTACION.md` (§16). Consecuencia para `1.13-c`: si `1.19e` ya está mezclada, su T1 extiende el *service worker* existente (añade la caché del armazón y lo que fije `ADR-084`) en vez de crearlo, y su reversión (§11.4) no puede desregistrar el *service worker* entero sin romper Web Push: retira solo lo suyo.
 
 ---
 
@@ -672,8 +686,8 @@ Revisión: Codex primero, `security-reviewer` con su columna y `db-reviewer` en 
 
 | Aspecto | Valor |
 |---------|-------|
-| Despliegue | Migraciones aditivas (*expand*); compatibles con la versión anterior, que no conoce las tablas. Reversión: `down()` elimina tablas nuevas; sin datos previos que perder en el primer despliegue. `1.13-c` despliega un *service worker*: su reversión es publicar uno que se desregistre y borre cachés (procedimiento a probar y escribir en `RUNBOOK.md`) |
-| Variables de entorno | Ninguna nueva en `-a` y `-b`. `-c`: las que fije el ADR (caducidades como configuración del módulo, no secretos) |
+| Despliegue | Migraciones aditivas (*expand*); compatibles con la versión anterior, que no conoce las tablas. Reversión: `down()` elimina tablas nuevas; sin datos previos que perder en el primer despliegue. `1.13-c` despliega o extiende el *service worker* único (§10.9): su reversión es publicar uno que se desregistre y borre cachés si solo lo usa la asistencia, o uno que retire solo la parte de la asistencia si ya lo usa Web Push (`1.19e`) (procedimiento a probar y escribir en `RUNBOOK.md`) |
+| Variables de entorno | Ninguna nueva en `-a` y `-b`. `-c`: las que fije `ADR-084` (caducidades como configuración del módulo, no secretos) |
 | Colas | Ninguna: ningún trabajo pesado (`RN-ACAD-191`). No depende de Horizon ni del planificador (#453) |
 | Tareas programadas | Ninguna |
 | Caché de servidor | Ninguna entre peticiones (`ADR-044 §4.7`) |
@@ -689,17 +703,17 @@ El paso **no cabe en tres tramos**: se parte en tres entregas, cada una de ≤ 3
 
 | Entrega | Tramo | Costura | Contenido | Criterios | Estimación |
 |---------|-------|---------|-----------|-----------|-----------|
-| **`1.13-a`** | T1 | Datos y permisos | `classPairsFor` y `TimetableSessionDirectory` en `acad`; `EnrollmentRoster` y registro de vetos en `alum`; módulo (`make:module`); migraciones de `attendance_rolls` y `attendance_marks`; catálogo de permisos, resolutores `grupo` y `clase`, mapa de `AR-10`; siembra | `CA-ACAD-160`, `-161`, `-171` a `-176` | 80-100 llamadas |
+| **`1.13-a`** | T1 | Datos y permisos | `classPairsFor` y `TimetableSessionDirectory` en `acad`; `EnrollmentRoster` y registro único de vetos en `alum` (§8.2.1); módulo (`make:module`); migraciones de `attendance_rolls` y `attendance_marks`; catálogo de permisos, resolutores `grupo` y `clase`, mapa de `AR-10`; siembra | `CA-ACAD-160`, `-161`, `-171` a `-176` | 80-100 llamadas |
 | | T2 | Servicios y *endpoints* | Servicio único de pases; *endpoints* 1 a 6; OpenAPI; concurrencia | `CA-ACAD-162` a `-170`, `-179` | 80-100 |
 | | T3 | Interfaz | Hoja del día y pase en móvil; textos; *specs* de E2E (la ejecución final, `verificador`) | `CA-ACAD-177`, `-178` | 60-80 |
-| **`1.13-b`** | T1 | Datos y permisos | Tablas de ajustes y alertas; `asistencia.aprobar`, `configuracion_asistencia.*`; ampliación de `alum` y resolutor `unidad_familiar` | `CA-ACAD-185`, `-186`, `-189` | 60-80 |
+| **`1.13-b`** | T1 | Datos y permisos | Tablas de ajustes y alertas; `asistencia.aprobar`, `configuracion_asistencia.*`; ampliación de `alum` («matrículas por persona», §8.2.1) y resolutor `unidad_familiar` | `CA-ACAD-185`, `-186`, `-189` | 60-80 |
 | | T2 | Servicios y *endpoints* | *Endpoints* 7 a 14; umbral en la transacción del pase | `CA-ACAD-180` a `-184`, `-187`, `-188` | 80-100 |
 | | T3 | Interfaz | Informes, ficha del alumno, alertas, ajustes; E2E | `CA-ACAD-190` | 60-80 |
-| **`1.13-c`** | T1 | Almacén local | *Service worker*, manifiesto, almacén cifrado, precarga y caducidades, borrado al cerrar sesión | `CA-ACAD-191`, `-192`, `-196` | 60-90 |
+| **`1.13-c`** | T1 | Almacén local | *Service worker* y manifiesto únicos (los crea si `1.19e` no lo ha hecho; si no, los extiende, §10.9), almacén cifrado, precarga y caducidades, borrado al cerrar sesión | `CA-ACAD-191`, `-192`, `-196` | 60-90 |
 | | T2 | Sincronización | Cola, envío, reanudación tras iniciar sesión, fusión y pantalla de conflicto, versión incompatible | `CA-ACAD-193` a `-195`, `-197`, `-200` | 80-100 |
 | | T3 | E2E | Playwright con red cortada contra la API real; prueba manual en iPhone | `CA-ACAD-198`, `-199` | 40-60 |
 
-**Plan por defecto (revisión C3-16): T1 de `1.13-a` se parte desde el principio** en dos tramos secuenciales, `1.13-a1` «interfaces de `acad` y `alum`» (`classPairsFor`, `TimetableSessionDirectory`, `EnrollmentRoster`, registro de vetos) y `1.13-a2` «módulo, migraciones y permisos» (`make:module`, tablas, catálogo, resolutores, mapa de `AR-10`, siembra). Cuatro interfaces en dos módulos ajenos más el módulo nuevo no caben con holgura en 80-100 llamadas; partirlo deja `1.13-a` en cuatro tramos (a1, a2, T2, T3), por encima de los ≤3 de `CLAUDE.md §2.7`, así que **`1.13-a` se convierte en dos entregas**: `1.13-a1` (interfaces, un tramo) y `1.13-a2` (T1 restante, T2, T3). Los criterios de `1.13-a1` son los tests de cada interfaz (`CA-ACAD-114` para `classPairsFor` y los que fije el briefing); los de T1 de la tabla pasan a `1.13-a2`. Orden: `-a` → `-b` → `-c`; `-c` puede ir antes que `-b` si el usuario prioriza el modo sin conexión (solo depende de `-a` y del ADR).
+**Plan por defecto (revisión C3-16): T1 de `1.13-a` se parte desde el principio** en dos tramos secuenciales, `1.13-a1` «interfaces de `acad` y `alum`» (`classPairsFor`, `TimetableSessionDirectory`, `EnrollmentRoster`, registro de vetos) y `1.13-a2` «módulo, migraciones y permisos» (`make:module`, tablas, catálogo, resolutores, mapa de `AR-10`, siembra). Cuatro interfaces en dos módulos ajenos más el módulo nuevo no caben con holgura en 80-100 llamadas; partirlo deja `1.13-a` en cuatro tramos (a1, a2, T2, T3), por encima de los ≤3 de `CLAUDE.md §2.7`, así que **`1.13-a` se convierte en dos entregas**: `1.13-a1` (interfaces, un tramo) y `1.13-a2` (T1 restante, T2, T3). Los criterios de `1.13-a1` son los tests de cada interfaz (`CA-ACAD-114` para `classPairsFor` y los que fije el briefing); los de T1 de la tabla pasan a `1.13-a2`. Orden: `-a` → `-b` → `-c`; `-c` puede ir antes que `-b` si el usuario prioriza el modo sin conexión (solo depende de `-a` y de `ADR-084`).
 
 ---
 
@@ -750,7 +764,7 @@ Pest en `apps/api/tests/Feature/<Módulo>/` (concurrencia en `tests/Concurrency/
 - **`CA-ACAD-189`** — `CA-ACAD-161`, `-174` y `-175` para los *endpoints* 7 a 14.
 - **`CA-ACAD-190`** (Vitest y Playwright contra la API real) — Justificar un intervalo desde la ficha del alumno, ver el resumen del grupo, fijar el umbral, provocar una alerta y atenderla; textos en los cuatro idiomas (`AR-12`).
 
-### 13.5 Sin conexión (`1.13-c`; condicionados al ADR de §10.9)
+### 13.5 Sin conexión (`1.13-c`; condicionados a `ADR-084`, §10.9)
 
 - **`CA-ACAD-191`** (§10.3) — Tras abrir «Pasar lista» con red, el almacén local contiene la hoja del día cifrada (ningún nombre de alumno legible en IndexedDB) y solo la de hoy; pasadas 18 horas o al cambiar el día del centro, deja de estar disponible y se borra.
 - **`CA-ACAD-192`** (`RMOB-COM-004`, §10.6) — Al cerrar sesión sin pendientes, el almacén queda vacío; con pendientes, se pide confirmación y, confirmada, queda vacío; otro usuario que inicia sesión en el mismo navegador no ve ni hoja ni cola del anterior.
@@ -779,7 +793,7 @@ Pest en `apps/api/tests/Feature/<Módulo>/` (concurrencia en `tests/Concurrency/
 | `OPEN-ACAD-46` | **Grano del pase de lista** (H2) | **A** · Solo por sesión del horario. **B** · Solo diario por grupo. **C** · Ambos en una tabla, excluyentes por grupo y día (`RN-ACAD-163`) | **C.** A obliga a componer el horario para poder pasar lista (y deja fuera Infantil y Primaria, que suelen pasar una vez); B impide el control por asignatura de Secundaria y deja sin uso el ámbito `clase`. C cuesta una regla de exclusión y dos contadores en los informes. Si el usuario prefiere simplicidad, B es la más barata y C la contiene | `1.13-a` (tablas) | Usuario (negocio) |
 | `OPEN-ACAD-47` | **Base legal del registro de asistencia y permiso para guardar nombres de alumnos en el dispositivo del docente** | **A** · Obligación legal/interés público, sin consentimiento; modo sin conexión permitido con ajuste del centro para desactivarlo. **B** · Modo sin conexión solo en dispositivos del centro. **C** · Sin modo sin conexión | **A**, con **validación jurídica antes de datos reales** (no antes de implementar con datos de `REQ-SEED`). Impacto: texto en `PRIVACY.md` y aviso legal de §10.6 | Datos reales; `1.13-c` | Legal y usuario |
 | `OPEN-ACAD-52` | **Cerrar sesión, o entrar otro usuario, con pases sin enviar** (H7) | **A** · Avisar y, si se confirma, borrar todo (`RMOB-COM-004` literal). **B** · Conservar la cola cifrada (sin nombres) hasta que vuelva el mismo usuario. **C** · Impedir cerrar sesión sin red | **A.** B deja datos de un usuario en un dispositivo donde ya no tiene sesión, contra el requisito; C atrapa al usuario. Impacto: un docente que cierre sesión sin cobertura pierde esos pases (avisado) | `1.13-c` | Usuario |
-| ADR de §10.9 | Arquitectura del modo sin conexión | §10.2 | **A** (cola propia) | `1.13-c` | Usuario, con ADR de `architect` |
+| `ADR-084` (§10.9) | Arquitectura del modo sin conexión | §10.2 | **A** (cola propia) | `1.13-c` | Usuario, con ADR de `architect` |
 
 ### 14.2 No bloqueantes: se puede implementar con la recomendación y cambiar después
 
@@ -830,17 +844,17 @@ Pest en `apps/api/tests/Feature/<Módulo>/` (concurrencia en `tests/Concurrency/
 
 | Fichero | Cambio propuesto |
 |---------|------------------|
-| `PLAN-IMPLEMENTACION.md` | Partir `1.13` en `1.13-a1`, `1.13-a2`, `1.13-b` y `1.13-c` (§12), marcarlas **críticas** y con especificación **propuesta, no aprobada**. Anotar: `1.13-c` exige el ADR de §10.9 aceptado; `REQ-ACAD-003` punto 3 queda parcial hasta `1.19`; la obligación heredada de `1.14b-d4` se cumple con el contrato de §8.3, que **construye `1.14b-d4`**. Si queda alguna cita de `ADR-048` como origen de la asignación docente, sustituirla por `ADR-063 §5.4` |
-| `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` (cabecera, `§5.4`, índice de ADR de `§18`) | Si se aprueba `OPEN-ACAD-45` = A: nota en `§5.4` de que `Attendance` se implementa en un módulo propio que depende de `ALUM` (H1), sin cambiar el ID. Alta del ADR de §10.9 en el índice cuando tenga número |
+| `PLAN-IMPLEMENTACION.md` | Partir `1.13` en `1.13-a1`, `1.13-a2`, `1.13-b` y `1.13-c` (§12), marcarlas **críticas** y con especificación **propuesta, no aprobada**. Anotar: `1.13-c` exige `ADR-084` aceptado; `apps/web` tiene un solo *service worker* y un solo manifiesto, que crea la primera entrega que llegue (`1.13-c` o `1.19e`) y extiende la otra (§10.9, H6); `1.13` construye las piezas de `alum` de §8.2.1 y `1.16-a` y `1.18-a1` dependen de ella; `REQ-ACAD-003` punto 3 queda parcial hasta `1.19`; la obligación heredada de `1.14b-d4` se cumple con el contrato de §8.3, que **construye `1.14b-d4`**. Si queda alguna cita de `ADR-048` como origen de la asignación docente, sustituirla por `ADR-063 §5.4` |
+| `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` (cabecera, `§5.4`, índice de ADR de `§18`) | Si se aprueba `OPEN-ACAD-45` = A: nota en `§5.4` de que `Attendance` se implementa en un módulo propio que depende de `ALUM` (H1), sin cambiar el ID. Alta de `ADR-084` (§10.9) en el índice |
 | `docs/modulos/REQ-ACAD/funcional.md` (no es de la lista de compartidos, pero es de otra entrega: **no lo toco**) | Cabecera: `-003` especificada en `asistencia.md`. `§18.7`: `classPairsFor` y `TimetableSessionDirectory` con primer consumidor `1.13-a`. Al implementar, párrafos puntero en los cinco ficheros (§0.1) |
-| `docs/modulos/REQ-ALUM/funcional.md §7.2` (ídem) | `EnrollmentRoster` devuelve también id de persona; nueva operación persona de alumno → matrículas de un curso (`1.13-b`) |
+| `docs/modulos/REQ-ALUM/funcional.md §7.2` (ídem) | `EnrollmentRoster` devuelve también id de persona; nueva operación persona de alumno → matrículas de un curso (`1.13-b`); el registro de vetos pasa a ser **único** con anulación, alta y cambio de grupo; tabla de dueños de §8.2.1 |
 | `docs/modulos/REQ-PRL/funcional.md` (ídem) | Referencia al contrato `AttendancePresence` de §8.3 para `1.14b-d4` |
 | `ARCHITECTURE.md` | Módulo `asistencia` en el mapa de módulos y dependencias; en `§3.4`, primer ejemplo de resolutor `clase` y de escritura con ámbito; sección de PWA cuando exista el ADR |
 | `PRIVACY.md` | Tratamiento «control de asistencia»: finalidad, base legal (**pendiente de validación jurídica**), categorías, destinatarios (familias), almacenamiento temporal en dispositivo, retención sin decidir |
 | `SECURITY.md` | Datos en el dispositivo: qué, cuánto y límites del cifrado (§10.3) |
 | `SYSADMIN.md`, `RUNBOOK.md` | Con `1.13-c`: despliegue y retirada de un *service worker* |
 | `CHANGELOG.md` | Entrada de la ola: especificación de `1.13` propuesta |
-| `memory.md` | `1.13` especificada y **sin aprobar**; cuatro preguntas bloqueantes y un ADR por numerar; H1 (ciclo `acad` ↔ `alum`) |
+| `memory.md` | `1.13` especificada y **sin aprobar**; cuatro preguntas bloqueantes y `ADR-084` por escribir; H1 (ciclo `acad` ↔ `alum`) |
 | `docs/manual-usuario/{docente,direccion,familia}.md` | Al implementar cada entrega |
 
 ---
