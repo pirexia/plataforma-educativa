@@ -1,6 +1,6 @@
 # CLAUDE.md — Normas de trabajo del proyecto
 
-> **Versión 2.11.4** · 2026-11-12 · Fichero de contexto permanente. Se carga en **todas** las sesiones. Contiene solo reglas estables.
+> **Versión 2.12.0** · 2026-11-13 · Fichero de contexto permanente. Se carga en **todas** las sesiones. Contiene solo reglas estables.
 > Proyecto: **Plataforma de Gestión Educativa Multi-tenant**. Fuente de verdad funcional: `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md`.
 
 ---
@@ -33,9 +33,9 @@ Frases prohibidas: "¡Excelente idea!", "Tienes toda la razón" como apertura re
 | Caché | **Redis**, instalado y en uso (prefijo por tenant, `ADR-033 §9`) |
 | Colas | **Hoy**: *driver* `database` de Laravel — `QUEUE_CONNECTION=database`, tablas `jobs` y `failed_jobs`, consumidas por `php artisan queue:work` en **dos procesos** (perfil `worker` de `compose.yaml`): `worker` (conexión `database`, `infra/quadlet/worker.container`; issue #128, resuelto) y `worker-long` (cola `long`, conexión `database_long`, `retry_after` 900 s, `infra/quadlet/worker-long.container`; `1.12b`, ratificado por el usuario el 2026-10-21 porque el `retry_after` es de la conexión con la que se lee la cola). **Elegido y no instalado**: Redis como cola + **Laravel Horizon**. Horizon **no está en `composer.json`** y no hay `config/horizon.php`; adoptarlo es una dependencia nueva sujeta a la regla de abajo y a `OPEN-BO-23` (`docs/modulos/REQ-BO/funcional.md §14`) |
 | Almacenamiento | API S3 como contrato único; Garage en desarrollo, CI y E2E, nunca en servidores (`ADR-076`) |
-| PDF | Servicio contenerizado de renderizado HTML→PDF |
+| PDF | Servicio contenerizado de renderizado HTML→PDF. **Elegido y no instalado**: WeasyPrint tras la interfaz propia `PdfRenderer` (`ADR-078`, `PROPUESTA`; decisión del usuario del 2026-11-12), con Gotenberg como vuelta atrás; no hay servicio ni código (paso `P` del plan) |
 | Tests | Pest (backend), Vitest + Playwright (frontend) |
-| Contenedores | **Podman**. Desarrollo en **WSL2** con perfil reducido (`ADR-030`); `compose.yaml` estándar con `podman compose`; Quadlet/systemd en producción. Kubernetes a partir de 3-5 centros |
+| Contenedores | **Podman**. Desarrollo en **WSL2** con perfil reducido (`ADR-030`); `compose.yaml` estándar con `podman compose`; Quadlet/systemd en producción. Kubernetes a partir de 3-5 centros. **Elegido y no implementado**: runtime agnóstico (`CONTAINER_RUNTIME`, Quadlet como referencia; `ADR-080`, `PROPUESTA`, paso `0.10e-a`): ningún guion lee esa variable hoy |
 | Repositorio | Monorepo: `apps/api`, `apps/web`, `infra`, `docs` |
 
 **Esta tabla dice qué está elegido, no qué está instalado.** Cuando no coinciden, la fila lo dice con el issue que lo sigue. Antes de apoyarse en una pieza de esta tabla, se comprueba en `composer.json`/`package.json`. Motivo: `docs/proceso/casos-reales.md#horizon-no-instalado`.
@@ -176,6 +176,7 @@ Estructura **híbrida**, y es obligatoria:
 /docs/modulos/REQ-XXX/{funcional,datos,api,permisos,operacion}.md
 /docs/manual-usuario/{admin,direccion,secretaria,docente,familia,estudiante}.md
 /docs/adr/ADR-NNN-titulo.md
+/docs/cumplimiento/{README,matriz-normas,preguntas-abiertas,indice-evidencias}.md
 ```
 
 **Normas de obligado cumplimiento:**
