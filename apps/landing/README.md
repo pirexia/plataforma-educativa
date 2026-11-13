@@ -154,7 +154,7 @@ Mejora progresiva: sin JavaScript el carrusel es el de `ADR-074 §4.5` (desplaza
 
 ## Desplegar y revertir
 
-Proveedor: Cloudflare **Workers static assets** (`ADR-072 §4.7`; no Pages). `wrangler.jsonc`: Worker `adagiox-landing`, `assets.directory = ./dist`, sin `main`, `workers_dev: true`, **`observability.enabled: false`** (sin Workers Logs: la landing no registra peticiones propias, `ADR-073 §2.5`), **sin rutas ni dominios personalizados** (el DNS aún no existe, `OPEN-072-04`), `html_handling: auto-trailing-slash` (`/es/` sirve `es/index.html`, coherente con las URL canónicas) y `not_found_handling: 404-page` (sirve `404.html` con estado 404). Workers lee `_headers` y `_redirects` de `dist/`.
+Proveedor: Cloudflare **Workers static assets** (`ADR-072 §4.7`; no Pages). `wrangler.jsonc`: Worker `adagiox-landing`, `assets.directory = ./dist`, sin `main`, `workers_dev: true`, **`observability.enabled: false`** (sin Workers Logs: la landing no registra peticiones propias, `ADR-073 §2.5`), **dominio personalizado solo para el ápice `adagiox.com`** (`routes` con `custom_domain`, `ADR-072 §4.3`; `www` y los demás dominios por reglas de zona, fuera de este fichero), `html_handling: auto-trailing-slash` (`/es/` sirve `es/index.html`, coherente con las URL canónicas) y `not_found_handling: 404-page` (sirve `404.html` con estado 404). Workers lee `_headers` y `_redirects` de `dist/`.
 
 `scripts/deploy.sh` es el **único punto que conoce al proveedor**. Lo llama solo `ci-landing.yml` (job `deploy`: `push` a `main`, tras `build`, `check` y `lighthouse`, con la variable de repositorio `LANDING_DEPLOY_ENABLED = true`). El token de Cloudflare ya existe como secreto de GitHub (`CLOUDFLARE_API_TOKEN`); el alta de secretos, del *environment* `landing-production` y de la variable está en `SYSADMIN.md §4b`. Orden: exige `CLOUDFLARE_API_TOKEN` y `CLOUDFLARE_ACCOUNT_ID`; `npm run build`; `npm run check:publish` (**puerta de publicación, #582**: con marcadores `[TITULAR]`, traducciones pendientes o `dist/` obsoleto el despliegue no continúa); `wrangler deploy`; y smoke test de cabeceras (#583) con `curl` a la URL desplegada, comparando con el valor exacto de `dist/_headers` (CSP, HSTS `max-age=86400`, `nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy`, COOP y CORP).
 
@@ -171,7 +171,18 @@ El smoke test comprueba las cabeceras de `_headers` en la portada y que `/js/car
 
 1. **Volver al despliegue anterior**: `npx wrangler rollback` (elige una versión anterior; requiere las mismas variables de entorno) o desde el panel de Cloudflare, Workers & Pages -> `adagiox-landing` -> *Deployments* -> *Rollback*.
 2. **Revertir el commit** que introdujo el cambio en `main` y dejar que `ci-landing.yml` vuelva a desplegar.
-3. **DNS**: antes de cambiar cualquier registro, anotar aquí los actuales (tipo, nombre, valor, TTL) y restaurarlos para revertir. Registros anteriores anotados: *ninguno todavía; la zona no existe*.
+3. **DNS**: antes de cambiar cualquier registro, anotar aquí los actuales (tipo, nombre, valor, TTL) y restaurarlos para revertir. Registros anteriores anotados: los de la zona `adagiox.com` de Cloudflare a 2026-11-13, importados de Arsys al delegar los servidores de nombres (zona `active` desde esa fecha). Todos sin proxy y con TTL automático.
+
+   | Tipo | Nombre | Valor |
+   |---|---|---|
+   | CNAME | `autoconfig` | `autoconfig.serviciodecorreo.es` |
+   | CNAME | `autodiscover` | `autodiscover.serviciodecorreo.es` |
+   | CNAME | `webmail` | `serviciodecorreo.es` |
+   | MX | `@` (prioridad 10) | `mx.serviciodecorreo.es` |
+   | TXT | `@` | `v=spf1 include:_spf.serviciodecorreo.es ~all` |
+   | TXT | `1794304124578._domainkey` | `v=DKIM1; k=rsa; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAuEAsRBNt5ayTDFcwkz8eIy4oVKxsTPdsBRl38isZbjTp1QOQqZ16UHB2jtAuoM/9dT2B9wXLXB6ovL7mkt2xxCniwiD8mVV33uBMwj1Nkz9tsSG8GfL5Mbu2ymPwDlXGTi3wqizUYX3rR2a0jkS5ufhIVOmIRw3TbwMPV+KMsRiPvhe452bbRgt4k+mmUt31hMcrKlXRq7NM21VQzNBUPw82+JLO8gGA7puPuqZeD3zrjIlANdZnAZCWHTRzqJO986SBhNgUl0wwCUaiAif/xKHPBZ9jxced/xhptvMipZbnRNjRBlG/iZN2E4XJENvmpS3SXKI7JpZM7W6K0w01dQIDAQAB` |
+
+   Servidores de nombres anteriores (Arsys): `dns97.servidoresdns.net` y `dns98.servidoresdns.net`; para revertir la delegación hay que volver a ponerlos en el panel de Arsys. Servidores actuales (Cloudflare): `johnny.ns.cloudflare.com` y `keyla.ns.cloudflare.com`. DNSSEC estaba desactivado en Arsys antes del cambio y **aún no está activado en Cloudflare**.
 4. **Parada de emergencia**: borrar la variable de repositorio `LANDING_DEPLOY_ENABLED` detiene los despliegues; `npx wrangler delete` retira el Worker.
 
 **Pendiente explícito: la reversión (1) no se ha probado.** No hay cuenta de Cloudflare autenticada en el CLI local (el token vive solo como secreto de GitHub), así que ni el despliegue real ni el `rollback` se han ejecutado. `ADR-072 §4.6` exige ejecutarla una vez en el primer despliegue y anotar el resultado en el PR; hasta entonces, la reversión figura como **no probada**.

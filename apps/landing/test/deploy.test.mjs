@@ -60,13 +60,14 @@ test('package.json: dependencias de desarrollo fijadas a versión exacta y scrip
 
 // ---- wrangler.jsonc (ADR-072 §4.6, §4.7) ----
 
-test('wrangler.jsonc: Worker de solo activos, sin rutas ni dominios, coherente con dist/', () => {
+test('wrangler.jsonc: Worker de solo activos, solo el ápice como dominio personalizado, coherente con dist/', () => {
   const w = jsonc('wrangler.jsonc')
   assert.equal(w.name, 'adagiox-landing')
   assert.equal(w.main, undefined)
   assert.equal(w.assets.directory, './dist')
   assert.equal(w.workers_dev, true)
-  assert.equal(w.routes, undefined)
+  // ADR-072 §4.3: canónico = ápice sin `www`; el resto se redirige por reglas de zona, no aquí.
+  assert.deepEqual(w.routes, [{ pattern: 'adagiox.com', custom_domain: true }])
   assert.equal(w.route, undefined)
   assert.match(w.compatibility_date, /^\d{4}-\d{2}-\d{2}$/)
   assert.equal(w.assets.html_handling, 'auto-trailing-slash')
