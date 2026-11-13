@@ -102,7 +102,7 @@ Criterios de evaluación, los del proyecto: coste de implementación en solitari
 | Uso de imagen | `REQ-FAM-UNIT-004` | — | Sin cambio | `ADR-066` |
 | Confirmación o baja en la renovación | `REQ-CURSO-004` | Tutor legal | N1 con reautenticación | |
 | Contrato o ficha de matrícula; inscripción en extraescolar con contrato | `REQ-ALUM-002`, `REQ-EXTRA-003` | Tutores legales y firmante del centro | N2 | Tiene contenido económico |
-| Mandato SEPA | (`ADR-081`) | Titular de la cuenta | Lo fija `ADR-081` | Se recomienda N2 |
+| Mandato SEPA | (`ADR-081`) | Titular de la cuenta, **que puede no tener cuenta en la plataforma**: el flujo admite firmante sin cuenta (por tanto, en línea solo N2) | Lo fija `ADR-081` (`OPEN-PAY-06`) | **Papel escaneado siempre disponible** (y es el estado de los mandatos migrados); **N2 para los mandatos nuevos en línea** (`ADR-081 §4.5`, recomendación de `OPEN-PAY-06`) |
 | Boletín e informe de desarrollo | `REQ-CALIF-002`, `REQ-INF-002` | Docente tutor (y dirección, en `REQ-INF-002`) | N1 | Es una validación interna previa a publicar, no un contrato |
 | Acta de evaluación interna | `REQ-CURSO-003` | Equipo docente | N1, varios firmantes | `REQ-CURSO-003` pide el «acta de evaluación final firmada digitalmente por el equipo docente». `REQ-SEC-002` define las actas internas por grupo y período pero **no pide firma**: extender la firma a esas actas es **propuesta** de este ADR. Las oficiales están en Raíces (`ADR-016`) |
 | Acta de órgano colegiado | `REQ-GOB-002` | Secretario y presidente | N1 | Elevable a N3 por el centro |
@@ -226,7 +226,7 @@ Este ADR asume íntegras las cuatro decisiones de `ADR-078 §8` (el motor no fir
 
 1. Todo tipo de documento firmable usa el perfil `archival`, incluido el justificante.
 2. El PDF que va a un prestador no lleva contenido activo ni recursos externos (`ADR-078 §3.3`).
-3. El justificante de firma es una plantilla del motor en los cuatro idiomas (`INV-009`).
+3. El justificante de firma es una plantilla del motor en los cuatro idiomas (`INV-009`). Es **texto legal**: se redacta en es-ES y lo traduce una persona a en, de y fr, **sin traducción automática** (`CLAUDE.md §2`, punto 9; mismo criterio que `§6`, fila `INV-009`).
 4. Que la salida no sea idéntica byte a byte entre dos ejecuciones no importa: se resume el objeto almacenado, nunca una regeneración.
 
 ### 4.7 D7 · Tutores legales y menores
