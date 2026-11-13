@@ -32,7 +32,7 @@
 | `GET /conversations/{conversation}/messages` | `mensaje.leer` · `propios` | 200 cursor `(id DESC)`: `public_id`, `sender`, `body`, `attachments` (`public_id`, nombre, tipo, tamaño), `created_at`, `read_by` (participantes e instante) | 404 | — |
 | `POST /conversations/{conversation}/messages` | `mensaje.crear` · alcance vigente sobre todos los demás participantes (`RN-COM-23`) | 201 `Message` | 404, 422 `com.conversation.counterpart_unreachable`, `com.message.body_invalid`, `com.attachment.not_found`; 429 | `Idempotency-Key` obligatoria |
 | `POST /conversations/{conversation}/read` | `mensaje.leer` · `propios` | 200 `{ last_read_message, last_read_at }`; cuerpo `{ "up_to": "<public_id del mensaje>" }` | 404, 422 | Sí (no retrocede) |
-| `POST /message-attachments` | `mensaje.crear` · cualquiera de sus ámbitos | 201 `{ public_id, name, media_type, size }`; `multipart/form-data` | 413, 415, 422 `com.attachment.type_mismatch`, `com.attachment.too_many_pending` | No |
+| `POST /message-attachments` | `mensaje.crear` · cualquiera de sus ámbitos | 201 `{ public_id, name, media_type, size }`; `multipart/form-data`. Solo PDF y documentos ofimáticos, sin imágenes (`RN-COM-26`) | 413, 415, 422 `com.attachment.type_mismatch` (también una imagen, sea cual sea su extensión), `com.attachment.too_many_pending` | No |
 | `GET /message-attachments/{attachment}/download` | `mensaje.leer` · `propios` (participante de la conversación del mensaje) | 200 `{ url, expires_at }` URL firmada de caducidad corta (`ADR-076`); `Cache-Control: no-store` | 404 | — |
 
 ### 1.3 [`1.19c`] Circulares (`com`)
@@ -40,7 +40,7 @@
 | Verbo y ruta | Permiso · ámbito | Respuesta | Errores propios | Idempotencia |
 |---|---|---|---|---|
 | `GET /circulars` | `circular.leer` · `todos`/`grupo`/`propios` | 200 página: `public_id`, `title` (idioma del usuario o por defecto), `status`, `requires_ack`, `segments`, `author`, `sent_at`, `scheduled_for`, `recipient_count`, `ack_count`. Filtros `status`, `academic_year`, `requires_ack`, `from`, `to`, `q` (título). Orden `sent_at`, `created_at` | 404 (curso cerrado sin `curso_historico.leer`), 422 | — |
-| `POST /circulars` | `circular.crear` · `todos`/`grupo` | 201 borrador | 422 `com.circular.locale_invalid`, `com.circular.placeholder_unknown`, `com.circular.segment_invalid`, `validation.*`; 403 segmento fuera de ámbito | No |
+| `POST /circulars` | `circular.crear` · `todos`/`grupo` | 201 borrador | 422 `com.circular.locale_invalid`, `com.circular.placeholder_unknown`, `com.circular.body_invalid`, `com.circular.segment_invalid`, `validation.*`; 403 segmento fuera de ámbito | No |
 | `GET /circulars/{circular}` | `circular.leer` | 200 con contenidos por idioma y segmentos | 404 | — |
 | `PATCH /circulars/{circular}` | `circular.crear` (autor, o ámbito `todos` en borradores ajenos, `OPEN-COM-23`) | 200 | 404, 409 `com.circular.not_editable`, 422 | No |
 | `DELETE /circulars/{circular}` | `circular.eliminar` | 204 (borrado lógico de un borrador) | 404, 409 `com.circular.not_editable` | Sí |
@@ -49,7 +49,7 @@
 | `GET /circulars/{circular}/recipients` | `circular.leer` (mismo ámbito que el detalle) | 200 página: destinatario (`public_id`, nombre visible), alumnos (nombre visible), `read_at`, `acknowledged_at`. Filtro `acknowledged`, `student`. **Lectura auditada** (`RN-COM-44`) | 404 | — |
 | `GET /circulars/{circular}/students` | `circular.leer` | 200 página: alumno, `acknowledged` (política `uno`), tutores destinatarios y su estado. **Lectura auditada** | 404 | — |
 | `GET /circular-templates`, `GET /circular-templates/{template}` | `plantilla_circular.leer` · `todos` | 200 | 404 | — |
-| `POST /circular-templates`, `PATCH /circular-templates/{template}`, `DELETE /circular-templates/{template}` | `plantilla_circular.crear` / `.actualizar` / `.eliminar` · `todos` | 201 / 200 / 204 | 422 `com.circular.placeholder_unknown` | — |
+| `POST /circular-templates`, `PATCH /circular-templates/{template}`, `DELETE /circular-templates/{template}` | `plantilla_circular.crear` / `.actualizar` / `.eliminar` · `todos` | 201 / 200 / 204 | 422 `com.circular.placeholder_unknown`, `com.circular.body_invalid` | — |
 | `GET /me/circulars` | Identidad (destinatario, `OPEN-COM-04`) | 200 cursor `(sent_at DESC, id DESC)`: `public_id`, título en su idioma, `requires_ack`, `acknowledged_at`, `read_at`, `sent_at`, alumnos por los que la recibe | 422 | — |
 | `GET /me/circulars/{circular}` | Identidad | 200 contenido en su idioma (o el por defecto) y `locale_shown`; marca `first_read_at` | 404 si no es destinatario | — |
 | `POST /me/circulars/{circular}/acknowledgement` | Identidad | 201 evidencia (`acknowledged_at`, `locale_shown`); 200 con la primera si ya existía | 404, 409 `com.circular.year_closed`, 422 `com.circular.ack_not_required` | Sí (natural, `UNIQUE`) |
@@ -60,8 +60,8 @@ Cuerpo de `POST /circulars`:
 {
   "requires_ack": true,
   "contents": [
-    { "locale": "es", "title": "Salida al museo", "body_html": "<p>…</p>" },
-    { "locale": "en", "title": "Museum trip", "body_html": "<p>…</p>" }
+    { "locale": "es", "title": "Salida al museo", "body": "Texto plano…" },
+    { "locale": "en", "title": "Museum trip", "body": "Plain text…" }
   ],
   "segments": [
     { "kind": "familias_grupo", "group": "01JB…20" },
@@ -70,6 +70,8 @@ Cuerpo de `POST /circulars`:
   "template": null
 }
 ```
+
+`body` es **texto plano** (`RN-COM-33`, decisión del usuario del 2026-11-13): un cuerpo con marcado se rechaza con `422 com.circular.body_invalid`, también en `PATCH /circulars/{circular}` y en las plantillas. Las respuestas devuelven `body` como texto; el cliente lo muestra escapado.
 
 ### 1.4 [`1.19d`]
 

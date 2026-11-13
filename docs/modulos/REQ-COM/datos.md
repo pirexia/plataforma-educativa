@@ -93,14 +93,14 @@ Sin `public_id`: no se exponen por fila; la API trabaja con el conjunto del usua
 | `uploaded_by_user_id` | `bigint` | no | |
 | `object_key` | `text` | no | Clave en el almacén privado con prefijo del centro (`ADR-076`); nunca expuesta |
 | `original_name` | `text` | no | `CHECK` ≤ 255; saneado |
-| `media_type` | `text` | no | Tipo real detectado por contenido |
+| `media_type` | `text` | no | Tipo real detectado por contenido; solo PDF y ofimáticos, sin imágenes (`RN-COM-26`, `OPEN-COM-32`) |
 | `size_bytes` | `bigint` | no | `CHECK > 0 AND <= 10485760` (`OPEN-COM-09`) |
 | `sha256` | `text` | no | `CHECK` 64 hexadecimales |
 | `created_at`, `updated_at`, `deleted_at` | | | |
 
 ### 1.5 [`1.19c`] Circulares (`com`)
 
-**`circular_templates`**: `id`, `public_id`, `tenant_id`, `name` (`CHECK` 1-120), `created_at`, `updated_at`, `deleted_at`, `created_by`, `updated_by`. Contenido por idioma en **`circular_template_contents`**: `tenant_id`, `template_id`, `locale` (`CHECK` en `es`, `en`, `de`, `fr`), `title` (`CHECK` 1-200), `body_html` (`CHECK` ≤ 50.000, saneado al guardar), `UNIQUE (template_id, locale)`. Sin `academic_year_id` (se reutilizan entre cursos). Forma del contenido traducible según `ADR-062` (**sin verificar** que este sea su patrón exacto; el implementador lo contrasta con `ADR-062` y lo ajusta sin cambiar las reglas).
+**`circular_templates`**: `id`, `public_id`, `tenant_id`, `name` (`CHECK` 1-120), `created_at`, `updated_at`, `deleted_at`, `created_by`, `updated_by`. Contenido por idioma en **`circular_template_contents`**: `tenant_id`, `template_id`, `locale` (`CHECK` en `es`, `en`, `de`, `fr`), `title` (`CHECK` 1-200), `body` (`CHECK` ≤ 50.000; **texto plano**, el servidor rechaza el marcado, `RN-COM-33`), `UNIQUE (template_id, locale)`. Sin `academic_year_id` (se reutilizan entre cursos). Forma del contenido traducible según `ADR-062` (**sin verificar** que este sea su patrón exacto; el implementador lo contrasta con `ADR-062` y lo ajusta sin cambiar las reglas).
 
 **`circulars`**
 
@@ -120,7 +120,7 @@ Sin `public_id`: no se exponen por fila; la API trabaja con el conjunto del usua
 | `source_template_id` | `bigint` | sí | FK `circular_templates`, informativo |
 | `created_at`, `updated_at`, `deleted_at`, `created_by`, `updated_by` | | | `deleted_at` solo en borradores (`CHECK deleted_at IS NULL OR status = 'borrador'`) |
 
-**`circular_contents`**: `tenant_id`, `academic_year_id`, `circular_id`, `locale`, `title`, `body_html`, `content_sha256` (fijado al enviar), `UNIQUE (circular_id, locale)`.
+**`circular_contents`**: `tenant_id`, `academic_year_id`, `circular_id`, `locale`, `title`, `body` (texto plano, como en las plantillas, `RN-COM-33`), `content_sha256` (fijado al enviar), `UNIQUE (circular_id, locale)`.
 
 **`circular_segments`**: `id`, `tenant_id`, `academic_year_id`, `circular_id`, `kind` (`CHECK` en `centro`, `familias_centro`, `familias_grupo`, `familias_alumno`, `profesorado`), `group_id` (FK `groups`, nulo), `student_person_id` (FK `people`, nulo). `CHECK`: `group_id` no nulo si y solo si `kind = 'familias_grupo'`; `student_person_id` no nulo si y solo si `kind = 'familias_alumno'`. `UNIQUE NULLS NOT DISTINCT (circular_id, kind, group_id, student_person_id)`.
 
@@ -211,7 +211,7 @@ Las claves foráneas hacia tablas de otros módulos (`users`, `people`, `groups`
 | `ConversationParticipant` | `conversation_participant` | `None` en `last_read_*` | Escritura muy frecuente sin valor de auditoría |
 | `Message` | `message` | `Redacted`: evento `created` sin `body` | `CA-COM-030` |
 | `MessageAttachment` | `message_attachment` | `Selective` (`media_type`, `size_bytes`, `message_id`); `original_name` redactado | |
-| `Circular`, `CircularContent`, `CircularSegment`, `CircularTemplate`, `CircularTemplateContent` | `circular`, … | `Selective`: estado, `requires_ack`, `scheduled_for`, `recipient_count`, segmentos; `body_html` sustituido por su resumen | `CA-COM-053` |
+| `Circular`, `CircularContent`, `CircularSegment`, `CircularTemplate`, `CircularTemplateContent` | `circular`, … | `Selective`: estado, `requires_ack`, `scheduled_for`, `recipient_count`, segmentos; `body` sustituido por su resumen | `CA-COM-053` |
 | `CircularRecipient`, `CircularRecipientStudent` | `circular_recipient`, … | `None` | Miles por envío; el envío se audita en `Circular` |
 | `CircularAcknowledgement` | `circular_acknowledgement` | `Selective` (`created`) | Es evidencia en sí misma |
 | `PushSubscription` | `push_subscription` | `Selective`; claves nunca registradas | |
