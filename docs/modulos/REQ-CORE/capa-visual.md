@@ -124,7 +124,19 @@ Todos en `apps/web/src/design-system/tokens.css` (única hoja de tokens, `CA-DS-
 
 **`RN-UI-04`** · En `@theme inline`, **toda la escala** de radios se define y vale `var(--radius)`: `--radius-xs`, `-sm`, `-md`, `-lg`, `-xl`, `-2xl`, `-3xl`, `-4xl`. Sin `calc()`. Motivos: (a) con base `2px` las fórmulas actuales dan `-2px` y `0px` (`ADR-064 §7`); (b) las cuatro que hoy no se definen heredan valores de Tailwind ajenos a `--radius`, y un componente vendorizado que las use (p. ej. una insignia con `rounded-4xl`) se saltaría la decisión de «un único token» (issue #431, decisión 1); (c) a 2 px una jerarquía de radios no se percibe. Alternativas en `OPEN-UI-08`.
 
-**`RN-UI-05`** · Excepciones al radio de 2 px, **lista cerrada en el test** (`CA-UI-003`): `rounded-full` solo en elementos que son círculos por significado o por forma —el indicador de `radio-group` (un botón de opción cuadrado se confunde con una casilla), indicadores de carga giratorios y avatares o puntos de estado si existen—. El implementador parte del inventario del *briefing* de `explorer`; cada entrada se justifica en el test. `rounded-none` y los valores arbitrarios (`rounded-[…]`) quedan prohibidos (regla 5 de `§22`). Las insignias (`badge`) pasan a 2 px (`OPEN-UI-09`).
+**`RN-UI-05`** · Excepciones al radio de 2 px, **lista cerrada en el test** (`CA-UI-003`): `rounded-full` solo en elementos que son círculos por significado o por forma —el indicador de `radio-group` (un botón de opción cuadrado se confunde con una casilla), indicadores de carga giratorios y avatares o puntos de estado si existen—. Cada entrada se justifica en el test. `rounded-none` y los valores arbitrarios (`rounded-[…]`) quedan prohibidos (regla 5 de `§22`) **en todo `src/`, incluido `src/components/ui/**`**. Las insignias (`badge`) pasan a 2 px (`OPEN-UI-09`).
+
+**`RN-UI-16`** · **Se editan los componentes vendorizados de `src/components/ui/`** para llevarlos a la escala de `--radius` (**decidido por el usuario el 2026-11-13**, hallazgo `C3-05`; no se deja al tramo). Es una edición única de esta entrega, no una excepción en el test: tras ella, `CA-UI-003` se aplica también a `ui/` sin lista de valores arbitrarios. Inventario de partida (búsqueda de código sobre `develop` en `786c94e`, 2026-11-13, y lectura directa de los ficheros):
+
+| Fichero | Uso actual | Queda |
+|---------|-----------|-------|
+| `components/ui/button/index.ts` | `rounded-[min(var(--radius-md),10px)]` en los tamaños `xs` e `icon-xs`; `rounded-[min(var(--radius-md),12px)]` en `sm` e `icon-sm` (4 usos) | `rounded-md` (vale `var(--radius)`, `RN-UI-04`). `in-data-[slot=button-group]:rounded-lg` y `rounded-lg` de la base se mantienen: ya derivan de `--radius` |
+| `components/ui/select/SelectTrigger.vue` | `data-[size=sm]:rounded-[min(var(--radius-md),10px)]` (1 uso) | `data-[size=sm]:rounded-md` |
+| `components/ui/checkbox/Checkbox.vue` | `rounded-[4px]` (1 uso) | `rounded-sm` |
+| `components/ui/badge/index.ts` | `rounded-4xl` (píldora) | `rounded-md` (2 px, `OPEN-UI-09` = A). Con `RN-UI-04` `rounded-4xl` ya valdría 2 px, pero se cambia para que el código diga lo que hace |
+| `components/ui/radio-group/RadioGroupItem.vue` | `rounded-full` | **Se mantiene**: única entrada inicial de la lista cerrada de `rounded-full` |
+
+Ningún otro fichero de `src/` usa hoy `rounded-full`, `rounded-4xl` ni `rounded-none` según la búsqueda; la búsqueda de código de GitHub **no indexa bien los corchetes**, así que el *briefing* de `explorer` repasa con `grep -rn "rounded-\[" apps/web/src` que no haya más valores arbitrarios fuera de los cinco de la tabla y, si los hay, se corrigen igual en `T1`.
 
 **`RN-UI-06`** · El indicador de foco no cambia de regla (`RN-DS-23`, `CA-DS-043`): borde `ring` de opacidad completa, que sigue el radio del control. Se comprueba que con 2 px sigue visible y no queda recortado por el panel (`CA-UI-015`).
 
@@ -132,7 +144,24 @@ Todos en `apps/web/src/design-system/tokens.css` (única hoja de tokens, `CA-DS-
 
 ### 5.3 Sombra (`ADR-064 §3`, `RN-DS-28`)
 
-**`RN-UI-08`** · La utilidad `shadow-auth-panel` aparece en **un solo fichero**, `PublicAuthShell.vue`, y solo desde el *breakpoint* de dos columnas; por debajo, sin sombra. Lo comprueba un test de arquitectura (`CA-UI-006`), que además fija la regla 3 de `§22` en CI: las utilidades `shadow-*` distintas de `shadow-none` solo se admiten en `src/components/ui/**` (capas flotantes vendorizadas) y en una lista cerrada de ficheros que el *briefing* inventaría; cualquier otro uso que aparezca se corrige en esta entrega (la tarjeta actual de `PublicAuthShell`, con `shadow-sm`, desaparece). «Ninguna otra superficie la usa por analogía; una excepción más exige otro ADR» (`ADR-064 §3.3`).
+**`RN-UI-08`** · La utilidad `shadow-auth-panel` aparece en **un solo fichero**, `PublicAuthShell.vue`, y solo desde el *breakpoint* de dos columnas; por debajo, sin sombra. Lo comprueba un test de arquitectura (`CA-UI-006`), que además fija la regla 3 de `§22` en CI: las utilidades `shadow-*` distintas de `shadow-none` solo se admiten en la **lista cerrada de capas flotantes vendorizadas** de `RN-UI-17` y, `shadow-auth-panel`, en `PublicAuthShell.vue`. **Fuera de `src/components/ui/` no queda ninguna otra**: los usos actuales se corrigen en esta entrega (tabla de `RN-UI-17`). «Ninguna otra superficie la usa por analogía; una excepción más exige otro ADR» (`ADR-064 §3.3`).
+
+**`RN-UI-17`** · **Se editan también los componentes vendorizados para ajustarlos a la lista de sombras permitidas** (decisión del usuario del 2026-11-13, `C3-05`): una superficie que no es capa flotante no lleva sombra (regla 3 de `§22`, `RN-DS-28`). Inventario de partida (búsqueda de código sobre `develop` en `786c94e`, 2026-11-13; las utilidades `shadow` sin sufijo y `shadow-[…]` no son buscables así y las repasa el *briefing* con `grep`):
+
+| Fichero | Uso actual | Queda |
+|---------|-----------|-------|
+| `components/ui/select/SelectContent.vue` | `shadow-md` | Se mantiene (capa flotante) — lista cerrada |
+| `components/ui/dropdown-menu/DropdownMenuContent.vue` | `shadow-md` | Se mantiene (capa flotante) — lista cerrada |
+| `components/ui/dropdown-menu/DropdownMenuSubContent.vue` | `shadow-lg` | Se mantiene (capa flotante) — lista cerrada |
+| `components/ui/sheet/SheetContent.vue` | `shadow-lg` | Se mantiene (capa flotante) — lista cerrada |
+| `components/ui/input/Input.vue` | `shadow-xs` | **Se quita** (campo, no capa flotante; el borde `--input` ya cumple 3:1, `§4.4`) |
+| `components/ui/textarea/Textarea.vue` | `shadow-xs` | **Se quita** (mismo motivo) |
+| `modules/auth/components/PublicAuthShell.vue` | `shadow-sm` (tarjeta) | Desaparece con la tarjeta; pasa a `shadow-auth-panel` (`RN-UI-08`) |
+| `modules/auth/views/PasswordChangeView.vue`, `SessionsView.vue`, `AccountSecurityView.vue`, `MfaEnrollmentWallView.vue` | `shadow-sm` | **Se quita** |
+| `modules/fam-unit/views/TermsWallView.vue` | `shadow-sm` | **Se quita** |
+| `modules/core/views/RolePermissionsView.vue`, `SettingsView.vue`, `UserFormView.vue`, `UserImportsView.vue` | `shadow-xs` | **Se quita** |
+
+Si el *briefing* encuentra otra capa flotante vendorizada con sombra (diálogo, *popover*, *tooltip*…) que la búsqueda no devolvió, entra en la lista cerrada con su justificación; cualquier otro uso se quita. Quitar una sombra de una vista de `auth` o `fam-unit` no cambia su comportamiento ni sus tests, solo su clase; si un test de esas vistas comprobara la clase, su reescritura entra en la lista cerrada de `CA-UI-022`.
 
 ### 5.4 Pantalla de acceso «Panel» (`ADR-064 §2`, `RN-DS-26`, `RN-DS-27`)
 
@@ -368,10 +397,10 @@ Vitest salvo los marcados **[Playwright]** (necesitan estilos calculados), **[Pe
 
 - **`CA-UI-001`** [`RN-DS-25`, `ADR-064 §4`] · *Dado* `tokens.css`, *cuando* se analiza, *entonces* `:root` declara `--radius: 2px` y `.dark` no lo redefine.
 - **`CA-UI-002`** [`RN-DS-25`, `RN-UI-04`] · *Dado* `style.css`, *cuando* se analiza `@theme inline`, *entonces* `--radius-xs`, `-sm`, `-md`, `-lg`, `-xl`, `-2xl`, `-3xl` y `-4xl` existen y valen exactamente `var(--radius)`; *y dado* el caso fijo `calc(var(--radius) - 4px)`, el test lo señala.
-- **`CA-UI-003`** [`§22` regla 5, `RN-UI-05`] · *Dado* `src/` según `§10.1`, *entonces* no hay `rounded-[…]` ni `rounded-none`, y `rounded-full` solo aparece en los ficheros de la lista cerrada del test; *y dados* los casos fijos `rounded-[6px]`, `md:rounded-full`, se detectan, y `rounded-md` no.
+- **`CA-UI-003`** [`§22` regla 5, `RN-UI-05`, `RN-UI-16`] · *Dado* `src/` según `§10.1`, **incluido `src/components/ui/**`**, *entonces* no hay `rounded-[…]` (tampoco con variante, como `data-[size=sm]:rounded-[…]`), `rounded-none` ni `rounded-4xl`, y `rounded-full` solo aparece en los ficheros de la lista cerrada del test (inicialmente `RadioGroupItem.vue`); *y dados* los casos fijos `rounded-[6px]`, `rounded-[min(var(--radius-md),10px)]` y `md:rounded-full`, se detectan, y `rounded-md` e `in-data-[slot=button-group]:rounded-lg` no.
 - **`CA-UI-004`** [`RN-DS-25`] **[Playwright]** · *Dado* `/entrar` y una pantalla autenticada con un menú desplegable y un diálogo abiertos, *cuando* se leen los estilos calculados, *entonces* el radio del botón principal, de un campo de texto, del menú y del diálogo es `2px`.
 - **`CA-UI-005`** [`RN-DS-28`, `RN-UI-03`] · *Dado* `tokens.css` y `style.css`, *entonces* `--shadow-auth-panel` está definido con el mismo valor en `:root` y `.dark` (o solo en `:root`) y mapeado a utilidad; *y* el test de contraste de `§11` lo ignora por nombre y sigue fallando ante un semántico de color en formato no admitido (`CA-DS-006`).
-- **`CA-UI-006`** [`RN-DS-28`, `ADR-064 §3.3`, `§6.5`] · *Dado* `src/`, *entonces* `shadow-auth-panel` solo aparece en `PublicAuthShell.vue`, y ninguna otra utilidad `shadow-*` (salvo `shadow-none`) aparece fuera de `src/components/ui/**` y de la lista cerrada; *y dados* los casos fijos (`shadow-md` en una vista, `lg:shadow-auth-panel` en otro fichero), se detectan.
+- **`CA-UI-006`** [`RN-DS-28`, `ADR-064 §3.3`, `§6.5`] · *Dado* `src/`, *entonces* `shadow-auth-panel` solo aparece en `PublicAuthShell.vue`, y ninguna otra utilidad `shadow-*` (salvo `shadow-none`) aparece fuera de los ficheros de la lista cerrada de capas flotantes de `RN-UI-17` (en particular, ninguna en `Input.vue`, `Textarea.vue` ni en `src/modules/**`); *y dados* los casos fijos (`shadow-md` en una vista, `shadow-xs` en un componente de `ui/` que no está en la lista, `lg:shadow-auth-panel` en otro fichero), se detectan.
 - **`CA-UI-007`** [`RN-DS-29`, `RNF-UX-002`, `RN-UI-02`] · *Dado* `--on-scrim` y `--scrim-auth` (iguales en ambos modos), *cuando* se compone el velo sobre blanco puro y sobre negro puro y se calcula el contraste con `contrast.ts`, *entonces* ambos son ≥ 4,5:1; *y dado* un velo al 40 % en una copia en memoria, el test informa del incumplimiento.
 - **`CA-UI-008`** [`CA-DS-037` a `-043`] · *Dado* `src/` tras el cambio, *entonces* los tests de arquitectura de `§10` siguen en verde sin ninguna excepción nueva en sus listas.
 
@@ -429,7 +458,7 @@ Secuenciales, nunca en paralelo (`CLAUDE.md §2.1`). Antes de cada tramo, *brief
 
 | Entrega | Tramo | Contenido | Cierre |
 |---------|-------|-----------|--------|
-| `1.15a-a` | T1 · tokens y radio | §5.1-§5.3: tokens, escala de radios, tests de arquitectura y de contraste (`CA-UI-001` a `-008`, `-023`), correcciones que los tests señalen en componentes vendorizados y vistas | `Verificado: X/X Vitest (ficheros afectados)`; capturas «antes» tomadas **antes** de este tramo |
+| `1.15a-a` | T1 · tokens y radio | §5.1-§5.3: tokens, escala de radios, tests de arquitectura y de contraste (`CA-UI-001` a `-008`, `-023`), edición de los componentes vendorizados y vistas de las tablas de `RN-UI-16` y `RN-UI-17` (decidida, no a criterio del tramo) | `Verificado: X/X Vitest (ficheros afectados)`; capturas «antes» tomadas **antes** de este tramo |
 | `1.15a-a` | T2 · pantalla «Panel» | §5.4-§5.8: `PublicAuthShell`, ilustración, bienvenida genérica, selector de idioma, claves y traducción, *specs* de Playwright (`CA-UI-009` a `-022`) | `Verificado` de suite completa de la web; capturas «después» |
 | `1.15a-b` | T1 · datos y API | §7, §8, §9: migración, modelo, validación, caché, tres representaciones, OpenAPI, Pest (`CA-UI-040` a `-051`) | `Verificado` de ficheros afectados y grupo `arch` |
 | `1.15a-b` | T2 · interfaz | §6: bloque de ajustes, pintado y `lang`, cambio de idioma, compatibilidad (`CA-UI-052` a `-056`, `-058`) | `Verificado` de la web |
@@ -446,7 +475,7 @@ No son ficheros compartidos de la ola, pero quedan fuera de lo que esta especifi
 | Fichero | Cambio | Entrega |
 |---------|--------|---------|
 | `docs/design-system.md §4.3`, `§4.9`/`§4.10` | `--radius: 2px`; tokens nuevos de §5.1; escala de radios | `a` |
-| `docs/design-system.md §10`, `§11` | Reglas de `RN-UI-05`, `RN-UI-08`; par nuevo de contraste; exclusión nominal de `--shadow-*` | `a` |
+| `docs/design-system.md §10`, `§11` | Reglas de `RN-UI-05`, `RN-UI-08`, `RN-UI-16`, `RN-UI-17` (los vendorizados de `ui/` ya no están exentos de la escala de radios ni de la lista de sombras); par nuevo de contraste; exclusión nominal de `--shadow-*` | `a` |
 | `docs/design-system.md §13` | `PublicAuthShell` descrito como «Panel»; `CA-DS-045` sustituido por `CA-UI-021` | `a` |
 | `docs/design-system.md §22` | Quitar «pendientes de implementar» de `RN-DS-25` a `-29` (`ADR-064 §7`) | `a` |
 | `docs/modulos/REQ-AUTH/funcional.md §1.6` y su `CA-AUTH-063` | Precedencia del idioma de `RN-UI-15` (si `OPEN-UI-12` = A) | `a` |
@@ -480,6 +509,8 @@ Esta rama no los toca; los aplica la sesión orquestadora al integrar (guion de 
 **Decidida por el usuario (2026-11-12)**: `OPEN-UI-01`, según la recomendación (A): la personalización va **ahora**, primero `1.15a-a` y después `1.15a-b`, ambas antes de `1.15b`, para regenerar `sign-in` una sola vez. Siguen abiertas `OPEN-UI-02` a `-06` y `-12`, que bloquean.
 
 **Decididas por el usuario (2026-11-12), según la recomendación**: `OPEN-UI-02` (tabla nueva `tenant_custom_texts`, una fila por texto, con RLS, sin tocar `ADR-062` ni `AR-16`) y `OPEN-UI-05` (ilustración por defecto: patrón monocromo translúcido sobre `bg-primary`). Siguen abiertas `OPEN-UI-03`, `-04`, `-06` y `-12`, que bloquean.
+
+**Decidido por el usuario (2026-11-13, revisión `C3-05`)**: los componentes vendorizados de `src/components/ui/` **se editan** una vez en `1.15a-a` para llevarlos a la escala de `--radius` y a la lista de sombras permitidas (`RN-UI-16`, `RN-UI-17`); no queda a criterio del tramo.
 
 No se resuelven aquí. La primera opción es siempre la recomendada.
 
@@ -522,7 +553,7 @@ No se resuelven aquí. La primera opción es siempre la recomendada.
 
 ### 17.2 No verificado (la sesión de especificación no tenía `Bash` ni búsqueda local; lo comprueba `explorer` en el *briefing*)
 
-- Inventario real de `rounded-*` y `shadow-*` en `apps/web/src` (alimenta las listas cerradas de `CA-UI-003` y `-006`) y qué componentes vendorizados usan `rounded-2xl`, `-3xl`, `-4xl` o `rounded-full`.
+- Inventario de `rounded-*` y `shadow-*`: **comprobado el 2026-11-13** (tablas de `RN-UI-16` y `RN-UI-17`) por búsqueda de código de GitHub sobre `develop` (`786c94e`) y lectura directa de `button`, `badge`, `select/SelectTrigger` y `checkbox`. Queda sin comprobar lo que esa búsqueda no ve: valores entre corchetes (`rounded-[…]`, `shadow-[…]`) fuera de los cinco leídos, la utilidad `shadow` sin sufijo y `rounded-2xl`/`-3xl`; lo repasa el *briefing* con `grep`.
 - Si existe un selector de idioma reutilizable del *shell* de 1.8, y una clave única con el nombre del producto.
 - Cómo fija hoy la SPA el idioma al arrancar con `plataforma.locale` guardado, y si `apiFetch` envía el idioma elegido (la búsqueda en GitHub indica que `Accept-Language` solo se menciona en `usePublicAuthScreen.ts`).
 - Qué guarda exactamente `TenantSettingsCache` y cómo se invalida; el nombre del componente de campo traducible de `ADR-062 §5.7`; la forma exacta de `AR-16`.
