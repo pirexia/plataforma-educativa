@@ -73,12 +73,15 @@ test('datos.md §8.8 operacion.md §12.3: el barrido borra el objeto sin fila vi
 });
 
 test('OPEN-FAM-UNIT-37: la fotografía de un tercero sin autorización vigente ni futura pasado el plazo se da de baja y se purga; con autorización vigente, retirada o caducada hace poco, o siendo tutor, se conserva', function (): void {
-    Fam::freeze('2026-11-02 09:00:00');
+    // Origen relativo: el reloj de la BD y las caducidades parten del mismo instante real que usa `sweepAfter()`
+    // (que adelanta desde `time()` por el `lastModified()` real de los ficheros); con fechas literales el test caducaba solo (#634).
+    $origen = CarbonImmutable::now()->startOfSecond();
+    Fam::freeze($origen->toDateTimeString());
     $f = Fam::pickupFamily('sw-terceros');
     $vigente = Fam::thirdParty($f, 2);
     $retiradaAyer = Fam::thirdParty($f, 3);
-    $retiradaAntiguaFutura = Fam::thirdParty($f, 4, overrides: ['valid_until' => '2026-11-20']);
-    $caducada = Fam::thirdParty($f, 5, overrides: ['valid_until' => '2026-11-10']);
+    $retiradaAntiguaFutura = Fam::thirdParty($f, 4, overrides: ['valid_until' => $origen->addDays(18)->toDateString()]);
+    $caducada = Fam::thirdParty($f, 5, overrides: ['valid_until' => $origen->addDays(8)->toDateString()]);
     $retiradaYa = Fam::thirdParty($f, 6);
     // Una persona cuya única autorización se dio de baja (sin autorización viva de ninguna clase).
     $sinNada = Fam::authorizedPerson($f, ['given_name' => 'Sin']);
@@ -99,7 +102,7 @@ test('OPEN-FAM-UNIT-37: la fotografía de un tercero sin autorización vigente n
     sweepAfter(20, $f['tenant']);
     expect($live($vigente['person']))->toBeTrue()->and($live($sinNada))->toBeTrue()->and($live($caducada['person']))->toBeTrue();
 
-    // A los 45 días: el tercero sin nada, el de la autorización retirada hace más de 30 días y el de la caducada el 10 de noviembre
+    // A los 45 días: el tercero sin nada, el de la autorización retirada hace más de 30 días y el de la caducada a los 8 días
     // (hace más de 30 días) pierden la foto; la vigente sin caducidad y el tutor, no. Todas las autorizaciones siguen en su tabla.
     sweepAfter(45, $f['tenant']);
     expect($live($vigente['person']))->toBeTrue()
