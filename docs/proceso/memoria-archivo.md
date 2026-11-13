@@ -317,3 +317,12 @@ Lista de pasos cerrados, notas de `S-1a`, `S-1b`, `1.15-d`, `ADR-076`, CI atasca
 | 045, 046, 047 | `REQ-BO`: contratación de módulos (potestad del Super Admin); superficie separada (Opción A, `platform_sessions`, `runAsPlatform`); categoría «plataforma con visibilidad por tenant afectado» (`affected_tenant_id`) |
 
 1c. **Seguimiento de seguridad `php2shell`/`node2shell` (2026-11-02)**: Node del host actualizado a 24.22.2 (CVE-2026-111497, corregido en 24.22.1); imagen web reconstruida con Node 24.22.2; API ya en PHP 8.4.27 (corregido en 8.4.27, CVE-2026-109618/-109619). Pendiente: reiniciar Claude Code y `pm2 update`, retirar `nvm uninstall 24.19.0` tras comprobar, hacer `pull` de la base en el CI para producción, y **contrastar las versiones corregidas con php.net y nodejs.org** (las saqué de blogs de seguridad).
+
+
+## Archivado el 2026-11-13 (cierre)
+
+Párrafos de «Trabajo en curso» de `memory.md` movidos íntegros por el cierre de sesión; siguen vigentes mientras no se resuelvan.
+
+**Pendiente del usuario (`1.14-c`/`1.14-d`)**: (1) ¿se concede `revocacion_tutor.crear` a secretaría o se corrige `CA-FAM-UNIT-084`?; (2) estados de consentimiento en en/de/fr; (3) traducir `legalHint`, `confirmRevoke.description` y `termsWall.accept` (#488; este último en es-ES hasta validación jurídica); (4) alta de alumno por `public_id` de persona, provisional hasta `1.15`. Sin probar: E2E real de `1.14-d` (falta alumno de prueba y contratar `fam_unit` en `e2e-real-tenant.php`, D-51), informe de `1.14-b` contra S3 y worker reales, `STATE_SQL` con miles de alumnos (medir en `1.15b`). Bajas de `1.14-b` abiertas: B-2, B-4, L1, L2, L3, L5.
+
+**Pendientes de pasos anteriores**: #471 (para `1.15`), #475 (AR-16, requiere aprobación del usuario), #470 (limitador global); `TeachingMembership` y `GradingScaleDirectory` «escritas, no construidas» (`OPEN-ACAD-43`, `ADR-048`); `SECURITY.md`/`PRIVACY.md` desfasados (#446); Medio de #438; marcar `make-module` como *required check*. **Decisión del usuario** (`ADR-061`): borrar el volumen `plataforma-educativa_postgres-data` (PG17) y `~/plataforma-respaldos/pg17-a-pg18-20261010-1655/`. `refsByIds()` confirmada: actualizar la nota «pendiente» de `REQ-CORE/funcional.md` y `REQ-ACAD funcional.md §19.1 I-1` en la próxima entrega que los toque.
