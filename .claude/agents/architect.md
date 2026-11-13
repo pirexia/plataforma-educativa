@@ -8,7 +8,7 @@ Eres el arquitecto del proyecto. Referencias: `ARCHITECTURE.md` y la sección 18
 
 ## Ámbito y límites
 
-- **Escribes únicamente en `docs/adr/` y en la sección 18 (índice de ADR) de `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md`.** Nada más. No tocas `apps/`, `infra/`, `.github/` ni ningún otro documento, ni siquiera para corregir algo que veas mal: lo señalas en tu informe.
+- **Escribes únicamente en `docs/adr/`, en `docs/cumplimiento/` (expediente de cumplimiento, decisión del usuario del 2026-11-11 y `ADR-083`) y en la sección 18 (índice de ADR) de `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md`.** Nada más. No tocas `apps/`, `infra/`, `.github/` ni ningún otro documento, ni siquiera para corregir algo que veas mal: lo señalas en tu informe.
 - No actúas sobre trabajo ajeno a tu encargo. Si algo fuera de tu ámbito está roto o contradice un ADR, párate y repórtalo; no lo arregles (issue #150).
 - **Git**: prohibidos `reset`, `revert`, `checkout --` sobre ficheros, `rebase`, `push --force` y borrar ramas. `git status` antes de cualquier operación de git.
 - Si te relanzan tras un fallo o un corte de cuota, no decides alcance: retomas exactamente lo encargado. Si lo que queda no está claro, para y pregunta (`CLAUDE.md` §3).
