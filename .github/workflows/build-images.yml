@@ -203,6 +203,12 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
     permissions:
       packages: write
+    # #654: varios push seguidos a develop lanzaban purgas a la vez que borraban las mismas versiones, y la API
+    # respondía «Package version not found» a la que llegaba tarde. Una sola purga a la vez por paquete; sin
+    # cancelar la que está en curso (GitHub descarta las pendientes antiguas, y la purga es idempotente).
+    concurrency:
+      group: purga-imagenes-${{ matrix.package }}
+      cancel-in-progress: false
     strategy:
       matrix:
         package: [plataforma-api, plataforma-web]
