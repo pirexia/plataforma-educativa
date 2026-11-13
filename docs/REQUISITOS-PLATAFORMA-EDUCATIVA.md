@@ -2,8 +2,8 @@
 
 | Campo | Valor |
 |-------|-------|
-| **Versión** | 3.2.30 |
-| **Fecha** | 2026-11-11 |
+| **Versión** | 3.2.31 |
+| **Fecha** | 2026-11-13 |
 | **Estado** | Borrador consolidado — pendiente de aprobación |
 | **Autor** | Product Owner |
 | **Documento sustituye a** | v1.2.0 (mismo contenido, reorganizado y ampliado) |
@@ -3382,6 +3382,7 @@ Se mantendrá una matriz de trazabilidad (generada automáticamente desde las re
 
 | Versión | Fecha | Autor | Descripción |
 |---------|-------|-------|-------------|
+| 3.2.31 | 2026-11-13 | Product Owner | Ola 1 de arquitectura y especificación, solo documentación: `ADR-077` a `ADR-083` en `PROPUESTA` e índice de `§18` con ellos (`ADR-084` y `ADR-085` reservados, sin redactar); `OPEN-09` reformulada por `ADR-079`; `OPEN-08`, `OPEN-10` y `OPEN-11` anotadas; especificaciones de `S-2`, `1.13`, `1.15a`, `1.15b`, `1.16`-`1.17`, `1.18` y `1.19` en `PROPUESTO`; expediente de cumplimiento `docs/cumplimiento/` (`OPEN-STO-01` a `-12`). Ninguna decisión aceptada ni requisito modificado. |
 | 3.2.30 | 2026-11-11 | Product Owner | `ADR-076` (almacenamiento de objetos: API S3 como contrato único, Garage en desarrollo, CI y E2E) aceptado y referenciado en `§18`; concreta `ADR-013` y `ADR-068 §5.3`; sustituye en parte a `ADR-030`, `ADR-037` y `ADR-033 §9` (solo el mecanismo `TenantStorage`; la regla del prefijo se mantiene). |
 | 3.2.29 | 2026-11-10 | Product Owner | `ADR-075` (script propio del carrusel de la landing) aceptado y referenciado en `§18`; sustituye en parte a `ADR-072` (`§4.1`, `§4.4`) y a `ADR-074 §4.5`. |
 | 3.2.28 | 2026-11-09 | Product Owner | `ADR-074` (rediseño de la landing, `ACEPTADA`) referenciado en `§18`; sustituye en parte a `ADR-072` (`§1.1` punto 6, rutas y traducción de `§4.2`, fila `ADR-030` de `§7` y `§8`); `OPEN-074-01` a `-07` resueltas con la recomendación (usuario, 2026-11-09). |
