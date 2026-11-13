@@ -7,7 +7,7 @@
 **Concreta sin sustituir**: `ADR-007` (stack: «servicio contenerizado de generación de PDF») y la fila «PDF» de `CLAUDE.md §1`.
 **No sustituye ningún ADR.** Si el usuario eligiera la opción C (Typst), habría que enmendar la fila «PDF» de `CLAUDE.md §1` (dice «HTML→PDF»): ver `OPEN-PDF-01`.
 **Se apoya en**: `INV-001`, `INV-003`, `INV-007`, `INV-009`, `INV-012`, `RNF-MANT-007`, `RNF-COMP-004` (PDF/A para documentos con valor archivístico), `RNF-UX-002` (WCAG 2.2 AA y EN 301 549), `ADR-012` (firma por prestador cualificado, sin criptografía propia), `ADR-021` (idiomas), `ADR-028` (red), `ADR-030` (perfil reducido), `ADR-076` (almacén de objetos), `CLAUDE.md §8` y `§9`.
-**Depende de**: `ADR-082` (firma digital), **que no existe todavía** (rama `chore/adr-082-firma-digital-y-apoderado` sin el fichero a 2026-11-12). `§8` fija solo la frontera entre ambos; lo demás queda en `OPEN-PDF-05`.
+**Depende de**: `ADR-082` (firma digital), en `PROPUESTA` en su rama `chore/adr-082-firma-digital-y-apoderado` (PR #641). `§8` fija solo la frontera entre ambos; `ADR-082 §4.6.1` responde a las tres peticiones de este ADR (releído el 2026-11-13) y lo que queda va en `OPEN-PDF-05`.
 
 ---
 
@@ -39,7 +39,7 @@
 
 1. **Una sola persona mantiene esto.** Cada pieza nueva es una pieza que parchear durante tres años.
 2. **El contenido son datos personales de menores**, y parte de la plantilla la configura el centro. El motor procesa entrada que no es del todo de confianza.
-3. **Desarrollo en WSL2 con 10-11 GB** (`ADR-030`) y un *staging* que se quiere barato (`ADR-080`, en redacción): el consumo en reposo del servicio importa.
+3. **Desarrollo en WSL2 con 10-11 GB** (`ADR-030`) y un *staging* que se quiere barato (`ADR-080`, en `PROPUESTA`): el consumo en reposo del servicio importa.
 4. **Reversibilidad**: el motor debe poder cambiarse sin reescribir las plantillas de todos los módulos.
 
 ---
@@ -215,11 +215,13 @@ Opciones reales:
 
 | Opción | Ventaja | Riesgo | Coste de revertir |
 |---|---|---|---|
-| **Q1 · Cola propia por módulo (p. ej. `calif-pdf`) en el `worker` actual, al final de la lista de prioridad** | Ningún proceso nuevo. `queue:work` atiende las colas en orden: el correo y lo demás pasan siempre antes que el lote | Un solo proceso: el lote es en serie | Nulo |
+| **Q1 · Cola propia por módulo (p. ej. `calif-pdf`) en el `worker` actual, en el último puesto de la lista de prioridad, detrás de `notify-bulk`** | Ningún proceso nuevo. `queue:work` atiende las colas en orden: el correo y lo demás pasan siempre antes que el lote | Un solo proceso: el lote es en serie | Nulo |
 | Q2 · Proceso `worker-pdf` dedicado | Paralelismo y aislamiento del resto | Tercer proceso que desplegar, vigilar y documentar; más memoria en WSL2 | Bajo |
 | Q3 · Cola `long` | Ya existe | `--tries=1` y `retry_after` 900 pensados para una copia única, no para 1.200 trabajos cortos; bloquearía el *rollover* | Bajo |
 
 **Recomendación: Q1**, y pasar a Q2 solo con la medida de `§5.4` en la mano (`OPEN-PDF-09`). La cola nueva se añade a la orden del `worker` en `compose.yaml` y en `infra/quadlet/worker.container` y a `core:queue-health`; `QueueWorkerTest` lo exige.
+
+**Orden único de colas del `worker`** (criterio común de la ola 1, 2026-11-13; el mismo en `ADR-079 §4.8` y en la operación de `REQ-CALIF` y `REQ-COM`): lo más urgente primero y los lotes al final, con **un solo** último puesto. Sobre las colas que existen hoy en `compose.yaml` e `infra/quadlet/worker.container` (comprobado el 2026-11-13), el orden propuesto es `notify-urgent`, `auth-mail`, `core-mail`, `bo-mail`, `notify`, `default`, `auth-maintenance`, `core-maintenance`, `backoffice-maintenance`, `core-exports`, `core-imports`, `notify-bulk`, `calif-pdf`. Fijo: `notify-urgent` la primera, `notify-bulk` la penúltima, `calif-pdf` la última. Si más adelante llegan otras colas de PDF en lote, van detrás de `notify-bulk`, junto a `calif-pdf`.
 
 **Q1 procesa en serie** (revisión C2-10): con un solo proceso `worker`, el lote llega al servicio de documento en documento; la concurrencia 2 del servicio solo se usa con Q2. Por eso `§5.4` mide la configuración Q1 real y, aparte, Q2.
 
@@ -320,7 +322,7 @@ La pila del sistema de la SPA no existe dentro del contenedor, y PDF/A obliga a 
 
 ## 8 · Firma (PAdES) y relación con `ADR-082`
 
-`ADR-082` está en redacción (esqueleto sin contenido a 2026-11-12). Este ADR fija solo lo que es del motor y deja lo demás allí.
+`ADR-082` está en `PROPUESTA` (PR #641) y responde a lo que este apartado le pide en su `§4.6.1` (releído el 2026-11-13): firma invisible por defecto y zona en blanco solo si el prestador exige apariencia visible (sin campo creado por el motor), y compatibilidad PAdES con PDF/A exigida al prestador y probada antes de contratar (`OPEN-FIRMA-03`). Este ADR fija solo lo que es del motor y deja lo demás allí.
 
 **Lo que este ADR decide:**
 
@@ -411,7 +413,7 @@ Convención: **R** es la recomendación de este ADR. «Bloquea» se refiere a la
 
 | ID | Pregunta | Opciones | Recomendación e impacto | Decide |
 |---|---|---|---|---|
-| `OPEN-PDF-05` | Firma: nivel, firmante, firma visible, campo reservado y compatibilidad PAdES con PDF/A | Depende de `ADR-082` | **R:** el motor no firma (`§8`); `1.17` entrega sin firma electrónica hasta que `ADR-082` se acepte. Bloquea solo la parte firmada de `REQ-CALIF-002` | `ADR-082` (usuario y legal) |
+| `OPEN-PDF-05` | Firma: nivel, firmante, firma visible, campo reservado y compatibilidad PAdES con PDF/A | Depende de `ADR-082`, que responde en su `§4.6.1`; queda la prueba de compatibilidad PAdES y PDF/A, ligada a `OPEN-FIRMA-03` | **R:** el motor no firma (`§8`); `1.17` entrega sin firma electrónica hasta que `ADR-082` se acepte. Bloquea solo la parte firmada de `REQ-CALIF-002` | `ADR-082` (usuario y legal) |
 | `OPEN-PDF-06` | Tipografía de los PDF | **R: T1** una familia de licencia abierta en la imagen · T2 catálogo cerrado · T3 subidas por el centro | T1; la familia se elige comprobando licencia y cobertura. Aclara además si la «tipografía» del *branding* alcanza a los PDF | Usuario |
 | `OPEN-PDF-07` | Plantillas «configurables» por centro (`REQ-CALIF-004`, `REQ-SEC-001`): ¿parámetros o HTML libre? | **R:** parámetros estructurados (logotipo, colores, textos como texto plano, bloques que se activan) · HTML libre saneado · editor visual | HTML libre convierte al centro en autor de entrada no confiable y multiplica las pruebas de accesibilidad. Lo concreta la especificación de cada módulo | Usuario, en la especificación de `1.17` |
 | `OPEN-PDF-08` | ¿Con qué se valida PDF/A y PDF/UA en CI? | **R:** veraPDF en el trabajo de conformidad, fuera de la suite Pest · solo comprobaciones propias (fuentes, etiquetas, metadatos) · validación manual | veraPDF es una herramienta nueva solo de CI (Java); mantenimiento, licencia e imagen **sin verificar**: se comprueban antes de adoptarla (`CLAUDE.md §1`). Sin validador, la conformidad es una afirmación sin prueba | Técnico; la dependencia la aprueba el usuario |
@@ -432,15 +434,16 @@ No se ha tocado ninguno. Los aplica la sesión orquestadora al integrar, y solo 
 | `CLAUDE.md §1`, fila «PDF» | Al aceptar: «**Elegido y no instalado**: WeasyPrint en servicio propio (`ADR-078`); plantillas sin JavaScript ni recursos externos», con el issue que lo siga. Hasta que exista el servicio, la fila debe seguir diciendo que no está instalado |
 | `PLAN-IMPLEMENTACION.md` | (a) Paso nuevo de infraestructura **antes de `1.17`**, «Servicio de PDF (`ADR-078`)», en tres tramos (`§9.1`), marcado crítico; el número lo asigna la orquestadora. (b) En `1.17`: «motor según `ADR-078`; firma electrónica según `ADR-082`, no incluida si no está aceptado». (c) En `0.3`: sustituir «motor sin decidir, ver 1.17» por la referencia a `ADR-078` |
 | `ARCHITECTURE.md` | Línea 34: «Plantillas HTML propias con los *tokens* del design system, sin JavaScript (`ADR-078`)». Tablas de dimensionado (líneas ~331-362): las cifras del servicio PDF (≈1 GB en picos, 4 GB por nodo) son previas a la decisión; sustituirlas por lo medido en `§5.4`. Añadir `App\Support\Pdf` a la lista de contratos transversales y la red interna del servicio al diagrama |
-| `SYSADMIN.md` | Línea 87: retirar «no está definido todavía»; documentar el servicio `pdf` (perfil `full`, límites, sin red de salida, sin secretos), la cola nueva y cómo actualizar la imagen por digest |
+| `SYSADMIN.md` | Línea 87: retirar «no está definido todavía»; documentar el servicio `pdf` (perfil `full`, límites, sin red de salida, sin secretos), la cola nueva **en el orden único de `§5.3`** y cómo actualizar la imagen por digest |
 | `.github/workflows/dependency-scan.yml` | Trivy cubre ya el repositorio entero (`scan-type: fs`, `scan-ref: "."`, comprobado el 2026-11-13), así que los requisitos de `infra/containers/pdf/` entran solos al existir; falta añadir el escaneo de la **imagen** `pdf` construida (mismo Trivy, `scan-type: image`). Sin herramienta nueva (revisión C2-14) |
 | `RUNBOOK.md` | Entradas nuevas: «el servicio `pdf` no responde» (los trabajos reintentan; qué mirar) y «un lote de boletines va lento» |
 | `README.md`, `CHANGELOG.md`, `memory.md` | Lo habitual al cerrar la entrega; nada antes |
 | `docs/modulos/REQ-CORE/funcional.md §4.6`, `REQ-ACAD` (`OPEN-ACAD-38`), `REQ-ALUM` (`OPEN-ALUM-15`) | No son ficheros compartidos del guion, pero tampoco de este encargo: donde dicen «motor sin decidir», referenciar `ADR-078` cuando se acepte |
-| `.claude/skills/colas-y-workers`, `contenedores-y-red` | Añadir la regla «un trabajo por documento, nunca PDF en la petición» y el servicio `pdf` sin red de salida. Requiere aprobación del usuario |
+| `.claude/skills/colas-y-workers`, `contenedores-y-red` | Añadir la regla «un trabajo por documento, nunca PDF en la petición», el orden único de colas de `§5.3` y el servicio `pdf` sin red de salida. Requiere aprobación del usuario |
+| `apps/api/tests/Feature/Core/QueueWorkerTest.php` (lo escribe la entrega que añada la cola) | Hoy comprueba que las colas del código están en algún proceso, no su orden. Propuesta: un test que fije en `compose.yaml` y en `worker.container` que `notify-urgent` es la primera, `notify-bulk` la penúltima y `calif-pdf` la última |
 | `docs/modulos/REQ-CALIF/` (agente B5) | B5 debe leer `§3.3`, `§5.2`, `§7` y `§8`: reglas de plantilla, un documento por destinatario e idioma, perfil `archival`, boletín sin firma electrónica hasta `ADR-082` |
 
-**Para `ADR-082` (agente A6)**: este ADR le pide tres cosas (`§8`): que el contrato de firma reciba un PDF ya guardado y devuelva otro objeto; que diga si hace falta campo o hueco de firma visible; y que exija al prestador compatibilidad con el nivel de PDF/A de `§7.2`.
+**Para `ADR-082` (agente A6)**: este ADR le pide tres cosas (`§8`): que el contrato de firma reciba un PDF ya guardado y devuelva otro objeto; que diga si hace falta campo o hueco de firma visible; y que exija al prestador compatibilidad con el nivel de PDF/A de `§7.2`. Respondidas en `ADR-082 §4.6.1`.
 
 ---
 
@@ -478,6 +481,6 @@ No se ha tocado ninguno. Los aplica la sesión orquestadora al integrar, y solo 
 7. Consumo en reposo de Chromium en Gotenberg y soporte actual de cajas de margen de `@page` en Chromium.
 8. **veraPDF** (mantenimiento, licencia, imagen) y la licencia de la familia tipográfica que se elija.
 9. Estado de los lectores de PDF respecto a PDF/UA-2 y precios de los motores comerciales.
-10. El contenido de `ADR-082` y de `ADR-080`: ambos estaban en redacción al cerrar este documento.
+10. ~~El contenido de `ADR-082` y de `ADR-080`~~: los dos están ya en `PROPUESTA` en sus ramas; `ADR-082 §4.6.1` se releyó el 2026-11-13. `ADR-080` no se ha releído para esta corrección.
 11. Servidor WSGI (`§3.2.1`): compatibilidad de Gunicorn 27 con el Python de la imagen, cambios incompatibles 26→27, concentración de mantenedores; límite de cuerpo de Waitress y de Granian.
 12. Que la espera de `notify-urgent` con el lote en marcha cumpla `OPEN-079-05`: se mide en `§5.4`, punto 4.
