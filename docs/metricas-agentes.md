@@ -192,3 +192,55 @@ Solo cuota de OpenAI; no se mide en tokens de Claude. Registrar por revisión: p
 | S-1b cierre | doc-precheck | 2.ª ronda | 117956 | 15 | 2.5 | | |
 
 Medias por tipo de `1.15-a` sin recalcular: el paso `1.15` no está cerrado (faltan `-b`..`-d`); se recalculan al cerrar `1.15`.
+
+## Ola 1 de arquitectura y especificación (2026-11-12 y 2026-11-13)
+
+Ola sin código: 7 ADR y 7 especificaciones, 4 revisiones críticas, 3 rondas de correcciones, integración y 15 PR (#636 a #650). Primera medición de **Fable 5.2** en el proyecto. `Tokens` son los `subagent_tokens` del aviso de fin; en agentes cortados por cuota y reanudados, **solo el último tramo** (los tramos previos no dejaron cifras), así que **subestiman** el gasto real. No incluyen lecturas de caché.
+
+| Paso | Agente | Tramo / pasada | Tokens | Llamadas | Min | Notas |
+|------|--------|----------------|-------:|---------:|----:|-------|
+| ola 1 · lote 1 | architect (Fable) | A1 ADR-077 purga física de tenant | 202031 | 9 | 4.6 | 2 cortes por cuota; cifras del último tramo |
+| ola 1 · lote 1 | architect (Fable) | A2 ADR-078 motor de PDF | 136746 | 9 | 3.2 | 1 corte por cuota; último tramo |
+| ola 1 · lote 1 | architect (Fable) | A3 ADR-079 notificaciones | 176427 | 3 | 0.3 | 2 cortes; último tramo (solo cerró y commiteó) |
+| ola 1 · lote 1 | architect (Fable) | A4 ADR-080 staging y runtime | 175587 | 7 | 2.8 | 2 cortes; último tramo |
+| ola 1 · lote 1 | architect (Fable) | A5 ADR-081 pasarela y SEPA | 194680 | 4 | 2.0 | 2 cortes; último tramo |
+| ola 1 · lote 1 | architect (Fable) | A6 ADR-082 firma digital | 165274 | 26 | 3.1 | 1 corte; último tramo |
+| ola 1 · lote 1 | architect (Fable) | A7 ADR-083 + docs/cumplimiento | 224922 | 30 | 6.5 | 1 corte; último tramo |
+| ola 1 · lote 2 | spec-writer (Fable) | B1 S-2 almacén de objetos | 214795 | 35 | 6.2 | relanzado tras corte con el worktree vacío |
+| ola 1 · lote 2 | spec-writer (Fable) | B2 1.13 asistencia | 296092 | 62 | 13.5 |  |
+| ola 1 · lote 2 | spec-writer (Fable) | B3 1.15a capa visual | 341056 | 53 | 12.5 |  |
+| ola 1 · lote 2 | spec-writer (Fable) | B4 1.15b REQ-SEED | 231383 | 24 | 9.5 | relanzado tras corte con el worktree vacío |
+| ola 1 · lote 2 | spec-writer (Fable) | B5 1.16 y 1.17 REQ-CALIF | 338052 | 14 | 5.9 | relanzado; último tramo |
+| ola 1 · lote 2 | spec-writer (Opus) | B6 1.18 REQ-INF (retomado) | 184410 | 33 | 5.2 | Fable agotó créditos; el tramo previo de Fable sin cifras |
+| ola 1 · lote 2 | spec-writer (Opus) | B7 1.19 REQ-COM | 224676 | 50 | 11.4 | empezó con Fable, cortado antes de escribir; hecho entero con Opus |
+| ola 1 · lote 3 | architect (Opus) | C1 revisión ADR legales y seguridad | 185929 | 15 | 3.6 | 16 hallazgos (3 Altos) |
+| ola 1 · lote 3 | architect (Opus) | C2 revisión ADR técnicos | 197719 | 2 | 0.7 | reanudado; 18 hallazgos (3 Altos); cifras del último tramo |
+| ola 1 · lote 3 | architect (Opus) | C3 revisión B1-B4 | 179799 | 53 | 4.8 | 17 hallazgos (1 Alto); verificó código que los autores no pudieron |
+| ola 1 · lote 3 | architect (Opus) | C4 revisión B5-B7 | 190128 | 27 | 3.2 | reanudado; 12 hallazgos (4 Altos) |
+| ola 1 · correcciones | architect (Opus) | G1 ADR-077/082/083 y cumplimiento | 199586 | 80 | 6.9 | aplicó 16 hallazgos |
+| ola 1 · correcciones | architect (Opus) | G2 ADR-078 a 081 | 204599 | 63 | 6.8 | aplicó 18 hallazgos |
+| ola 1 · correcciones | spec-writer (Opus) | G3a B1 y B2 | 172385 | 51 | 3.7 |  |
+| ola 1 · correcciones | spec-writer (Opus) | G3b B3 y B4 | 214088 | 74 | 5.3 |  |
+| ola 1 · correcciones | spec-writer (Opus) | G4a B5 | 183836 | 57 | 4.5 |  |
+| ola 1 · correcciones | spec-writer (Opus) | G4b B6 y B7 | 230683 | 68 | 5.4 |  |
+| ola 1 · coherencia | architect (Opus) | H ADR-077 a 082 | 162597 | 43 | 4.1 |  |
+| ola 1 · coherencia | spec-writer (Opus) | H B1, B2, B4, B5, B6, B7 | 279980 | 89 | 5.6 | reinterpretó H5 con buen criterio |
+| ola 1 · integración | doc-precheck | pasada mecánica de 14 ramas | 94629 | 7 | 2.6 |  |
+| ola 1 · integración | doc-reviewer | coherencia entre las 14 ramas | 208861 | 62 | 7.8 | 0 Críticos ni Altos; 8 Medios, 7 Bajos |
+| ola 1 · integración | doc-precheck | 2.ª ronda sobre los hallazgos H | 120152 | 13 | 1.4 | un falso positivo (H9) |
+| ola 1 · integración | architect (Opus) | rama de ficheros compartidos (solo §18) | 91876 | 20 | 1.7 | se negó a ampliar su alcance por su definición |
+| ola 1 · integración | implementer (Sonnet) | resto de la rama de ficheros compartidos | 210538 | 44 | 6.1 |  |
+| ola 1 · #634 | implementer (Sonnet) | PickupPhotoSweepTest y reloj | 81861 | 8 | 1.3 | reanudado; último tramo |
+
+**Medias de la ola** (n, tokens medios, mediana de tokens, llamadas medias, minutos medios):
+
+| Tipo | n | Tokens medios | Mediana | Llamadas medias | Min medios |
+|------|--:|--------------:|--------:|----------------:|-----------:|
+| architect (Fable), lote 1 | 7 | 182238 | 176427 | 12 | 3.2 |
+| spec-writer (Fable), lote 2 | 5 | 284275 | 296092 | 37 | 9.5 |
+| architect/spec-writer (Opus), todo | 15 | 193486 | 190128 | 48 | 4.8 |
+| revisores críticos (Opus), lote 3 | 4 | 188393 | 188028 | 24 | 3.1 |
+
+**Lo que dicen los datos.** (1) Un agente de especificación o ADR consume unos 150-340 mil tokens nuevos por entrega, con 30-90 llamadas, aunque la cifra real es mayor por las lecturas de caché. (2) **Fable agotó la ventana de 5 horas tres veces** con 3 a 7 agentes simultáneos y después se quedó **sin créditos** (Opus la agotó una vez más); los cortes costaron reanudaciones y dos *worktrees* vacíos que hubo que recrear. Concurrencia de 2 a 3 agentes fue la que terminó trabajos. (3) Los revisores críticos con Opus encontraron 63 hallazgos (11 Altos) en 4 informes; el que más aportó fue C3, porque tenía `Grep` y `Bash` y comprobó el código que los autores no pudieron (B1, B2, B4 y B5 a B7 no los tenían). (4) La revisión de coherencia de `doc-reviewer` (Sonnet) cazó 8 Medios que ningún revisor anterior vio, todos de **coherencia entre documentos**. (5) Un `architect` no puede escribir fuera de `docs/adr/` y §18 de REQUISITOS por su definición: A7 y la rama de ficheros compartidos lo muestran.
+
+Con estas observaciones no hay aún base para comparar coste Fable frente a Opus por entrega: A y B de Fable no tienen un equivalente Opus del mismo documento, salvo B6 y B7.
