@@ -6,7 +6,7 @@
 | Paso | `S-2` de `ADR-076 §8` |
 | Prioridad | MUST (cierra el issue #612 y es condición de `ADR-077 §5.3`, `OPEN-PURGA-05`) |
 | Depende de | `S-1a` y `S-1b` (mezcladas: PR #628 y #629), `ADR-076` (ACEPTADA), `ADR-068 §5.3`, `ADR-033 §9` |
-| Coordina con | `ADR-077` (PROPUESTA, purga física de tenant), `ADR-083` (en curso, proveedor S3) |
+| Coordina con | `ADR-077` (PROPUESTA, purga física de tenant), `ADR-083` (PROPUESTA, proveedor S3; PR #642) |
 | Estado | **PROPUESTO** (2026-11-12). No se implementa hasta aprobar y resolver las preguntas bloqueantes de §16 |
 | **Clasificación del paso** | **crítico** (`ADR-069 §4.2`; motivo en §15) |
 
