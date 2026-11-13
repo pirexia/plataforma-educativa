@@ -185,6 +185,7 @@ Todas se validan en servidor (`INV-010`).
 - **RN-INF-09** El registro diario de ratio es de solo anexar, uno por grupo y fecha; la tarea es idempotente.
 - **RN-INF-10** Autorización administrativa: referencia, organismo, fecha de inicio y fecha de fin opcional. Estado **calculado**, no guardado: `vigente`, `proxima_a_caducar` (umbral configurable por despliegue, `operacion.md`) o `caducada`. El aviso activo espera a `1.19`; hasta entonces el estado se ve en la API y en el bloque del panel.
 - **RN-INF-11** Una autorización caducada **no bloquea** ninguna operación: avisa [DERIVADA; el documento dice «alertas»].
+- **RN-INF-12** Un grupo con partes, informes o planes no cambia de tramo ni lo pierde, y una etapa con grupos con tramo no se desmarca: `409` [DERIVADA de la recomendación de `OPEN-INF-15`, «tramo fijo durante el curso»: los indicadores valorados dependen del tramo].
 
 ### 5.2 Parte diario (`1.18-b`)
 
@@ -238,7 +239,7 @@ Todas se validan en servidor (`INV-010`).
 
 | Caso | Comportamiento |
 |------|----------------|
-| Dos matrículas simultáneas a la última plaza | Una `201`, otra `409 inf.ratio_exceeded` (test de `Concurrency`) |
+| Dos matrículas simultáneas a la última plaza | Una `201`, otra `409 inf.conflict.ratio_exceeded` (test de `Concurrency`) |
 | Excepción registrada y nunca consumida | Sigue vigente hasta que se anula; se ve en el estado de ratio |
 | Etapa marcada que `acad` quiere borrar | `409` por veto de borrado de estructura (`RN-ACAD-21`) |
 | Grupo infantil que `acad` quiere borrar con partes, informes o planes | `409` por el mismo registro de vetos |
@@ -250,7 +251,7 @@ Todas se validan en servidor (`INV-010`).
 | Parte duplicado (mismo alumno y fecha) | `422 inf.validation.daily_log_exists` |
 | Reenvío de una anotación con el mismo `client_ref` | Devuelve la ya creada, sin duplicar |
 | Informe: valorar un indicador de otro tramo | `422` |
-| Informe: publicar sin validar | `409 inf.report_invalid_transition` |
+| Informe: publicar sin validar | `409 inf.conflict.report_invalid_transition` |
 | Rectificar un informe ya sustituido | `409` |
 | Período de `acad` borrado con informes | `409` por veto |
 | Curso cerrado | Escritura `409 academic-year-closed`; lectura `404` sin `curso_historico.leer` |
@@ -379,8 +380,8 @@ Cada uno tiene test que cita su ID (`INV-015`). «Familia» es un usuario con el
 - **CA-INF-002** *Dada* una etapa `infantil` y `privado`, *cuando* dirección la marca como primer ciclo con fecha de corte, *entonces* `200` y queda auditado. *Dada* una etapa `primaria` o `concertado`, *entonces* `422` (`RN-INF-01`).
 - **CA-INF-003** *Dado* un grupo de una etapa no marcada, *cuando* se le asigna tramo, *entonces* `422` (`RN-INF-03`).
 - **CA-INF-004** *Dada* una regla de ratio sin referencia normativa o con máximo 0, *cuando* se guarda, *entonces* `422` (`RN-INF-04`).
-- **CA-INF-005** (criterio 1 del documento) *Dado* un grupo de 1-2 años con tantas matrículas activas como su máximo, *cuando* secretaría matricula a otro alumno en ese grupo, *entonces* `409 inf.ratio_exceeded` y no se crea la matrícula.
-- **CA-INF-006** *Dado* ese mismo grupo, *cuando* se aprueba un cambio de grupo hacia él o se asigna ese grupo a una matrícula sin grupo, *entonces* `409 inf.ratio_exceeded` (`RN-INF-06`).
+- **CA-INF-005** (criterio 1 del documento) *Dado* un grupo de 1-2 años con tantas matrículas activas como su máximo, *cuando* secretaría matricula a otro alumno en ese grupo, *entonces* `409 inf.conflict.ratio_exceeded` y no se crea la matrícula.
+- **CA-INF-006** *Dado* ese mismo grupo, *cuando* se aprueba un cambio de grupo hacia él o se asigna ese grupo a una matrícula sin grupo, *entonces* `409 inf.conflict.ratio_exceeded` (`RN-INF-06`).
 - **CA-INF-007** *Dado* ese grupo y una excepción registrada con justificación, *cuando* se matricula un alumno, *entonces* `201`, la excepción queda consumida por esa matrícula y la siguiente matrícula vuelve a recibir `409`.
 - **CA-INF-008** *Dada* una excepción sin justificación, *cuando* se registra, *entonces* `422`; *dado* un usuario sin `ciclo_infantil.aprobar`, *entonces* `403`.
 - **CA-INF-009** *Dadas* dos altas simultáneas a la última plaza, *cuando* se resuelven, *entonces* una `201` y otra `409` (test de `Concurrency`).
@@ -415,7 +416,7 @@ Cada uno tiene test que cita su ID (`INV-015`). «Familia» es un usuario con el
 - **CA-INF-043** *Dado* un informe sin observación en alguna de las tres áreas, *cuando* se envía a validación, *entonces* `422` (`RN-INF-46`).
 - **CA-INF-044** *Dado* un informe en `pendiente_validacion`, *cuando* dirección lo valida, *entonces* pasa a `validado`; *cuando* lo devuelve sin motivo, `422`; con motivo, vuelve a `borrador`.
 - **CA-INF-045** *Dado* quien redactó el informe, *cuando* intenta validarlo, *entonces* `403` (`RN-INF-47`).
-- **CA-INF-046** *Dado* un informe en `borrador` o `pendiente_validacion`, *cuando* se intenta publicar, *entonces* `409 inf.report_invalid_transition` (`RN-INF-45`).
+- **CA-INF-046** *Dado* un informe en `borrador` o `pendiente_validacion`, *cuando* se intenta publicar, *entonces* `409 inf.conflict.report_invalid_transition` (`RN-INF-45`).
 - **CA-INF-047** (criterio 2 del documento) *Dado* un informe sin publicar, *cuando* la familia pide el listado, el detalle o cualquier recuento, *entonces* no ve ningún dato de evaluación de ese período.
 - **CA-INF-048** *Dado* un informe publicado, *cuando* la familia del alumno lo pide, *entonces* lo recibe; otra familia o un tutor revocado, `404`.
 - **CA-INF-049** *Dado* un informe publicado, *cuando* cualquier usuario, incluido el administrador del centro, intenta editarlo o borrarlo, *entonces* `409` y no cambia (`RN-INF-49`).
@@ -461,7 +462,7 @@ Cada entrega cabe en ≤3 tramos secuenciales de `implementer`; cada una con su 
 
 | Entrega | Tramo 1 | Tramo 2 | Tramo 3 |
 |---------|---------|---------|---------|
-| `1.18-a` | Módulo (`make:module`), cinco tablas, permisos `ciclo_infantil.*`, siembra | Servicios y *endpoints* de configuración, estado de ratio, autorización | Registro de vetos en `alum` y veto de `inf`, excepciones, tarea diaria, test de `Concurrency` |
+| `1.18-a` | Módulo (`make:module`), seis tablas, permisos `ciclo_infantil.*`, siembra | Servicios y *endpoints* de configuración, estado de ratio, autorización | Registro de vetos en `alum` y veto de `inf`, excepciones, tarea diaria, test de `Concurrency` |
 | `1.18-b` | Dos tablas, permisos `agenda_infantil.*`, resolutores `grupo` y `unidad_familiar`, contratos de `alum` si faltan | *Endpoints* de personal: día del grupo, parte, anotaciones, masivo, publicación | Lectura de familia, histórico, auditoría de lectura con cupo, vetos de borrado |
 | `1.18-c` | Cuatro tablas, permisos `informe_desarrollo.*`, resolutores, interfaces de `acad` si faltan | Indicadores; informe en borrador y valoraciones | Flujo (envío, validación, devolución, publicación, rectificación), familia, auditoría de lectura |
 | `1.18-d` | Dos tablas, permisos, resolutores | *Endpoints*, publicación, evolución, familia | — |
@@ -515,6 +516,7 @@ Ninguna se resuelve aquí. La opción **A es siempre la recomendada**. «Decide�
 | `OPEN-INF-23` | Siembra en roles predefinidos (`permisos.md §4`) | **A (Recomendada)**: la tabla propuesta; sin rol nuevo de «educador» | Usuario |
 | `OPEN-INF-24` | Vocabularios del parte: fijos o configurables por centro | **A (Recomendada)**: fijos y traducidos en `1.18` (un valor configurable por el centro no se traduce solo a la familia alemana). B: configurables con `ADR-062`. Cambiar después es migración | Usuario |
 | `OPEN-INF-25` | ¿Se audita también la lectura de la familia de su propio hijo? | **A (Recomendada)**: sí, una fila por petición, con cupo. B: solo la del personal | Usuario |
+| `OPEN-INF-26` | El registro diario de ratio (`RN-INF-09`) es la **primera tarea programada** que necesita el planificador, que sigue sin desplegar (#453; `REQ-ALUM/operacion.md §4`) | **A (Recomendada)**: implementar el comando y su entrada en el planificador en `1.18-a` (con test), y que la tarea no corra en servidores hasta que se despliegue #453; el estado de ratio en directo (`GET /infant-ratio-status`) no depende de ella. B: desplegar #453 dentro de `1.18-a` (un tramo más, ámbito ajeno). C: temporizador de systemd que ejecute el comando en el contenedor (`operacion.md §4`) hasta #453. Impacto de A: sin histórico diario de ratio en producción hasta #453 | Usuario (técnico) |
 
 ---
 
@@ -531,7 +533,7 @@ No se han tocado. Los aplica la sesión orquestadora si el usuario aprueba.
 | `docs/modulos/REQ-ACAD/` | Si `OPEN-INF-09`/`-10` = A y faltan: interfaces públicas de lectura de etapa, períodos y escalas; varios tutores por grupo |
 | `ARCHITECTURE.md` | Al implementar: módulo `inf` en el mapa de módulos y entradas de `AR-10` |
 | `CHANGELOG.md` | Una línea en la entrada de la ola 1: especificación de `REQ-INF` (PROPUESTA) |
-| `memory.md` | Nota: `1.18` especificado, 25 `OPEN-INF`, 11 bloquean; ADR de categoría especial pendiente |
+| `memory.md` | Nota: `1.18` especificado, 26 `OPEN-INF`, 11 bloquean; ADR de categoría especial pendiente; #453 (planificador) condiciona la tarea diaria de ratio (`OPEN-INF-26`) |
 | `docs/modulos/REQ-CORE/` | Si `OPEN-INF-22` = A: ampliar la lista cerrada de rejillas de `RN-CORE-53` |
 
 ---
@@ -540,7 +542,7 @@ No se han tocado. Los aplica la sesión orquestadora si el usuario aprueba.
 
 Esta sesión no tuvo `Bash`, `Grep` ni `Glob`; se leyó por tramos y con la búsqueda de código de GitHub sobre `develop`.
 
-- `ADR-079` y `ADR-082` (borradores de A3 y A6) **no estaban en este *worktree***: la coordinación con ellos se limita a lo que dice el encargo (enlace autenticado, nunca adjunto; firma por `ADR-082`).
+- `ADR-079` y `ADR-082` (borradores de A3 y A6) no están en este *worktree*; en la continuación del 2026-11-13 se leyeron sus primeras secciones en los *worktrees* de sus agentes: `ADR-079` recomienda el motor de notificaciones en `Core` con tipos de aviso declarados por módulo (afecta a `1.18-j`, `RN-INF-73`); `ADR-082 §4.1` cita `REQ-INF-002` entre sus consumidores (afecta a `1.18-g`). No se ha leído su tabla de niveles ni el resto: ninguna decisión de esta especificación depende de ellos fuera de `-g` y `-j`.
 - La especificación de `REQ-CALIF` (B5) y la arquitectura sin conexión de `1.13` (B2), en curso en paralelo, no se han leído.
 - No se ha leído el texto de `REQ-SALUD`, `REQ-BEC-001`, `REQ-PRL-004` ni `RMOB-COM-001` del documento de requisitos; su fase se toma de `REQ-ALUM/funcional.md` C1 y del encargo.
 - No se ha verificado en el código: qué interfaces públicas expone `Acad\Domain` para etapas, períodos y escalas; si `acad` admite varios tutores por grupo; si `StudentEnrollmentDirectory` y `EnrollmentRoster` están ya construidas; la firma exacta del registro de vetos de `RN-CURSO-30`; el estado del mecanismo de bloques del panel (#261).
