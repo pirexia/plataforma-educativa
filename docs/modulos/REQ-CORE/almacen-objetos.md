@@ -199,7 +199,7 @@ Test de Pest del grupo `arch`, en `apps/api/tests/Feature/Architecture/`, con el
 1. Importar o usar `Illuminate\Support\Facades\Storage`, con cualquier método (`disk`, `build`, `fake`, `drive`, `cloud` u otro) y también por su alias global.
 2. Con la opción recomendada de `OPEN-CORE-74`, las demás puertas al mismo disco: `Illuminate\Contracts\Filesystem\*`, `Illuminate\Filesystem\FilesystemManager` y `FilesystemAdapter`, `League\Flysystem\*`, `Aws\S3\*` y `app('filesystem')`.
 3. Nombrar la clase concreta `PrivateObjectStore` fuera de `App\Support\Files` y de `App\Providers` (el enlace): los módulos inyectan `TenantObjectStore`.
-4. Componer un literal que empiece por `tenants/` fuera de `App\Support\Files`.
+4. Componer un literal de cadena que empiece **exactamente** por `tenants/` (primer carácter `t`, **sin barra inicial**) fuera de `App\Support\Files`. Solo se examinan literales de cadena, no comentarios ni *docblocks*. Una ruta HTTP con barra inicial no es una clave de objeto y no debe disparar la regla: `apps/api/app/Modules/Backoffice/Http/routes.php` declara hoy `'/tenants'`, `'/tenants/{public_id}'` y otras rutas que empiezan por `/tenants/` (comprobado, línea 111 y siguientes), y una regla que buscara la subcadena `tenants/` fallaría sobre ellas.
 
 **Lista de excepciones: vacía y cerrada.** Solo se amplía con especificación aprobada por el usuario, como las demás (`ADR-056`). `tests/` queda fuera del alcance de la regla (`ADR-076 §3.3` regla 6): los tests siguen usando `Storage::fake`.
 
@@ -259,6 +259,7 @@ Ningún permiso, recurso, acción ni ámbito nuevo o modificado. El almacén no 
 | Aborto de subidas multiparte incompletas bajo el prefijo (`§5.4` fase 4) | `putStream` puede iniciar subidas multiparte según el tamaño (comportamiento de la librería, sin verificar con Garage). Se anota aquí para que la especificación de `1.23b` lo pruebe |
 | Copias por centro y cualquier fichero futuro, bajo el prefijo del centro (`§5.6`) | Es lo único que el contrato permite escribir |
 | Un trabajo no debe poder escribir en un centro `eliminado` (`§5.4`, sin verificar) | Fuera de `S-2`: el almacén sigue al `TenantContext`. Se señala a `1.23b` |
+| Otros consumidores del prefijo (`REQ-SEED`, `1.15b`: `demo:purge` borra «los objetos de su prefijo»; revisor C3-08) | `demo:purge` usa la función única del prefijo de `RN-STO-09` y, cuando exista, la interfaz de borrado por prefijo de `ADR-077 §5.6`; no compone `tenants/…` por su cuenta. Coordinación con `docs/modulos/REQ-SEED/` |
 
 `ADR-077` está en PROPUESTA: si cambia su `§5.6`, se revisa esta tabla, no el contrato.
 
@@ -330,7 +331,7 @@ Cada uno tiene al menos un test que cita su ID (`INV-015`). «Centro A» y «cen
 **Arquitectura**
 
 - **`CA-STO-19`** · *Dado* el código de `apps/api/app`, *cuando* se ejecuta `AR-17`, *entonces* no hay ninguna de las formas prohibidas de §7 fuera de `App\Support\Files`, con la lista de excepciones vacía.
-- **`CA-STO-20`** · *Dado* un fichero de muestra con cada forma prohibida, *cuando* lo analiza `AR-17`, *entonces* la detecta.
+- **`CA-STO-20`** · *Dado* un fichero de muestra con cada forma prohibida, *cuando* lo analiza `AR-17`, *entonces* la detecta. *Dado* un fichero de muestra con una ruta de Backoffice como `'/tenants/{public_id}'` (barra inicial) y un comentario que menciona `tenants/`, *cuando* lo analiza `AR-17`, *entonces* **no** la dispara (negativo de la forma 4 de §7).
 - **`CA-STO-21`** · *Dado* el repositorio tras `S-2`, *entonces* no existen `TenantStorage`, su registro ni su test, y ninguna referencia viva a ellos.
 
 **Aislamiento entre centros (`INV-001`)**
