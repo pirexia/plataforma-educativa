@@ -182,11 +182,15 @@ Reglas para la especificación:
 - **Generación en cola** (`INV-012`), nunca en la petición HTTP. El `POST` que la pide lleva `Idempotency-Key` (`ADR-038 §8`).
 - **El fichero generado es inmutable.** Se guarda en el almacén privado con su *hash*; se descarga por URL firmada de caducidad corta (`CLAUDE.md §8`) y cada descarga se audita. Corregir una remesa es **anularla y generar otra**, no editar el fichero.
 - **Identificadores deterministas y únicos**: el identificador de mensaje, el de bloque de pago y el `EndToEndId` de cada adeudo se derivan de los `public_id` (ULID, 26 caracteres, caben en los 35 del campo). El `EndToEndId` es la clave con la que casa la devolución.
-- **Una deuda solo puede estar en una remesa viva.** Restricción en base de datos (índice único parcial), no en el controlador: es la defensa contra el **doble cargo**, que es el peor fallo posible de este módulo.
+- **Una deuda solo puede estar en una remesa viva, y nunca a la vez en una remesa viva y en un intento de tarjeta vivo.** Es la defensa contra el **doble cargo**, que es el peor fallo posible de este módulo, y vive en base de datos, no en el controlador. Corrección (revisión C2-07): un índice único parcial **no** lo garantiza, porque la remesa y el intento de tarjeta son dos tablas y un índice no cruza tablas. Diseño propuesto:
+  - **El cobro vivo se apunta en la propia deuda**: dos columnas anulables en la deuda, una hacia la línea de remesa viva y otra hacia el intento de pago vivo, con `CHECK (num_nonnulls(<línea de remesa viva>, <intento vivo>) <= 1)`. Una sola fila por deuda hace imposible que dos remesas, o remesa y tarjeta, la tengan a la vez. Las columnas se vacían cuando la línea o el intento dejan de estar vivos (remesa anulada, intento fallido, caducado o cancelado). Nombres a fijar en la especificación con `db-reviewer`.
+  - **Serialización**: quien incluye una deuda en una remesa o abre un intento de tarjeta toma antes `SELECT … FOR UPDATE` sobre la fila de la deuda (mismo patrón que el ancla de horarios de `SECURITY.md`) y comprueba las dos columnas dentro de la transacción. La restricción `CHECK` es el cinturón; el bloqueo es lo que da un error de conflicto limpio en vez de una violación.
+  - **Prueba de concurrencia obligatoria** con dos procesos reales: tarjeta frente a remesa sobre la misma deuda, y dos remesas sobre la misma deuda; en ambos casos un solo éxito (`§11.3`, nº 1 y nº 12).
 - **Estados de la remesa** (propuesta): borrador → generada → presentada (lo marca un usuario, con fecha) → cobrada con o sin devoluciones → cerrada; y anulada desde borrador o generada. «Presentada» es una **declaración del usuario**: la plataforma no sabe si el banco la aceptó hasta que se concilia (`§8`).
 - **Tipo de secuencia** (primero, recurrente, último, único): lo calcula la plataforma a partir del historial del mandato. Si el primer adeudo de un mandato debe seguir marcándose como «primero» es una regla que cambió en el esquema; **sin verificar**, se toma de la guía vigente al implementar.
 - **Fecha de cobro y plazo de presentación**: los plazos mínimos entre presentación y cargo los fija el esquema y los acorta o alarga cada banco. La plataforma **no los codifica como constantes**: son configuración del centro, con un valor por defecto conservador.
 - **Preaviso al deudor.** El esquema exige avisar al deudor antes de cada cargo: por defecto con **14 días naturales**, o con menos si así se pactó (dato citado en la documentación de Stripe sobre el *rulebook*, consultada el 2026-11-12). Propuesta: el envío del recibo mensual (`REQ-FIN-005`, «envío automático por email de las facturas») hace de preaviso si incluye importe, fecha de cargo, referencia del mandato e identificador de acreedor; el plazo pactado es texto del mandato (`OPEN-PAY-06`).
+- **Categoría del aviso** (decidida por el usuario el 2026-11-13, revisión C2-03): el preaviso SEPA se declara como tipo de aviso de la categoría **«obligación contractual o legal»** de `ADR-079 §4.7`, **no desactivable** por el usuario. Su contenido mínimo declarado es: importe, fecha de cargo, referencia del mandato e identificador de acreedor; **ningún dato del alumno** (`§10.4`).
 
 ### 4.4 Devoluciones
 
@@ -207,7 +211,8 @@ Consecuencias de diseño:
 2. **Importación de devoluciones**: por fichero del banco (mensaje de estado o extracto) y, siempre, **alta manual** de una devolución por un usuario con permiso, porque no todos los bancos entregan el fichero a un centro pequeño. La importación es idempotente: el mismo fichero dos veces no duplica devoluciones (clave: remesa + `EndToEndId` + fecha).
 3. **Motivo normalizado.** Se guarda el código de motivo del banco tal cual y una categoría propia (sin saldo, cuenta inválida, mandato inválido o revocado, rechazo del deudor, otro). El catálogo de códigos se toma de la guía bancaria vigente al implementar; no se escribe de memoria.
 4. **Efecto sobre el mandato**: una devolución por mandato inválido, revocado o cuenta cerrada **suspende el mandato** y exige intervención; una devolución por falta de saldo no.
-5. **Comisión de devolución del banco**: si el centro la repercute a la familia es decisión de negocio y tiene límites legales de consumo (`OPEN-PAY-10`). Técnicamente es una línea más de deuda, nunca un importe sumado en silencio.
+5. **Aviso de devolución al pagador** (decidido por el usuario el 2026-11-13, revisión C2-03): tipo de aviso de la categoría **«obligación contractual o legal»** de `ADR-079 §4.7`, no desactivable. Contenido mínimo declarado: importe, fecha del cargo devuelto, referencia del recibo o de la factura y motivo normalizado (punto 3), sin datos del alumno.
+6. **Comisión de devolución del banco**: si el centro la repercute a la familia es decisión de negocio y tiene límites legales de consumo (`OPEN-PAY-10`). Técnicamente es una línea más de deuda, nunca un importe sumado en silencio.
 
 ---
 
@@ -305,7 +310,7 @@ El cuestionario es del **comercio**, es decir, del **centro**, ante su adquirent
 ### 7.2 Las tres capas
 
 1. **Entrada (cliente → API).** `Idempotency-Key` obligatoria (`ADR-038 §8`, `INV-011`) en: crear una sesión de pago, pedir un reembolso, registrar un cobro manual, generar una remesa, marcar una remesa como presentada, importar devoluciones o un extracto. No se crea otro mecanismo: se usa `idempotency_keys`.
-2. **Regla de negocio además de la clave.** Una deuda admite **como máximo un intento de pago vivo**. Un segundo intento sobre la misma deuda devuelve la sesión viva o un error de conflicto; nunca abre otra. Y una deuda incluida en una remesa viva **no se puede pagar con tarjeta** sin sacarla antes de la remesa (y a la inversa). Es restricción de base de datos (`§4.3`).
+2. **Regla de negocio además de la clave.** Una deuda admite **como máximo un intento de pago vivo**. Un segundo intento sobre la misma deuda devuelve la sesión viva o un error de conflicto; nunca abre otra. Y una deuda incluida en una remesa viva **no se puede pagar con tarjeta** sin sacarla antes de la remesa (y a la inversa). Se garantiza con las columnas de cobro vivo en la propia deuda, su `CHECK` de exclusividad y `SELECT … FOR UPDATE` sobre la deuda (`§4.3`), no con un índice entre tablas.
 3. **Salida (API → proveedor).** Toda llamada que crea o mueve dinero lleva la clave de idempotencia del proveedor, derivada del `public_id` del intento. Un reintento por fallo de red reutiliza la misma clave. Las llamadas al proveedor se hacen **fuera de la transacción de base de datos** y nunca con una transacción abierta esperando a la red.
 4. **Entrada (proveedor → API): buzón de notificaciones.** Cada notificación se **verifica** (firma del proveedor, con tolerancia de reloj), se **guarda** con unicidad sobre (proveedor, identificador del evento) y se **responde** de inmediato; el efecto se aplica en cola (`INV-012`). Una notificación repetida no hace nada. Los manejadores no suponen orden: aplican el evento solo si la transición es válida desde el estado actual y, ante la duda, **consultan el estado al proveedor**.
 5. **Comprobación de coherencia.** Importe y moneda de la notificación deben coincidir con los del intento. Si no coinciden, el evento va a **cuarentena** y se alerta; no se aplica.
@@ -326,8 +331,10 @@ El cuestionario es del **comercio**, es decir, del **centro**, ante su adquirent
 Una notificación del proveedor llega **sin sesión y sin tenant**. Reglas:
 
 1. **El tenant se resuelve a partir de un dato autenticado por la firma**: la cuenta del proveedor que viene en el evento, o un identificador opaco del centro en la ruta cuya firma se verifica con el secreto de **ese** centro. Nunca a partir de un parámetro sin verificar.
+   - **Con Stripe Connect** (revisión C2-06): el evento trae la **cuenta conectada** del centro, y con RLS no se puede buscar en tablas del centro sin conocerlo antes. Hace falta una **tabla de plataforma** «cuenta conectada → tenant», sin `tenant_id` por naturaleza, declarada como tabla compartida según `ADR-047` (visibilidad por tenant afectado) y con su entrada en el registro de purga de `ADR-077` (la registra allí el agente que corrige `ADR-077`, no este ADR). La purga de un centro borra su fila después de desconectar la cuenta (`§10.4`, punto 5).
+   - **Regla obligatoria en sentido contrario**: en toda llamada saliente al proveedor (cobro, reembolso, consulta), la cuenta conectada se obtiene **solo** de la configuración del centro fijado en `TenantContext`, **nunca** de un dato de la petición, del cuerpo de un evento ni de un parámetro. Una cabecera `Stripe-Account` equivocada es un cobro o un reembolso en la cuenta de otro centro (`§11.3`, nº 11).
 2. Resuelto el tenant, el trabajo en cola **fija el contexto de tenant explícitamente** (`INV-001`, skill `aislamiento-tenant`). Un evento cuyo tenant no se resuelve va a cuarentena, sin `tenant_id`, con caducidad corta; esa tabla debe figurar en el registro de purga de `ADR-077 §5.3`.
-3. **Es la segunda excepción de CSRF de la aplicación** (la primera es el ACS de SAML, `SECURITY.md §2.1`) y una ruta sin `permission:` (excepción nominal de `AR-07a`). La sustitución equivalente es la firma del proveedor. Grupo de rutas propio, límite de peticiones, sin cookies, y documentada en `SECURITY.md` con el mismo rigor que la de SAML.
+3. **Es una excepción de CSRF** (además del ACS de SAML, `SECURITY.md §2.1`) y una ruta sin `permission:` (excepción nominal de `AR-07a`). Entra en el apartado común de **«excepciones de webhooks»** de `SECURITY.md`, junto con la del receptor de eventos del proveedor de correo que declara `ADR-079 §4.9` (revisión C2-08; sin ordinal, porque ambos ADR se aceptan por separado). La sustitución equivalente es la firma del proveedor. Grupo de rutas propio, límite de peticiones, sin cookies, y documentada en `SECURITY.md` con el mismo rigor que la de SAML.
 4. La respuesta a una notificación **no revela** si el tenant o el intento existen.
 
 ---
@@ -412,7 +419,7 @@ Tres orígenes, un solo tratamiento: adeudo **devuelto** (`§4.4`), pago con tar
 | `INV-009` | Estados, motivos de devolución y mensajes del proveedor se traducen a claves propias en los cuatro idiomas; nunca se muestra al usuario el texto crudo del proveedor o del banco |
 | `INV-010` | Importe, deuda y estado se calculan en servidor; el cliente solo indica **qué** deuda paga, nunca **cuánto** |
 | `INV-011` | `§7` |
-| `INV-012` | Generación de remesa, importaciones, aplicación de notificaciones, barrido y recordatorios, en cola. La remesa de un centro grande va a la cola `long` si supera el `retry_after` de la conexión ordinaria |
+| `INV-012` | Generación de remesa, importaciones, aplicación de notificaciones, barrido y recordatorios, en cola. La remesa de un centro grande va a la cola `long` si supera el `retry_after` de la conexión ordinaria. Los justificantes y recibos en PDF de una remesa o de la facturación mensual son **PDF en lote** (`ADR-078 §5.2`): comparten el `worker` con `notify-urgent`, así que les aplica el disparador de `worker-urgent` de `ADR-079 §4.8` y la medición de `ADR-078 §5.4` (revisión C2-09) |
 | `INV-015` | Tests con ID de requisito; adaptador falso y test de conformidad (`§3.4`); pruebas de regresión obligatorias en `§11.3` |
 
 ### 10.2 Secretos y datos bancarios
@@ -435,10 +442,10 @@ Tres orígenes, un solo tratamiento: adeudo **devuelto** (`§4.4`), pago con tar
 2. **En la remesa SEPA** el concepto del adeudo viaja al banco del deudor y aparece en su extracto. Recomendación: nombre del centro y referencia de la factura, **sin** el nombre del alumno. Muchos centros lo incluyen hoy por costumbre: `OPEN-PAY-15` (legal y negocio).
 3. **Papel de cada tercero** (encargado o responsable independiente), contrato de encargo, ubicación de los datos y transferencias internacionales: van al **expediente de cumplimiento** y al registro de actividades de `REQ-PRIV`, antes de activar un proveedor con datos reales. No se afirma nada aquí sobre el estatus de ningún proveedor (**sin verificar**). `OPEN-PAY-16`.
 4. **Conservación.** Cobros, facturas, remesas y mandatos son documentación contable y mercantil con plazo legal de conservación a cargo del **centro** (responsable). El plazo concreto lo fija la asesoría dentro del catálogo de `REQ-PRIV-006` (`OPEN-PAY-17`); no se escribe de memoria. Consecuencia: el derecho de supresión de un pagador **no borra** sus cobros mientras dure la obligación legal (`ADR-004`); se bloquean.
-5. **Purga de un centro** (`ADR-077`, borrador leído en su rama el 2026-11-12). Su criterio es que la plataforma es encargado: **primero se devuelve, después se destruye**, y lo que tiene obligación de conservación lo conserva el centro. Este ADR se ajusta a eso sin excepción propia:
+5. **Purga de un centro** (`ADR-077`, borrador leído en su rama el 2026-11-12). Su criterio es que la plataforma es encargado: **primero se devuelve, después se destruye**, y lo que tiene obligación de conservación lo conserva el centro. Este ADR se ajusta a eso con **una sola** tabla sin `tenant_id`, la correspondencia «cuenta conectada → tenant» de `§7.4` (registrada en `ADR-047` y en la purga de `ADR-077`; revisión C2-06), además de la cuarentena de notificaciones ya citada:
    - Las tablas del cobro llevan `tenant_id` y caen en la regla general de purga; **no se pide conservarlas** tras la purga.
    - La **exportación previa** debe incluir cobros, movimientos, mandatos con su documento, ficheros de remesa, devoluciones y conciliaciones en formato legible, porque son lo que el centro está obligado a conservar. Se propone como requisito a `ADR-077` (`§15`).
-   - **Recursos en terceros** (`ADR-077 §5.3`): antes de purgar se desconecta la cuenta conectada o se invalidan las credenciales del centro, se retiran sus rutas de notificación y se cancelan intentos vivos. Lo que el proveedor de pago conserve por sus propias obligaciones legales no lo controla la plataforma y debe constar en el certificado de purga como excepción declarada.
+   - **Recursos en terceros** (`ADR-077 §5.3`): antes de purgar se desconecta la cuenta conectada (y después se borra su fila de la correspondencia «cuenta conectada → tenant») o se invalidan las credenciales del centro, se retiran sus rutas de notificación y se cancelan intentos vivos. Lo que el proveedor de pago conserve por sus propias obligaciones legales no lo controla la plataforma y debe constar en el certificado de purga como excepción declarada.
    - **Un centro con remesas presentadas y sin conciliar, o con adeudos dentro del plazo de devolución, puede purgarse** (la relación bancaria es del centro), pero la pantalla de baja debe advertirlo.
 
 ---
@@ -449,7 +456,7 @@ Tres orígenes, un solo tratamiento: adeudo **devuelto** (`§4.4`), pago con tar
 
 - `REQ-FIN` se especifica con **deuda y movimientos separados** y el estado de la factura derivado. Es la consecuencia más cara de ignorar.
 - Aparecen **dependencias nuevas** (una por adaptador de proveedor, y quizá una librería de XML o de validación de XSD). Cada una pasa por `CLAUDE.md §1` al implementarse; este ADR no autoriza ninguna.
-- Aparece la **segunda excepción de CSRF** y una excepción nominal de `AR-07a` (`§7.4`).
+- Aparece una **excepción de CSRF de webhook** y una excepción nominal de `AR-07a` (`§7.4`).
 - El centro tiene **dos pasos manuales** en SEPA (presentar la remesa, traer las devoluciones). Es el precio de no cambiarle el banco ni los mandatos.
 - La plataforma **no gana dinero en el flujo de cobro** con esta decisión. Si el negocio quiere una comisión por operación, solo el modelo de cuenta conectada lo permite sin tocar fondos (`OPEN-PAY-02`).
 - Tamaño (`CLAUDE.md §2`, punto 7): no cabe en una entrega. Propuesta de partición, a confirmar por `spec-writer`: (a) deuda, movimientos, cobro manual y transferencia; (b) mandatos y remesa `pain.008`; (c) devoluciones e impagos; (d) puerto de pagos y primer adaptador de tarjeta con notificaciones; (e) conciliación por extracto. El orden (a)-(b)-(c) da valor al centro **sin ningún proveedor externo**.
@@ -458,7 +465,7 @@ Tres orígenes, un solo tratamiento: adeudo **devuelto** (`§4.4`), pago con tar
 
 | Riesgo | Gravedad | Mitigación |
 |---|---|---|
-| **Doble cargo** (dos remesas con la misma deuda, o remesa y tarjeta a la vez) | Crítica para la confianza del centro | Índice único parcial y un intento vivo por deuda (`§4.3`, `§7.2`); prueba de concurrencia |
+| **Doble cargo** (dos remesas con la misma deuda, o remesa y tarjeta a la vez) | Crítica para la confianza del centro | Columnas de cobro vivo en la deuda con `CHECK` de exclusividad y `SELECT … FOR UPDATE` sobre la deuda (`§4.3`, `§7.2`); pruebas de concurrencia nº 1 y nº 12 de `§11.3` |
 | Dar por pagado algo no cobrado (retorno del navegador, casamiento aproximado) | Alta | `§5.3` regla 2; `§8.2` regla 2 |
 | Notificación falsificada o atribuida a otro centro | Crítica (`INV-001`) | Firma verificada antes de resolver el tenant; cuarentena (`§7.4`) |
 | El banco del centro piloto rechaza el fichero por una variante de formato | Media | Versión por centro, validación XSD, y **una remesa de prueba real con el banco del piloto antes de darlo por terminado** (`OPEN-PAY-07`) |
@@ -480,6 +487,8 @@ Tres orígenes, un solo tratamiento: adeudo **devuelto** (`§4.4`), pago con tar
 8. Ninguna columna del esquema casa con patrones de dato de tarjeta (`§6.3`, regla 6).
 9. Un tutor no puede ver ni pagar la deuda de otra unidad familiar, ni fijar el importe.
 10. Aislamiento entre tenants de todas las tablas nuevas (`RNF-MANT-006`).
+11. **Cuenta conectada equivocada** (revisión C2-06): con el centro A en `TenantContext`, ningún dato de la petición ni del evento puede hacer que un cobro, un reembolso o una consulta salgan con la cabecera `Stripe-Account` del centro B; el adaptador la toma solo de la configuración del centro fijado. Prueba con el doble del proveedor que registra la cabecera enviada.
+12. **Tarjeta frente a remesa** (revisión C2-07): dos procesos reales intentan a la vez incluir la misma deuda en una remesa y abrir un intento de tarjeta: solo uno lo consigue y el otro recibe un conflicto.
 
 ### 11.4 Reversión
 
@@ -584,6 +593,8 @@ Todas llevan recomendación. «Bloquea» se refiere a especificar o implementar 
 10. **PayPal, Mollie, Adyen, MONEI**: sin consultar documentación.
 11. **Mantenimiento y licencia de librerías** para Redsys y para generar o validar XML SEPA: sin comprobar; se hace al implementar (`CLAUDE.md §1`).
 12. **Oferta de canales directos (EBICS u otros)** de la banca española para un centro pequeño.
+13. **Stripe Connect** (revisión C2-06, 2026-11-13): que todo evento de una cuenta conectada traiga el identificador de esa cuenta y que la cabecera `Stripe-Account` sea el único medio de dirigir una llamada a ella; afirmaciones del revisor no contrastadas en esta sesión con la documentación de Stripe. Se comprueban al especificar `(d)`.
+14. Que `num_nonnulls` sea la forma preferida del `CHECK` de exclusividad de `§4.3` en la versión de PostgreSQL del proyecto: lo decide `db-reviewer`.
 
 ---
 
@@ -597,7 +608,7 @@ No se ha tocado ninguno. Los aplica la sesión orquestadora al integrar (`docs/p
 | `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md`, `REQ-FIN-005` | **No se cambia el requisito.** Si el usuario acepta `OPEN-PAY-14` o `OPEN-PAY-05`, serían requisitos nuevos que añade el propietario del producto, no este ADR | Tras decidir |
 | `PLAN-IMPLEMENTACION.md` | En la fase 2, partir `REQ-FIN` (cobros) en las entregas (a)-(e) de `§11.1`, con (a)-(c) antes que (d); anotar que (d) depende de `OPEN-PAY-01` y que `REQ-TRAN` y `REQ-BEC` dependen de (a). Paso previo de especificación de `REQ-FIN` condicionado a `OPEN-PAY-08` y `OPEN-PAY-11` | Al integrar |
 | `ARCHITECTURE.md` | En el principio de aislamiento de terceros (línea de `RNF-MANT-007`), referencia a `ADR-081`; apartado breve «Cobros» con la regla de oro de `§2.1` | Al aceptar |
-| `SECURITY.md` | Tras aceptar e implementar: segunda excepción de CSRF (`§7.4`), regla «ningún dato de tarjeta» (`§6.3`), tratamiento de secretos de proveedor e IBAN (`§10.2`), y revisión anual de normativa (`§11.2`) | Al implementar |
+| `SECURITY.md` | Tras aceptar e implementar: excepción de CSRF de webhook, en el apartado común de «excepciones de webhooks» con la de `ADR-079 §4.9` (`§7.4`), regla «ningún dato de tarjeta» (`§6.3`), tratamiento de secretos de proveedor e IBAN (`§10.2`), y revisión anual de normativa (`§11.2`) | Al implementar |
 | `PRIVACY.md` | Tras aceptar: minimización hacia proveedor y banco (`§10.4`), proveedores de pago como destinatarios, conservación | Al implementar |
 | `SYSADMIN.md` y `RUNBOOK.md` | Al implementar: secretos por entorno, ruta pública de notificaciones, salida a Internet de `api` y `worker`, qué hacer si las notificaciones se retrasan (barrido) y si el banco rechaza una remesa | Al implementar |
 | `CHANGELOG.md` | Dentro de la entrada única de la ola 1: «`ADR-081` (propuesta): pasarela de pago y SEPA» | Al integrar |
@@ -608,7 +619,7 @@ No se ha tocado ninguno. Los aplica la sesión orquestadora al integrar (`docs/p
 
 **Peticiones a otros borradores de la ola** (no son ficheros compartidos, pero los resuelve la orquestadora):
 
-- **`ADR-077`**: que la exportación previa a la purga incluya los datos de cobro del centro (`§10.4`, punto 5) y que el registro de recursos de terceros de su `§5.3` contemple la cuenta o las credenciales del proveedor de pago y la tabla de cuarentena de notificaciones.
+- **`ADR-077`**: que la exportación previa a la purga incluya los datos de cobro del centro (`§10.4`, punto 5) y que el registro de recursos de terceros de su `§5.3` contemple la cuenta o las credenciales del proveedor de pago, la tabla de cuarentena de notificaciones y la tabla de plataforma «cuenta conectada → tenant» (`§7.4`; revisión C2-06, la registra el agente que corrige `ADR-077`).
 - **`ADR-082`**: fila «Mandato SEPA» de su `§4.1`: papel escaneado siempre, N2 para los nuevos en línea, sujeto a `OPEN-PAY-06`. El titular de la cuenta puede no ser usuario de la plataforma: su flujo de firma debe admitir un firmante sin cuenta.
 - **`ADR-079`**: eventos que este ADR necesita enviar: recibo con preaviso de cargo, recordatorio de vencimiento, aviso de devolución, justificante de pago y escalado interno. Todos transaccionales, al pagador, en su idioma.
 - **`ADR-080`** (staging): claves de prueba del proveedor y ruta pública de notificaciones en staging.
