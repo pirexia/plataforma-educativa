@@ -6,7 +6,7 @@
 **Afecta a**: `REQ-CORE-007`, `REQ-COM-001..004`, `REQ-AUTH-001/003`, `REQ-PRL-001/004`, `REQ-FAM-UNIT`, `REQ-AUT-001`, `REQ-SAAS-004`, `REQ-SUP-004`, `RNF-LIM-003`, `RARQ-ARC-005`, `RDB-001`, `RSEC-GDPR-001/008/009`, `INV-001`, `INV-003`, `INV-007`, `INV-008`, `INV-009`, `INV-011`, `INV-012`.
 **Reformula**: `OPEN-09` (proveedor de correo transaccional): la parte técnica queda decidida aquí; queda la contratación (`OPEN-079-01`).
 **No sustituye ningún ADR.** Precisa, sin cambiarlos, `ADR-045 §4.8` (aviso de módulo contratado), `ADR-008` (PWA en fase 1) y `ADR-073 §3` (correo del ápice de la landing). Roza la recomendación aprobada de `OPEN-FAM-UNIT-33` («evento de `prl` consumido por `COM`»): véase `§4.1` y `OPEN-079-04`.
-**Relación con la ola 1**: `ADR-077` (purga de tenant: condiciona tablas, colas y Redis, `§6.4`), `ADR-082` (firma: recordatorios y notificación fehaciente, `§4.12`), `ADR-083` (proveedor S3: posible proveedor común, `§4.2`). Los tres están en `PROPUESTA` y se han leído en sus ramas el 2026-11-12.
+**Relación con la ola 1**: `ADR-077` (purga de tenant: condiciona tablas, colas y Redis, `§6.4`), `ADR-082` (firma: recordatorios y notificación fehaciente; ver `§4.12` de este ADR), `ADR-083` (proveedor S3: posible proveedor común, `§4.2`). Los tres están en `PROPUESTA` y se han leído en sus ramas el 2026-11-12.
 
 ---
 
@@ -137,7 +137,7 @@ Requisitos que debe cumplir cualquier candidato: SMTP estándar (el contrato que
 
 | Opción | Ventajas | Riesgos | Coste de revertir |
 |---|---|---|---|
-| **A. Colas por prioridad en el `worker` actual** (`notify-urgent` la primera; `notify-bulk` la última) y un trabajo por entrega, corto | Sin procesos nuevos; un cambio en dos ficheros de despliegue | El urgente espera a que termine el trabajo en curso: segundos normalmente, hasta el `--timeout` de 120 s en el peor caso (una exportación) | Nulo |
+| **A. Colas por prioridad en el `worker` actual** (`notify-urgent` la primera; `notify-bulk` al final, solo por delante de las colas de PDF en lote) y un trabajo por entrega, corto | Sin procesos nuevos; un cambio en dos ficheros de despliegue | El urgente espera a que termine el trabajo en curso: segundos normalmente, hasta el `--timeout` de 120 s en el peor caso (una exportación) | Nulo |
 | **B. Proceso dedicado `worker-urgent`** que solo lee `notify-urgent` | El urgente nunca espera a otro trabajo; sobrevive a un `worker` atascado | Una unidad Quadlet y un servicio de `compose` más; memoria de un proceso PHP permanente | Bajo |
 | **C. Redis + Horizon** | Prioridades, equilibrado y panel | Dependencia elegida y no instalada (`OPEN-BO-23`); no resuelve nada que B no resuelva | Medio |
 
@@ -228,7 +228,7 @@ Todo lo que sigue es propuesta hasta que el usuario la acepte. Los nombres de cl
 1. **Avisos del producto** (cuenta, seguridad, urgentes, plataforma): plantillas del producto, en código y en los ficheros de idioma, en es-ES, en, de y fr. El centro personaliza marca (logotipo, nombre, pie), no el texto.
 2. **Contenido del centro** (circulares y los avisos de `COM` que la especificación de `1.19` declare personalizables): se almacena por idioma (`ADR-021`), con marcadores de una **lista cerrada por tipo**, sustituidos como texto escapado. **Nunca se evalúa una plantilla escrita por un tenant con el motor de vistas** (sería ejecución de código en el servidor). El HTML del centro se sanea contra una lista de etiquetas permitidas.
 3. **Idioma**: el del destinatario, que viaja en el *payload* del trabajo (skill `colas-y-workers`, regla 2). Si el centro no ha escrito su contenido en ese idioma, se envía en el idioma por defecto del centro, sin traducción automática.
-4. **Textos legales, de consentimiento, de privacidad y de seguridad** de las plantillas no se traducen automáticamente (`CLAUDE.md §2`, punto 9).
+4. **Textos legales, de consentimiento, de privacidad y de seguridad** de las plantillas: **traducción humana, sin automática** (`CLAUDE.md §2`, punto 9). Se redactan en es-ES y una persona los traduce a en, de y fr; ni la sesión ni `traductor` los traducen.
 5. **Todo correo lleva versión de texto plano** además de HTML, y cumple WCAG 2.2 AA en lo aplicable (contraste, texto alternativo, no depender de imágenes).
 6. Un mismo aviso produce un texto por canal: completo en la aplicación, sobrio en el correo, mínimo en *push* (`§4.11`).
 
@@ -263,11 +263,12 @@ Reglas:
 |---|---|---|---|
 | **Urgente** | Categoría urgente y códigos de un solo uso | `notify-urgent`, la **primera** del `worker` | Todos los disponibles **a la vez**, sin esperar al fallo de uno para probar otro |
 | **Normal** | Avisos individuales | `notify`, tras las colas `*-mail` actuales | Según preferencias |
-| **Masiva** | Circulares y envíos a segmentos | `notify-bulk`, la **última** del `worker` | Según preferencias |
+| **Masiva** | Circulares y envíos a segmentos | `notify-bulk`, la **penúltima** del `worker`, solo por delante de `calif-pdf` (`ADR-078 §5.3`) | Según preferencias |
 
 1. **Un trabajo por entrega** (un destinatario, un canal), corto: `timeout` muy por debajo del `retry_after` de la conexión y tiempo de espera de red explícito hacia el proveedor (`RARQ-ARC-005`). Un envío masivo es un trabajo que reparte en lotes, no un trabajo que envía a mil personas.
 2. **Aislamiento del urgente, opción A ahora**: con colas por prioridad, un urgente espera como mucho a que acabe el trabajo en curso. **Disparadores para pasar al proceso dedicado `worker-urgent` (opción B)**, cualquiera de los tres: se implementa `REQ-PRL-001`; la espera en cola de `notify-urgent` supera el objetivo que el usuario fije (`OPEN-079-05`) en la medición real; o **llega el primer consumidor de PDF en lote** (`1.17`, `ADR-078`) y la medición de `ADR-078 §5.4` (que incluye la espera de `notify-urgent` con el lote de 1.200 documentos en marcha, hasta 60 s cada uno) no cumple ese objetivo (revisión C2-09). B es un cambio de despliegue, no de código.
 3. **Toda cola nueva se añade a `worker.container` y a `compose.yaml`** en la misma entrega (`QueueWorkerTest`), y a la comprobación `core:queue-health`.
+   **Orden único de colas del `worker`** (criterio común de la ola 1, 2026-11-13; el mismo en `ADR-078 §5.3` y en la operación de `REQ-CALIF` y `REQ-COM`): lo más urgente primero y los lotes al final, con un solo último puesto. Sobre las colas que existen hoy (comprobado el 2026-11-13 en `compose.yaml` e `infra/quadlet/worker.container`): `notify-urgent`, `auth-mail`, `core-mail`, `bo-mail`, `notify`, `default`, `auth-maintenance`, `core-maintenance`, `backoffice-maintenance`, `core-exports`, `core-imports`, `notify-bulk`, `calif-pdf`. Fijo: `notify-urgent` la primera, `notify` tras las colas `*-mail`, `notify-bulk` la penúltima y `calif-pdf` la última. `QueueWorkerTest` hoy comprueba que cada cola esté en un proceso, no su orden: se propone fijar estas tres posiciones (`§10`).
 4. **Reintentos**: los que ya tiene el `worker` (3 intentos) con espera creciente para normal y masiva, y espera corta para urgente. Agotados, la entrega queda `fallida` y visible (`§4.9`); se reenvía desde soporte (`REQ-SUP-004`), nunca con `queue:retry` a ciegas.
 5. **Cortacircuitos por canal**: si el proveedor falla de forma repetida, los trabajos se devuelven a la cola con retraso en vez de gastar sus intentos, y se alerta a operación. El aviso en la aplicación no depende de ningún proveedor y sale siempre.
 6. **Idempotencia**: la fila de entrega se crea con una clave única (aviso, destinatario, canal) antes de encolar, y el trabajo solo envía si la entrega sigue pendiente. La cola entrega al menos una vez: se acepta un correo duplicado excepcional antes que uno perdido. El envío masivo acepta clave de idempotencia en su endpoint (`INV-011`).
@@ -482,12 +483,13 @@ No se ha tocado ninguno. Los aplica la sesión orquestadora al integrar.
 | `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md §5.12` y `§5.35` (si el usuario acepta) | Nota en `REQ-COM-003`: la apertura se mide por lectura y acuse (`OPEN-079-07`). Nota en `REQ-PRL`: `REQ-PRL-004` no depende de `COM` para avisar, sino del motor de `REQ-CORE-007` |
 | `PLAN-IMPLEMENTACION.md` | `0.10c`: remitir a `ADR-079 §4.2` y `OPEN-079-01/02`. `1.19`: partir en motor (`REQ-CORE-007`: contrato, aviso en la aplicación, preferencias, traza, eventos del proveedor) y, después, mensajería y circulares; añadir una entrega de *push* (manifiesto, *service worker*, suscripciones). `1.14b-d3`: depende de la entrega del motor, no de todo `1.19` |
 | `ARCHITECTURE.md` | Apartado del motor de notificaciones en `Core`: contrato, tipos declarados por módulo, canales, prioridades y colas |
-| `SYSADMIN.md` | Registros DNS de los subdominios de envío (SPF, DKIM, DMARC) y su comprobación; variables `MAIL_*` del proveedor; colas `notify-urgent`, `notify`, `notify-bulk` y su orden; claves VAPID y su rotación; secreto del endpoint de eventos |
+| `SYSADMIN.md` | Registros DNS de los subdominios de envío (SPF, DKIM, DMARC) y su comprobación; variables `MAIL_*` del proveedor; colas `notify-urgent`, `notify`, `notify-bulk` en el orden único de `§4.8` punto 3; claves VAPID y su rotación; secreto del endpoint de eventos |
 | `RUNBOOK.md` | Proveedor de correo caído; subida de rebotes o quejas; dominio en lista negra; lectura de informes DMARC; reenvío de entregas fallidas |
 | `SECURITY.md` | Endpoint público de eventos del proveedor como **excepción de CSRF y de `AR-07a`** declarada por este ADR (`§4.9` punto 4), en un apartado común de «excepciones de webhooks» junto a la de `ADR-081 §7.4`; `§2.1` deja de decir «primera y única excepción». Regla de datos personales en mensajes (`§4.11`); actualizar la mención de `OPEN-09` (l. 84) |
 | `PRIVACY.md` | Proveedor de correo como subencargado; servicios de *push* de los navegadores; categorías y bases legales (pendientes de `OPEN-079-06`); retención de la traza |
 | `CLAUDE.md §1` | Cuando se implemente: fila «Colas» con las colas nuevas; fila nueva «Notificaciones» (motor en `Core`, SMTP a proveedor de la UE, Web Push) |
-| `.claude/skills/colas-y-workers` | Cuando se implemente: tabla de colas y la regla «un trabajo por entrega» |
+| `.claude/skills/colas-y-workers` | Cuando se implemente: tabla de colas en el orden único de `§4.8` punto 3 y la regla «un trabajo por entrega» |
+| `apps/api/tests/Feature/Core/QueueWorkerTest.php` (lo escribe la entrega que añada las colas) | Fijar en `compose.yaml` y `worker.container` que `notify-urgent` es la primera, `notify-bulk` la penúltima y `calif-pdf` la última |
 | `.claude/skills/datos-personales`, `i18n-cuatro-idiomas` | Regla «avisar y enlazar» y regla de plantillas del centro sin motor de vistas |
 | `README.md`, `CHANGELOG.md`, `memory.md` | Tabla de versiones, entrada de la ola, y `OPEN-09` reformulada en la lista de abiertas |
 | `ADR-077` (rama de A1, no es fichero compartido) | Añadir a su regla de recursos de terceros el proveedor de correo (registros y lista de supresión) y los puntos de entrega de *push* |
