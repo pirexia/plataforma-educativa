@@ -33,17 +33,17 @@
 6. **Caducidad.** Las fuentes se vuelven a comprobar al contratar a un proveedor, al cerrar cada fase y, como máximo, al año de su fecha de consulta.
 7. **Una decisión estructural** que salga de aquí va a un ADR (`docs/adr/`), no se toma en la matriz.
 
-## 4. Estado a 2026-11-12
+## 4. Estado a 2026-11-12 (recuentos alineados el 2026-11-13)
 
 - Normas con el precepto leído en fuente oficial: RGPD (arts. 28, 32.1, 33.1, 35, 44), LOPDGDD (arts. 7, 28.2, 32, 33, 34 y DA 1.ª), LOE DA 23.ª, ENS (arts. 2.3 y 38), NIS2 (arts. 2, 21.2.d, 41 y anexo I §8), Reglamento de Datos (arts. 25, 29, 32.1 y 50).
 - **Sin leer**: las ocho guías de la AEPD (solo se comprobó que existen), las normas ISO, y el estado oficial de la transposición española de NIS2.
 - Evidencias archivadas: **ninguna**.
-- Preguntas: 12 definidas, 1 cerrada, 11 abiertas.
-- Proveedor: propuesto y **condicionado** (`ADR-083`); nada contratado ni probado.
+- Preguntas (alineado el 2026-11-13): 12 definidas; 1 cerrada (`-02`); 5 decididas por el usuario el 2026-11-12 (`-01`, `-04`, `-08`, `-11`, `-12`; `-04` y `-08` con parte pendiente); 6 abiertas (`-03`, `-05`, `-06`, `-07`, `-09`, `-10`). Detalle en [`preguntas-abiertas.md §1`](preguntas-abiertas.md).
+- Proveedor: elegido por el usuario y **condicionado** (`ADR-083 §11`, `OPEN-STO-01`); nada contratado ni probado. `ADR-083` sigue en `PROPUESTA`.
 
 ## 5. Qué va después (propuesta, no decidido)
 
-1. Aceptación o rechazo de `ADR-083` y respuesta a las preguntas que bloquean staging (`OPEN-STO-01`, `-03`, `-08`, `-11`).
+1. Aceptación o rechazo de `ADR-083` y respuesta a `OPEN-STO-03`, la única abierta que bloquea staging (`-01`, `-08` y `-11` están decididas, pendientes de comprobar con el proveedor).
 2. Envío de las peticiones de `ADR-083 §6` al proveedor.
 3. Una persona lee las guías de la AEPD G-02 y G-05 de la matriz; son las que más pueden cambiar las respuestas a `OPEN-STO-05` y `-07`.
 4. Skill `cumplimiento-normativo` que consuma este expediente (decisión del usuario del 2026-11-11, como paso propio del plan). **No se escribe aquí**: `.claude/**` es fichero compartido.

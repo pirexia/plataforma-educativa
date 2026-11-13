@@ -32,7 +32,7 @@
 | `EV-10` | Evaluación de impacto (modelo y adoptadas por cada centro) | Centro, con la plataforma | N-06, N-10, N-16 | — | — | — | — | Pendiente (`OPEN-STO-05`) |
 | `EV-11` | Declaración de ubicación de datos y réplicas, y posición ante requerimientos de terceros países | Proveedor | N-07, N-25 | P-06, P-07 | — | — | — | Pendiente |
 | `EV-12` | Confirmación del cifrado en reposo (activo por defecto, algoritmo, custodia de claves) y comprobación en staging | Proveedor y plataforma | N-04 | P-08 | — | — | — | Pendiente |
-| `EV-13` | Plazos de borrado efectivo del proveedor y política de conservación de la plataforma | Proveedor y plataforma | N-08, N-11 | P-09 | — | — | — | Pendiente (`OPEN-STO-08`) |
+| `EV-13` | Plazos de borrado efectivo del proveedor y política de conservación de la plataforma | Proveedor y plataforma | N-08, N-11 | P-09, P-15, P-16 | — | — | — | Pendiente (`OPEN-STO-08`) |
 | `EV-14` | Condiciones de salida del proveedor y acta del ensayo de salida | Proveedor y plataforma | N-12, N-23, N-24 | P-11 | — | — | — | Pendiente (`OPEN-STO-09`) |
 | `EV-15` | Designación de delegado de protección de datos y su comunicación, si procede | Plataforma | N-13 | — | — | — | — | Pendiente (`OPEN-07`) |
 | `EV-16` | Dictamen sobre la aplicabilidad del ENS y de NIS2 a la plataforma | Asesor | N-14, N-17 | — | — | — | — | Pendiente (`OPEN-STO-04`) |

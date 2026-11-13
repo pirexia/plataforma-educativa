@@ -19,20 +19,20 @@ Con este fichero queda contestada la pregunta 1 de `ADR-076 §10` (dónde se reg
 
 | ID | Tema | Bloquea | Decide | Estado |
 |---|---|---|---|---|
-| `OPEN-STO-01` | Proveedor S3 de producción | Staging y producción | Usuario | Abierta, propuesta en `ADR-083` |
+| `OPEN-STO-01` | Proveedor S3 de producción | Staging y producción | Usuario | **Decidida** (2026-11-12): OVHcloud 3-AZ condicionado a `ADR-083 §6` |
 | `OPEN-STO-02` | Sustituto de MinIO en desarrollo | — | Usuario | **Cerrada** (A: Garage, 2026-11-11, `ADR-076`) |
 | `OPEN-STO-03` | Aislamiento entre centros en el proveedor | Configuración de staging | Usuario (técnica) | Abierta |
-| `OPEN-STO-04` | ENS y NIS2: si aplican y con qué categoría | Datos reales | Legal, después usuario | Abierta [PVJ] |
+| `OPEN-STO-04` | ENS y NIS2: si aplican y con qué categoría | Datos reales | Legal, después usuario | **Decidida** (2026-11-12) en cuanto al método: la responde un asesor externo con encargo cerrado antes del primer dato real (`ADR-083 §11`). **La respuesta jurídica sigue pendiente** [PVJ] |
 | `OPEN-STO-05` | EIPD: si es obligatoria, quién la hace y cuándo | Datos reales | Legal, con cada centro | Abierta [PVJ] |
 | `OPEN-STO-06` | ISO 27001 propia: certificarse o alinearse | No | Negocio | Abierta |
 | `OPEN-STO-07` | Cadena de encargo y DPA | Contratar al proveedor y datos reales | Legal y usuario | Abierta [PVJ] |
-| `OPEN-STO-08` | Conservación, versionado, bloqueo y supresión en el almacén | Configuración de staging y datos reales | Legal (plazos), técnico (mecanismo) | Abierta [PVJ] |
+| `OPEN-STO-08` | Conservación, versionado, bloqueo y supresión en el almacén | Configuración de staging y datos reales | Legal (plazos), técnico (mecanismo) | **Decidida** (2026-11-12) en el mecanismo: dos *buckets* (`ADR-083 §11`). **Plazos pendientes** [PVJ] |
 | `OPEN-STO-09` | Salida del proveedor | Datos reales | Usuario (técnica) | Abierta |
 | `OPEN-STO-10` | Dónde viven las evidencias y quién las custodia | Archivar la primera evidencia | Usuario | Abierta |
-| `OPEN-STO-11` | Cifrado en reposo y custodia de claves | Configuración de staging | Usuario (técnica), con `security-reviewer` | Abierta |
-| `OPEN-STO-12` | Quién hace la validación jurídica y cuándo | Datos reales | Usuario | Abierta |
+| `OPEN-STO-11` | Cifrado en reposo y custodia de claves | Configuración de staging | Usuario (técnica), con `security-reviewer` | **Decidida** (2026-11-12): cifrado en servidor con claves del proveedor (`ADR-083 §11`); pendiente de comprobar con el proveedor |
+| `OPEN-STO-12` | Quién hace la validación jurídica y cuándo | Datos reales | Usuario | **Decidida** (2026-11-12): asesor externo, encargo cerrado antes del primer dato real (`ADR-083 §11`); asesor sin contratar |
 
-**Recuento**: 12 definidas; 1 cerrada; 11 abiertas. **Bloquean staging** (hay que decidirlas para poder configurar el *bucket* real): 4 (`-01`, `-03`, `-08` en su parte técnica, `-11`). **Bloquean la entrada de datos reales**: 7 (`-01`, `-04`, `-05`, `-07`, `-08`, `-09`, `-12`). **No bloquean**: `-06`; `-10` solo bloquea el archivo de evidencias. Ninguna bloquea `S-2` ni el desarrollo con Garage.
+**Recuento** (alineado el 2026-11-13 con las decisiones del usuario del 2026-11-12 que constan en `ADR-083 §11`): 12 definidas; 1 cerrada (`-02`); 5 decididas por el usuario (`-01`, `-04`, `-08`, `-11`, `-12`), de las que `-04` y `-08` conservan una parte pendiente (respuesta jurídica y plazos); 6 abiertas (`-03`, `-05`, `-06`, `-07`, `-09`, `-10`). **Siguen bloqueando staging**: `-03` (abierta) y las comprobaciones con el proveedor de lo decidido en `-01`, `-08` y `-11` (`ADR-083 §6`). **Siguen bloqueando la entrada de datos reales**: `-05`, `-07`, `-09`, la respuesta del asesor a `-04` y los plazos de `-08`, y la contratación del asesor de `-12`. **No bloquean**: `-06`; `-10` solo bloquea el archivo de evidencias. Ninguna bloquea `S-2` ni el desarrollo con Garage.
 
 ## 2. Detalle
 
@@ -42,6 +42,7 @@ Con este fichero queda contestada la pregunta 1 de `ADR-076 §10` (dónde se reg
 - **Opciones y recomendación**: en [`ADR-083`](../adr/ADR-083-proveedor-s3-en-produccion.md). Recomendada: OVHcloud Object Storage Standard 3-AZ, **condicionada** a las confirmaciones por escrito de `ADR-083 §6`.
 - **Impacto**: desbloquea staging (`ADR-080`), la conformidad de `ADR-076 §2.3` y `OPEN-10`. No se puede contratar sin entidad jurídica (`OPEN-07`).
 - **Bloquea**: staging y producción. **Decide**: usuario.
+- **Decidida por el usuario (2026-11-12)**: la recomendación, condicionada a `ADR-083 §6` (`ADR-083 §11`).
 
 ### `OPEN-STO-02` · Sustituto de MinIO en desarrollo, CI y E2E
 
@@ -67,6 +68,7 @@ Con este fichero queda contestada la pregunta 1 de `ADR-076 §10` (dónde se reg
   3. Asumir que aplica y preparar ya la conformidad propia. Coste alto y desproporcionado para un desarrollo en solitario sin centro firmado.
 - **Impacto**: condiciona el criterio «ENS» de `ADR-083` y la venta a centros públicos.
 - **Bloquea**: datos reales. **Decide**: legal; después, usuario.
+- **Decidida por el usuario (2026-11-12)** en cuanto a quién responde: el asesor externo de `OPEN-STO-12`, con la pregunta clave sobre los centros concertados (`ADR-083 §11`). La respuesta sigue pendiente.
 
 ### `OPEN-STO-05` · EIPD
 
@@ -108,6 +110,8 @@ Con este fichero queda contestada la pregunta 1 de `ADR-076 §10` (dónde se reg
   3. Sin versionado ni Object Lock en datos; solo copias externas. Menos protección ante borrado accidental o malicioso; incumpliría la copia inmutable si tampoco la hay en copias.
 - **Lo que falta**: la tabla de plazos por tipo de objeto es de `REQ-PRIV-006` (catálogo de retención) y no existe todavía. Este expediente no la inventa.
 - **Bloquea**: configuración de staging (mecanismo) y datos reales (plazos). **Decide**: legal los plazos; técnico el mecanismo. Coordinar con `ADR-077` y `OPEN-10`.
+- **Decidida por el usuario (2026-11-12)** en el mecanismo: opción 1 (`ADR-083 §11`). Los plazos siguen abiertos.
+- **Dependencias** (anotadas el 2026-11-13, revisión C1, `C1-07`): los plazos de esta pregunta dependen de **`OPEN-PURGA-03`** (`ADR-077 §5.10`: tope de retención de toda copia con datos personales, propuesto en 90 días sin respaldo en requisitos) y chocan con la retención escalonada de **`REQ-BKP-001`**, que incluye copias **«anuales»**: o se acotan por ese tope o necesitan justificación jurídica. La retención de Object Lock del *bucket* de copias no puede superar ese tope (`ADR-083 §6`, P-16).
 
 ### `OPEN-STO-09` · Salida del proveedor
 
@@ -138,6 +142,7 @@ Con este fichero queda contestada la pregunta 1 de `ADR-076 §10` (dónde se reg
   3. Cifrado en la aplicación antes de subir. Máxima independencia del proveedor; obliga a que toda descarga pase por la API (adiós a la URL firmada directa, `ADR-013`) y a diseñar la gestión de claves. Es un ADR propio.
 - **Recomendación**: 1 ahora; 3 solo para los objetos de categoría especial si la EIPD lo pide. Comprobar en staging que el cifrado por defecto está activo (`ADR-076 §2.3`: Garage no lo prueba).
 - **Bloquea**: configuración de staging. **Decide**: usuario, con `security-reviewer`.
+- **Decidida por el usuario (2026-11-12)**: opción 1 (`ADR-083 §11`); comprobar en staging que está activo.
 
 ### `OPEN-STO-12` · Validación jurídica del expediente *(asignación de este documento)*
 
@@ -148,6 +153,7 @@ Con este fichero queda contestada la pregunta 1 de `ADR-076 §10` (dónde se reg
   2. Validar solo con las guías de la AEPD, sin asesor. Coste nulo; nadie con responsabilidad profesional firma la lectura. No recomendable con categorías especiales.
   3. Delegarlo en el delegado de protección de datos del primer centro. Sirve para el tratamiento del centro, no para las obligaciones propias de la plataforma como encargada.
 - **Bloquea**: datos reales. **Decide**: usuario. Hasta entonces, **ningún documento del proyecto afirma cumplimiento**.
+- **Decidida por el usuario (2026-11-12)**: opción 1 (`ADR-083 §11`). Asesor sin contratar a 2026-11-13.
 
 ## 3. Relación con preguntas ya existentes
 

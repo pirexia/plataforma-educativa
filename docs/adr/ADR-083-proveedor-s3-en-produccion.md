@@ -85,7 +85,7 @@ Excluida por `ADR-076 §2.2` salvo ADR nuevo: un nodo único no da durabilidad y
 2. **Condicionada**: la decisión solo es firme cuando OVHcloud confirme **por escrito** los puntos de `§6` marcados como condición. Si falla alguno, se aplica `§5`.
 3. **Scaleway Multi-AZ queda como alternativa preparada**, no contratada: es el destino del ensayo de salida (`OPEN-STO-09`) y el candidato natural para `OPEN-10`, que este ADR **no** decide.
 4. **Staging y producción usan el mismo proveedor y la misma clase**, con *buckets* y claves distintos. Probar en staging contra un servicio distinto del de producción vaciaría de sentido `ADR-076 §2.3`.
-5. La configuración concreta del *bucket* (aislamiento, versionado y retención, cifrado) no la fija este ADR: son `OPEN-STO-03`, `-08` y `-11`, cada una con su recomendación en el [expediente](../cumplimiento/preguntas-abiertas.md).
+5. La configuración concreta del *bucket* no la fija el texto original de este ADR, sino tres preguntas del [expediente](../cumplimiento/preguntas-abiertas.md). Estado a 2026-11-13: **`OPEN-STO-08` y `-11` decididas por el usuario el 2026-11-12** (`§11`: dos *buckets*, datos vivos con versionado de caducidad corta y sin Object Lock, y copias con Object Lock; cifrado en servidor con claves del proveedor), pendientes de comprobar con el proveedor (`§6`). **`OPEN-STO-03`** (aislamiento entre centros) **sigue abierta**. Los plazos concretos de caducidad y retención tampoco están fijados (`OPEN-STO-08`, `OPEN-PURGA-03`).
 
 ## 5 · Qué pasa si una condición falla
 
@@ -117,6 +117,8 @@ Las respuestas son evidencias: se archivan **fuera de Git** y se anotan en el [�
 | P-12 | Precio vigente con y sin IVA, tramos y precio de la réplica externa | No | `EV-19` |
 | P-13 | Si admite políticas de acceso por prefijo y varias claves por *bucket* | No (alimenta `OPEN-STO-03`) | `EV-20` |
 | P-14 | Regiones 3-AZ disponibles además de París | No | `EV-19` |
+| P-15 | En un *bucket* con versionado: listado y borrado de **todas las versiones y marcadores de borrado** bajo un prefijo, y listado y **aborto de subidas multiparte incompletas** por prefijo. Lo exige la purga de un centro (`ADR-077 §5.6`) | **Sí** (propuesta, `C1-07`; confirma el usuario) | `EV-13` |
+| P-16 | Que la retención de Object Lock sea **configurable por *bucket* con un plazo inferior** al tope de retención de copias con datos personales de `ADR-077 §5.10` (`OPEN-PURGA-03`), y en qué modos (gobierno o cumplimiento) | **Sí** (propuesta, `C1-07`; confirma el usuario) | `EV-13` |
 
 A Scaleway, como alternativa: las mismas P-01 (¿está Object Storage en el alcance ISO y se ha renovado el certificado que caduca el 05/12/2026?), P-04, P-05 y el precio del tráfico de salida.
 
@@ -172,10 +174,12 @@ Volver atrás o cambiar a otra opción: (1) crear *bucket* y clave en el nuevo p
 
 **Decididas por el usuario (2026-11-12), según la recomendación**: `OPEN-STO-08` y `-11` (dos buckets: datos vivos con versionado de caducidad corta y sin Object Lock, y copias con Object Lock; cifrado en servidor con claves del proveedor). Pendientes de comprobar con el proveedor (`§6`) antes de contratar.
 
+**Añadido el 2026-11-13** (revisión C1, hallazgo `C1-07`), después de la decisión anterior: P-15 y P-16 de `§6`, que trasladan al proveedor los requisitos de `ADR-077 §5.6`. Se proponen como condición; **confirmar que entran en la condición de `OPEN-STO-01` es del usuario**.
+
 Las de cumplimiento están en [`preguntas-abiertas.md`](../cumplimiento/preguntas-abiertas.md). Las propias de este ADR:
 
 | ID | Pregunta | Recomendada | Bloquea |
 |---|---|---|---|
-| `OPEN-STO-01` | ¿Se acepta OVHcloud 3-AZ condicionado a `§6`? | **Sí**, y enviar ya las peticiones P-01 a P-14 | Staging |
+| `OPEN-STO-01` | ¿Se acepta OVHcloud 3-AZ condicionado a `§6`? | **Decidida (2026-11-12)**: sí, condicionada a P-01 a P-14 (P-15 y P-16, propuestas el 2026-11-13, pendientes de confirmar como condición) | Staging, hasta tener las respuestas |
 | `OPEN-083-01` | ¿Quién envía las peticiones de `§6` y con qué identidad, si `OPEN-07` sigue abierta? | **El usuario, como consulta precontractual**: no exige entidad constituida y adelanta semanas. Alternativas: esperar a `OPEN-07`; o abrir una cuenta de prueba personal sin datos reales solo para el test de conformidad | No (pero retrasa `§4.2`) |
 | `OPEN-083-02` | ¿Se abre ya una cuenta de prueba, **solo con datos sintéticos**, para ejecutar el test de conformidad de `ADR-076 §5` contra el proveedor? | **Sí**, tras aceptar este ADR y dentro de `ADR-080`: es la única forma de convertir en hecho lo que `§9` deja como expectativa. Alternativas: esperar a tener staging completo; o no probar hasta producción (descartable) | Staging |
