@@ -4,7 +4,7 @@
 **Fecha**: 2026-11-12
 **Origen**: el servicio de PDF está «pendiente a propósito» desde `PLAN 0.3` («motor sin decidir, ver 1.17») y bloquea `1.17` (boletines), la exportación PDF de `REQ-CORE-005` (`docs/modulos/REQ-CORE/funcional.md §4.6`), `OPEN-ACAD-38` (horarios) y `OPEN-ALUM-15` (listados).
 **Afecta a** (cuando se implemente; este ADR no toca nada de ello): `compose.yaml`, `infra/` (imagen y unidad Quadlet nuevas), `apps/api/app/Support/` (contrato nuevo), `apps/api/config/`, CI, y la documentación de `§12`.
-**Concreta sin sustituir**: `ADR-010` («servicio contenerizado de generación de PDF») y la fila «PDF» de `CLAUDE.md §1`.
+**Concreta sin sustituir**: `ADR-007` (stack: «servicio contenerizado de generación de PDF») y la fila «PDF» de `CLAUDE.md §1`.
 **No sustituye ningún ADR.** Si el usuario eligiera la opción C (Typst), habría que enmendar la fila «PDF» de `CLAUDE.md §1` (dice «HTML→PDF»): ver `OPEN-PDF-01`.
 **Se apoya en**: `INV-001`, `INV-003`, `INV-007`, `INV-009`, `INV-012`, `RNF-MANT-007`, `RNF-COMP-004` (PDF/A para documentos con valor archivístico), `RNF-UX-002` (WCAG 2.2 AA y EN 301 549), `ADR-012` (firma por prestador cualificado, sin criptografía propia), `ADR-021` (idiomas), `ADR-028` (red), `ADR-030` (perfil reducido), `ADR-076` (almacén de objetos), `CLAUDE.md §8` y `§9`.
 **Depende de**: `ADR-082` (firma digital), **que no existe todavía** (rama `chore/adr-082-firma-digital-y-apoderado` sin el fichero a 2026-11-12). `§8` fija solo la frontera entre ambos; lo demás queda en `OPEN-PDF-05`.
@@ -99,7 +99,7 @@ Datos de mantenimiento, licencia y lanzamientos consultados el **2026-11-12** co
 | PDF/A y PDF/UA | Reparación posterior, motor `v0.0.x` | Nativos | Nativos |
 | Velocidad en lote | Buena (sin medir) | **Riesgo** (sin medir) | Muy buena (sin medir) |
 | Coste de revertir | Bajo (a B) | Bajo (a A) | Alto |
-| Encaja con `ADR-010` y `CLAUDE.md §1` | Sí | Sí | No sin enmienda |
+| Encaja con `ADR-007` y `CLAUDE.md §1` | Sí | Sí | No sin enmienda |
 
 ---
 
@@ -122,8 +122,8 @@ Opciones reales de empaquetado para B:
 
 | Opción | Ventaja | Riesgo | Veredicto |
 |---|---|---|---|
-| **B1 · Servicio `pdf` propio**: imagen construida en `infra/containers/pdf/`, envoltorio HTTP mínimo | Aislado de la aplicación: sin credenciales, sin red de salida, límites propios. Cumple `ADR-010` | Código Python propio (objetivo: un fichero, solo biblioteca estándar más WeasyPrint) | **Recomendada** |
-| B2 · WeasyPrint dentro de la imagen de `worker`, invocado por CLI | Sin servicio ni envoltorio | El maquetador correría con las credenciales de base de datos y de S3 y con la red del *worker*: un fallo de lectura de ficheros o de SSRF sería grave. Contradice `ADR-010` (servicio contenerizado). Mezcla Python en la imagen PHP | Descartada por seguridad |
+| **B1 · Servicio `pdf` propio**: imagen construida en `infra/containers/pdf/`, envoltorio HTTP mínimo | Aislado de la aplicación: sin credenciales, sin red de salida, límites propios. Cumple `ADR-007` | Código Python propio (objetivo: un fichero de aplicación WSGI sobre WeasyPrint y un servidor WSGI mínimo, `§3.2.1`) | **Recomendada** |
+| B2 · WeasyPrint dentro de la imagen de `worker`, invocado por CLI | Sin servicio ni envoltorio | El maquetador correría con las credenciales de base de datos y de S3 y con la red del *worker*: un fallo de lectura de ficheros o de SSRF sería grave. Contradice `ADR-007` (servicio contenerizado). Mezcla Python en la imagen PHP | Descartada por seguridad |
 | B3 · Imagen de terceros con WeasyPrint | Sin código propio | La documentación oficial solo cita imágenes de un particular; dependencia sin garantías | Descartada |
 
 Contrato del servicio (se concreta en la especificación de la entrega, no aquí):
@@ -132,6 +132,29 @@ Contrato del servicio (se concreta en la especificación de la entrega, no aquí
 - `GET /healthz`.
 - Sin estado, sin disco persistente, sin caché entre peticiones (`INV-001`: nada de un centro sobrevive a su petición).
 - Imagen fijada por versión **y digest**, dependencias de Python con *hashes*, fuentes dentro de la imagen (`§7.4`). Renovate la sigue como al resto.
+
+#### 3.2.1 Servidor WSGI del envoltorio (decidido por el usuario el 2026-11-13, revisión C2-11)
+
+El envoltorio es una aplicación WSGI de un fichero; quien escucha en el puerto, limita, mata y recicla es un **servidor WSGI mínimo, dependencia justificada** según `CLAUDE.md §1`. El código propio no reimplementa ninguno de esos controles. La dependencia queda envuelta tras la interfaz propia del servicio: el contrato HTTP de `§3.2` (`POST /render`, `GET /healthz`) y, del lado de la aplicación, `PdfRenderer` (`§4`). Cambiar de servidor no toca ningún módulo ni el adaptador PHP.
+
+**Descartado `http.server` de la biblioteca estándar**: su documentación oficial dice «`http.server` is not recommended for production. It only implements basic security checks» (`docs.python.org/3/library/http.server.html`, consultado el 2026-11-13). Además obligaría a escribir a mano el tiempo máximo, la muerte del proceso y el reciclado.
+
+Opciones reales (datos de la API de GitHub y de la documentación de cada proyecto, consultados el **2026-11-13**; la versión concreta **no se fija aquí**, la fija la entrega y la sigue Renovate):
+
+| | **Gunicorn** (`benoitc/gunicorn`) | Waitress (`Pylons/waitress`) | Granian (`emmett-framework/granian`) |
+|---|---|---|---|
+| Licencia | MIT (fichero `LICENSE` del repositorio; la API de GitHub no la clasifica: `NOASSERTION`) | ZPL 2.1 (fichero `LICENSE.txt`) | BSD-3-Clause |
+| Lanzamientos | 25.3.0 (2026-03), 26.0.0 (2026-05), 26.1.0 y 26.2.x (2026-08/09), 27.0.0 (2026-11-10) y 27.0.1 (2026-11-12) | Última 3.0.2 (2024-11-16); ninguna en casi dos años | 2.8.x, de una a tres al mes (2.8.8 el 2026-11-11) |
+| Actividad | ≥ 100 commits desde 2026-08-13 (tope de la consulta) | 8 commits desde 2026-08-13 | 51 commits desde 2026-08-13 |
+| Muerte por tiempo | `timeout`: el maestro mata y rehace al *worker* silencioso; con *workers* `sync` acota la duración de cada petición | No mata la petición (hilos) | `workers-kill-timeout` es para el apagado, no por petición (README) |
+| Reciclado | `max_requests` + `max_requests_jitter` | No | `workers-lifetime` (por tiempo, ≥ 60 s) y `workers-max-rss` |
+| Límite de tamaño | Solo línea y cabeceras (`limit_request_line`, `limit_request_fields`, `limit_request_field_size`); **no hay límite del cuerpo** | `max_request_body_size` (sin verificar en la documentación de la versión vigente) | Sin verificar |
+
+**Recomendación: Gunicorn con *workers* `sync`**. Es el único de los tres que da de serie la muerte por tiempo de un render y el reciclado por número de renders, que son los dos controles del riesgo que la documentación de WeasyPrint reconoce (render largo o bucle, memoria que crece). Waitress publica poco y no mata ni recicla; Granian se descarta por no matar por petición. Configuración que la entrega concreta (valores propuestos, a ajustar con la medida de `§5.4`): `workers` 2 (la concurrencia fija de `§5.3`), `timeout` 60 (el umbral de `OPEN-PDF-04`), `max_requests` con *jitter* para reciclar cada N renders, `preload_app` para importar WeasyPrint una vez antes de crear los procesos, y los tres `limit_request_*`.
+
+**Lo que no cumple sin código propio, dicho sin suavizar**: Gunicorn no limita el tamaño del cuerpo (referencia de opciones, `docs/content/reference/settings.md` del repositorio, consultada el 2026-11-13). El límite de tamaño queda en dos sitios: (a) `HttpPdfRenderer` rechaza antes de enviar un documento por encima del máximo (lado PHP, es donde se monta la petición), y (b) el envoltorio responde `413` si `Content-Length` falta o supera el máximo, **antes de leer el cuerpo**. Es una comprobación de una línea, la única que se escribe a mano; la segunda barrera es el límite de memoria del contenedor (`§6.2`, nº 5). Si se quisiera cero código propio en este punto, la alternativa es un proxy delante del servicio, que es una pieza más: no compensa.
+
+**Sin verificar**: compatibilidad de Gunicorn 27 con la versión de Python de la imagen y cambios incompatibles entre 26 y 27 (la 27.0.0 tiene tres días a 2026-11-13); concentración de mantenedores de Gunicorn; el valor por defecto y la semántica exacta de `max_request_body_size` de Waitress y si Granian tiene un límite de cuerpo.
 
 ### 3.3 Regla de plantillas (la que hace reversible la decisión)
 
@@ -198,15 +221,20 @@ Opciones reales:
 
 **Recomendación: Q1**, y pasar a Q2 solo con la medida de `§5.4` en la mano (`OPEN-PDF-09`). La cola nueva se añade a la orden del `worker` en `compose.yaml` y en `infra/quadlet/worker.container` y a `core:queue-health`; `QueueWorkerTest` lo exige.
 
-En el servicio `pdf`: concurrencia pequeña y fija (propuesta: 2 renders simultáneos), un proceso por render que se recicla, y respuesta `503` inmediata si está ocupado, que el trabajo trata como `PdfRendererUnavailable` y reintenta con espera.
+**Q1 procesa en serie** (revisión C2-10): con un solo proceso `worker`, el lote llega al servicio de documento en documento; la concurrencia 2 del servicio solo se usa con Q2. Por eso `§5.4` mide la configuración Q1 real y, aparte, Q2.
+
+**Convivencia con el aviso urgente** (revisión C2-09, en coherencia con `ADR-079 §4.8`): con colas por prioridad, un trabajo de `notify-urgent` espera como mucho a que acabe el documento en curso, y un documento puede tardar hasta 60 s (`OPEN-PDF-04`). El objetivo de `OPEN-079-05` (percentil 95 por debajo de 60 s) **no es garantizable** con el lote en marcha sin medirlo. Regla: la medición de `§5.4` incluye la espera de `notify-urgent` con el lote en curso; si no cumple el objetivo, el primer consumidor de PDF en lote (`1.17`) es disparador de `worker-urgent` (`ADR-079 §4.8`, tercer disparador).
+
+En el servicio `pdf`: concurrencia pequeña y fija (propuesta: 2 renders simultáneos), con **procesos prearrancados que importan WeasyPrint una vez y se reciclan cada N renders** (`max_requests` de `§3.2.1`), no un proceso por render: importar WeasyPrint por documento no cabe en el presupuesto de ~1,5 s por documento que implican 1.200 boletines en 30 min (revisión C2-10). Si los dos procesos están ocupados, la petición espera en la cola de conexiones del servidor; el tiempo máximo del cliente HTTP en `HttpPdfRenderer` la acota y su vencimiento es `PdfRendererUnavailable`, que el trabajo reintenta con espera.
 
 ### 5.4 Prueba de aceptación del motor (condición de la decisión)
 
 La velocidad de WeasyPrint **no está medida** y es el riesgo que puede tumbar la opción B. Antes de construir nada sobre el motor, el primer tramo de la entrega mide, con datos de `REQ-SEED`:
 
-1. 1.200 boletines de una o dos páginas, en serie y con concurrencia 2: tiempo total, tiempo por documento (mediana y percentil 95) y memoria máxima del servicio.
+1. 1.200 boletines de una o dos páginas **con la configuración Q1 real** (un proceso `worker` consumiendo la cola, servicio con procesos prearrancados y reciclado de `§3.2.1`): tiempo total, tiempo por documento (mediana y percentil 95) y memoria máxima del servicio. **Aparte**, la misma carga con Q2 (dos consumidores), solo para saber qué se gana si Q1 no cumple.
 2. Un listado de 1.200 filas en una sola tabla de varias páginas: tiempo y memoria.
 3. Consumo en reposo del contenedor.
+4. **Espera de `notify-urgent` con el lote en marcha**: se encolan avisos urgentes durante el lote y se mide del encolado al inicio del trabajo (percentil 95), contra el objetivo de `OPEN-079-05` (`§5.3`).
 
 Umbrales **propuestos** (no salen de ningún requisito; los fija el usuario, `OPEN-PDF-04`): lote de 1.200 boletines en ≤ 30 min con un solo `worker`; ningún documento individual por encima de 60 s; memoria del servicio ≤ 512 MB. Si no se cumplen ni ajustando la plantilla (bloques en vez de tablas, que es lo que recomienda la documentación), **se cambia a la opción A antes de escribir más plantillas**, no después.
 
@@ -223,14 +251,14 @@ El HTML mezcla tres orígenes: plantilla del proyecto (confiable), datos de pers
 | # | Control | Cierra |
 |---|---|---|
 | 1 | **El servicio no carga nada que no venga en la petición.** El `url_fetcher` se sustituye por uno que resuelve solo los nombres de recurso recibidos y rechaza todo lo demás (`http`, `https`, `ftp`, `file`, redirecciones). Un recurso ausente es un error, no una descarga | SSRF, lectura de ficheros |
-| 2 | **Sin red de salida.** El contenedor `pdf` vive en una red interna sin puerta de enlace y no publica puerto; solo lo alcanzan `api` y `worker`. Es el control principal; el nº 1 es la segunda barrera. Encaje con `ADR-028` (red externa, sin IP a mano) y con `ADR-080`: `§12` | SSRF aunque falle el nº 1 |
+| 2 | **Sin red de salida.** El contenedor `pdf` vive en una red interna sin puerta de enlace y no publica puerto; **solo lo alcanza `worker`** (y `worker-pdf` si se pasa a Q2): `api` no se une a esa red porque ningún PDF se genera en la petición (`§5.1`; revisión C2-13). Es el control principal; el nº 1 es la segunda barrera. Encaje con `ADR-028` (red externa, sin IP a mano) y con `ADR-080`: `§12` | SSRF aunque falle el nº 1 |
 | 3 | **Sin secretos.** Ni variables de base de datos, ni de S3, ni clave de aplicación. No monta volúmenes | Robo de credenciales |
 | 4 | **Contenedor mínimo**: usuario sin privilegios, sistema de ficheros de solo lectura con `tmpfs`, todas las *capabilities* retiradas, `no-new-privileges`, SELinux en `enforcing` | Escalada |
-| 5 | **Límites**: tamaño máximo de petición, tiempo máximo por render con muerte del proceso, límite de memoria del contenedor, reciclado de procesos | Render infinito, valores CSS enormes (riesgos que la documentación oficial reconoce) |
+| 5 | **Límites**: tamaño máximo de petición, tiempo máximo por render con muerte del proceso, límite de memoria del contenedor, reciclado de procesos. Los da el servidor WSGI y el contenedor (`§3.2.1`), salvo el tamaño del cuerpo, que se comprueba en `HttpPdfRenderer` y con `Content-Length` en el envoltorio | Render infinito, valores CSS enormes (riesgos que la documentación oficial reconoce) |
 | 6 | **Sin estado entre peticiones**: nada en disco ni en memoria sobrevive a un render | Fuga entre centros (`INV-001`) |
 | 7 | **Registros sin contenido**: solo identificador de petición, tamaño, páginas, duración y código de error. Nunca HTML, nombres ni rutas de recursos | Datos de menores en registros |
 | 8 | **Escapado en origen**: todo dato va por la salida escapada de Blade; la salida sin escapar queda prohibida en plantillas de PDF salvo sobre contenido generado por el propio servidor. El texto configurable del centro se trata como texto plano (precedente `ADR-070`) hasta que `OPEN-PDF-07` diga otra cosa | Inyección de marcado |
-| 9 | **Versión mínima 70.0** (CVE-2026-55073: imágenes EPS y sustitución del `url_fetcher`) y escaneo de dependencias de la imagen en cada PR (`CLAUDE.md §8`) | Fallos conocidos, cadena de suministro |
+| 9 | **Versión mínima 70.0** (CVE-2026-55073: imágenes EPS y sustitución del `url_fetcher`) y escaneo de dependencias de la imagen en cada PR (`CLAUDE.md §8`): Trivy de `.github/workflows/dependency-scan.yml` se extiende a `infra/containers/pdf/` (requisitos con *hashes* e imagen construida), sin herramienta nueva (`§12`) | Fallos conocidos, cadena de suministro |
 | 10 | **Descarga**: el PDF sale siempre por URL firmada de caducidad corta, tras comprobar permiso en el *endpoint*; la lectura de documentos con datos de categoría especial se audita (skill `auditoria`) | `INV-002`, `INV-003`, `CLAUDE.md §8` |
 
 **No se añade autenticación entre `worker` y `pdf`** (ni *token* ni mTLS): en una red interna sin salida, quien alcanza el servicio ya es un contenedor propio, y un secreto más es otra pieza que rotar. Si `ADR-080` cambiara el modelo de red (p. ej. un servicio compartido entre entornos), esta decisión se revisa.
@@ -315,7 +343,7 @@ Consecuencia para el plan: `1.17` puede entregar boletines **sin firma electrón
 ### 9.1 Consecuencias
 
 - **Un servicio nuevo** (`pdf`) en `compose.yaml` (perfil `full`, no en el reducido de `ADR-030`) y una unidad Quadlet, con `Wants=` + `After=` desde `worker` y nunca `Requires=` (`ADR-028`): si `pdf` cae, el `worker` sigue y los trabajos de PDF reintentan.
-- **Python entra en el repositorio**, confinado a `infra/containers/pdf/`: un envoltorio de un fichero y su `Containerfile`. No entra en `apps/`. Necesita su propia comprobación en CI (construcción de la imagen y test de conformidad); no se añade una cadena de herramientas de Python más allá de eso.
+- **Python entra en el repositorio**, confinado a `infra/containers/pdf/`: un envoltorio de un fichero, su `Containerfile` y sus requisitos con *hashes* (WeasyPrint y el servidor WSGI de `§3.2.1`, dependencia justificada). No entra en `apps/`. Necesita su propia comprobación en CI (construcción de la imagen y test de conformidad); no se añade una cadena de herramientas de Python más allá de eso.
 - **Ninguna dependencia nueva en `composer.json` ni en `package.json`.**
 - **Las plantillas de PDF son Blade propias**, no componentes de la SPA: la fila de `ARCHITECTURE.md` que dice «reutilizando el design system» pasa a significar reutilizar los *tokens* (colores, escala) en una hoja de impresión, no los componentes Vue (`§12`).
 - **Entrega propia antes de `1.17`**, de infraestructura, dimensionada para ≤ 3 tramos (`CLAUDE.md §2`, punto 7): (1) imagen, envoltorio y prueba de `§5.4`; (2) contrato, adaptador, doble de pruebas, cola y test de conformidad; (3) hoja base de impresión, plantilla de referencia en cuatro idiomas y documentación. Paso **crítico** a efectos de revisión (servicio nuevo que procesa datos de menores): `security-reviewer` tras Codex.
@@ -349,18 +377,22 @@ Consecuencia para el plan: `1.17` puede entregar boletines **sin firma electrón
 | **Gotenberg con Chromium** (opción A) | No se descarta: es la vuelta atrás. No es la primera opción por la superficie de un navegador con datos de menores, por el ritmo de parches y porque la serie 9 (2026-11-05) apoya la conformidad PDF/A y PDF/UA en un motor propio en `v0.0.10` |
 | **Typst** (opción C) | Técnicamente el mejor motor de los tres, pero sale del HTML: reversión cara, 0.x, y contradice `CLAUDE.md §1`. Reconsiderable cuando llegue a 1.0, con ADR nuevo |
 | **Servicio propio con Playwright o Puppeteer** | Es reimplementar Gotenberg a mano: más código propio que B y la misma superficie que A |
-| **dompdf o mPDF dentro del proceso PHP** | Contradicen `ADR-010` (servicio contenerizado); el render correría con las credenciales del `worker`. dompdf es LGPL-2.1 con soporte CSS limitado y sin PDF/UA (sin verificar al detalle); mPDF es GPL-2.0 y su última publicación en GitHub Releases es de 2022 (puede publicar solo por etiquetas: sin verificar) |
+| **dompdf o mPDF dentro del proceso PHP** | Contradicen `ADR-007` (servicio contenerizado); el render correría con las credenciales del `worker`. dompdf es LGPL-2.1 con soporte CSS limitado y sin PDF/UA (sin verificar al detalle); mPDF es GPL-2.0 y su última publicación en GitHub Releases es de 2022 (puede publicar solo por etiquetas: sin verificar) |
 | **wkhtmltopdf** | Repositorio archivado; última versión de 2020 |
 | **Motores comerciales (Prince, PDFreactor)** | Calidad y conformidad muy altas, pero licencia de pago por servidor (precios sin verificar) y dependencia de un proveedor. La interfaz de `§4` permite adoptarlos si un cliente lo exigiera |
 | **PDF generado en el navegador del usuario (hoja de impresión)** | Ya descartado en `OPEN-ACAD-38` (opción B): no es un documento emitido, no es PDF/A ni reproducible, y viola `INV-006` al dejar la lógica en la interfaz |
 | **Firmar con el motor interno de Gotenberg 9** | `ADR-012`: sin criptografía ni custodia de claves propias |
 | **WeasyPrint dentro de la imagen del `worker`** | `§3.2`, opción B2 |
+| **Envoltorio sobre `http.server` de la biblioteca estándar** | Su documentación lo desaconseja en producción y obligaría a escribir a mano tiempo máximo, muerte del proceso y reciclado (`§3.2.1`; decidido por el usuario el 2026-11-13) |
+| **Waitress o Granian como servidor WSGI** | Waitress: sin lanzamientos desde 2024-11 y sin muerte ni reciclado por petición. Granian: no mata por petición (`§3.2.1`) |
 
 ---
 
 ## 11 · Preguntas abiertas
 
 **Decididas por el usuario (2026-11-12)**: `OPEN-PDF-01` (motor: WeasyPrint, con Gotenberg como vuelta atrás) y `OPEN-PDF-02` (se acepta el envoltorio propio mínimo en Python, un endpoint y un fichero, en `infra/containers/pdf/`), ambas según la recomendación de este ADR. La prueba de rendimiento de `§5.4` sigue siendo condición del primer tramo: si no se cumple, rige la vuelta atrás. El ADR sigue en `PROPUESTA` mientras queden abiertas `OPEN-PDF-03` y `-04`, que también bloquean. Las filas siguientes conservan el razonamiento original.
+
+**Decidida por el usuario (2026-11-13), revisión C2-11**: el envoltorio corre sobre un servidor WSGI mínimo como dependencia justificada (`CLAUDE.md §1`), envuelto tras la interfaz propia del servicio, con límites de tamaño, muerte por tiempo y reciclado del servidor y no escritos a mano; descartado `http.server`. La elección concreta (Gunicorn, recomendada) y sus datos están en `§3.2.1`.
 
 **Decididas por el usuario (2026-11-12), según la recomendación**: `OPEN-PDF-04` (umbrales de la prueba de aceptación previa a escribir plantillas: 1.200 boletines en 30 minutos o menos con un worker, ningún documento por encima de 60 s y servicio de 512 MB o menos; si no se cumplen, rige la vuelta atrás a Gotenberg con las mismas plantillas).
 
@@ -396,11 +428,12 @@ No se ha tocado ninguno. Los aplica la sesión orquestadora al integrar, y solo 
 
 | Fichero | Cambio propuesto |
 |---|---|
-| `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` §18 (índice) | Fila `ADR-078`: «Motor de renderizado PDF: WeasyPrint en servicio propio mínimo tras `PdfRenderer`; plantillas HTML y CSS sin JavaScript ni recursos externos; un trabajo por documento en cola; PDF etiquetado, PDF/A para documentos emitidos; el motor no firma (`ADR-082`). Concreta `ADR-010`. **Estado: `PROPUESTA`**». Entrada en el historial de versiones |
+| `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` §18 (índice) | Fila `ADR-078`: «Motor de renderizado PDF: WeasyPrint en servicio propio mínimo tras `PdfRenderer`; plantillas HTML y CSS sin JavaScript ni recursos externos; un trabajo por documento en cola; PDF etiquetado, PDF/A para documentos emitidos; el motor no firma (`ADR-082`). Concreta `ADR-007`. **Estado: `PROPUESTA`**». Entrada en el historial de versiones |
 | `CLAUDE.md §1`, fila «PDF» | Al aceptar: «**Elegido y no instalado**: WeasyPrint en servicio propio (`ADR-078`); plantillas sin JavaScript ni recursos externos», con el issue que lo siga. Hasta que exista el servicio, la fila debe seguir diciendo que no está instalado |
 | `PLAN-IMPLEMENTACION.md` | (a) Paso nuevo de infraestructura **antes de `1.17`**, «Servicio de PDF (`ADR-078`)», en tres tramos (`§9.1`), marcado crítico; el número lo asigna la orquestadora. (b) En `1.17`: «motor según `ADR-078`; firma electrónica según `ADR-082`, no incluida si no está aceptado». (c) En `0.3`: sustituir «motor sin decidir, ver 1.17» por la referencia a `ADR-078` |
 | `ARCHITECTURE.md` | Línea 34: «Plantillas HTML propias con los *tokens* del design system, sin JavaScript (`ADR-078`)». Tablas de dimensionado (líneas ~331-362): las cifras del servicio PDF (≈1 GB en picos, 4 GB por nodo) son previas a la decisión; sustituirlas por lo medido en `§5.4`. Añadir `App\Support\Pdf` a la lista de contratos transversales y la red interna del servicio al diagrama |
 | `SYSADMIN.md` | Línea 87: retirar «no está definido todavía»; documentar el servicio `pdf` (perfil `full`, límites, sin red de salida, sin secretos), la cola nueva y cómo actualizar la imagen por digest |
+| `.github/workflows/dependency-scan.yml` | Trivy cubre ya el repositorio entero (`scan-type: fs`, `scan-ref: "."`, comprobado el 2026-11-13), así que los requisitos de `infra/containers/pdf/` entran solos al existir; falta añadir el escaneo de la **imagen** `pdf` construida (mismo Trivy, `scan-type: image`). Sin herramienta nueva (revisión C2-14) |
 | `RUNBOOK.md` | Entradas nuevas: «el servicio `pdf` no responde» (los trabajos reintentan; qué mirar) y «un lote de boletines va lento» |
 | `README.md`, `CHANGELOG.md`, `memory.md` | Lo habitual al cerrar la entrega; nada antes |
 | `docs/modulos/REQ-CORE/funcional.md §4.6`, `REQ-ACAD` (`OPEN-ACAD-38`), `REQ-ALUM` (`OPEN-ALUM-15`) | No son ficheros compartidos del guion, pero tampoco de este encargo: donde dicen «motor sin decidir», referenciar `ADR-078` cuando se acepte |
@@ -413,7 +446,7 @@ No se ha tocado ninguno. Los aplica la sesión orquestadora al integrar, y solo 
 
 ## 13 · Fuentes y lo no verificado
 
-### 13.1 Fuentes (todas consultadas el 2026-11-12)
+### 13.1 Fuentes (consultadas el 2026-11-12 salvo las marcadas 2026-11-13)
 
 | Dato | Fuente |
 |---|---|
@@ -427,6 +460,11 @@ No se ha tocado ninguno. Los aplica la sesión orquestadora al integrar, y solo 
 | WeasyPrint: riesgos de seguridad y mitigaciones, ausencia de imagen oficial, Pango ≥ 1.44 | `https://doc.courtbouillon.org/weasyprint/stable/first_steps.html` |
 | WeasyPrint: valores de `pdf_variant`, `url_fetcher`, soporte CSS | `https://doc.courtbouillon.org/weasyprint/stable/api_reference.html` |
 | Typst: PDF/A, PDF/UA-1, incompatibilidad de PDF/UA-1 con PDF 2.0 | `https://typst.app/docs/reference/pdf/` (versión 0.15.1) |
+| Servidor WSGI: licencias, lanzamientos y actividad de Gunicorn, Waitress y Granian (consultado el **2026-11-13**) | API de GitHub: `repos/<org>/<repo>`, `/releases`, `/commits?since=2026-08-13`; ficheros `LICENSE` |
+| Opciones `timeout`, `max_requests`, `max_requests_jitter`, `preload_app` y `limit_request_*` de Gunicorn; ausencia de límite de cuerpo (2026-11-13) | `docs/content/reference/settings.md` de `benoitc/gunicorn` (rama principal) |
+| Opciones de *workers* de Granian (2026-11-13) | `README.md` de `emmett-framework/granian` |
+| `http.server` desaconsejado en producción (2026-11-13) | `https://docs.python.org/3/library/http.server.html` |
+| Trivy en CI (2026-11-13) | `.github/workflows/dependency-scan.yml` del repositorio |
 | Estado del repositorio | `grep` sobre `compose.yaml`, `infra/quadlet/`, `apps/api/config/queue.php`, `apps/api/composer.json` y la documentación citada |
 
 ### 13.2 Sin verificar
@@ -441,3 +479,5 @@ No se ha tocado ninguno. Los aplica la sesión orquestadora al integrar, y solo 
 8. **veraPDF** (mantenimiento, licencia, imagen) y la licencia de la familia tipográfica que se elija.
 9. Estado de los lectores de PDF respecto a PDF/UA-2 y precios de los motores comerciales.
 10. El contenido de `ADR-082` y de `ADR-080`: ambos estaban en redacción al cerrar este documento.
+11. Servidor WSGI (`§3.2.1`): compatibilidad de Gunicorn 27 con el Python de la imagen, cambios incompatibles 26→27, concentración de mantenedores; límite de cuerpo de Waitress y de Granian.
+12. Que la espera de `notify-urgent` con el lote en marcha cumpla `OPEN-079-05`: se mide en `§5.4`, punto 4.
