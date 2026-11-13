@@ -11,7 +11,7 @@
 | Naturaleza | Herramienta interna. **No se despliega en producción** (`§5.53`) |
 | Estado | PROPUESTO (2026-11-12; correcciones de la revisión `C3` el 2026-11-13). **Decididas por el usuario (2026-11-12)**: `OPEN-SEED-01`, `-02`, `-03` y `-06`; el resto de §13 sigue abierto |
 | **Clasificación del paso** | **crítico** las tres entregas (`ADR-069 §4.2`), motivo por entrega en §11 |
-| Decisiones vinculantes de partida | `ADR-020`, `ADR-029`, `ADR-030`, `ADR-033`, `ADR-034`, `ADR-035`, `ADR-039`, `ADR-045`, `ADR-048`, `ADR-057`, `ADR-060`, `ADR-066`, `ADR-068`, `ADR-076`. En `PROPUESTA` y no leídos (§15): `ADR-077` (purga de tenant) y `ADR-080` (staging) |
+| Decisiones vinculantes de partida | `ADR-020`, `ADR-029`, `ADR-030`, `ADR-033`, `ADR-034`, `ADR-035`, `ADR-039`, `ADR-045`, `ADR-048`, `ADR-057`, `ADR-060`, `ADR-066`, `ADR-068`, `ADR-076`. En `PROPUESTA` (ola 1, 2026-11-13; contraste pendiente al integrar, §15): `ADR-077` (purga de tenant) y `ADR-080` (staging). `ADR-080` remite a esta especificación la resolución de `OPEN-STG-09`; aquí **sigue abierta** como `OPEN-SEED-05` (§13.2), que decide el usuario |
 
 ## 0. Resumen y avisos previos
 
@@ -434,7 +434,7 @@ No se tocan desde esta rama; los aplica la sesión orquestadora.
 
 | Fichero | Cambio |
 |---|---|
-| `PLAN-IMPLEMENTACION.md` | Partir `1.15b` en `1.15b-a`, `-b` y `-c` (§11). Cambiar «plantilla completa de personal y datos operativos» por el alcance real: personal con cuenta; el resto por bloques. Añadir a cada paso posterior **a `1.15b`** con módulo nuevo (`1.16`, `1.18`, `1.19` y fase 2) la línea «incluye su bloque de `REQ-SEED`»; a `1.13`, que va antes, la línea «sin bloque de siembra propio: su bloque entra en `1.15b-b` o en `1.15b-d`» (`C3-12`). Anotar que `1.15b-c` depende de `OPEN-SEED-04` |
+| `PLAN-IMPLEMENTACION.md` | Partir `1.15b` en `1.15b-a`, `-b` y `-c` (§11). Cambiar «plantilla completa de personal y datos operativos» por el alcance real: personal con cuenta; el resto por bloques. Añadir a cada paso posterior **a `1.15b`** con módulo nuevo (`1.16`, `1.18`, `1.19` y fase 2) la línea «incluye su bloque de `REQ-SEED`»; a `1.13`, que va antes, la línea «sin bloque de siembra propio: su bloque entra en `1.15b-b` o en una entrega posterior» (`C3-12`; criterio único de la revisión de coherencia H4, 2026-11-13: ningún paso posterior pide «ampliar `1.15b`», cada uno trae su bloque). Anotar que `1.15b-c` depende de `OPEN-SEED-04` |
 | `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` | **Hay que modificar `REQ-SEED-005`** (`§5.53`): `OPEN-SEED-03` = A, decidida, se aparta de su texto vigente («documentos de identidad con dígito de control deliberadamente incorrecto»). Texto exacto propuesto en §14.1. Además, anotar en `§5.53` que `REQ-SEED-003` depende de `RRHH` para la plantilla sin cuenta (`OPEN-SEED-06` = A) y que la marca de sintético es del centro (`OPEN-SEED-02` = A). Es contenido de requisito: **se aplica solo con aprobación expresa del usuario** |
 | `CLAUDE.md` | **Hay que modificar `§11`** por el mismo motivo: su línea «documentos de identidad con dígito de control inválido» deja de describir la convención decidida. Texto exacto propuesto en §14.1. **Esta rama no edita `CLAUDE.md`**; lo aplica la sesión orquestadora solo con aprobación del usuario (sube la versión de `CLAUDE.md` y su entrada de `CHANGELOG.md`) |
 | `memory.md` | Nota viva de `1.15b`; quitar «`STATE_SQL` con miles de alumnos» de lo no probado cuando cierre `-c` |
@@ -472,8 +472,8 @@ pasa a ser, literal:
 
 Esta sesión no disponía de búsqueda local ni de consola; se localizó con lectura directa y con la búsqueda de código del repositorio. Queda para el briefing de `explorer` de cada tramo:
 
-1. **`ADR-080` y `OPEN-STG-09`**: la rama `chore/adr-080-staging-y-runtime-de-contenedores` no está publicada y no se pudo leer. `OPEN-SEED-05` se formula sin conocer su texto; hay que contrastarlos al integrar.
-2. **`ADR-077`** (purga de tenant): no leído. `OPEN-SEED-04` depende de él.
+1. **`ADR-080` y `OPEN-STG-09`**: `ADR-080` ya existe en `PROPUESTA` (ola 1, 2026-11-13) y pide que esta especificación resuelva `OPEN-STG-09` (credenciales de demostración con repositorio público). **No se resuelve aquí**: es decisión del usuario y queda abierta como `OPEN-SEED-05` (§13.2), con su recomendación. Al integrar hay que contrastar el texto de `OPEN-SEED-05` con el de `ADR-080`.
+2. **`ADR-077`** (purga de tenant): ya existe en `PROPUESTA` (ola 1, 2026-11-12). Esta especificación se redactó sin leerlo; `OPEN-SEED-04` depende de él y se contrasta con su mecanismo de purga al integrar.
 3. **Cómo se construye la imagen de producción**: comprobado solo que `apps/api/.dockerignore` excluye `tests/Support` (2026-11-13), que es la ruta fijada en `RN-SEED-04`. Sin verificar: el `Containerfile` (si copia `tests/` y si instala dependencias de desarrollo) y cómo se registran comandos cuyo código no está en la imagen. `CA-SEED-007` lo prueba sobre la imagen construida.
 4. **Rango de teléfonos no asignables en España**: no verificado con fuente primaria (CNMC). No se fija ningún rango de memoria.
 5. **Si `Acad` modela hoy el régimen por etapa** (`ADR-020`) y qué calendario tiene `Curso`: sin verificar (`RN-SEED-26`, bloque `curso`).
