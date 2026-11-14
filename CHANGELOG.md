@@ -6,6 +6,13 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-14 · `docs(landing)`: DNS en Cloudflare, dominio del ápice y `ADR-086` (issue #579; PR #660 y este)
+
+- `ADR-086` (`ACEPTADA`): se mantiene Cloudflare pese a los bloqueos de LaLiga (riesgo aceptado, salida a Netlify documentada), cuarto dominio `adagiox.org` en lugar de `.net`, estado del DNS y permisos del token. Sustituye en parte a `ADR-072 §4.7`/`OPEN-072-02` y a `§1.1`/`§4.3` (`.net`).
+- `apps/landing/wrangler.jsonc`: `custom_domain` del ápice `adagiox.com` (PR #660); `README.md` con los registros y servidores de nombres previos para la reversión y con las redirecciones por reglas de zona; `SYSADMIN.md §4b` corregido (permisos del token con los roles actuales de Workers, `.org`, DNSSEC pendiente del DS).
+- Cambios fuera del repositorio, ya hechos: las cuatro zonas dadas de alta en Cloudflare; `adagiox.com` y `adagiox.eu` `active` y con las redirecciones 301 comprobadas con `curl`; `adagiox.es` y `adagiox.org` con la regla creada pero **sin comprobar** (esperaban la propagación de los servidores de nombres); DNSSEC activado en `.com` en `pending`.
+- **No desplegado ni probado**: el despliegue sigue apagado; la asociación del dominio, el `rollback` y el DS de DNSSEC en Arsys no se han verificado.
+
 ## 2026-11-13 · `docs(proceso)`: ola 1 de arquitectura y especificación, solo documentación (`ADR-077` a `ADR-083`; PR #636 a #649)
 
 - **Solo documentación: no hay código, migraciones ni cambios de comportamiento, y nada de lo que sigue está decidido, aceptado ni implementado.** Catorce ramas con su PR, abiertos y sin mezclar al escribir esto: siete ADR en `PROPUESTA`, cada uno en su PR (#636 a #642), siete especificaciones en `PROPUESTO` (#643 a #649) y esta rama de ficheros compartidos. Guion: `docs/proceso/ola1-arquitectura-2026-11.md`.

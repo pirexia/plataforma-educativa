@@ -165,7 +165,7 @@ scripts/deploy.sh --url https://...                                             
 
 El smoke test comprueba las cabeceras de `_headers` en la portada y que `/js/carousel.js` responda 200 con tipo MIME JavaScript y `X-Content-Type-Options: nosniff`. `--dry-run` ejecuta `wrangler deploy --dry-run` y no hace smoke test. `check:publish` pasa hoy; si reaparece algún marcador, ambos modos fallan ahí, como debe.
 
-**Pendiente (no probado)**: el redireccionamiento de `www` y de `adagiox.es/.eu/.net` hacia `https://adagiox.com` (`ADR-072 §4.3`). Las reglas de `_redirects` con nombre de host no se han verificado en Workers static assets; se prevén como reglas de redirección de la zona de Cloudflare y el smoke test no las cubre todavía. Hay que comprobarlo en el alta.
+**Redirecciones** de `www.adagiox.com` y de `adagiox.es/.eu/.org` (ápice y `www`) hacia `https://adagiox.com` (`ADR-072 §4.3`, `ADR-086 §2.2`): son **reglas de redirección de zona de Cloudflare** (no `_redirects`, que no admite nombres de host en Workers static assets), con registros `AAAA 100::` con proxy como marcador. Comprobadas con `curl` en `www.adagiox.com` y `adagiox.eu` el 2026-11-14; `adagiox.es` y `adagiox.org` esperaban la propagación de los servidores de nombres. El smoke test de `deploy.sh` no las cubre.
 
 ### Reversión (`ADR-072 §4.6`)
 
@@ -182,7 +182,7 @@ El smoke test comprueba las cabeceras de `_headers` en la portada y que `/js/car
    | TXT | `@` | `v=spf1 include:_spf.serviciodecorreo.es ~all` |
    | TXT | `1794304124578._domainkey` | `v=DKIM1; k=rsa; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAuEAsRBNt5ayTDFcwkz8eIy4oVKxsTPdsBRl38isZbjTp1QOQqZ16UHB2jtAuoM/9dT2B9wXLXB6ovL7mkt2xxCniwiD8mVV33uBMwj1Nkz9tsSG8GfL5Mbu2ymPwDlXGTi3wqizUYX3rR2a0jkS5ufhIVOmIRw3TbwMPV+KMsRiPvhe452bbRgt4k+mmUt31hMcrKlXRq7NM21VQzNBUPw82+JLO8gGA7puPuqZeD3zrjIlANdZnAZCWHTRzqJO986SBhNgUl0wwCUaiAif/xKHPBZ9jxced/xhptvMipZbnRNjRBlG/iZN2E4XJENvmpS3SXKI7JpZM7W6K0w01dQIDAQAB` |
 
-   Servidores de nombres anteriores (Arsys): `dns97.servidoresdns.net` y `dns98.servidoresdns.net`; para revertir la delegación hay que volver a ponerlos en el panel de Arsys. Servidores actuales (Cloudflare): `johnny.ns.cloudflare.com` y `keyla.ns.cloudflare.com`. DNSSEC estaba desactivado en Arsys antes del cambio y **aún no está activado en Cloudflare**.
+   Servidores de nombres anteriores (Arsys): `dns97.servidoresdns.net` y `dns98.servidoresdns.net`; para revertir la delegación hay que volver a ponerlos en el panel de Arsys. Servidores actuales (Cloudflare): `johnny.ns.cloudflare.com` y `keyla.ns.cloudflare.com`. DNSSEC estaba desactivado en Arsys antes del cambio. Desde 2026-11-14 está **activo en Cloudflare para `adagiox.com`**, en estado `pending` hasta que Arsys ponga el DS. **Si hay que revertir la delegación con DNSSEC activo, quitar antes el DS en Arsys** (y esperar su TTL): con un DS que ya no coincide con la zona, los resolvedores que validan dejan de resolver el dominio.
 4. **Parada de emergencia**: borrar la variable de repositorio `LANDING_DEPLOY_ENABLED` detiene los despliegues; `npx wrangler delete` retira el Worker.
 
 **Pendiente explícito: la reversión (1) no se ha probado.** No hay cuenta de Cloudflare autenticada en el CLI local (el token vive solo como secreto de GitHub), así que ni el despliegue real ni el `rollback` se han ejecutado. `ADR-072 §4.6` exige ejecutarla una vez en el primer despliegue y anotar el resultado en el PR; hasta entonces, la reversión figura como **no probada**.
