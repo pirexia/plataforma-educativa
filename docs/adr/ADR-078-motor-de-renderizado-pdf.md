@@ -1,6 +1,6 @@
 # ADR-078 · Motor de renderizado PDF: WeasyPrint en un servicio propio mínimo, tras la interfaz `PdfRenderer`, con plantillas HTML y CSS sin JavaScript
 
-**Estado**: **PROPUESTA** (ola 1 de arquitectura, agente A2). La acepta el usuario; hasta entonces no se implementa nada.
+**Estado**: **ACEPTADA** (2026-11-14, el usuario, de forma coordinada con `ADR-082`; `OPEN-PDF-03` decidida con P1). Las preguntas de `§11` que siguen abiertas no bloquean el motor. La prueba de rendimiento de `§5.4` sigue siendo condición del primer tramo. Redactada como **PROPUESTA** por la ola 1 de arquitectura (agente A2).
 **Fecha**: 2026-11-12
 **Origen**: el servicio de PDF está «pendiente a propósito» desde `PLAN 0.3` («motor sin decidir, ver 1.17») y bloquea `1.17` (boletines), la exportación PDF de `REQ-CORE-005` (`docs/modulos/REQ-CORE/funcional.md §4.6`), `OPEN-ACAD-38` (horarios) y `OPEN-ALUM-15` (listados).
 **Afecta a** (cuando se implemente; este ADR no toca nada de ello): `compose.yaml`, `infra/` (imagen y unidad Quadlet nuevas), `apps/api/app/Support/` (contrato nuevo), `apps/api/config/`, CI, y la documentación de `§12`.
@@ -407,7 +407,7 @@ Convención: **R** es la recomendación de este ADR. «Bloquea» se refiere a la
 | `OPEN-PDF-01` | ¿Qué motor? | **R: B** WeasyPrint · A Gotenberg con Chromium · C Typst | B (`§3.1`). Con A: menos código propio, más superficie y más parches. Con C: hay que enmendar `CLAUDE.md §1` y aceptar una reversión cara | Usuario |
 | `OPEN-PDF-02` | ¿Se acepta mantener un servicio propio mínimo en Python (un *endpoint*, un fichero, `infra/containers/pdf/`)? | **R: Sí** · No | Si es no, `OPEN-PDF-01` pasa a A: B no tiene empaquetado oficial y las otras formas de empaquetarlo se descartan por seguridad (`§3.2`) | Usuario |
 | `OPEN-PDF-04` | ¿Qué umbrales hacen aceptable el motor en la prueba de `§5.4`? | **R:** 1.200 boletines en ≤ 30 min con un `worker`, ningún documento > 60 s, servicio ≤ 512 MB · otros valores · sin umbral | Sin umbral, la prueba no decide nada y el riesgo de velocidad se descubre con las plantillas ya escritas | Usuario, con negocio (¿cuánto puede esperar un centro la noche de publicación?) |
-| `OPEN-PDF-03` | ¿Qué documentos son `archival` (PDF/A) y a cuáles se les exige PDF/UA-1? | **R: P1** de `§7.2`: `archival` para documentos emitidos, `accessible` para listados; todos etiquetados · P2 todo PDF/A · P3 a demanda | Bloquea la plantilla del boletín (`1.17`), no la construcción del motor. Con P3 se incumple `RNF-COMP-004` | Negocio y legal; el nivel exacto, técnico tras `§5.4` |
+| `OPEN-PDF-03` | ¿Qué documentos son `archival` (PDF/A) y a cuáles se les exige PDF/UA-1? | **DECIDIDA: P1 (usuario, 2026-11-14)** de `§7.2`: `archival` para documentos emitidos, `accessible` para listados; todos etiquetados · P2 todo PDF/A · P3 a demanda | Bloquea la plantilla del boletín (`1.17`), no la construcción del motor. Con P3 se incumple `RNF-COMP-004` | Negocio y legal; el nivel exacto, técnico tras `§5.4` |
 
 ### 11.2 No bloquean
 

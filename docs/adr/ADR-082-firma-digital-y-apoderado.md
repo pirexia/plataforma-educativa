@@ -1,6 +1,6 @@
 # ADR-082 · Firma electrónica por niveles, evidencias, PDF firmado y firmante autorizado (apoderado) del centro
 
-**Estado**: **PROPUESTA** (2026-11-12, agente A6 de la ola 1 de arquitectura, `docs/proceso/ola1-arquitectura-2026-11.md`). No está aceptada: la acepta el usuario. Ninguna de sus decisiones se implementa mientras siga en este estado.
+**Estado**: **ACEPTADA** (2026-11-14, el usuario, de forma coordinada con `ADR-078`; `OPEN-FIRMA-02` y `-15` decididas). **Siguen abiertas** las preguntas de `§9.2` y `§9.3`, que bloquean solo una parte; y toda la firma sigue **pendiente de validación jurídica antes de usarse con datos reales**. Redactada como **PROPUESTA** el 2026-11-12 (agente A6 de la ola 1, `docs/proceso/ola1-arquitectura-2026-11.md`).
 **Fecha**: 2026-11-12
 **Origen**: issue #82 (decisión del usuario del 2026-08-25: el firmante autorizado o apoderado es una capacidad general del núcleo, dentro de `REQ-DOC-002`) y encargo de la ola 1.
 **Afecta a**: `REQ-DOC-002`, `REQ-AUT-001` a `-003`, `REQ-FAM-PORTAL-004` y los consumidores de la tabla de `§4.1` (`REQ-ALUM-002`, `REQ-CURSO-003`/`-004`, `REQ-CALIF-002`, `REQ-INF-002`, `REQ-EXTRA-003`, `REQ-SEC-001`, `REQ-GOB-002`, `REQ-FCT-001`, `REQ-NOM-001`, `REQ-CONV-002`, `REQ-NEAE-002`, `REQ-SALUD-002`, `REQ-ONB-003`), `REQ-API-003` (conector de firma), `INV-001`, `INV-002`, `INV-003`, `INV-007`, `INV-008`, `INV-009`, `INV-010`, `INV-011`, `INV-012`.
@@ -432,11 +432,11 @@ Ninguna se da por resuelta. «Decide» indica quién; todo lo marcado legal nece
 | ID | Pregunta | Recomendación | Impacto | Decide |
 |---|---|---|---|---|
 | `OPEN-FIRMA-01` | ¿Se acepta sustituir en parte `ADR-012` para que el nivel N1 se registre en la plataforma sin prestador? | **Sí** (`§4.2` B) | Si no: todo por prestador; `REQ-AUT` no puede empezar sin contrato y hay coste por cada aceptación | Usuario |
-| `OPEN-FIRMA-02` | ¿Es correcta la tabla de niveles de `§4.1`? En particular: medicación (N1 con reautenticación o N2), salidas con pernocta o al extranjero, actas de órganos colegiados | La tabla tal cual; medicación en N1 con reautenticación | Cada tipo que suba a N2 añade coste y dependencia del prestador | Legal y usuario |
+| `OPEN-FIRMA-02` | ¿Es correcta la tabla de niveles de `§4.1`? En particular: medicación (N1 con reautenticación o N2), salidas con pernocta o al extranjero, actas de órganos colegiados | **DECIDIDA (usuario, 2026-11-14): la tabla tal cual; medicación en N1 con reautenticación; validación legal antes de datos reales** | Cada tipo que suba a N2 añade coste y dependencia del prestador | Legal y usuario |
 | `OPEN-FIRMA-04` | Regla de tutores: política `uno`/`todos` por tipo, y que un rechazo expreso prevalezca | **`§4.7.2` C**, con el reparto propuesto | Define los estados de toda autorización; cambiarla después altera cómo se leen las ya firmadas | Legal |
 | `OPEN-FIRMA-05` | Modelo del firmante autorizado (`§4.8` C) y control de su alta: ¿basta «nadie se apodera a sí mismo» o hace falta doble autorización? | **C; sin doble autorización**, con permiso propio, documento acreditativo obligatorio y auditoría | La doble autorización exige dos administradores por centro, que muchos centros pequeños no tienen | Usuario |
 | `OPEN-FIRMA-06` | ¿Se aprueba la reautenticación en el acto de firma? No está en `REQ-AUTH-003` | **Sí**: obligatoria en las filas marcadas de `§4.1`, configurable en el resto | Sin ella, N1 no protege frente a la sesión abierta; con ella, hay trabajo nuevo en `auth` (contraseña, segundo factor, SSO) | Usuario |
-| `OPEN-FIRMA-15` | Dependencia de `ADR-078`: perfil `archival`, objeto inmutable, justificante como plantilla | Aceptar ambos ADR de forma coordinada | Sin motor no hay justificante ni documento que firmar | Usuario (al aceptar `ADR-078`) |
+| `OPEN-FIRMA-15` | Dependencia de `ADR-078`: perfil `archival`, objeto inmutable, justificante como plantilla | **DECIDIDA (usuario, 2026-11-14): ambos ADR aceptados de forma coordinada** | Sin motor no hay justificante ni documento que firmar | Usuario (al aceptar `ADR-078`) |
 
 ### 9.2 Bloquean solo una parte
 
