@@ -21,7 +21,7 @@ Con este fichero queda contestada la pregunta 1 de `ADR-076 §10` (dónde se reg
 |---|---|---|---|---|
 | `OPEN-STO-01` | Proveedor S3 de producción | Staging y producción | Usuario | **Decidida** (2026-11-12): OVHcloud 3-AZ condicionado a `ADR-083 §6` |
 | `OPEN-STO-02` | Sustituto de MinIO en desarrollo | — | Usuario | **Cerrada** (A: Garage, 2026-11-11, `ADR-076`) |
-| `OPEN-STO-03` | Aislamiento entre centros en el proveedor | Configuración de staging | Usuario (técnica) | Abierta |
+| `OPEN-STO-03` | Aislamiento entre centros en el proveedor | Configuración de staging | Usuario (técnica) | **Decidida 2026-11-14: opción 1**; revisión de `security-reviewer` pendiente antes de producción |
 | `OPEN-STO-04` | ENS y NIS2: si aplican y con qué categoría | Datos reales | Legal, después usuario | **Decidida** (2026-11-12) en cuanto al método: la responde un asesor externo con encargo cerrado antes del primer dato real (`ADR-083 §11`). **La respuesta jurídica sigue pendiente** [PVJ] |
 | `OPEN-STO-05` | EIPD: si es obligatoria, quién la hace y cuándo | Datos reales | Legal, con cada centro | Abierta [PVJ] |
 | `OPEN-STO-06` | ISO 27001 propia: certificarse o alinearse | No | Negocio | Abierta |
@@ -57,6 +57,7 @@ Con este fichero queda contestada la pregunta 1 de `ADR-076 §10` (dónde se reg
   3. Un *bucket* por centro. Aislamiento más fuerte y purga de centro trivial (`ADR-077`), a cambio de aprovisionamiento por centro (`ADR-048`), límites de número de *buckets* del proveedor y más superficie de configuración.
 - **Recomendación**: 1 para el piloto, con dos condiciones: clave de producción distinta de la de staging y de la de copias, y revisar la decisión cuando haya más de un centro con datos reales o si la EIPD (`OPEN-STO-05`) lo pide. Lo reversible antes que lo óptimo.
 - **Bloquea**: la configuración de staging. **Decide**: usuario, con informe de `security-reviewer`.
+- **DECIDIDA el 2026-11-14 (usuario): opción 1**, con las dos condiciones de la recomendación. El informe de `security-reviewer` queda **pendiente** y debe existir antes de producción.
 
 ### `OPEN-STO-04` · ENS y NIS2: ¿aplican a la plataforma?
 
