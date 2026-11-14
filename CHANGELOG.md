@@ -11,7 +11,9 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 - **Primer despliegue real hecho el 2026-11-14**: `adagiox.com` sirve la landing (en inglés en `/` y en `/es/`, `/de/`, `/fr/`) con las cabeceras de `ADR-072 §4.4`, y `www`, `.es`, `.eu` y `.org` redirigen con 301 por reglas de zona. El primer intento falló por reglas de nombre de host en `_redirects` (#663, corregido en #664); el segundo se completó pero su smoke test dio un 404 transitorio (#666).
 - `deploy.sh`: la primera petición del smoke test se reintenta (10 intentos, 6 s). `wrangler.jsonc`: `preview_urls: false`.
 - Fuera del repositorio: *Always Use HTTPS* activado en la zona `adagiox.com`.
-- **Sin probar**: `wrangler rollback`. Sin hacer: el DS de DNSSEC en Arsys y la etiqueta `v0.1.0`.
+- `build-images.yml` (#668, PR #669): el gate `require-ci-green` contaba sus propios check runs en curso y bloqueaba toda etiqueta `v*`; ahora los excluye por `run_id`. **Primera etiqueta `v0.1.0` (2026-11-14, sobre `main` `12a9834`)**: gate en verde y publicadas `plataforma-api` y `plataforma-web` en GHCR. La primera `v0.1.0` (sobre `5a8586a`) falló en el gate y se borró y recreó sin haber publicado nada.
+- Fuera del repositorio (detalle en `apps/landing/README.md` y `ADR-086 §4`): DMARC `p=quarantine` en `.com`; MX nulo, SPF `-all` y DMARC `p=reject` en `.es`, `.eu` y `.org`; CAA con `iodef` en las cuatro zonas; *Always Use HTTPS* y TLS mínimo 1.2; 2FA en Arsys, Cloudflare y GitHub; reversión del Worker probada a nivel de API.
+- **Sin hacer** (lista canónica en `memory.md`): el DS de DNSSEC en Arsys (ticket abierto) y después DNSSEC en `.es`, `.eu` y `.org`; `npx wrangler rollback` con el token de CI; el HSTS a un año (hacia el 2026-11-21); DMARC de `.com` a `reject`; `security.txt` (diferido por `ADR-073`); y, del usuario, el bloqueo de transferencia de los dominios y *Certificate Transparency Monitoring*.
 
 ## 2026-11-14 · `docs(landing)`: DNS en Cloudflare, dominio del ápice y `ADR-086` (issue #579; PR #660 y este)
 

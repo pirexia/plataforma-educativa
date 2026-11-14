@@ -1,6 +1,6 @@
 # ADR-086 · Landing: se mantiene Cloudflare pese a los bloqueos de LaLiga, cuarto dominio `.org` y estado del DNS
 
-**Estado**: **ACEPTADA** (2026-11-14; decisión del usuario, opción A de «seguir con Cloudflare», con la recomendación de la sesión).
+**Estado**: **ACEPTADA** (2026-11-14; decisión del usuario, opción A de «seguir con Cloudflare», con la recomendación de la sesión), con actualización de hechos en `§4` que no cambia ninguna decisión.
 **Fecha**: 2026-11-14
 **Origen**: decisiones del usuario del 2026-11-14 durante el alta del DNS y de los pasos previos al despliegue de la landing (issue #579).
 **Afecta a**: `adagiox.com` y los dominios secundarios (DNS), `apps/landing` (`wrangler.jsonc`, `README.md`), `SYSADMIN.md §4b`. No afecta a `apps/api` ni a `apps/web`.
@@ -27,13 +27,13 @@ Se **mantiene Cloudflare** (Workers *static assets*) y no se pasa a Netlify. Mot
 
 Los dominios secundarios son `adagiox.es`, `adagiox.eu` y **`adagiox.org`**. `adagiox.net` no se usa. Donde `ADR-072` dice `.net`, léase `.org`.
 
-### 2.3 · Estado del DNS (2026-11-14)
+### 2.3 · Estado del DNS (2026-11-14, a la hora de redactar este ADR; **superado por `§4`**)
 
 - Las cuatro zonas están dadas de alta en Cloudflare con los servidores de nombres `johnny.ns.cloudflare.com` y `keyla.ns.cloudflare.com`. `adagiox.com` y `adagiox.eu` están `active`; `adagiox.es` y `adagiox.org` esperaban a que Arsys propagara el cambio.
 - `adagiox.com` conserva los registros de correo importados de Arsys (anotados en `apps/landing/README.md`, «Reversión»). Las zonas secundarias no tienen correo.
 - Redirecciones 301 a `https://adagiox.com` conservando ruta y consulta: regla de redirección de zona en `www.adagiox.com` y en el ápice y `www` de cada dominio secundario, con registros `AAAA 100::` con proxy como marcador. Comprobado con `curl` en `www.adagiox.com` y `adagiox.eu`.
 - **DNSSEC**: activo en Cloudflare para `adagiox.com`, en estado `pending`. **Falta el registro DS en el registrador** (Arsys lo hace por soporte). No bloquea el despliegue. Sin DS no hay cadena de confianza.
-- **Pendiente** (`ADR-072 §4.3` se mantiene en estas exigencias): el MX nulo, el SPF `-all` y el DMARC `p=reject` en las zonas secundarias y el DMARC de `adagiox.com`; el **DNSSEC y su DS en `.es`, `.eu` y `.org`**; y el **CAA en las cuatro zonas**. Ninguna bloquea el despliegue de la landing.
+- **Pendiente al redactar (cerrado en `§4`, salvo DNSSEC y su DS)** (`ADR-072 §4.3` se mantiene en estas exigencias): el MX nulo, el SPF `-all` y el DMARC `p=reject` en las zonas secundarias y el DMARC de `adagiox.com`; el **DNSSEC y su DS en `.es`, `.eu` y `.org`**; y el **CAA en las cuatro zonas**. Ninguna bloquea el despliegue de la landing.
 
 ### 2.4 · Token de despliegue
 
@@ -46,5 +46,15 @@ Token de cuenta con rol **Admin** de Workers para el primer despliegue, y permis
 ## 3 · Consecuencias
 
 - **Buenas**: se puede publicar sin cambiar de proveedor, y el DNS, el DNSSEC, las redirecciones y las cabeceras quedan en un solo sitio.
-- **A vigilar**: los bloqueos de LaLiga (`§2.1`); la dependencia de que Arsys ponga el DS; la reversión real contra Cloudflare **no está probada** (`apps/landing/README.md`).
-- **No se ha desplegado nada**: el interruptor `LANDING_DEPLOY_ENABLED` sigue apagado. Desplegar exige la release de `develop` a `main` (`ADR-072`, `OPEN-072-06`).
+- **A vigilar**: los bloqueos de LaLiga (`§2.1`); la dependencia de que Arsys ponga el DS; la reversión real contra Cloudflare **no estaba probada** (parcialmente superado por `§4`: probada por la API; falta `wrangler rollback` con el token de CI) (`apps/landing/README.md`).
+- **Situación al redactar (superada por `§4`): no se había desplegado nada**: el interruptor `LANDING_DEPLOY_ENABLED` sigue apagado. Desplegar exige la release de `develop` a `main` (`ADR-072`, `OPEN-072-06`).
+
+---
+
+## 4 · Actualización de hechos (2026-11-14, misma jornada; no cambia ninguna decisión)
+
+- Las cuatro zonas pasaron a `active`; `adagiox.com` y los tres secundarios redirigen (comprobado con `curl`). La landing se desplegó por primera vez ese día y sirve en `https://adagiox.com`.
+- De los pendientes de `§2.3` se hicieron: MX nulo, SPF `-all` y DMARC `p=reject` en `.es`, `.eu` y `.org`; DMARC `p=quarantine` con informes a `founders@adagiox.com` en `.com` (decisión del usuario); CAA (`iodef`, más las CA de Cloudflare añadidas por Cloudflare) en las cuatro zonas; *Always Use HTTPS* y TLS mínimo 1.2. **Siguen pendientes** (lista canónica en `memory.md`): el DS de DNSSEC en Arsys (ticket abierto) y, como DNSSEC está solo activo en `.com`, el DNSSEC de las otras tres zonas; `wrangler rollback` con el token de CI; el HSTS a un año (`ADR-072 §4.3`); DMARC de `.com` a `reject`; `security.txt` (diferido por `ADR-073`); y, del usuario, el bloqueo de transferencia de los dominios y *Certificate Transparency Monitoring*.
+- Reversión probada a nivel de API (`apps/landing/README.md`).
+- Decisión del usuario del mismo día: la regla de protección de `main` queda **relajada** (sin aprobación obligatoria), porque el proyecto lo mantiene una sola persona.
+
