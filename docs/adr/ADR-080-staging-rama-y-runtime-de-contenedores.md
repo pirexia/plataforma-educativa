@@ -1,6 +1,6 @@
 # ADR-080 · Entorno de staging barato, rama `staging` con promoción sin *squash* y nivel 1 de runtime de contenedores agnóstico
 
-**Estado**: **PROPUESTA** (2026-11-12). La acepta el usuario; hasta entonces no se implementa nada de `0.10e`.
+**Estado**: **ACEPTADA** (2026-11-14, el usuario, con `OPEN-STG-04`, `-05` y `-09` decididas). No se contrata nada por este ADR: el servidor se contrata cuando el usuario lo ordene. Las preguntas no bloqueantes de `§10.2` conservan su recomendación por defecto. Redactada como **PROPUESTA** el 2026-11-12.
 **Fecha**: 2026-11-12
 **Origen**: decisiones del usuario del 2026-11-05 (staging barato con dominio propio; flujo `develop` → `staging` → `main` sin *squash*; separación de redes de #484; proyecto agnóstico al runtime de contenedores, aplazado hasta tratar staging) y `PLAN-IMPLEMENTACION.md`, paso `0.10e`.
 **Afecta a**: `PLAN-IMPLEMENTACION.md` (`0.10e`), `CLAUDE.md §1`, `§4` y `§9`, `infra/quadlet/`, `infra/install.sh`, `.github/workflows/`, `.claude/hooks/block-protected-branch.sh`, skills `espera-ci`, `pr-check` y `contenedores-y-red`, `SYSADMIN.md`, `RUNBOOK.md`, los guiones de `apps/web/scripts/` e `infra/` que invocan `podman`. Este ADR **no toca ninguno**: los cambios se proponen en `§11`.
@@ -329,7 +329,7 @@ Precios **sin IVA**, leídos en la página del proveedor el 2026-11-12 (`§12`).
 
 **Decidida también el 2026-11-12**: `OPEN-STG-03`, según la recomendación (B1 de `§4.2`): la promoción a `staging` es **solo por avance rápido** (`git push <sha>:staging`), sin botón de mezclar. Quedan abiertas `OPEN-STG-02`, `-04`, `-05` y `-09`.
 
-**Decididas por el usuario (2026-11-12), según la recomendación**: `OPEN-STG-02` (dominio de staging: un dominio registrable aparte, no subdominio del comercial, con Cloudflare solo como DNS y sin proxy). **Decididas por el usuario el 2026-11-14**: `OPEN-STG-04` (AlmaLinux o Rocky, la versión que ofrezca el proveedor y valide las unidades en seco; el usuario prefiere la misma familia en producción), `OPEN-STG-05` (Podman **sin privilegios** con `linger` e `install.sh --user`; hay que corregir la documentación que diga otra cosa y resolver los puertos 80 y 443) y `OPEN-STG-09` (**lista blanca de IP en Traefik**; staging no se expone sin ella). El ADR sigue en `PROPUESTA` hasta que el usuario lo acepte.
+**Decididas por el usuario (2026-11-12), según la recomendación**: `OPEN-STG-02` (dominio de staging: un dominio registrable aparte, no subdominio del comercial, con Cloudflare solo como DNS y sin proxy). **Decididas por el usuario el 2026-11-14**: `OPEN-STG-04` (AlmaLinux o Rocky, la versión que ofrezca el proveedor y valide las unidades en seco; el usuario prefiere la misma familia en producción), `OPEN-STG-05` (Podman **sin privilegios** con `linger` e `install.sh --user`; hay que corregir la documentación que diga otra cosa y resolver los puertos 80 y 443) y `OPEN-STG-09` (**lista blanca de IP en Traefik**; staging no se expone sin ella). El usuario aceptó el ADR el 2026-11-14.
 
 ### 10.1 Bloquean la implementación
 
