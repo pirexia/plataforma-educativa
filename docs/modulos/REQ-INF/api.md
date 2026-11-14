@@ -212,7 +212,7 @@ Recurso de permisos: `informe_desarrollo`. Ámbitos como el parte; la familia so
 
 Para la familia, `authored_by`, `validated_by` y `published_by` se devuelven con nombre visible [DERIVADA: «las mismas garantías que un boletín» incluyen saber quién firma; si el usuario prefiere ocultarlos, se cambia sin migración].
 
-Sin PDF ni firma en `1.18-c` (`1.18-g`; `ADR-078`, `ADR-082`, ambos `PROPUESTA`; `ADR-082 §4.1` incluye `REQ-INF-002` entre sus consumidores, sin que esta especificación adelante su nivel de firma).
+Sin PDF ni firma en `1.18-c` (`1.18-g`; `ADR-078`, `ADR-082`, ambos `ACEPTADA` el 2026-11-14; `ADR-082 §4.1` incluye `REQ-INF-002` entre sus consumidores, sin que esta especificación adelante su nivel de firma).
 
 ---
 
@@ -248,7 +248,7 @@ Ambas elecciones [DERIVADA], a confirmar contra el criterio objetivo de `ADR-038
 
 ## 7. Eventos de dominio emitidos
 
-Ninguno en `1.18-a` a `-d` (`ADR-048`, `funcional.md §7.3`). Cuando exista el motor de notificaciones de `ADR-079` (PROPUESTA; recomienda motor en `Core` con tipos de aviso declarados por cada módulo), `1.18-j` declarará los avisos de publicación con **enlace autenticado** y sin datos del parte o del informe en el cuerpo ni como adjunto (`RN-INF-73`).
+Ninguno en `1.18-a` a `-d` (`ADR-048`, `funcional.md §7.3`). Cuando exista el motor de notificaciones de `ADR-079` (ACEPTADA el 2026-11-14; recomienda motor en `Core` con tipos de aviso declarados por cada módulo), `1.18-j` declarará los avisos de publicación con **enlace autenticado** y sin datos del parte o del informe en el cuerpo ni como adjunto (`RN-INF-73`).
 
 ## 8. Webhooks disponibles
 

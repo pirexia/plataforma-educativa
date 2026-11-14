@@ -6,6 +6,15 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-14 · `docs`: ronda de decisiones de la ola 1 (ADR-078, 079, 080, 082, 083 aceptadas; S-2, REQ-CALIF, REQ-INF y REQ-ACAD §1.13-a/-b aprobados)
+
+- **ADR aceptados** (siguen abiertas sus preguntas no bloqueantes y las condiciones jurídicas antes de datos reales): `ADR-078` (motor PDF; `OPEN-PDF-03` = P1), `ADR-082` (firma por niveles; `OPEN-FIRMA-02` y `-15`), `ADR-083` (S3 en producción; `OPEN-STO-03` = un bucket con prefijo por centro, sin cuenta de prueba por ahora, P-15 y P-16 no son condición), `ADR-080` (staging; AlmaLinux o Rocky, Podman sin privilegios, lista blanca de IP) y `ADR-079` (notificaciones; `OPEN-079-02`, `-05`, `-06` y `-09`).
+- **Especificaciones aprobadas**: `REQ-CORE/almacen-objetos.md` (`S-2`), `REQ-CALIF` (`OPEN-CALIF-01` a `-09`, `-12`, `-20` a `-24` y `-26`), `REQ-INF` (`OPEN-INF-01` a `-11` y `-22`; `ADR-085` encargado, sin escribir), `REQ-ACAD/asistencia.md` solo `1.13-a` y `1.13-b` (`1.13-c` parado hasta `ADR-084`, aplazado). `REQ-COM`: bloqueantes de arquitectura decididas (`OPEN-COM-03`, `-04`, `-06`, `-13`, `-14`, `-18`, `-20`), aprobación pendiente. `1.15a-b`: `OPEN-UI-03` y `-04`.
+- `REQUISITOS §5.5` y `§5.50`: dependencias corregidas (`OPEN-CALIF-01`, `OPEN-INF-02`).
+- **Sin decidir**: `ADR-077`, `ADR-081`, `REQ-SEED` (`OPEN-SEED-04`), `OPEN-COM-28` (técnica), `ADR-084`, `ADR-085`, `OPEN-ACAD-56` (revisión de `architect`).
+- Ningún cambio de código ni de infraestructura; no se contrata nada.
+
+
 ## 2026-11-14 · `docs(landing)`: U6 revisada, programa de startups de Anthropic (issue #579)
 
 - `ADR-072 §11` U6: anotado el estado del programa (cohorte llena, sin requisitos publicados, créditos solo en la API de primera parte, vía VC). Sin cambios en la landing ni en ninguna decisión.
