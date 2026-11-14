@@ -1,6 +1,6 @@
 # ADR-083 · Proveedor de almacenamiento S3 en staging y producción, y expediente de cumplimiento
 
-**Estado**: **PROPUESTA** (agente A7 de la ola 1, 2026-11-12). La acepta o rechaza el usuario. **No se contrata nada por este ADR.**
+**Estado**: **ACEPTADA** (2026-11-14, el usuario, con `OPEN-STO-03` = opción 1, sin cuenta de prueba por ahora en `OPEN-083-02` y P-15/P-16 sin carácter de condición). **No se contrata nada por este ADR.** La conformidad S3 contra el proveedor real **está sin probar**; el contrato queda condicionado a `OPEN-07` (entidad jurídica). Redactada como **PROPUESTA** el 2026-11-12 (agente A7 de la ola 1).
 **Fecha**: 2026-11-12 (fecha de consulta de todas las fuentes externas)
 **Origen**: `OPEN-STO-01` (`ADR-076`, «Fuera de este ADR») y la decisión del usuario del 2026-11-11 de crear el expediente `docs/cumplimiento/`.
 **Afecta a**: variables de entorno del disco `s3` en staging y producción, `infra/` (cuando exista staging, `ADR-080`), `SYSADMIN.md`, `RUNBOOK.md`, `PRIVACY.md`. **No toca código**: el contrato es la API S3 (`ADR-076 §2.1`).

@@ -329,7 +329,7 @@ Precios **sin IVA**, leídos en la página del proveedor el 2026-11-12 (`§12`).
 
 **Decidida también el 2026-11-12**: `OPEN-STG-03`, según la recomendación (B1 de `§4.2`): la promoción a `staging` es **solo por avance rápido** (`git push <sha>:staging`), sin botón de mezclar. Quedan abiertas `OPEN-STG-02`, `-04`, `-05` y `-09`.
 
-**Decididas por el usuario (2026-11-12), según la recomendación**: `OPEN-STG-02` (dominio de staging: un dominio registrable aparte, no subdominio del comercial, con Cloudflare solo como DNS y sin proxy). Siguen abiertas `OPEN-STG-04`, `-05` y `-09`.
+**Decididas por el usuario (2026-11-12), según la recomendación**: `OPEN-STG-02` (dominio de staging: un dominio registrable aparte, no subdominio del comercial, con Cloudflare solo como DNS y sin proxy). **Decididas por el usuario el 2026-11-14**: `OPEN-STG-04` (AlmaLinux o Rocky, la versión que ofrezca el proveedor y valide las unidades en seco; el usuario prefiere la misma familia en producción), `OPEN-STG-05` (Podman **sin privilegios** con `linger` e `install.sh --user`; hay que corregir la documentación que diga otra cosa y resolver los puertos 80 y 443) y `OPEN-STG-09` (**lista blanca de IP en Traefik**; staging no se expone sin ella). El ADR sigue en `PROPUESTA` hasta que el usuario lo acepte.
 
 ### 10.1 Bloquean la implementación
 
