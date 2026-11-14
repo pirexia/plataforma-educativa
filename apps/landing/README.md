@@ -163,6 +163,8 @@ CLOUDFLARE_API_TOKEN=... CLOUDFLARE_ACCOUNT_ID=... scripts/deploy.sh --dry-run  
 scripts/deploy.sh --url https://...                                               # fija la URL del smoke test
 ```
 
+La primera petición del smoke test se **reintenta** (`DEPLOY_SMOKE_ATTEMPTS`, 10 por defecto, y `DEPLOY_SMOKE_DELAY`, 6 s): justo tras `wrangler deploy` la URL puede dar un 404 transitorio (#666). `wrangler.jsonc` lleva `preview_urls: false`. En la zona `adagiox.com` está activado *Always Use HTTPS* (ajuste de Cloudflare, no del repositorio; `ADR-072 §4.3`).
+
 El smoke test comprueba las cabeceras de `_headers` en la portada y que `/js/carousel.js` responda 200 con tipo MIME JavaScript y `X-Content-Type-Options: nosniff`. `--dry-run` ejecuta `wrangler deploy --dry-run` y no hace smoke test. `check:publish` pasa hoy; si reaparece algún marcador, ambos modos fallan ahí, como debe.
 
 **Redirecciones** de `www.adagiox.com` y de `adagiox.es/.eu/.org` (ápice y `www`) hacia `https://adagiox.com` (`ADR-072 §4.3`, `ADR-086 §2.2`): son **reglas de redirección de zona de Cloudflare** (no `_redirects`, que no admite nombres de host en Workers static assets), con registros `AAAA 100::` con proxy como marcador. Comprobadas con `curl` en `www.adagiox.com` y `adagiox.eu` el 2026-11-14; `adagiox.es` y `adagiox.org` esperaban la propagación de los servidores de nombres. El smoke test de `deploy.sh` no las cubre.

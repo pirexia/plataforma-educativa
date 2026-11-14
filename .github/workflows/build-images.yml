@@ -80,7 +80,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           sha="${{ github.sha }}"
-          runs=$(gh api "repos/${{ github.repository }}/commits/$sha/check-runs" --jq '.check_runs')
+          # Se excluyen los check runs de ESTE mismo run de workflow (Guarda, Lint de Quadlet y este
+          # propio gate): están en curso por definición y hacían fallar toda etiqueta (#668).
+          runs=$(gh api "repos/${{ github.repository }}/commits/$sha/check-runs" --paginate --jq '.check_runs[]' \
+            | jq -s --arg rid "${{ github.run_id }}" '[.[] | select((.details_url // "") | test("/actions/runs/" + $rid + "/") | not)]')
           count=$(echo "$runs" | jq 'length')
 
           if [ "$count" -eq 0 ]; then
