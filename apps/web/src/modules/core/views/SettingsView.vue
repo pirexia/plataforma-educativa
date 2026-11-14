@@ -612,7 +612,7 @@ function describedBy(group: GroupId, field: string, extra?: string): string | un
 }
 
 const selectClass =
-  'border-input bg-background flex h-8 w-full min-w-0 rounded-lg border px-2.5 py-1 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-3 aria-invalid:border-destructive disabled:cursor-not-allowed disabled:opacity-50 [@media(any-pointer:coarse)]:min-h-11'
+  'border-input bg-background flex h-8 w-full min-w-0 rounded-lg border px-2.5 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-3 aria-invalid:border-destructive disabled:cursor-not-allowed disabled:opacity-50 [@media(any-pointer:coarse)]:min-h-11'
 
 const checkboxLabelClass =
   'flex min-h-8 items-center gap-2 text-sm [@media(any-pointer:coarse)]:min-h-11'
