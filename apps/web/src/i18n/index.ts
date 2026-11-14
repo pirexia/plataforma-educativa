@@ -89,6 +89,21 @@ export function resolveInitialLocale(): SupportedLocale {
   return DEFAULT_LOCALE
 }
 
+/**
+ * Elección guardada (`plataforma.locale`) si es un idioma soportado; si no,
+ * `null`. Nunca lanza (`RN-UI-15`: la precedencia de las pantallas públicas
+ * la necesita sin el recurso del navegador ni el idioma por defecto).
+ */
+export function getStoredLocale(): SupportedLocale | null {
+  try {
+    const stored = window.localStorage.getItem(STORAGE_KEY)
+
+    return isSupportedLocale(stored) ? stored : null
+  } catch {
+    return null
+  }
+}
+
 export function persistLocale(locale: SupportedLocale): void {
   window.localStorage.setItem(STORAGE_KEY, locale)
 }

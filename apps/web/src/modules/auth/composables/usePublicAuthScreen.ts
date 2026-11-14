@@ -1,14 +1,21 @@
 import { computed, onMounted, watch } from 'vue'
-import { localeFromDomain, setLocale, type DomainLocale, type SupportedLocale } from '@/i18n'
+import {
+  getStoredLocale,
+  localeFromDomain,
+  setLocale,
+  type DomainLocale,
+  type SupportedLocale,
+} from '@/i18n'
 import { useTenantBranding } from '@/tenant/useTenantBranding'
 import { getCsrfCookie } from '../api'
 
 /**
  * Común a las cinco pantallas públicas de `REQ-AUTH` (`funcional.md
- * §1.6`): resuelve el idioma de la pantalla como Accept-Language ∩
- * idiomas activos del centro, degradando al idioma por defecto del
- * centro si ninguno coincide (`CA-AUTH-063`) — no hay usuario del que
- * leer una preferencia propia en ninguna de las cinco.
+ * §1.6`): resuelve el idioma de la pantalla (`CA-AUTH-063`, ampliada por
+ * `RN-UI-15`): elección explícita guardada (`plataforma.locale`) si es un
+ * idioma activo del centro → idiomas del navegador ∩ activos → idioma
+ * por defecto del centro. No hay usuario del que leer una preferencia
+ * propia en ninguna de las pantallas públicas.
  *
  * `docs/design-system.md` §13.2: el *branding* ya no lo pide este
  * *composable* — lo lee de la capa B (`useTenantBranding`, `@/tenant`),
@@ -79,6 +86,11 @@ function resolveTenantLocale(
   activeLocales: readonly DomainLocale[],
 ): SupportedLocale {
   const active = new Set(activeLocales.map((locale) => localeFromDomain(locale)))
+  const stored = getStoredLocale()
+
+  if (stored && active.has(stored)) {
+    return stored
+  }
 
   for (const candidate of navigator.languages ?? [navigator.language]) {
     const primary = candidate.split('-')[0]?.toLowerCase()

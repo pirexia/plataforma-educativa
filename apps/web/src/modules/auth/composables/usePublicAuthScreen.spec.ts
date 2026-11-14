@@ -49,6 +49,7 @@ function mountHost() {
 }
 
 beforeEach(() => {
+  window.localStorage.clear()
   brandingRef.value = null
   statusRef.value = 'loading'
   vi.mocked(setLocale).mockClear()
@@ -110,5 +111,65 @@ describe('usePublicAuthScreen — CA-DS-046', () => {
     const wrapper = mountHost()
 
     expect((wrapper.vm as unknown as { brandingFailed: boolean }).brandingFailed).toBe(false)
+  })
+})
+
+describe('usePublicAuthScreen — RN-UI-15 (amplía CA-AUTH-063), CA-UI-014', () => {
+  function setNavigatorLanguages(languages: string[]): void {
+    Object.defineProperty(window.navigator, 'languages', { value: languages, configurable: true })
+  }
+
+  function readyWith(activeLocales: string[], defaultLocale = 'es-ES'): void {
+    brandingRef.value = { default_locale: defaultLocale, active_locales: activeLocales }
+    statusRef.value = 'ready'
+  }
+
+  it('la elección guardada, si es un idioma activo, prevalece sobre el navegador', () => {
+    window.localStorage.setItem('plataforma.locale', 'fr')
+    setNavigatorLanguages(['de-DE'])
+    readyWith(['es-ES', 'de', 'fr'])
+
+    mountHost()
+
+    expect(setLocale).toHaveBeenCalledWith('fr')
+  })
+
+  it('la elección guardada no activa (de) cae a navegador ∩ activos (CA-AUTH-063)', () => {
+    window.localStorage.setItem('plataforma.locale', 'de')
+    setNavigatorLanguages(['en-GB'])
+    readyWith(['es-ES', 'en'])
+
+    mountHost()
+
+    expect(setLocale).toHaveBeenCalledWith('en')
+  })
+
+  it('la elección guardada no activa y sin coincidencia del navegador cae al idioma por defecto', () => {
+    window.localStorage.setItem('plataforma.locale', 'de')
+    setNavigatorLanguages(['it-IT'])
+    readyWith(['es-ES', 'fr'], 'fr')
+
+    mountHost()
+
+    expect(setLocale).toHaveBeenCalledWith('fr')
+  })
+
+  it('sin elección guardada el resultado es el de siempre: navegador ∩ activos', () => {
+    setNavigatorLanguages(['fr-FR', 'es-ES'])
+    readyWith(['es-ES', 'fr'])
+
+    mountHost()
+
+    expect(setLocale).toHaveBeenCalledWith('fr')
+  })
+
+  it('un valor guardado no soportado se ignora', () => {
+    window.localStorage.setItem('plataforma.locale', 'xx')
+    setNavigatorLanguages(['en-US'])
+    readyWith(['es-ES', 'en'])
+
+    mountHost()
+
+    expect(setLocale).toHaveBeenCalledWith('en')
   })
 })
