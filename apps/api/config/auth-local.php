@@ -1,0 +1,226 @@
+<?php
+
+// operacion.md §2.1. REQ-AUTH (paso 1.2). Ninguna es secreta. Nombre de
+// fichero "auth-local" (no "auth"): config/auth.php ya existe y es del
+// framework (guards, providers, password broker) — reutilizarlo mezclaría
+// dos orígenes de configuración distintos bajo la misma clave.
+
+return [
+
+    /*
+    |--------------------------------------------------------------------------
+    | Bloqueo de cuenta (RN-AUTH-14)
+    |--------------------------------------------------------------------------
+    */
+    'max_login_attempts' => (int) env('AUTH_LOGIN_MAX_ATTEMPTS', 5),
+    'lockout_minutes' => (int) env('AUTH_LOCKOUT_MINUTES', 15),
+    'unlock_token_ttl_hours' => (int) env('AUTH_UNLOCK_TOKEN_TTL_HOURS', 24),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Recuperación de contraseña (RN-AUTH-12)
+    |--------------------------------------------------------------------------
+    */
+    'password_reset_ttl_minutes' => (int) env('AUTH_PASSWORD_RESET_TTL_MINUTES', 60),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Expiración de sesión por inactividad (REQ-AUTH-005 punto 1)
+    |--------------------------------------------------------------------------
+    */
+    'session_timeout_default_minutes' => (int) env('AUTH_SESSION_TIMEOUT_DEFAULT_MINUTES', 30),
+    'session_timeout_max_minutes' => (int) env('AUTH_SESSION_TIMEOUT_MAX_MINUTES', 480),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Retención de telemetría (datos.md §A.9)
+    |--------------------------------------------------------------------------
+    */
+    'login_attempt_retention_days' => (int) env('AUTH_LOGIN_ATTEMPT_RETENTION_DAYS', 90),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Sesiones activas y dispositivos (1.2b, REQ-AUTH-005 puntos 2-4)
+    |--------------------------------------------------------------------------
+    |
+    | operacion.md §B.2. AUTH_NEW_DEVICE_ALERTS_PER_DAY: número puesto sin
+    | medición (operacion.md §B.2), a revisar con REQ-SEED (1.15b).
+    |
+    */
+    'device_cookie_ttl_days' => (int) env('AUTH_DEVICE_COOKIE_TTL_DAYS', 365),
+    'new_device_alerts_per_day' => (int) env('AUTH_NEW_DEVICE_ALERTS_PER_DAY', 5),
+    'user_session_retention_days' => (int) env('AUTH_USER_SESSION_RETENTION_DAYS', 90),
+    'known_device_retention_days' => (int) env('AUTH_KNOWN_DEVICE_RETENTION_DAYS', 365),
+    'user_agent_max_length' => (int) env('AUTH_USER_AGENT_MAX_LENGTH', 1024),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Política de contraseñas (RN-AUTH-01, RN-AUTH-02, RN-AUTH-03)
+    |--------------------------------------------------------------------------
+    |
+    | No son conmutadores de política: existen para poder endurecerla. Las
+    | guardas de arranque de AuthServiceProvider rechazan valores por
+    | debajo del mínimo exigido por la especificación.
+    |
+    */
+    'password_min_length' => (int) env('AUTH_PASSWORD_MIN_LENGTH', 12),
+    'password_max_bytes' => 72,
+    'bcrypt_rounds' => (int) env('AUTH_BCRYPT_ROUNDS', 12),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Límites de tasa (operacion.md §6)
+    |--------------------------------------------------------------------------
+    |
+    | Todos "número/ventana en segundos". Toda clave de limitación incluye
+    | el tenant (ADR-033 §9, TenantContext::rateLimitKey()).
+    |
+    */
+    'rate_limits' => [
+        'session_ip' => ['max' => (int) env('AUTH_RATE_LIMIT_SESSION_IP_MAX', 10), 'decay' => 60],
+        'session_email' => ['max' => (int) env('AUTH_RATE_LIMIT_SESSION_EMAIL_MAX', 5), 'decay' => 60],
+        'password_reset_request_ip' => ['max' => (int) env('AUTH_RATE_LIMIT_RESET_REQUEST_IP_MAX', 5), 'decay' => 3600],
+        'password_reset_request_email' => ['max' => (int) env('AUTH_RATE_LIMIT_RESET_REQUEST_EMAIL_MAX', 3), 'decay' => 3600],
+        'token_endpoints_ip' => ['max' => (int) env('AUTH_RATE_LIMIT_TOKEN_ENDPOINTS_IP_MAX', 10), 'decay' => 3600],
+        'csrf_cookie_ip' => ['max' => (int) env('AUTH_RATE_LIMIT_CSRF_COOKIE_IP_MAX', 60), 'decay' => 60],
+        // REQ-AUTH-003 (1.3), operacion.md §C.6.
+        'mfa_verification_ip' => ['max' => (int) env('AUTH_RATE_LIMIT_MFA_VERIFICATION_IP_MAX', 10), 'decay' => 60],
+        'mfa_verification_session' => ['max' => (int) env('AUTH_RATE_LIMIT_MFA_VERIFICATION_SESSION_MAX', 5), 'decay' => 60],
+        'mfa_challenge_session' => ['max' => (int) env('AUTH_RATE_LIMIT_MFA_CHALLENGE_SESSION_MAX', 3), 'decay' => 600],
+        'mfa_enrollment_user' => ['max' => (int) env('AUTH_RATE_LIMIT_MFA_ENROLLMENT_USER_MAX', 10), 'decay' => 3600],
+        'mfa_recovery_codes_user' => ['max' => (int) env('AUTH_RATE_LIMIT_MFA_RECOVERY_CODES_USER_MAX', 5), 'decay' => 3600],
+        'mfa_resets_admin' => ['max' => (int) env('AUTH_RATE_LIMIT_MFA_RESETS_ADMIN_MAX', 20), 'decay' => 3600],
+        // REQ-AUTH-002 (1.4), operacion.md §E.6. GET/DELETE /auth/identities
+        // no llevan bucket propio a propósito (mismo criterio que las
+        // sesiones activas de 1.2b y DELETE /auth/mfa-factors de 1.3: el
+        // bloqueo de cuenta defiende ahí, no el límite de tasa).
+        'oauth_start_ip' => ['max' => (int) env('AUTH_RATE_LIMIT_OAUTH_START_PER_IP', 10), 'decay' => 60],
+        'oauth_callback_ip' => ['max' => (int) env('AUTH_RATE_LIMIT_OAUTH_CALLBACK_PER_IP', 20), 'decay' => 60],
+        'identity_providers_ip' => ['max' => (int) env('AUTH_RATE_LIMIT_IDENTITY_PROVIDERS_PER_IP', 60), 'decay' => 60],
+        'mfa_challenge_read_session' => ['max' => (int) env('AUTH_RATE_LIMIT_MFA_CHALLENGE_READ_PER_SESSION', 30), 'decay' => 60],
+        // REQ-AUTH-004 (1.4b), operacion.md §F.6. oidc_callback_ip copia
+        // el valor de oauth_callback_ip a propósito: es el análogo
+        // exacto. sso_discovery_tenant y sso_secret_tenant van por
+        // tenant y no por IP/sesión: lo que se defiende no es la cuenta
+        // ni el servidor, son terceros (un centro entero comparte el
+        // límite de lo que pide su administrador).
+        'oidc_callback_ip' => ['max' => (int) env('AUTH_RATE_LIMIT_OIDC_CALLBACK_PER_IP', 20), 'decay' => 60],
+        'sso_discovery_tenant' => ['max' => (int) env('AUTH_RATE_LIMIT_SSO_DISCOVERY_PER_TENANT', 6), 'decay' => 60],
+        'sso_secret_tenant' => ['max' => (int) env('AUTH_RATE_LIMIT_SSO_SECRET_PER_TENANT', 6), 'decay' => 60],
+        // REQ-AUTH-004 (1.4c), operacion.md §G.6. saml_acs_ip copia el
+        // valor de oidc_callback_ip/oauth_callback_ip a propósito: es el
+        // análogo exacto (mismo punto de retorno, otro protocolo).
+        // sso_metadata_tenant/sso_certificate_tenant van por tenant, no
+        // por IP/sesión: lo que se defiende son terceros o la tabla de
+        // certificados, no la cuenta ni el servidor.
+        'saml_acs_ip' => ['max' => (int) env('AUTH_RATE_LIMIT_SAML_ACS_PER_IP', 20), 'decay' => 60],
+        'sso_metadata_tenant' => ['max' => (int) env('AUTH_RATE_LIMIT_SSO_METADATA_PER_TENANT', 6), 'decay' => 60],
+        'sso_certificate_tenant' => ['max' => (int) env('AUTH_RATE_LIMIT_SSO_CERTIFICATE_PER_TENANT', 6), 'decay' => 60],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | MFA — TOTP, códigos de respaldo, desafío del login en dos pasos
+    | (REQ-AUTH-003, 1.3)
+    |--------------------------------------------------------------------------
+    |
+    | operacion.md §C.2.1. Ninguna es un secreto. `totp_window` tiene guarda
+    | de arranque en AuthServiceProvider: un valor por encima de 2 amplía la
+    | ventana de validez de un código a más de dos minutos y medio.
+    |
+    */
+    'mfa' => [
+        'challenge_ttl_minutes' => (int) env('AUTH_MFA_CHALLENGE_TTL_MINUTES', 5),
+        'max_attempts' => (int) env('AUTH_MFA_MAX_ATTEMPTS', 5),
+        'enrollment_ttl_minutes' => (int) env('AUTH_MFA_ENROLLMENT_TTL_MINUTES', 10),
+        'code_ttl_minutes' => (int) env('AUTH_MFA_CODE_TTL_MINUTES', 10),
+        'max_deliveries' => (int) env('AUTH_MFA_MAX_DELIVERIES', 3),
+        'recovery_code_count' => (int) env('AUTH_MFA_RECOVERY_CODE_COUNT', 10),
+        'totp_window' => (int) env('AUTH_MFA_TOTP_WINDOW', 1),
+        'grace_default_days' => (int) env('AUTH_MFA_GRACE_DEFAULT_DAYS', 7),
+        'max_exemption_days' => (int) env('AUTH_MFA_MAX_EXEMPTION_DAYS', 90),
+        'factor_purge_days' => (int) env('AUTH_MFA_FACTOR_PURGE_DAYS', 30),
+        'challenge_retention_hours' => (int) env('AUTH_MFA_CHALLENGE_RETENTION_HOURS', 24),
+        // REQ-AUTH-003 (1.3b), operacion.md §D.2.1, funcional.md §D.4.9.
+        // Ventana hacia atrás de ReopenExpiredMfaExemptions: adelanta el
+        // trabajo que MfaPolicy::resolve() haría de todas formas en la
+        // siguiente petición del titular, no es la única garantía.
+        'exemption_reopen_window_hours' => (int) env('AUTH_MFA_EXEMPTION_REOPEN_WINDOW_HOURS', 48),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Login con Google y fusión de cuentas (REQ-AUTH-002, 1.4)
+    |--------------------------------------------------------------------------
+    |
+    | operacion.md §E.2.1. `driver`: 'none' (sin proveedor externo, valor por
+    | defecto — issue #140), 'google' o 'fake' (proveedor simulado,
+    | operacion.md §E.10). Guardas de arranque en AuthServiceProvider::boot()
+    | (OAuthEnvironmentGuard), en todos los entornos — 'none' no dispara
+    | ninguna, es el único valor seguro de desplegar sin configurar nada más
+    | (CA-AUTH-235). `client_secret` es el único valor secreto de este bloque
+    | (ADR-037 §7): nunca en `.env` versionado ni en la unidad Quadlet en
+    | claro.
+    |
+    */
+    'oauth' => [
+        'driver' => env('AUTH_OAUTH_DRIVER', 'none'),
+        'google_client_id' => env('AUTH_GOOGLE_CLIENT_ID'),
+        'google_client_secret' => env('AUTH_GOOGLE_CLIENT_SECRET'),
+        'state_ttl_minutes' => (int) env('AUTH_OAUTH_STATE_TTL_MINUTES', 10),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | SSO institucional: OIDC por tenant (REQ-AUTH-004, 1.4b)
+    |--------------------------------------------------------------------------
+    |
+    | operacion.md §F.2.1. Ninguna es secreta: el client_secret de cada
+    | proveedor vive cifrado en identity_provider_secrets, no aquí
+    | (ADR-043 §8.2). allow_insecure_discovery: false por defecto en
+    | cualquier entorno (CA-AUTH-310) — SsoEnvironmentGuard aborta el
+    | arranque si es true fuera de local/testing.
+    |
+    */
+    'sso' => [
+        'discovery_timeout_seconds' => (int) env('AUTH_SSO_DISCOVERY_TIMEOUT_SECONDS', 5),
+        'discovery_max_bytes' => (int) env('AUTH_SSO_DISCOVERY_MAX_BYTES', 262144),
+        'discovery_max_redirects' => (int) env('AUTH_SSO_DISCOVERY_MAX_REDIRECTS', 3),
+        'discovery_refresh_days' => (int) env('AUTH_SSO_DISCOVERY_REFRESH_DAYS', 7),
+        'secret_expiry_warning_days' => (int) env('AUTH_SSO_SECRET_EXPIRY_WARNING_DAYS', 30),
+        'clock_skew_seconds' => (int) env('AUTH_SSO_CLOCK_SKEW_SECONDS', 120),
+        'token_timeout_seconds' => (int) env('AUTH_SSO_TOKEN_TIMEOUT_SECONDS', 5),
+        'allow_insecure_discovery' => filter_var(env('AUTH_SSO_ALLOW_INSECURE_DISCOVERY', false), FILTER_VALIDATE_BOOLEAN),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | SSO institucional: SAML 2.0 por tenant (REQ-AUTH-004, 1.4c)
+    |--------------------------------------------------------------------------
+    |
+    | operacion.md §G.2.1. Ninguna es secreta salvo las dos rutas de la
+    | clave de firma del SP, que no son el secreto en sí (viven fuera de
+    | base de datos, en un fichero montado, `ADR-037 §7`) sino solo su
+    | ruta. `AUTH_SSO_CLOCK_SKEW_SECONDS` y
+    | `AUTH_SSO_SECRET_EXPIRY_WARNING_DAYS` (arriba) se reutilizan sin
+    | duplicar, también para SAML.
+    |
+    | `allow_insecure_metadata`: `false` en cualquier entorno por
+    | defecto — SamlEnvironmentGuard aborta el arranque si es `true`
+    | fuera de local/testing (CA-AUTH-365, issue #140).
+    |
+    */
+    'saml' => [
+        'sp_signing_key_path' => env('AUTH_SAML_SP_SIGNING_KEY_PATH', ''),
+        'sp_signing_cert_path' => env('AUTH_SAML_SP_SIGNING_CERT_PATH', ''),
+        'metadata_timeout_seconds' => (int) env('AUTH_SAML_METADATA_TIMEOUT_SECONDS', 5),
+        'metadata_max_bytes' => (int) env('AUTH_SAML_METADATA_MAX_BYTES', 524288),
+        'metadata_max_redirects' => (int) env('AUTH_SAML_METADATA_MAX_REDIRECTS', 3),
+        'metadata_max_depth' => (int) env('AUTH_SAML_METADATA_MAX_DEPTH', 20),
+        'metadata_refresh_days' => (int) env('AUTH_SAML_METADATA_REFRESH_DAYS', 7),
+        'auth_request_retention_hours' => (int) env('AUTH_SAML_AUTH_REQUEST_RETENTION_HOURS', 24),
+        'min_certificate_key_bits' => (int) env('AUTH_SAML_MIN_CERTIFICATE_KEY_BITS', 2048),
+        'allow_insecure_metadata' => filter_var(env('AUTH_SAML_ALLOW_INSECURE_METADATA', false), FILTER_VALIDATE_BOOLEAN),
+    ],
+
+];

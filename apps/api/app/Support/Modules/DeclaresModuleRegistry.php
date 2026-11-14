@@ -1,0 +1,53 @@
+<?php
+
+namespace App\Support\Modules;
+
+/**
+ * ADR-034 §2, §5, §7: la fuente de verdad de módulos y permisos es el
+ * código de cada bounded context (INV-007), materializada en `modules` y
+ * `permissions` por el comando `platform:sync-registry` (0.8.11). Un
+ * ServiceProvider de módulo que implemente esta interfaz se recoge solo,
+ * sin registrarlo a mano en ningún sitio — misma filosofía que
+ * ModuleServiceProviderDiscovery.
+ */
+interface DeclaresModuleRegistry
+{
+    /**
+     * `depends_on`/`essential` (1.6c, `ADR-045 §4.5`/`§4.9`): opcionales,
+     * por omisión `[]`/`false` — no se materializan en `modules`
+     * (`datos.md §8`). `platform:sync-registry` aborta el despliegue si
+     * `depends_on` referencia un código inexistente, si el grafo tiene
+     * ciclos, o si un `essential: true` depende de un módulo no esencial
+     * (`RN-BO-63`, `RN-BO-64`).
+     *
+     * `feature_flags` (1.6e, `datos.md §9.1`, `RN-BO-34`): opcional, por
+     * omisión `[]`, aditivo puro. `platform:sync-registry` materializa
+     * cada entrada en `feature_flags` y aborta si dos módulos declaran la
+     * misma clave o si una clave no cumple el formato
+     * `[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)*` (`CA-BO-089`). El
+     * `module_code` de cada *flag* es siempre el del propio módulo que lo
+     * declara (`null` sólo para `core`) — nunca una referencia cruzada.
+     *
+     * @return array{code: string, name_key: string, phase: string, depends_on?: list<string>, essential?: bool, feature_flags?: list<array{key: string, name_key: string, description_key: string, rollout_unit?: string}>}
+     */
+    public function moduleDescriptor(): array;
+
+    /**
+     * REQ-PERM/datos.md §3 (1.5): `applicable_scopes` es opcional — su
+     * omisión equivale a `['todos']` (funcional.md §3.2 regla 1). Cuando se
+     * declara, cada valor debe pertenecer al vocabulario cerrado de
+     * `App\Support\Authorization\Scope`; `SyncModuleRegistry` aborta el
+     * despliegue si no es así (RN-PERM-01, operacion.md §4.2).
+     *
+     * REQ-PERM/api.md §14.3 (1.5b, S-PERM-2): `resource_label_key` es la
+     * clave de traducción del nombre del recurso, que declara el módulo
+     * **dueño** del recurso en sus propios `lang/{es,en,de,fr}`. No se
+     * materializa en `permissions` (`operacion.md §10`): se lee en tiempo
+     * de petición (`PermissionResourceLabels`). Omitirla no rompe nada —
+     * la respuesta lleva el código del recurso como etiqueta —, pero el
+     * test del catálogo falla (`CA-PERM-134`).
+     *
+     * @return list<array{code: string, resource: string, action: string, is_special_category?: bool, applicable_scopes?: list<string>, resource_label_key?: string}>
+     */
+    public function declaredPermissions(): array;
+}

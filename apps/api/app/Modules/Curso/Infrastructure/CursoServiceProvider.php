@@ -1,0 +1,164 @@
+<?php
+
+namespace App\Modules\Curso\Infrastructure;
+
+use App\Modules\Curso\Domain\AcademicYearClosureRegistry;
+use App\Modules\Curso\Domain\AcademicYearContext;
+use App\Modules\Curso\Domain\AcademicYearDateChangeRegistry;
+use App\Modules\Curso\Domain\AcademicYearDirectory;
+use App\Modules\Curso\Domain\AcademicYearReadAccess;
+use App\Modules\Curso\Domain\AcademicYearReadDeniedException;
+use App\Modules\Curso\Domain\AcademicYearReadOnlyException;
+use App\Modules\Curso\Domain\AcademicYearReopenRegistry;
+use App\Modules\Curso\Domain\AcademicYearRolloverRegistry;
+use App\Modules\Curso\Domain\AcademicYearSharedLock;
+use App\Modules\Curso\Domain\AcademicYearWriteGuard;
+use App\Modules\Curso\Domain\Models\AcademicYear;
+use App\Modules\Curso\Domain\Models\AcademicYearReopening;
+use App\Modules\Curso\Domain\Models\YearRollover;
+use App\Modules\Curso\Domain\Models\YearRolloverItem;
+use App\Modules\Curso\Infrastructure\Console\RolloverResetCommand;
+use App\Support\Modules\DeclaresModuleRegistry;
+use Illuminate\Contracts\Debug\ExceptionHandler;
+use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Database\QueryException;
+use Illuminate\Support\ServiceProvider;
+use Throwable;
+
+/**
+ * ADR-034 §2, §5, §7 y REQ-CURSO/funcional.md §8 (paso 1.10): descubierto
+ * por ModuleServiceProviderDiscovery, sin registro a mano. Declara el
+ * descriptor del módulo (esencial, `depends_on []`: OPEN-CURSO-01) y el
+ * catálogo de permisos de `permisos.md §2`, que `platform:sync-registry`
+ * materializa.
+ *
+ * Las migraciones de 1.10 (la función del bloqueo de escritura y la de
+ * `academic_years`) viven en `apps/api/database/migrations/` (esquema del
+ * núcleo, `datos.md §1.4`). Desde 1.11c el módulo tiene la suya propia,
+ * `academic_year_reopenings` (`datos.md §1.5`), en
+ * `Modules/Curso/Database/migrations/`, cargada con `loadMigrationsFrom`.
+ */
+class CursoServiceProvider extends ServiceProvider implements DeclaresModuleRegistry
+{
+    public function register(): void
+    {
+        // RN-CURSO-24: memoizado por petición, sin caché entre peticiones.
+        // `scoped` lo reinicia entre peticiones y trabajos en cola.
+        $this->app->scoped(EloquentAcademicYearContext::class);
+        $this->app->bind(AcademicYearContext::class, static fn ($app): AcademicYearContext => $app->make(EloquentAcademicYearContext::class));
+
+        // CA-ACAD-042: memoiza la búsqueda por identificador por petición.
+        $this->app->scoped(EloquentAcademicYearDirectory::class);
+        $this->app->bind(AcademicYearDirectory::class, static fn ($app): AcademicYearDirectory => $app->make(EloquentAcademicYearDirectory::class));
+        $this->app->bind(AcademicYearWriteGuard::class, EloquentAcademicYearWriteGuard::class);
+        $this->app->bind(AcademicYearReadAccess::class, PermissionAcademicYearReadAccess::class);
+
+        // RN-CURSO-30: vacío en 1.10; cada módulo registra la suya.
+        $this->app->singleton(AcademicYearClosureRegistry::class, InMemoryAcademicYearClosureRegistry::class);
+
+        // RN-CURSO-45 (1.11c): vacío al entregarse, simétrico al de cierre.
+        $this->app->singleton(AcademicYearReopenRegistry::class, InMemoryAcademicYearReopenRegistry::class);
+
+        // RN-CURSO-49 (1.11d-a): cada módulo registra la suya desde su `boot()`.
+        $this->app->singleton(AcademicYearDateChangeRegistry::class, InMemoryAcademicYearDateChangeRegistry::class);
+
+        // RN-CURSO-61 (1.12b): cada módulo registra su participante desde su `boot()`.
+        $this->app->singleton(AcademicYearRolloverRegistry::class, InMemoryAcademicYearRolloverRegistry::class);
+
+        // RN-CURSO-55 (1.11d-a): sin estado por petición, a diferencia del directorio.
+        $this->app->bind(AcademicYearSharedLock::class, EloquentAcademicYearSharedLock::class);
+    }
+
+    public function boot(): void
+    {
+        $this->loadMigrationsFrom(app_path('Modules/Curso/Database/migrations'));
+
+        // OPEN-CURSO-03: el MISMO alias `academic_year` que tenía
+        // AppServiceProvider — `audit_logs` guarda el alias, nunca el FQCN
+        // (ADR-034 §3): ninguna fila de auditoría cambia de significado.
+        Relation::enforceMorphMap([
+            'academic_year' => AcademicYear::class,
+            'academic_year_reopening' => AcademicYearReopening::class,
+            // 1.12b (datos.md §1.6, §1.7).
+            'year_rollover' => YearRollover::class,
+            'year_rollover_item' => YearRolloverItem::class,
+        ]);
+
+        $this->registerErrorTranslation();
+
+        if ($this->app->runningInConsole()) {
+            // operacion.md §4.1, §7 (1.12b): salida del operador para una copia huérfana.
+            $this->commands([RolloverResetCommand::class]);
+        }
+    }
+
+    /**
+     * ADR-057 §5.5: el módulo registra el mapeo de `QueryException` con
+     * `SQLSTATE YC001` (y de sus dos excepciones de dominio) a la respuesta
+     * de error de la API. El núcleo no conoce el `SQLSTATE`.
+     */
+    private function registerErrorTranslation(): void
+    {
+        /** @var object $handler Larastan lo tipa como el decorador de Collision (solo consola); en HTTP es `Illuminate\Foundation\Exceptions\Handler`. */
+        $handler = $this->app->make(ExceptionHandler::class);
+
+        // En consola el manejador es el decorador de Collision, que no tiene
+        // `map()` ni renderiza respuestas HTTP: no hay nada que traducir.
+        if (! method_exists($handler, 'map')) {
+            return;
+        }
+
+        $translator = new AcademicYearClosedTranslator;
+        $map = static fn (Throwable $e): Throwable => $translator->translate($e);
+
+        foreach ([
+            QueryException::class,
+            AcademicYearReadOnlyException::class,
+            AcademicYearReadDeniedException::class,
+        ] as $class) {
+            $handler->map($class, $map);
+        }
+    }
+
+    public function moduleDescriptor(): array
+    {
+        return [
+            'code' => 'curso',
+            'name_key' => 'modules.curso',
+            'phase' => '1',
+            'depends_on' => [],
+            'essential' => true,
+        ];
+    }
+
+    public function declaredPermissions(): array
+    {
+        $permissions = [];
+
+        // permisos.md §2: todos de ámbito `todos`, explícito en cada entrada
+        // (ADR-044 §4.1). Un curso es del centro entero; el ámbito del dato
+        // lo pone el permiso del módulo dueño.
+        foreach ([
+            'curso_academico' => ['leer', 'crear', 'actualizar'],
+            'estado_curso_academico' => ['actualizar'],
+            'curso_historico' => ['leer'],
+            'reapertura_curso_academico' => ['actualizar'],
+            // 1.12b (permisos.md §2): la apertura del curso siguiente. `eliminar`
+            // revierte y cancela; no existe `actualizar` ni `exportar`.
+            'apertura_curso_academico' => ['leer', 'crear', 'eliminar'],
+        ] as $resource => $actions) {
+            foreach ($actions as $action) {
+                $permissions[] = [
+                    'code' => "{$resource}.{$action}",
+                    'resource' => $resource,
+                    'action' => $action,
+                    'is_special_category' => false,
+                    'resource_label_key' => "curso.permissions.resources.{$resource}",
+                    'applicable_scopes' => ['todos'],
+                ];
+            }
+        }
+
+        return $permissions;
+    }
+}

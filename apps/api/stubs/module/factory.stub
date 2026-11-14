@@ -1,0 +1,26 @@
+<?php
+
+namespace Database\Factories\{{ name }};
+
+use App\Modules\{{ name }}\Domain\Models\{{ entity }};
+use Illuminate\Database\Eloquent\Factories\Factory;
+
+/**
+ * ADR-056 §3.5 (generado por `php artisan make:module --entity={{ entity }}`).
+ * Fuera del espacio `App`, como las demás factorías, para que `REQ-SEED` pueda
+ * usarla sin violar AR-01/AR-02.
+ *
+ * @extends Factory<{{ entity }}>
+ */
+class {{ entity }}Factory extends Factory
+{
+    protected $model = {{ entity }}::class;
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function definition(): array
+    {
+        return [];
+    }
+}

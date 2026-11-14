@@ -1,0 +1,232 @@
+<?php
+
+// Rutas de REQ-CORE (paso 1.1), documentadas en
+// apps/api/openapi/paths/core.yaml. Se registran aquí, no en
+// routes/api-v1.php directamente, para que el módulo sea autocontenido
+// (INV-007). Requerido desde routes/api-v1.php, ya dentro del grupo
+// prefix('v1')->middleware(['resolve-tenant', 'resolve-locale']).
+//
+// Se va ampliando subpaso a subpaso conforme se implementan los
+// controladores (ver docs/modulos/REQ-CORE/api.md).
+
+use App\Modules\Core\Http\Controllers\AuditLogsController;
+use App\Modules\Core\Http\Controllers\DataExportsController;
+use App\Modules\Core\Http\Controllers\EffectivePermissionsController;
+use App\Modules\Core\Http\Controllers\FeatureFlagsController;
+use App\Modules\Core\Http\Controllers\InvitationsController;
+use App\Modules\Core\Http\Controllers\MeController;
+use App\Modules\Core\Http\Controllers\ModulesController;
+use App\Modules\Core\Http\Controllers\PermissionsController;
+use App\Modules\Core\Http\Controllers\PlatformActionsController;
+use App\Modules\Core\Http\Controllers\RolesController;
+use App\Modules\Core\Http\Controllers\TenantController;
+use App\Modules\Core\Http\Controllers\TenantSettingsAssetsController;
+use App\Modules\Core\Http\Controllers\TenantSettingsController;
+use App\Modules\Core\Http\Controllers\UserImportsController;
+use App\Modules\Core\Http\Controllers\UserRolesController;
+use App\Modules\Core\Http\Controllers\UsersController;
+use Illuminate\Support\Facades\Route;
+
+// api.md §2. GET /tenant/branding es el único endpoint sin autenticación
+// del módulo (funcional.md §4.8): sin middleware `permission`, resuelto
+// solo por host.
+Route::get('/tenant/branding', [TenantController::class, 'branding'])->name('core.tenant.branding');
+
+Route::get('/tenant', [TenantController::class, 'show'])
+    ->middleware('permission:configuracion.leer')
+    ->name('core.tenant.show');
+
+Route::get('/tenant/settings', [TenantSettingsController::class, 'show'])
+    ->middleware('permission:configuracion.leer')
+    ->name('core.tenant-settings.show');
+
+Route::patch('/tenant/settings', [TenantSettingsController::class, 'update'])
+    ->middleware('permission:configuracion.actualizar')
+    ->name('core.tenant-settings.update');
+
+// api.md §2.2/§2.3. {kind} ∈ {logo, favicon, login-background}; un valor
+// fuera de ese conjunto se resuelve a 404 dentro del controlador
+// (BrandingAssetKind::tryFrom), no aquí, para que el mensaje de error
+// pase por ApiException como cualquier otro (ADR-038 §6).
+Route::put('/tenant/settings/assets/{kind}', [TenantSettingsAssetsController::class, 'update'])
+    ->middleware('permission:configuracion.actualizar')
+    ->name('core.tenant-settings.assets.update');
+
+Route::delete('/tenant/settings/assets/{kind}', [TenantSettingsAssetsController::class, 'destroy'])
+    ->middleware('permission:configuracion.actualizar')
+    ->name('core.tenant-settings.assets.destroy');
+
+// api.md §3. /me: autoservicio por identidad, no por permiso
+// (funcional.md §4.9, permisos.md §5) — sin middleware `permission`.
+Route::get('/me', [MeController::class, 'show'])->name('core.me.show');
+Route::patch('/me', [MeController::class, 'update'])->name('core.me.update');
+
+// api.md §2.14 (REQ-BO-005, sub-paso 1.6e): el dato es de REQ-BO —
+// funcional.md §5.11 — pero la ruta vive aquí, mismo criterio que
+// /platform-actions. Autorización por identidad, no por permiso (§2.14
+// punto 3): la respuesta depende del propio sujeto.
+Route::get('/feature-flags', [FeatureFlagsController::class, 'index'])->name('core.feature-flags.index');
+
+Route::get('/users', [UsersController::class, 'index'])
+    ->middleware('permission:usuario.leer')
+    ->name('core.users.index');
+
+Route::post('/users', [UsersController::class, 'store'])
+    ->middleware('permission:usuario.crear')
+    ->name('core.users.store');
+
+// api.md §14.1 (1.9b, S1, RN-CORE-85). `usuario.exportar` es el permiso del
+// recurso exportado (permisos.md §2, declarado desde 1.1).
+Route::post('/users/exports', [UsersController::class, 'storeExport'])
+    ->middleware('permission:usuario.exportar')
+    ->name('core.users.exports');
+
+Route::get('/users/{publicId}', [UsersController::class, 'show'])
+    ->middleware('permission:usuario.leer')
+    ->name('core.users.show');
+
+Route::patch('/users/{publicId}', [UsersController::class, 'update'])
+    ->middleware('permission:usuario.actualizar')
+    ->name('core.users.update');
+
+Route::delete('/users/{publicId}', [UsersController::class, 'destroy'])
+    ->middleware('permission:usuario.eliminar')
+    ->name('core.users.destroy');
+
+Route::post('/users/{publicId}/restore', [UsersController::class, 'restore'])
+    ->middleware('permission:usuario.eliminar')
+    ->name('core.users.restore');
+
+Route::post('/users/{publicId}/status', [UsersController::class, 'updateStatus'])
+    ->middleware('permission:usuario.actualizar')
+    ->name('core.users.status');
+
+Route::get('/invitations', [InvitationsController::class, 'index'])
+    ->middleware('permission:invitacion.leer')
+    ->name('core.invitations.index');
+
+Route::post('/users/{publicId}/invitations', [InvitationsController::class, 'store'])
+    ->middleware('permission:invitacion.crear')
+    ->name('core.invitations.store');
+
+Route::delete('/invitations/{publicId}', [InvitationsController::class, 'destroy'])
+    ->middleware('permission:invitacion.eliminar')
+    ->name('core.invitations.destroy');
+
+Route::get('/roles', [RolesController::class, 'index'])
+    ->middleware('permission:rol.leer')
+    ->name('core.roles.index');
+
+// REQ-PERM/api.md §3 (1.5, RPERM-005/006): alta y clonación comparten
+// ruta, verbo y permiso.
+Route::post('/roles', [RolesController::class, 'store'])
+    ->middleware('permission:rol.crear')
+    ->name('core.roles.store');
+
+Route::get('/roles/{publicId}', [RolesController::class, 'show'])
+    ->middleware('permission:rol.leer')
+    ->name('core.roles.show');
+
+// REQ-AUTH/funcional.md §C.2.2, §C.16 (1.3): acotado a mfa_required
+// (RN-AUTH-70). REQ-PERM/api.md §4 (1.5): mismo método, misma ruta, mismo
+// permiso base — el editor completo se abre en PatchRole.
+Route::patch('/roles/{publicId}', [RolesController::class, 'update'])
+    ->middleware('permission:rol.actualizar')
+    ->name('core.roles.update');
+
+// REQ-PERM/api.md §6 (1.5, RN-PERM-16/17).
+Route::delete('/roles/{publicId}', [RolesController::class, 'destroy'])
+    ->middleware('permission:rol.eliminar')
+    ->name('core.roles.destroy');
+
+// REQ-PERM/api.md §5 (1.5): reemplazo completo de las concesiones de un
+// rol (ADR-038 §9.1).
+Route::put('/roles/{publicId}/permissions', [RolesController::class, 'replacePermissions'])
+    ->middleware('permission:rol.actualizar')
+    ->name('core.roles.permissions.replace');
+
+Route::get('/permissions', [PermissionsController::class, 'index'])
+    ->middleware('permission:permiso.leer')
+    ->name('core.permissions.index');
+
+Route::get('/users/{publicId}/roles', [UserRolesController::class, 'index'])
+    ->middleware('permission:asignacion_rol.leer')
+    ->name('core.user-roles.index');
+
+Route::put('/users/{publicId}/roles', [UserRolesController::class, 'replace'])
+    ->middleware('permission:asignacion_rol.crear')
+    ->name('core.user-roles.replace');
+
+// REQ-PERM/api.md §7 (1.5, RPERM-009). Dos rutas, un solo controlador y
+// un solo cálculo (`ComputeEffectivePermissions`) — la diferencia está
+// entera en cómo se autoriza cada una (funcional.md §7.11).
+Route::get('/users/{publicId}/effective-permissions', [EffectivePermissionsController::class, 'show'])
+    ->middleware('permission:permiso_efectivo.leer')
+    ->name('core.users.effective-permissions');
+
+// Sin middleware `permission:` — y nunca lo llevará (funcional.md §7.11,
+// permisos.md §2.2): autoservicio autorizado por identidad del portador
+// de la cookie, como GET /me.
+Route::get('/me/effective-permissions', [EffectivePermissionsController::class, 'mine'])
+    ->name('core.me.effective-permissions');
+
+Route::get('/modules', [ModulesController::class, 'index'])
+    ->middleware('permission:modulo.leer')
+    ->name('core.modules.index');
+
+Route::patch('/module-subscriptions/{publicId}', [ModulesController::class, 'updateSettings'])
+    ->middleware('permission:modulo.actualizar')
+    ->name('core.module-subscriptions.update');
+
+// api.md §7. Esquema de columnas fijo, dos fases (funcional.md §4.4).
+// `execute` es el primer y único consumidor de `Idempotency-Key` en 1.1
+// (ADR-038 §8): `idempotent:user-imports.execute` es el identificador
+// estable del endpoint que exige ADR-038 §8.3, no la ruta con parámetros.
+Route::get('/user-imports', [UserImportsController::class, 'index'])
+    ->middleware('permission:usuario.importar')
+    ->name('core.user-imports.index');
+
+Route::post('/user-imports', [UserImportsController::class, 'store'])
+    ->middleware('permission:usuario.importar')
+    ->name('core.user-imports.store');
+
+Route::get('/user-imports/{publicId}', [UserImportsController::class, 'show'])
+    ->middleware('permission:usuario.importar')
+    ->name('core.user-imports.show');
+
+Route::post('/user-imports/{publicId}/execute', [UserImportsController::class, 'execute'])
+    ->middleware(['permission:usuario.importar', 'idempotent:user-imports.execute'])
+    ->name('core.user-imports.execute');
+
+Route::delete('/user-imports/{publicId}', [UserImportsController::class, 'destroy'])
+    ->middleware('permission:usuario.importar')
+    ->name('core.user-imports.destroy');
+
+Route::get('/audit-logs', [AuditLogsController::class, 'index'])
+    ->middleware('permission:auditoria.leer')
+    ->name('core.audit-logs.index');
+
+// api.md §14.4 (1.9d, S10, OPEN-CORE-34 = B): sin consultar audit_logs.
+Route::get('/audit-logs/facets', [AuditLogsController::class, 'facets'])
+    ->middleware('permission:auditoria.leer')
+    ->name('core.audit-logs.facets');
+
+Route::post('/audit-logs/exports', [AuditLogsController::class, 'storeExport'])
+    ->middleware('permission:auditoria.exportar')
+    ->name('core.audit-logs.exports');
+
+// REQ-BO-007 (1.6), api.md §2.9. El dato nace en admin_action_logs
+// (REQ-BO), pero la ruta y el permiso son de REQ-CORE (INV-007):
+// reutiliza auditoria.leer, mismo criterio que REQ-PERM/permisos.md §5.1
+// — el recurso es el mismo desde el punto de vista del centro.
+Route::get('/platform-actions', [PlatformActionsController::class, 'index'])
+    ->middleware('permission:auditoria.leer')
+    ->name('core.platform-actions.index');
+
+// api.md §14.2 (1.9b, S3, RN-CORE-86): el permiso que exige el detalle es el
+// del recurso exportado, resuelto por `kind` con una correspondencia cerrada
+// dentro del controlador (`DataExportsController::PERMISSION_BY_KIND`), no
+// con un middleware fijo: con dos `kind`, ninguno de los dos permisos sirve
+// para los dos. Sin sesión, 401; `kind` sin correspondencia, 403.
+Route::get('/data-exports/{publicId}', [DataExportsController::class, 'show'])
+    ->name('core.data-exports.show');

@@ -1,0 +1,41 @@
+<?php
+
+// ADR-038 §6. See lang/es/errors.php for the authoritative comment.
+
+return [
+    'title' => [
+        'malformed' => 'Malformed request',
+        'unauthenticated' => 'You are not signed in',
+        'forbidden' => 'You do not have permission',
+        'module-disabled' => 'Module not available',
+        'not-found' => 'Resource not found',
+        'method-not-allowed' => 'Method not allowed',
+        'conflict' => 'Conflict with the current state',
+        'gone' => 'Resource no longer available',
+        'payload-too-large' => 'File too large',
+        'unsupported-media-type' => 'Unsupported file type',
+        'validation' => 'The submitted data is not valid',
+        'too-many-requests' => 'Too many requests',
+        'internal' => 'Internal server error',
+        'unavailable' => 'Service temporarily unavailable',
+        'account-locked' => 'Account locked',
+        'reauthentication-required' => 'Please sign in again',
+        'ip-not-allowed' => 'Access not allowed',
+        // ADR-067 §5.5 (L5): muro de aceptación de las condiciones de uso.
+        'terms-acceptance-required' => 'You must accept the terms of use',
+    ],
+
+    'detail' => [
+        'unauthenticated' => 'You must sign in to access this resource.',
+        'forbidden' => 'You do not have permission to perform this action.',
+        'module-disabled' => 'This module is not active for your school.',
+        'not-found' => 'The requested resource does not exist.',
+        'method-not-allowed' => 'The HTTP method is not allowed for this route.',
+        'validation' => 'Please review the indicated fields.',
+        'internal' => 'An unexpected error occurred. Keep the request identifier if you contact support.',
+        'unavailable' => 'The service is temporarily unavailable. Please try again in a few minutes.',
+        'account-locked' => 'This account is temporarily locked after too many failed attempts. Check your email or try again later.',
+        'reauthentication-required' => 'This action requires you to confirm your password and second factor again.',
+        'terms-acceptance-required' => 'To continue, accept the terms of use currently in force at the school.',
+    ],
+];

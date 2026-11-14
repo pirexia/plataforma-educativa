@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "laravel-boost": {
+      "command": "podman",
+      "args": ["exec", "-i", "-w", "/var/www/html", "plataforma-api", "php", "artisan", "boost:mcp"]
+    },
+    "playwright": {
+      "command": "npx",
+      "args": ["-y", "@playwright/mcp@latest", "--browser=chromium"]
+    }
+  }
+}

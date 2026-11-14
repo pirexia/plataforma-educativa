@@ -1,0 +1,24 @@
+name: Escaneo de dependencias
+
+on:
+  pull_request:
+    branches: [develop, main]
+
+permissions:
+  contents: read
+
+jobs:
+  trivy:
+    name: Trivy (composer.lock, package-lock.json)
+    runs-on: ubuntu-24.04  # fijada: ubuntu-latest migra a 26.04 hasta el 19-11-2026 (#609, actions/runner-images#14748)
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: "."
+          vuln-type: library
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"

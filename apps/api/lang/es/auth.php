@@ -1,0 +1,200 @@
+<?php
+
+// REQ-AUTH, paso 1.2. Literales propios del módulo (INV-009): correos
+// transaccionales (operacion.md §5) y mensajes de validación de negocio
+// que no expresa una regla de Laravel (política de contraseñas, §6.3 de
+// ADR-038: ValidationErrorBag, no ValidationErrorFormatter — issue #60).
+
+return [
+
+    'validation' => [
+        'password' => [
+            'min_length' => 'La contraseña debe tener al menos :min caracteres.',
+            'max_bytes' => 'La contraseña es demasiado larga.',
+            'uppercase' => 'La contraseña debe incluir al menos una letra mayúscula.',
+            'lowercase' => 'La contraseña debe incluir al menos una letra minúscula.',
+            'digit' => 'La contraseña debe incluir al menos un número.',
+            'symbol' => 'La contraseña debe incluir al menos un símbolo.',
+            'same_as_current' => 'La nueva contraseña no puede ser igual a la actual.',
+        ],
+        'current_password_incorrect' => 'La contraseña actual no es correcta.',
+        'lockout_already_unlocked' => 'Este bloqueo ya está levantado.',
+        'session_already_closed' => 'Esta sesión ya está cerrada.',
+        // REQ-AUTH-003 (1.3), funcional.md §C.
+        'mfa_factor_already_confirmed' => 'Ya tienes un factor confirmado de este método.',
+        'mfa_method_not_available' => 'Este método de verificación no está disponible en este centro.',
+        'mfa_code_invalid' => 'El código no es correcto.',
+        'mfa_factor_required_by_role' => 'No puedes desactivar tu último factor: alguno de tus roles exige la verificación en dos pasos.',
+        // REQ-AUTH-003 (1.3b), funcional.md §D.4.6, RN-AUTH-81.
+        'mfa_exemption_already_live' => 'Este usuario ya tiene una excepción de MFA vigente.',
+        // RN-AUTH-81/RN-AUTH-67, api.md §D.4/§C.5: distinto del 403 genérico
+        // por falta de permiso — se distingue en el mensaje.
+        'mfa_exemption_self' => 'No puedes concederte una excepción de MFA a ti mismo.',
+        'mfa_reset_self' => 'No puedes restablecer tu propio MFA.',
+        // REQ-AUTH-002 (1.4).
+        'oauth_provider_not_configured' => 'Este proveedor de acceso no está disponible en este centro.',
+        'oauth_intent_requires_session' => 'Tienes que haber iniciado sesión para vincular una cuenta.',
+        'identity_would_leave_user_without_access' => 'No puedes desvincular esta cuenta: es tu única forma de entrar.',
+        // REQ-AUTH-004 (1.4c), api.md §G.5, funcional.md §G.5.1.
+        'saml_certificate_invalid' => 'El certificado no es un X.509 válido, ya ha caducado o su clave no alcanza el tamaño mínimo admitido.',
+        'saml_email_attribute_required' => 'Indica el atributo de correo, salvo que el identificador use el formato de dirección de correo.',
+    ],
+
+    'mail' => [
+        'account_locked' => [
+            'subject' => 'Tu cuenta en :tenant se ha bloqueado temporalmente',
+            'greeting' => 'Hola, :name.',
+            'body' => 'Se han detectado :count intentos fallidos de acceso a tu cuenta en :tenant y se ha bloqueado temporalmente por seguridad.',
+            'auto_unlock' => 'El bloqueo se levantará automáticamente el :time si no haces nada.',
+            'cta' => 'Desbloquear mi cuenta ahora',
+        ],
+        'password_reset' => [
+            'subject' => 'Restablece tu contraseña en :tenant',
+            'greeting' => 'Hola, :name.',
+            'body' => 'Has solicitado restablecer tu contraseña en :tenant.',
+            'cta' => 'Restablecer mi contraseña',
+            'expires' => 'Este enlace caduca en :minutes minutos.',
+            'ignore' => 'Si no has sido tú, puedes ignorar este mensaje: tu contraseña actual sigue siendo válida.',
+        ],
+        'password_changed' => [
+            'subject' => 'Tu contraseña en :tenant ha cambiado',
+            'greeting' => 'Hola, :name.',
+            'body' => 'Tu contraseña de acceso a :tenant se acaba de cambiar.',
+            'warning' => 'Si no has sido tú, contacta cuanto antes con la administración de tu centro.',
+        ],
+        // REQ-AUTH-003 (1.3), funcional.md §C.4.13: tres avisos, sin
+        // enlace accionable (RN-AUTH-50).
+        'mfa_factor_activated' => [
+            'subject' => 'Se ha activado la verificación en dos pasos en :tenant',
+            'greeting' => 'Hola, :name.',
+            'body' => 'Se acaba de activar un nuevo factor de verificación en dos pasos en tu cuenta de :tenant.',
+            'warning' => 'Si no has sido tú, contacta cuanto antes con la administración de tu centro.',
+        ],
+        'mfa_factor_removed' => [
+            'subject' => 'Se ha desactivado la verificación en dos pasos en :tenant',
+            'greeting' => 'Hola, :name.',
+            'body_by_self' => 'Se acaba de desactivar un factor de verificación en dos pasos en tu cuenta de :tenant.',
+            'body_by_admin' => 'Un administrador de :tenant ha restablecido la verificación en dos pasos de tu cuenta: tus factores y códigos de respaldo anteriores ya no son válidos.',
+            'warning' => 'Si no has sido tú, contacta cuanto antes con la administración de tu centro.',
+        ],
+        'recovery_code_used' => [
+            'subject' => 'Se ha usado un código de respaldo en :tenant',
+            'greeting' => 'Hola, :name.',
+            'body' => 'Se ha usado uno de tus códigos de respaldo para acceder a tu cuenta de :tenant en lugar de tu segundo factor habitual.',
+            'warning' => 'Si no has sido tú, contacta cuanto antes con la administración de tu centro y revisa tus sesiones activas.',
+        ],
+        // REQ-AUTH-003 (1.3b), funcional.md §D.4.1, §D.4.2, RN-AUTH-84: sin
+        // enlace accionable, el código nunca en el asunto.
+        'mfa_enrollment_code' => [
+            'subject' => 'Código para activar la verificación en dos pasos en :tenant',
+            'greeting' => 'Hola, :name.',
+            'body' => 'Estás activando el correo como verificación en dos pasos en tu cuenta de :tenant. Usa este código para confirmarlo.',
+            'code' => 'Tu código: :code',
+            'expires' => 'Este código caduca en :minutes minutos.',
+        ],
+        'mfa_challenge_code' => [
+            'subject' => 'Tu código de acceso a :tenant',
+            'greeting' => 'Hola, :name.',
+            'body' => 'Estás iniciando sesión en :tenant y necesitas este código para completar la verificación en dos pasos.',
+            'code' => 'Tu código: :code',
+            'expires' => 'Este código caduca en :minutes minutos.',
+            'warning' => 'Si no has intentado entrar, cambia tu contraseña cuanto antes.',
+        ],
+        'new_device_login' => [
+            'subject' => 'Nuevo acceso a tu cuenta en :tenant',
+            'greeting' => 'Hola, :name.',
+            'body' => 'Se ha iniciado sesión en tu cuenta de :tenant desde un dispositivo que no habíamos visto antes, el :time.',
+            'detail' => 'Detalles del acceso: :client, desde la IP :ip.',
+            'location_line' => 'Ubicación aproximada: :location.',
+            'what_to_do' => 'Si has sido tú, no tienes que hacer nada más. Si no reconoces este acceso, revisa tus sesiones activas y cambia tu contraseña cuanto antes.',
+            'cta' => 'Revisar mis sesiones activas',
+            'unknown_client' => 'un dispositivo desconocido',
+        ],
+        // REQ-AUTH-002 (1.4), funcional.md §E.4.7. Sin enlace accionable
+        // (RN-AUTH-97). La dirección de Google va enmascarada, igual que
+        // en la API (DestinationMasker, §D.4.5).
+        'identity_linked' => [
+            'subject' => 'Se ha vinculado una cuenta de Google en :tenant',
+            'greeting' => 'Hola, :name.',
+            'body_fusion' => 'Al entrar con Google en :tenant, el sistema ha vinculado automáticamente la cuenta :email a tu perfil porque el correo coincidía y venía verificado.',
+            'body_profile' => 'Acabas de vincular la cuenta de Google :email a tu perfil en :tenant.',
+            'warning' => 'Si no has sido tú, contacta cuanto antes con la administración de tu centro.',
+        ],
+        'identity_unlinked' => [
+            'subject' => 'Se ha desvinculado una cuenta de Google en :tenant',
+            'greeting' => 'Hola, :name.',
+            'body' => 'Se ha desvinculado la cuenta de Google :email de tu perfil en :tenant.',
+            'warning' => 'Si no has sido tú, contacta cuanto antes con la administración de tu centro.',
+        ],
+        // REQ-AUTH-004 (1.4b), funcional.md §F.4.6. Distinto de
+        // identity_linked: nombra el proveedor del centro y deja claro
+        // que fue el sistema quien vinculó, no el titular.
+        'identity_matched' => [
+            'subject' => 'Tu cuenta se ha vinculado con :tenant',
+            'greeting' => 'Hola, :name.',
+            'body' => 'Al entrar con :provider en :tenant, el sistema ha vinculado automáticamente la cuenta :email a tu perfil porque el correo coincidía.',
+            'warning' => 'Si no has sido tú, contacta cuanto antes con la administración de tu centro.',
+        ],
+    ],
+
+    // REQ-AUTH-004 (1.4b). Catálogo de proveedores OIDC por tenant
+    // (funcional.md §F.4). `discovery.*` es la lista cerrada de motivos
+    // por los que un documento de descubrimiento no pasa las cinco
+    // guardas de §F.4.2 — ninguno lleva el detalle del destino
+    // (RN-AUTH-113).
+    'sso' => [
+        'identity_provider_issuer_already_catalogued' => 'Este centro ya tiene catalogado un proveedor con ese emisor.',
+        'identity_provider_enable_without_secret' => 'No puedes activar este proveedor sin una credencial de cliente vigente.',
+        'identity_provider_secret_last_active' => 'No puedes retirar la última credencial vigente de un proveedor activo: desactívalo antes.',
+        'discovery' => [
+            'esquema_no_admitido' => 'La URL de descubrimiento debe usar https.',
+            'destino_no_publico' => 'No se puede acceder a esa dirección desde este servidor.',
+            'demasiadas_redirecciones' => 'El documento de descubrimiento redirige demasiadas veces.',
+            'sin_respuesta' => 'No se ha podido descargar el documento de descubrimiento.',
+            'respuesta_demasiado_grande' => 'El documento de descubrimiento es demasiado grande.',
+            'documento_no_valido' => 'El documento de descubrimiento no es válido o le faltan datos obligatorios.',
+            'emisor_no_coincide' => 'El emisor declarado no coincide con el origen de la URL de descubrimiento.',
+            'endpoint_no_seguro' => 'Alguno de los puntos de conexión declarados no usa https.',
+            'flujo_no_admitido' => 'Este emisor no admite el flujo de autorización necesario.',
+        ],
+    ],
+
+    // REQ-AUTH-004 (1.4c). Catálogo de proveedores SAML por tenant
+    // (funcional.md §G.4). `metadata.*` es la lista cerrada de motivos por
+    // los que unos metadatos del IdP no pasan las guardas de §G.4.2 —
+    // ninguno lleva el detalle del destino (RN-AUTH-113).
+    'saml' => [
+        'certificate_provider_not_saml' => 'Este proveedor no es SAML: no admite certificados de firma del emisor.',
+        'certificate_already_catalogued' => 'Este certificado ya está catalogado en este proveedor.',
+        'certificate_last_active' => 'No puedes retirar el último certificado vigente de un proveedor activo: desactívalo antes.',
+        'sign_authn_requests_without_platform_key' => 'No puedes activar la firma de peticiones: no hay ninguna clave de firma de plataforma configurada.',
+        'identity_provider_enable_without_certificate' => 'No puedes activar este proveedor sin un certificado de firma vigente.',
+        'metadata_refresh_not_applicable' => 'Este proveedor no tiene metadatos que refrescar.',
+        'metadata' => [
+            'esquema_no_admitido' => 'La URL de metadatos debe usar https.',
+            'destino_no_publico' => 'No se puede acceder a esa dirección desde este servidor.',
+            'demasiadas_redirecciones' => 'Los metadatos redirigen demasiadas veces.',
+            'sin_respuesta' => 'No se han podido descargar los metadatos.',
+            'respuesta_demasiado_grande' => 'Los metadatos son demasiado grandes.',
+            'metadatos_no_validos' => 'Los metadatos no son un XML válido.',
+            'metadatos_demasiado_grandes' => 'Los metadatos son demasiado grandes o tienen demasiados niveles de anidamiento.',
+            'metadatos_ambiguos' => 'Los metadatos no describen un único proveedor de identidad, o se han enviado dos orígenes a la vez.',
+            'binding_no_admitido' => 'Los metadatos no publican un punto de acceso compatible con este sistema.',
+            'sin_certificado_de_firma' => 'Los metadatos no incluyen ningún certificado de firma válido.',
+            'formato_de_identificador_no_admitido' => 'El formato de identificador declarado no está admitido.',
+            'emisor_ya_catalogado' => 'Este centro ya tiene catalogado un proveedor con ese emisor.',
+        ],
+    ],
+
+    // REQ-PERM/api.md §14.3 (1.5b, S-PERM-2): nombre de cada recurso de los
+    // permisos que declara este módulo (`resource_label_key`).
+    'permissions' => [
+        'resources' => [
+            'bloqueo_cuenta' => 'Bloqueos de cuenta',
+            'mfa' => 'Autenticación en dos pasos (MFA)',
+            'exencion_mfa' => 'Exenciones de MFA',
+            'proveedor_identidad' => 'Proveedores de identidad',
+        ],
+    ],
+
+];

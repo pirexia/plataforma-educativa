@@ -1,6 +1,6 @@
 # ADR-030 · Entorno de desarrollo en WSL2 y separación respecto al alojamiento
 
-**Estado**: PROPUESTA
+**Estado**: ACEPTADA (2026-08-11 — decisión operativa vigente desde entonces, sin código que la implemente)
 **Fecha**: 2026-08-11
 **Sustituye para la etapa E0 a**: `ADR-027`
 **Afecta a**: `ADR-024`, `RARQ-INF`, `OPEN-06`

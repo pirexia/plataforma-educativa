@@ -1,0 +1,3493 @@
+# ADR-038 §12.2. Único sitio donde se define el esquema Problem (§6),
+# PageMeta/CursorMeta (§4), los parámetros comunes (page, per_page,
+# cursor, limit, sort, q, Idempotency-Key) y el formato ulid. Un módulo
+# que redefina cualquiera de esto en vez de referenciarlo con $ref es un
+# fallo de revisión visible en el diff (ADR-038 §12.2).
+
+components:
+  schemas:
+    Problem:
+      type: object
+      description: RFC 9457 application/problem+json (ADR-038 §6).
+      required: [type, title, status]
+      properties:
+        type:
+          type: string
+          description: URN estable del catálogo cerrado de ADR-038 §6.2.
+          example: "urn:pge:error:validation"
+        title:
+          type: string
+          example: "Los datos enviados no son válidos"
+        status:
+          type: integer
+          example: 422
+        detail:
+          type: string
+          nullable: true
+        instance:
+          type: string
+          nullable: true
+          description: Ruta de la petición, sin parámetros de consulta.
+        request_id:
+          type: string
+          format: ulid
+          nullable: true
+        errors:
+          type: object
+          nullable: true
+          description: Por campo, lista de {code, message, params} ya traducido (ADR-038 §6.3).
+          additionalProperties:
+            type: array
+            items:
+              type: object
+              required: [code, message]
+              properties:
+                code:
+                  type: string
+                  example: "core.validation.locale_not_active"
+                message:
+                  type: string
+                params:
+                  type: object
+                  additionalProperties: true
+
+    PageMeta:
+      type: object
+      description: Metadatos de paginación por página (ADR-038 §4.3). Catálogos de entidades.
+      required: [current_page, per_page, total, last_page]
+      properties:
+        current_page: { type: integer, minimum: 1 }
+        per_page: { type: integer, minimum: 1, maximum: 100 }
+        total: { type: integer, minimum: 0 }
+        last_page: { type: integer, minimum: 0 }
+
+    AcademicYear:
+      type: object
+      description: >
+        REQ-CURSO/api.md §1 (1.10). `status` viaja sin traducir (ADR-038 §3.2). No se
+        exponen `id`, `tenant_id`, `created_by`, `updated_by` ni `deleted_at`.
+      required: [public_id, code, starts_on, ends_on, status, created_at, updated_at]
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        code:
+          type: string
+          description: Código del curso, p. ej. `2026-2027`. Contenido del centro, formato libre, único por centro.
+          example: "2026-2027"
+        starts_on: { type: string, format: date, example: "2026-09-01" }
+        ends_on: { type: string, format: date, example: "2027-08-31" }
+        status:
+          type: string
+          description: >
+            Enumerado **extensible** (ADR-038 §7.3): los clientes tratan un valor desconocido
+            como «solo lectura». `cerrado` y `archivado` son de solo lectura (RN-CURSO-20);
+            `archivado` no es alcanzable en 1.10.
+          enum: [planificacion, activo, cerrado, archivado]
+          x-extensible-enum: true
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    AcademicYearRolloverElement:
+      type: object
+      description: >
+        REQ-CURSO/api.md §2.1 (1.12b, RN-CURSO-62). Un elemento del catálogo de la apertura del curso
+        siguiente: lo que un módulo contratado en el centro ofrece copiar. `label` lo traduce el módulo dueño
+        en el idioma de la petición. `allowed` = el usuario tiene el permiso de alta del elemento (RN-CURSO-78;
+        el permiso en sí no se expone). `bundle` es `null` o `teaching_assignments`: los elementos de un paquete
+        no se eligen uno a uno, se copian con `copy_teaching_assignments: true` (RN-CURSO-82).
+      required: [code, module, label, requires, allowed, bundle]
+      properties:
+        code: { type: string, description: 'Con la forma `<módulo>.<nombre>`.', example: acad.groups }
+        module: { type: string, example: acad }
+        label: { type: string, example: Grupos }
+        requires:
+          type: array
+          items: { type: string }
+          description: Códigos de elementos que deben copiarse con este, también de otros módulos.
+          example: [acad.courses]
+        allowed: { type: boolean }
+        bundle:
+          type: string
+          nullable: true
+          enum: [teaching_assignments]
+          x-extensible-enum: true
+
+    AcademicYearRolloverIssueEntry:
+      type: object
+      description: >
+        Una incidencia de la apertura del curso siguiente (entrada de `blocking[]`, `errors.rollover[]`,
+        `errors.rollover_revert[]` o `failure.errors[]`). Los códigos de cada módulo son de su especificación
+        (`acad.rollover.*`, `curso.rollover.*`): se documentan en ejemplos, no como enumerado cerrado. Sin
+        datos personales ni identificadores de filas (RN-CURSO-73).
+      required: [code, message, params]
+      properties:
+        code: { type: string, example: acad.rollover.target_not_empty }
+        message: { type: string, description: Ya traducido al idioma de la petición. }
+        params: { type: object, additionalProperties: true, example: { element: acad.education_levels, count: 1 } }
+        element: { type: string, nullable: true, description: 'Código del elemento afectado, si procede.' }
+
+    AcademicYearRolloverSummary:
+      type: object
+      description: Resumen de un curso en la simulación (la forma pública de `AcademicYear` reducida a estos campos).
+      required: [public_id, code, status, starts_on, ends_on]
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        code: { type: string }
+        status: { type: string, enum: [planificacion, activo, cerrado, archivado], x-extensible-enum: true }
+        starts_on: { type: string, format: date }
+        ends_on: { type: string, format: date }
+
+    AcademicYearRolloverReason:
+      type: object
+      description: >
+        Una omisión (`skipped`: filas del origen que no se copian) o un ajuste (`adjusted`: filas que se copian con
+        algún cambio) agrupados por motivo. `label` lo traduce el módulo dueño (RN-CURSO-73). Sin nombres ni
+        identificadores de personas.
+      required: [reason, label, count]
+      properties:
+        reason: { type: string, example: teacher_inactive }
+        label: { type: string, example: Profesorado que ya no está activo }
+        count: { type: integer, minimum: 0 }
+
+    AcademicYearRolloverPreview:
+      type: object
+      description: >
+        REQ-CURSO/api.md §2.1 (1.12b, RN-CURSO-65, -66). La simulación: por elemento, las filas que se crearían, las
+        omisiones y ajustes con su motivo, el rango de fechas resultante (solo elementos con fechas) y las
+        incidencias que impiden ejecutar; más las propias de `curso` en `blocking`. `executable` es `true` si no
+        hay ninguna. No es una garantía: la ejecución lo vuelve a evaluar todo.
+      required: [academic_year, source, date_offset_days, copy_teaching_assignments, elements, blocking, executable]
+      properties:
+        academic_year: { $ref: '#/components/schemas/AcademicYearRolloverSummary' }
+        source: { $ref: '#/components/schemas/AcademicYearRolloverSummary' }
+        date_offset_days: { type: integer, example: 365, description: 'Destino.starts_on − origen.starts_on, en días (RN-CURSO-72).' }
+        copy_teaching_assignments: { type: boolean }
+        elements:
+          type: array
+          items:
+            type: object
+            required: [code, label, to_copy, skipped, adjusted, date_range, blocking]
+            properties:
+              code: { type: string }
+              label: { type: string }
+              to_copy: { type: integer, minimum: 0, description: Solo las filas principales del elemento. }
+              skipped:
+                type: array
+                items: { $ref: '#/components/schemas/AcademicYearRolloverReason' }
+              adjusted:
+                type: array
+                items: { $ref: '#/components/schemas/AcademicYearRolloverReason' }
+              date_range:
+                type: object
+                nullable: true
+                properties:
+                  starts_on: { type: string, format: date }
+                  ends_on: { type: string, format: date }
+              blocking:
+                type: array
+                items: { $ref: '#/components/schemas/AcademicYearRolloverIssueEntry' }
+        blocking:
+          type: array
+          items: { $ref: '#/components/schemas/AcademicYearRolloverIssueEntry' }
+        executable: { type: boolean }
+
+    AcademicYearRolloverFailure:
+      type: object
+      nullable: true
+      description: >
+        El fallo de una copia (`failure`) o de la última reversión (`revert_failure`). Se guardan solo `code` y
+        `params`; el `message` lo traduce la API al leer, en el idioma de la petición (RN-CURSO-73).
+      required: [code, errors]
+      properties:
+        code:
+          type: string
+          enum: [rollover_blocked, target_not_planning, target_changed, actor_unavailable, cancelled, internal_error]
+          x-extensible-enum: true
+        errors:
+          type: array
+          items: { $ref: '#/components/schemas/AcademicYearRolloverIssueEntry' }
+
+    AcademicYearRollover:
+      type: object
+      description: >
+        REQ-CURSO/api.md §2.1 (1.12b). Una copia (ejecución del *rollover*) hacia un curso destino en
+        `planificacion`. `status` viaja sin traducir (ADR-038 §3.2). `elements` es la selección efectiva (con la
+        casilla, incluye los del paquete). `revertible` y `cancellable_at` son orientativos: el servidor decide
+        al ejecutar (INV-002). No se exponen `id`, `tenant_id`, `created_by`, `reverted_by`, `deleted_at` ni los
+        *items*.
+      required: [public_id, academic_year, source_academic_year, status, elements, copy_teaching_assignments, date_offset_days, result, failure, revert_failure, revertible, cancellable_at, started_at, finished_at, reverted_at, created_at, updated_at]
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        academic_year: { $ref: '#/components/schemas/PublicId' }
+        source_academic_year: { $ref: '#/components/schemas/PublicId' }
+        status:
+          type: string
+          enum: [pendiente, en_curso, completado, fallido, revirtiendo, revertido]
+          x-extensible-enum: true
+        elements: { type: array, items: { type: string } }
+        copy_teaching_assignments: { type: boolean }
+        date_offset_days: { type: integer, nullable: true }
+        result:
+          type: object
+          nullable: true
+          properties:
+            elements:
+              type: array
+              items:
+                type: object
+                properties:
+                  code: { type: string }
+                  label: { type: string, description: 'Etiqueta traducida del elemento en el idioma de la petición (la misma que la simulación); sin clave de traducción, el propio código.' }
+                  copied: { type: integer, minimum: 0 }
+                  skipped:
+                    type: array
+                    items: { $ref: '#/components/schemas/AcademicYearRolloverReason' }
+                  adjusted:
+                    type: array
+                    items: { $ref: '#/components/schemas/AcademicYearRolloverReason' }
+        failure: { $ref: '#/components/schemas/AcademicYearRolloverFailure' }
+        revert_failure: { $ref: '#/components/schemas/AcademicYearRolloverFailure' }
+        revertible: { type: boolean, description: '`status = completado` y destino en `planificacion`.' }
+        cancellable_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: '`updated_at` + 30 minutos si la copia está en `pendiente`, `en_curso` o `revirtiendo` (RN-CURSO-85); `null` en otro estado.'
+        started_at: { type: string, format: date-time, nullable: true }
+        finished_at: { type: string, format: date-time, nullable: true }
+        reverted_at: { type: string, format: date-time, nullable: true }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    TranslationsMap:
+      type: object
+      description: >
+        REQ-ACAD/api.md §1.1, ADR-062 §5.4. Contenido traducible del centro: claves del vocabulario
+        `es-ES`, `en`, `de`, `fr`, valor cadena no vacía. Al crear, es obligatoria la clave del idioma
+        por defecto del centro (`default_locale`, que puede no ser `es-ES`) y solo se admiten idiomas
+        activos. En la lectura son todas las claves guardadas, también las de idiomas ya no activos.
+      additionalProperties: false
+      properties:
+        es-ES: { type: string, minLength: 1, maxLength: 255 }
+        en: { type: string, minLength: 1, maxLength: 255 }
+        de: { type: string, minLength: 1, maxLength: 255 }
+        fr: { type: string, minLength: 1, maxLength: 255 }
+
+    TranslationsPatchMap:
+      type: object
+      description: >
+        Cuerpo de `PATCH` de un nombre traducible (ADR-062 §5.2 punto 2, ADR-038 §9.2 regla 4): se
+        **fusiona por idioma**. Una clave con texto cambia o añade ese idioma, `null` lo quita, `""` es
+        `422 translations.empty_value`; quitar el idioma por defecto actual es
+        `422 translations.default_locale_required`; las claves no mencionadas no se tocan (tampoco las
+        de idiomas ya no activos). Únicos valores anulables del contrato.
+      additionalProperties: false
+      properties:
+        es-ES: { type: string, nullable: true, maxLength: 255 }
+        en: { type: string, nullable: true, maxLength: 255 }
+        de: { type: string, nullable: true, maxLength: 255 }
+        fr: { type: string, nullable: true, maxLength: 255 }
+
+    EducationLevelStage:
+      type: string
+      description: >
+        Tipo de etapa (REQ-ACAD funcional.md §3.3). Enumerado **extensible** (ADR-038 §7.3): los
+        clientes tratan un valor desconocido mostrando el código en crudo.
+      enum: [infantil, primaria, eso, bachillerato, fp, universidad]
+      x-extensible-enum: true
+
+    EducationLevelRegime:
+      type: string
+      description: Régimen (ADR-020). Enumerado **extensible** (ADR-038 §7.3).
+      enum: [publico, privado, concertado]
+      x-extensible-enum: true
+
+    EducationLevel:
+      type: object
+      description: >
+        REQ-ACAD/api.md §1.1. Etapa de un curso académico. `name` es la cadena resuelta en el servidor
+        (idioma de la petición, `default_locale` del centro, `es-ES`, primera clave) y es de solo lectura:
+        si llega en el cuerpo de una escritura se ignora. No se exponen `id`, `tenant_id`, `*_id`,
+        `created_by`, `updated_by` ni `deleted_at`.
+      required: [public_id, academic_year, code, name, name_translations, stage, regime, position, created_at, updated_at]
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        academic_year: { $ref: '#/components/schemas/PublicId' }
+        code: { type: string, maxLength: 255, example: "ESO" }
+        name: { type: string, readOnly: true, example: "Educación Secundaria Obligatoria" }
+        name_translations: { $ref: '#/components/schemas/TranslationsMap' }
+        stage: { $ref: '#/components/schemas/EducationLevelStage' }
+        regime: { $ref: '#/components/schemas/EducationLevelRegime' }
+        position: { type: integer, minimum: 1, example: 3 }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    Course:
+      type: object
+      description: REQ-ACAD/api.md §1.2. Curso de etapa; igual que `EducationLevel` sin `stage`/`regime`, con `education_level`.
+      required: [public_id, academic_year, education_level, code, name, name_translations, position, created_at, updated_at]
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        academic_year: { $ref: '#/components/schemas/PublicId' }
+        education_level: { $ref: '#/components/schemas/PublicId' }
+        code: { type: string, maxLength: 255, example: "2ESO" }
+        name: { type: string, readOnly: true }
+        name_translations: { $ref: '#/components/schemas/TranslationsMap' }
+        position: { type: integer, minimum: 1 }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    Group:
+      type: object
+      description: >
+        REQ-ACAD/api.md §1.3. Grupo de un curso de etapa. `name` es texto simple, **no** traducible y
+        **sí** escribible.
+      required: [public_id, academic_year, course, code, name, position, created_at, updated_at]
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        academic_year: { $ref: '#/components/schemas/PublicId' }
+        course: { $ref: '#/components/schemas/PublicId' }
+        code: { type: string, maxLength: 255, example: "A" }
+        name: { type: string, maxLength: 255, example: "2º ESO A" }
+        position: { type: integer, minimum: 1 }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    Subgroup:
+      type: object
+      description: REQ-ACAD/api.md §1.4. Subgrupo de un único grupo; `name` es texto simple escribible.
+      required: [public_id, academic_year, group, code, name, position, created_at, updated_at]
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        academic_year: { $ref: '#/components/schemas/PublicId' }
+        group: { $ref: '#/components/schemas/PublicId' }
+        code: { type: string, maxLength: 255, example: "D1" }
+        name: { type: string, maxLength: 255, example: "Desdoble 1" }
+        position: { type: integer, minimum: 1 }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    Subject:
+      type: object
+      description: REQ-ACAD/api.md §1.5. Asignatura de un curso de etapa; nombre traducible como `EducationLevel`.
+      required: [public_id, academic_year, course, code, name, name_translations, position, created_at, updated_at]
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        academic_year: { $ref: '#/components/schemas/PublicId' }
+        course: { $ref: '#/components/schemas/PublicId' }
+        code: { type: string, maxLength: 255, example: "MAT" }
+        name: { type: string, readOnly: true }
+        name_translations: { $ref: '#/components/schemas/TranslationsMap' }
+        position: { type: integer, minimum: 1 }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    AcademicPeriodType:
+      type: string
+      description: >
+        Tipo de período lectivo (REQ-ACAD funcional.md RN-ACAD-55). Enumerado **extensible**
+        (ADR-038 §7.3): los clientes tratan un valor desconocido mostrando el código en crudo.
+        Todos los períodos vivos de una etapa son del mismo tipo (RN-ACAD-59).
+      enum: [trimestre, cuatrimestre, semestre]
+      x-extensible-enum: true
+
+    AcademicPeriod:
+      type: object
+      description: >
+        REQ-ACAD/api.md §11.1 (1.11d-a). Período lectivo de una etapa. `name` es la cadena resuelta
+        en el servidor (ADR-062 §5.3) y de solo lectura; `name_translations` el objeto almacenado
+        completo. Sin `code`: los períodos no lo tienen (RN-ACAD-53). Fechas civiles `AAAA-MM-DD`.
+      required: [public_id, academic_year, education_level, period_type, position, name, name_translations, starts_on, ends_on, created_at, updated_at]
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        academic_year: { $ref: '#/components/schemas/PublicId' }
+        education_level: { $ref: '#/components/schemas/PublicId' }
+        period_type: { $ref: '#/components/schemas/AcademicPeriodType' }
+        position: { type: integer, minimum: 1 }
+        name: { type: string, readOnly: true }
+        name_translations: { $ref: '#/components/schemas/TranslationsMap' }
+        starts_on: { type: string, format: date, example: "2026-09-08" }
+        ends_on: { type: string, format: date, example: "2026-12-22" }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    CivilTime:
+      type: string
+      description: >
+        REQ-ACAD/api.md §12, ADR-065. Hora civil del centro `HH:MM` (24 h), sin zona ni sufijo `Z`:
+        «08:30» sigue siendo 08:30 local antes y después del cambio de hora. Intervalos semiabiertos
+        `[inicio, fin)`. Excepción acotada a «nunca una hora local sin zona» de ADR-038 §3.2.
+      pattern: '^([01]\d|2[0-3]):[0-5]\d$'
+      example: "08:30"
+
+    FacilityType:
+      type: string
+      description: >
+        Tipo de espacio (REQ-ACAD RN-ACAD-100). Enumerado **extensible** (ADR-038 §7.3): los clientes
+        tratan un valor desconocido mostrando el código en crudo. `aula` es ocupable por sesiones y
+        reservable; `recurso` solo reservable. Inmutable tras el alta.
+      enum: [aula, recurso]
+      x-extensible-enum: true
+
+    TimetableFrameType:
+      type: string
+      description: >
+        Tipo de marco horario (REQ-ACAD RN-ACAD-110). Enumerado **extensible** (ADR-038 §7.3).
+        `ordinaria` (todo el curso) o `especial` (vigencia por fechas, jornada intensiva, `1.12-b`).
+        Inmutable tras el alta.
+      enum: [ordinaria, especial]
+      x-extensible-enum: true
+
+    Facility:
+      type: object
+      description: >
+        REQ-ACAD/api.md §12.1 (1.12-a). Espacio del centro (aula o recurso). Sin `academic_year`: los
+        espacios no pertenecen a un curso académico (OPEN-ACAD-33), así que editar `code` o `name` se
+        refleja también al leer horarios de cursos cerrados (RN-ACAD-103). `name` es texto simple.
+      required: [public_id, facility_type, code, name, created_at, updated_at]
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        facility_type: { $ref: '#/components/schemas/FacilityType' }
+        code: { type: string }
+        name: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    TimeSlot:
+      type: object
+      description: >
+        REQ-ACAD/api.md §12.1. Franja de un marco: día ISO de la semana (1 = lunes … 7 = domingo) y hora
+        civil del centro. Solo se escribe dentro del marco (RN-ACAD-113); no tiene *endpoint* propio.
+      required: [public_id, weekday, starts_at, ends_at]
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        weekday: { type: integer, minimum: 1, maximum: 7 }
+        starts_at: { $ref: '#/components/schemas/CivilTime' }
+        ends_at: { $ref: '#/components/schemas/CivilTime' }
+
+    TimeSlotCreate:
+      type: object
+      description: 'Franja nueva dentro del conjunto `slots` de un marco (sin `public_id`, RN-ACAD-113).'
+      required: [weekday, starts_at, ends_at]
+      properties:
+        weekday: { type: integer, minimum: 1, maximum: 7 }
+        starts_at: { $ref: '#/components/schemas/CivilTime' }
+        ends_at: { $ref: '#/components/schemas/CivilTime' }
+
+    TimeSlotPatch:
+      type: object
+      description: >
+        Elemento del conjunto `slots` de un `PATCH`: con `public_id` actualiza esa franja del marco; sin él,
+        la da de alta. Una franja ausente del conjunto se borra (lógicamente). Un `public_id` ajeno o repetido
+        es `422 acad.validation.slot_not_in_frame` en `slots.<n>.public_id` (RN-ACAD-113).
+      required: [weekday, starts_at, ends_at]
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        weekday: { type: integer, minimum: 1, maximum: 7 }
+        starts_at: { $ref: '#/components/schemas/CivilTime' }
+        ends_at: { $ref: '#/components/schemas/CivilTime' }
+
+    TimetableFrame:
+      type: object
+      description: >
+        REQ-ACAD/api.md §12.1 (1.12-a y 1.12-b). Marco horario de una etapa con sus franjas. `name` es la cadena
+        resuelta en el servidor (ADR-062 §5.3) y de solo lectura; `name_translations` el objeto almacenado.
+        `valid_from`/`valid_to` son `null` en un marco `ordinaria` y fechas (inclusivas) en un `especial`. `slots` siempre presente, ordenada por
+        `weekday`, `starts_at`.
+      required: [public_id, academic_year, education_level, frame_type, name, name_translations, valid_from, valid_to, slots, created_at, updated_at]
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        academic_year: { $ref: '#/components/schemas/PublicId' }
+        education_level: { $ref: '#/components/schemas/PublicId' }
+        frame_type: { $ref: '#/components/schemas/TimetableFrameType' }
+        name: { type: string, readOnly: true }
+        name_translations: { $ref: '#/components/schemas/TranslationsMap' }
+        valid_from: { type: string, format: date, nullable: true }
+        valid_to: { type: string, format: date, nullable: true }
+        slots:
+          type: array
+          items: { $ref: '#/components/schemas/TimeSlot' }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    TeachingAssignment:
+      type: object
+      description: >
+        REQ-ACAD/api.md §12.1 (1.12-a). Asignación docente: un usuario imparte una asignatura que cursa un
+        grupo, con subgrupo opcional. Inmutable (RN-ACAD-95). `teacher.name` es el nombre visible que
+        devuelve `Core`, sin correo ni otros datos. La fila de `group_subjects` no se expone.
+      required: [public_id, academic_year, teacher, group, subject, subgroup, created_at, updated_at]
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        academic_year: { $ref: '#/components/schemas/PublicId' }
+        teacher: { $ref: '#/components/schemas/StaffSummary' }
+        group: { $ref: '#/components/schemas/PublicId' }
+        subject: { $ref: '#/components/schemas/PublicId' }
+        subgroup:
+          nullable: true
+          allOf: [{ $ref: '#/components/schemas/PublicId' }]
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    FacilityBooking:
+      type: object
+      description: >
+        REQ-ACAD/api.md §12.1 (1.12-b). Reserva de un espacio (aula o recurso) en una fecha y un intervalo
+        horario `[inicio, fin)` (RN-ACAD-140). `facility.deleted` es `true` para un espacio dado de baja de un
+        curso cerrado. `booked_by` es el usuario que la creó (nombre visible de `Core`), o `null` si ya no
+        existe o la creó una tarea de consola.
+      required: [public_id, academic_year, facility, booked_on, starts_at, ends_at, booked_by, created_at]
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        academic_year: { $ref: '#/components/schemas/PublicId' }
+        facility:
+          type: object
+          required: [public_id, facility_type, code, name, deleted]
+          properties:
+            public_id: { $ref: '#/components/schemas/PublicId' }
+            facility_type: { $ref: '#/components/schemas/FacilityType' }
+            code: { type: string }
+            name: { type: string }
+            deleted: { type: boolean }
+        booked_on: { type: string, format: date, example: "2026-11-12" }
+        starts_at: { $ref: '#/components/schemas/CivilTime' }
+        ends_at: { $ref: '#/components/schemas/CivilTime' }
+        booked_by: { $ref: '#/components/schemas/StaffSummary' }
+        created_at: { type: string, format: date-time }
+
+    StaffSummary:
+      type: object
+      description: 'Usuario del centro a quien se asigna docencia: `public_id` y nombre visible (sin correo ni otros datos). Es `null` solo si el usuario ya no existe.'
+      nullable: true
+      required: [public_id, name]
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        name: { type: string }
+
+    GroupTutor:
+      type: object
+      description: 'REQ-ACAD/api.md §12.1. Tutor de un grupo (RN-ACAD-97): el usuario, con su nombre visible.'
+      required: [public_id, name]
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        name: { type: string }
+
+    TimetableSession:
+      type: object
+      description: >
+        REQ-ACAD/api.md §12.1 (1.12-a). Sesión de horario con los resúmenes que pintan la rejilla en una
+        sola llamada. `facility.deleted` es `true` para un aula dada de baja de un curso cerrado
+        (RN-ACAD-102). `subgroup` es `null` si la sesión es del grupo entero.
+      required: [public_id, academic_year, frame, slot, teaching_assignment, teacher, group, subgroup, subject, facility, created_at, updated_at]
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        academic_year: { $ref: '#/components/schemas/PublicId' }
+        frame: { $ref: '#/components/schemas/PublicId' }
+        slot: { $ref: '#/components/schemas/TimeSlot' }
+        teaching_assignment: { $ref: '#/components/schemas/PublicId' }
+        teacher: { $ref: '#/components/schemas/StaffSummary' }
+        group:
+          type: object
+          required: [public_id, code, name]
+          properties:
+            public_id: { $ref: '#/components/schemas/PublicId' }
+            code: { type: string }
+            name: { type: string }
+        subgroup:
+          type: object
+          nullable: true
+          required: [public_id, code, name]
+          properties:
+            public_id: { $ref: '#/components/schemas/PublicId' }
+            code: { type: string }
+            name: { type: string }
+        subject:
+          type: object
+          required: [public_id, code, name]
+          properties:
+            public_id: { $ref: '#/components/schemas/PublicId' }
+            code: { type: string }
+            name: { type: string, description: 'Nombre resuelto en servidor (ADR-062 §5.3).' }
+        facility:
+          type: object
+          nullable: true
+          required: [public_id, code, name, deleted]
+          properties:
+            public_id: { $ref: '#/components/schemas/PublicId' }
+            code: { type: string }
+            name: { type: string }
+            deleted: { type: boolean }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    DecimalString:
+      type: string
+      description: >
+        REQ-ACAD/api.md §11.2, RN-ACAD-75 (`OPEN-ACAD-26` = A). Decimal exacto con punto, de −999.99 a
+        999.99 (`numeric(5,2)`), nunca coma flotante. En la **respuesta** lleva exactamente `decimals`
+        cifras decimales de su escala (`"5.00"`, `"5.0"`, `"5"`); en la **entrada** se admite también como
+        número JSON (`DecimalInput`) con a lo sumo dos decimales y no más de los que declara la escala.
+      pattern: '^-?\d{1,3}(\.\d{1,2})?$'
+      example: "5.0"
+
+    DecimalInput:
+      description: 'Entrada de un decimal de escala (RN-ACAD-75): cadena (`DecimalString`) o número JSON.'
+      oneOf:
+        - { $ref: '#/components/schemas/DecimalString' }
+        - { type: number }
+
+    GradingScaleType:
+      type: string
+      description: >
+        Tipo de escala de calificación (REQ-ACAD funcional.md RN-ACAD-70). Enumerado **extensible**
+        (ADR-038 §7.3): los clientes tratan un valor desconocido mostrando el código en crudo. Inmutable
+        tras el alta.
+      enum: [numerica, cualitativa, mixta]
+      x-extensible-enum: true
+
+    GradingScaleValue:
+      type: object
+      description: >
+        REQ-ACAD/api.md §11.2. Valor de una escala cualitativa o tramo de una mixta; sin *endpoint* ni
+        `Location` propios (RN-ACAD-80): su `public_id` sirve para la sincronización del `PATCH`
+        (RN-ACAD-88) y para las futuras FK de `CALIF`. `label` es la cadena resuelta en el servidor
+        (ADR-062 §5.3) y de solo lectura. `is_passing` es el guardado en la cualitativa y **derivado** en
+        la mixta (`range_min ≥ passing_min_value`, RN-ACAD-87). `range_min`/`range_max` solo en la mixta.
+      required: [public_id, code, position, label, label_translations, is_passing, range_min, range_max]
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        code: { type: string, maxLength: 255, example: "SU" }
+        position: { type: integer, minimum: 1, description: 'Orden de la lista; lo fija el servidor (RN-ACAD-83).' }
+        label: { type: string, readOnly: true }
+        label_translations: { $ref: '#/components/schemas/TranslationsMap' }
+        is_passing: { type: boolean, nullable: true, readOnly: true }
+        range_min:
+          allOf: [{ $ref: '#/components/schemas/DecimalString' }]
+          nullable: true
+        range_max:
+          allOf: [{ $ref: '#/components/schemas/DecimalString' }]
+          nullable: true
+
+    GradingScale:
+      type: object
+      description: >
+        REQ-ACAD/api.md §11.2 (1.11d-b). Escala de calificación de un curso académico, con sus valores o
+        tramos dentro (`values`, siempre presente, solo vivos, en orden de `position`; vacío en la
+        numérica). Los campos numéricos son `null` en la cualitativa. `name` es la cadena resuelta en el
+        servidor y de solo lectura.
+      required: [public_id, academic_year, code, name, name_translations, scale_type, min_value, max_value, decimals, passing_min_value, values, created_at, updated_at]
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        academic_year: { $ref: '#/components/schemas/PublicId' }
+        code: { type: string, maxLength: 255, example: "MIX10" }
+        name: { type: string, readOnly: true }
+        name_translations: { $ref: '#/components/schemas/TranslationsMap' }
+        scale_type: { $ref: '#/components/schemas/GradingScaleType' }
+        min_value:
+          allOf: [{ $ref: '#/components/schemas/DecimalString' }]
+          nullable: true
+        max_value:
+          allOf: [{ $ref: '#/components/schemas/DecimalString' }]
+          nullable: true
+        decimals: { type: integer, minimum: 0, maximum: 2, nullable: true }
+        passing_min_value:
+          allOf: [{ $ref: '#/components/schemas/DecimalString' }]
+          nullable: true
+        values:
+          type: array
+          items: { $ref: '#/components/schemas/GradingScaleValue' }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    GradingScaleValueCreate:
+      type: object
+      description: >
+        Elemento de `values` en el alta (y alta dentro de un `PATCH`, RN-ACAD-88). Cualitativa:
+        `code`, `label_translations`, `is_passing` obligatorios y `range_*` prohibidos. Mixta: `code`,
+        `label_translations`, `range_min` y `range_max` obligatorios e `is_passing` prohibido
+        (`422 acad.validation.not_applicable_to_scale_type`). `position` no se envía: es el orden de la lista.
+      required: [code, label_translations]
+      properties:
+        code: { type: string, minLength: 1, maxLength: 255 }
+        label_translations: { $ref: '#/components/schemas/TranslationsMap' }
+        is_passing: { type: boolean }
+        range_min: { $ref: '#/components/schemas/DecimalInput' }
+        range_max: { $ref: '#/components/schemas/DecimalInput' }
+
+    GradingScaleValuePatch:
+      type: object
+      description: >
+        Elemento de `values` en un `PATCH` (RN-ACAD-88). Con `public_id` de un valor vivo **de esa
+        escala**: actualiza ese valor con las claves presentes (subconjunto; `label_translations` se
+        fusiona por idioma). Sin `public_id`: alta, con todas las claves obligatorias de su tipo.
+        Un `public_id` de otra escala, de otro centro, borrado, inexistente o repetido es
+        `422 acad.validation.value_not_in_scale`. El orden de la lista es el nuevo `position`.
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        code: { type: string, minLength: 1, maxLength: 255 }
+        label_translations: { $ref: '#/components/schemas/TranslationsPatchMap' }
+        is_passing: { type: boolean }
+        range_min: { $ref: '#/components/schemas/DecimalInput' }
+        range_max: { $ref: '#/components/schemas/DecimalInput' }
+
+    GradingScaleCreate:
+      type: object
+      description: >
+        Cuerpo de `POST /grading-scales` (api.md §11.4). `academic_year` explícito y obligatorio
+        (RN-ACAD-51). `numerica`: `min_value`, `max_value`, `decimals` (0, 1 o 2) y `passing_min_value`
+        obligatorios, `values` prohibido. `cualitativa`: `values` obligatorio y los cuatro campos
+        numéricos prohibidos. `mixta`: los cuatro campos numéricos y `values` (tramos) obligatorios.
+        Hasta 100 valores (RN-ACAD-89). Todo se aplica en una transacción (RN-ACAD-80).
+      required: [academic_year, code, name_translations, scale_type]
+      properties:
+        academic_year: { $ref: '#/components/schemas/PublicId' }
+        code: { type: string, minLength: 1, maxLength: 255 }
+        name_translations: { $ref: '#/components/schemas/TranslationsMap' }
+        scale_type: { $ref: '#/components/schemas/GradingScaleType' }
+        min_value: { $ref: '#/components/schemas/DecimalInput' }
+        max_value: { $ref: '#/components/schemas/DecimalInput' }
+        decimals: { type: integer, minimum: 0, maximum: 2 }
+        passing_min_value: { $ref: '#/components/schemas/DecimalInput' }
+        values:
+          type: array
+          maxItems: 100
+          items: { $ref: '#/components/schemas/GradingScaleValueCreate' }
+
+    GradingScaleUpdate:
+      type: object
+      description: >
+        Cuerpo de `PATCH /grading-scales/{publicId}` (api.md §11.4). Editables `code`, `name_translations`
+        (fusión por idioma), los campos numéricos (solo numérica y mixta) y `values`, que si llega es el
+        **conjunto completo** resultante (RN-ACAD-88). `scale_type` ⇒ `422 scale_type_immutable`;
+        `academic_year` ⇒ `422 parent_immutable`. Todas las reglas se evalúan sobre el estado resultante.
+      properties:
+        code: { type: string, minLength: 1, maxLength: 255 }
+        name_translations: { $ref: '#/components/schemas/TranslationsPatchMap' }
+        min_value: { $ref: '#/components/schemas/DecimalInput' }
+        max_value: { $ref: '#/components/schemas/DecimalInput' }
+        decimals: { type: integer, minimum: 0, maximum: 2 }
+        passing_min_value: { $ref: '#/components/schemas/DecimalInput' }
+        values:
+          type: array
+          maxItems: 100
+          items: { $ref: '#/components/schemas/GradingScaleValuePatch' }
+
+    CursorMeta:
+      type: object
+      description: Metadatos de paginación por cursor (ADR-038 §4.4). Flujos de eventos append-only.
+      required: [has_more]
+      properties:
+        next_cursor:
+          type: string
+          nullable: true
+          description: Opaco y cifrado (AES-256-GCM). Nunca base64 legible.
+        has_more:
+          type: boolean
+
+    Person:
+      type: object
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        given_name: { type: string }
+        family_name_1: { type: string }
+        family_name_2: { type: string, nullable: true }
+        contact_email: { type: string, format: email, nullable: true }
+        contact_phone: { type: string, nullable: true }
+        document_type:
+          allOf: [{ $ref: '#/components/schemas/DocumentType' }]
+          nullable: true
+        document_number:
+          type: string
+          nullable: true
+          description: Forma canónica del catálogo (RN-CORE-92); vacío si `document_type` lo está.
+        birth_date: { type: string, format: date, nullable: true }
+        locale: { $ref: '#/components/schemas/Locale' }
+
+    RoleSummary:
+      type: object
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        code: { type: string }
+        name: { type: string }
+
+    User:
+      type: object
+      description: >
+        Forma exacta de UserProfilePresenter::present() — compartida por
+        GET /me (REQ-CORE) y POST /auth/session (REQ-AUTH, api.md §2.6.6):
+        misma respuesta para que la SPA no encadene una segunda petición
+        tras el login. Corregido en 1.2 (issue detectado al redactar este
+        fichero): la versión anterior listaba email_verified_at/created_at/
+        updated_at/deleted_at, que el presentador nunca devuelve, y le
+        faltaba permissions, que sí devuelve siempre.
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        email: { type: string, format: email }
+        status:
+          type: string
+          enum: [pendiente, activo, inactivo]
+          description: Enumerado extensible (ADR-038 §7.3).
+        person: { $ref: '#/components/schemas/Person' }
+        roles:
+          type: array
+          items: { $ref: '#/components/schemas/RoleSummary' }
+        permissions:
+          type: array
+          description: Códigos de permiso efectivos del usuario autenticado.
+          items: { type: string }
+        mfa:
+          type: object
+          description: >
+            REQ-AUTH-003 (1.3), funcional.md §C.4.8: "avisos en cada
+            acceso" sin endpoint nuevo. Ampliación aditiva (ADR-038 §7.3).
+          properties:
+            enrolled: { type: boolean, description: Tiene al menos un factor confirmado y utilizable. }
+            obligated: { type: boolean }
+            enforced: { type: boolean, description: Obligado y gracia vencida (el muro se aplicará). }
+            grace_deadline_at: { type: string, format: date-time, nullable: true }
+            days_remaining: { type: integer, nullable: true }
+        session_walls:
+          type: array
+          description: >
+            ADR-067 §5.10 (REQ-FAM-UNIT 1.14-c, OPEN-067-02). Códigos de los **muros de sesión activos y bloqueantes**
+            del usuario, en el orden del registro (`mfa-enrollment`, `terms-acceptance`); lista vacía si no hay ninguno.
+            Permite a la SPA llevar al usuario al muro sin depender de un `403` casual. Un muro de un módulo no activo
+            no aparece. Ampliación aditiva (ADR-038 §7.3): ausente en respuestas anteriores a `1.14-c`.
+          items: { type: string, example: terms-acceptance }
+
+    Invitation:
+      type: object
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        user:
+          type: object
+          properties:
+            public_id: { $ref: '#/components/schemas/PublicId' }
+            email: { type: string, format: email }
+        status:
+          type: string
+          enum: [vigente, caducada, revocada, aceptada]
+        expires_at: { type: string, format: date-time }
+        created_at: { type: string, format: date-time }
+        accepted_at: { type: string, format: date-time, nullable: true }
+        revoked_at: { type: string, format: date-time, nullable: true }
+
+    Role:
+      type: object
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        code: { type: string }
+        name: { type: string }
+        is_system: { type: boolean }
+        mfa_required: { type: boolean }
+        special_data_access: { type: boolean }
+        users_count:
+          type: integer
+          minimum: 0
+          description: >
+            Asignaciones vivas. REQ-PERM/api.md §14.3 (1.5b, S-PERM-1): también en el detalle
+            (`GET /roles/{publicId}`) y en las respuestas de `POST /roles`, `PATCH /roles/{publicId}`
+            y `PUT /roles/{publicId}/permissions`; antes solo salía en el listado.
+        permissions:
+          type: array
+          items:
+            type: object
+            properties:
+              code: { type: string }
+              resource: { type: string }
+              resource_label:
+                type: string
+                description: >
+                  REQ-PERM/api.md §14.3 (1.5b, S-PERM-2). Nombre del recurso traducido por el
+                  servidor al idioma de la petición; lo declara el módulo dueño. Nunca vacío:
+                  si el módulo no lo declara, lleva el código del recurso.
+              action: { type: string }
+              effect: { type: string, enum: [allow, deny] }
+              scope: { type: string }
+
+    Permission:
+      type: object
+      description: >
+        REQ-PERM/api.md §2.1 (1.5): applicable_scopes/grantable_scopes
+        distinguen «este ámbito existe pero su módulo todavía no ha
+        llegado» de «se puede conceder ahora mismo».
+      properties:
+        code: { type: string }
+        resource: { type: string }
+        resource_label:
+          type: string
+          description: >
+            REQ-PERM/api.md §14.3 (1.5b, S-PERM-2). Nombre del recurso traducido por el servidor
+            (`ADR-021`); el valor técnico `resource` no se traduce. Nunca vacío.
+        action: { type: string }
+        module_code: { type: string }
+        is_special_category: { type: boolean }
+        applicable_scopes:
+          type: array
+          items: { $ref: '#/components/schemas/Scope' }
+        grantable_scopes:
+          type: array
+          items: { $ref: '#/components/schemas/Scope' }
+        retired_at: { type: string, format: date-time, nullable: true }
+
+    Scope:
+      type: string
+      description: REQ-PERM/funcional.md §3.1, ADR-044 §4.1. Vocabulario cerrado.
+      enum: [todos, propios, departamento, grupo, clase, unidad_familiar]
+
+    PermissionGrant:
+      type: object
+      required: [code, effect, scope]
+      properties:
+        code: { type: string }
+        effect: { type: string, enum: [allow, deny] }
+        scope: { $ref: '#/components/schemas/Scope' }
+
+    EffectivePermissionSource:
+      type: object
+      properties:
+        role:
+          type: object
+          properties:
+            public_id: { $ref: '#/components/schemas/PublicId' }
+            code: { type: string }
+            name: { type: string }
+        effect: { type: string, enum: [allow, deny] }
+        scope: { $ref: '#/components/schemas/Scope' }
+        inert: { type: boolean }
+        inert_reason:
+          type: string
+          nullable: true
+          enum: [inerte_permiso_retirado, inerte_modulo, inerte_datos_especiales, inerte_sin_resolutor]
+
+    EffectivePermission:
+      type: object
+      description: REQ-PERM/api.md §7 (RPERM-009).
+      properties:
+        code: { type: string }
+        resource: { type: string }
+        resource_label:
+          type: string
+          description: >
+            REQ-PERM/api.md §14.3 (1.5b, S-PERM-2). Nombre del recurso traducido por el servidor.
+            Nunca vacío.
+        action: { type: string }
+        module_code: { type: string }
+        is_special_category: { type: boolean }
+        decision: { type: string, enum: [permitido, denegado] }
+        scopes:
+          type: array
+          items: { $ref: '#/components/schemas/Scope' }
+        unrestricted: { type: boolean }
+        sources:
+          type: array
+          items: { $ref: '#/components/schemas/EffectivePermissionSource' }
+
+    ModuleSubscription:
+      type: object
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        module_code: { type: string }
+        name: { type: string }
+        phase: { type: string }
+        enabled: { type: boolean }
+        enabled_at: { type: string, format: date-time, nullable: true }
+        disabled_at: { type: string, format: date-time, nullable: true }
+        settings: { type: object, additionalProperties: true }
+
+    TenantSettings:
+      type: object
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        regional:
+          type: object
+          properties:
+            default_locale: { $ref: '#/components/schemas/Locale' }
+            active_locales:
+              type: array
+              items: { $ref: '#/components/schemas/Locale' }
+            timezone: { type: string }
+            currency: { type: string }
+            autonomous_community: { type: string, nullable: true }
+        fiscal:
+          type: object
+          properties:
+            legal_name: { type: string, nullable: true }
+            tax_id: { type: string, nullable: true }
+            address: { type: string, nullable: true }
+            postal_code: { type: string, nullable: true }
+            city: { type: string, nullable: true }
+            province: { type: string, nullable: true }
+            country_code: { type: string, nullable: true }
+        branding:
+          type: object
+          properties:
+            color_primary: { type: string, nullable: true }
+            color_secondary: { type: string, nullable: true }
+            logo_url: { type: string, format: uri, nullable: true }
+            favicon_url: { type: string, format: uri, nullable: true }
+            login_background_url: { type: string, format: uri, nullable: true }
+        security:
+          type: object
+          description: REQ-AUTH/api.md §6 (REQ-AUTH-005 punto 1). No es un recurso nuevo, grupo añadido en 1.2.
+          properties:
+            session_timeout_minutes:
+              type: integer
+              minimum: 5
+              maximum: 480
+              description: RN-AUTH-30. Por defecto 30.
+            mfa_allowed_methods:
+              type: array
+              description: >
+                REQ-AUTH-003 (1.3), funcional.md §C.4.12, RN-AUTH-69.
+                Siempre contiene totp; nunca sms (sin proveedor, §C.7).
+              items: { type: string, enum: [totp, email, sms] }
+              default: [totp]
+            mfa_grace_period_days:
+              type: integer
+              minimum: 1
+              maximum: 90
+              default: 7
+              description: RN-AUTH-65.
+        updated_at: { type: string, format: date-time }
+
+    TenantBranding:
+      type: object
+      description: "Único endpoint sin autenticación del módulo (funcional.md §4.8). No devuelve nada más que esto."
+      properties:
+        name: { type: string }
+        color_primary: { type: string, nullable: true }
+        color_secondary: { type: string, nullable: true }
+        logo_url: { type: string, format: uri, nullable: true }
+        favicon_url: { type: string, format: uri, nullable: true }
+        login_background_url: { type: string, format: uri, nullable: true }
+        default_locale: { $ref: '#/components/schemas/Locale' }
+        active_locales:
+          type: array
+          items: { $ref: '#/components/schemas/Locale' }
+
+    AuditLog:
+      type: object
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        occurred_at: { type: string, format: date-time }
+        actor:
+          type: object
+          nullable: true
+          properties:
+            public_id: { $ref: '#/components/schemas/PublicId' }
+            display_name: { type: string }
+        actor_type:
+          type: string
+          description: "Enumerado extensible (ADR-038 §7.3). 'anonymous' añadido por ADR-039 (REQ-AUTH)."
+          enum: [user, system, console, import, platform, anonymous]
+        auditable_type: { type: string }
+        auditable_public_id: { $ref: '#/components/schemas/PublicId' }
+        event:
+          type: string
+          description: "Enumerado extensible (ADR-038 §7.3). login/logout/password_reset_requested añadidos por ADR-039 (REQ-AUTH)."
+          enum: [created, updated, deleted, restored, read, exported, login, logout, password_reset_requested]
+        changes: { type: object, nullable: true, additionalProperties: true }
+        ip_address: { type: string, nullable: true }
+        user_agent: { type: string, nullable: true }
+        request_id: { type: string, format: ulid, nullable: true }
+
+    DataExport:
+      type: object
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        kind: { type: string }
+        status:
+          type: string
+          enum: [pendiente, generando, completada, fallida]
+        row_count: { type: integer, nullable: true }
+        download_url: { type: string, format: uri, nullable: true }
+        expires_at: { type: string, format: date-time }
+        error_code:
+          type: string
+          description: "Solo con `status: fallida` (S4 de 1.9b). Clave estable, sin traducir."
+
+    UserImportErrorEntry:
+      type: object
+      properties:
+        line: { type: integer }
+        column: { type: string }
+        code: { type: string }
+        message: { type: string }
+
+    UserImport:
+      type: object
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        original_filename: { type: string }
+        status:
+          type: string
+          enum: [subido, validando, validado, fallido, ejecutando, completado]
+        row_count: { type: integer, nullable: true }
+        error_count: { type: integer, nullable: true }
+        created_count: { type: integer, nullable: true }
+        error_summary:
+          type: array
+          nullable: true
+          items: { $ref: '#/components/schemas/UserImportErrorEntry' }
+        report_url: { type: string, format: uri, nullable: true }
+        send_invitations: { type: boolean, description: "Elegido al subir el fichero; la confirmación de ejecución lo usa (RN-CORE-73)." }
+        created_at: { type: string, format: date-time }
+        validated_at: { type: string, format: date-time, nullable: true }
+        executed_at: { type: string, format: date-time, nullable: true }
+
+    AccountLockout:
+      type: object
+      description: REQ-AUTH/api.md §5. Bloqueo de cuenta por intentos fallidos consecutivos.
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        email: { type: string, format: email }
+        user:
+          type: object
+          nullable: true
+          description: "null en un bloqueo fantasma (RN-AUTH-15, correo sin cuenta)."
+          properties:
+            public_id: { $ref: '#/components/schemas/PublicId' }
+            email: { type: string, format: email }
+        status:
+          type: string
+          description: Derivado, no una columna.
+          enum: [vigente, levantado]
+        failed_count: { type: integer }
+        locked_at: { type: string, format: date-time }
+        unlocked_at: { type: string, format: date-time, nullable: true }
+        unlocked_by:
+          type: string
+          format: ulid
+          nullable: true
+          description: public_id de quien desbloqueó, o null (caducidad/correo, RN-AUTH-18).
+
+    UserSession:
+      type: object
+      description: >
+        REQ-AUTH/api.md §B.2 (1.2b). Una sesión activa del usuario
+        autenticado. Nunca lleva el identificador de sesión del framework
+        ni material de la cookie de dispositivo (RN-AUTH-40).
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        current:
+          type: boolean
+          description: true en la sesión desde la que se hace la petición. Exactamente una fila lo lleva.
+        started_at: { type: string, format: date-time }
+        last_activity_at: { type: string, format: date-time }
+        ip_address: { type: string, nullable: true, description: "IP completa del propio titular, sin enmascarar." }
+        client:
+          type: object
+          properties:
+            browser: { type: string, description: "'desconocido' si el User-Agent es irreconocible." }
+            platform: { type: string }
+            device_type: { type: string, enum: [escritorio, movil, tableta, bot, desconocido] }
+        location:
+          type: string
+          nullable: true
+          description: Siempre null en 1.2b (RN-AUTH-47, OPEN-AUTH-13). No es un error ni un campo ausente.
+        device_known:
+          type: boolean
+          description: Si esta sesión venía de un dispositivo ya reconocido para la cuenta.
+
+    MfaEnrollment:
+      type: object
+      description: >
+        REQ-AUTH-003 (1.3/1.3b), funcional.md §C.4.1 punto 4, §D.4.1.
+        Respuesta de `POST /auth/mfa-enrollments`. Dos formas mutuamente
+        excluyentes según `method`, a propósito (api.md §D.2): `totp`
+        devuelve `secret`/`otpauth_uri` (UNA SOLA VEZ, RN-AUTH-55) y nunca
+        `destination_masked`/`code_expires_at`; un método de entrega
+        (`email`) devuelve `destination_masked`/`code_expires_at` y nunca
+        `secret`/`otpauth_uri` — no hay nada verificable que devolver
+        (RN-AUTH-75): el código no sale del servidor.
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        method: { type: string, enum: [totp, email] }
+        secret:
+          type: string
+          description: Solo `method=totp`. Base32, para introducción manual si no se puede escanear el QR (§C.11, WCAG 2.2 AA).
+        otpauth_uri:
+          type: string
+          description: Solo `method=totp`. URI otpauth:// completa — la SPA la pinta como QR con uqr, nunca la reconstruye.
+        destination_masked:
+          type: string
+          description: >
+            Solo `method=email` (1.3b, RN-AUTH-75/§D.4.5). Regla de
+            enmascarado determinista de funcional.md §D.4.5, calculada al
+            presentar, nunca persistida.
+          example: "a···z@e···e.com"
+        code_expires_at:
+          type: string
+          format: date-time
+          description: >
+            Solo `method=email` (1.3b). Caducidad del código de 6 dígitos
+            (AUTH_MFA_CODE_TTL_MINUTES), distinta de `expires_at` del alta
+            (api.md §D.6.4).
+        expires_at: { type: string, format: date-time, description: "RN-AUTH-59, 10 minutos por defecto." }
+
+    MfaFactor:
+      type: object
+      description: Nunca incluye el secreto ni ningún hash (RN-AUTH-55/56).
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        method: { type: string, enum: [totp, email, sms] }
+        is_preferred: { type: boolean }
+        destination_masked:
+          type: string
+          description: >
+            1.3b, RN-AUTH-75/77. Presente solo si `method` entrega algo
+            (api.md §D.6.2: un campo ausente no es un campo nulo) — no
+            aparece en absoluto en un factor `totp`.
+          example: "a···z@e···e.com"
+        confirmed_at: { type: string, format: date-time }
+        last_used_at: { type: string, format: date-time, nullable: true }
+
+    MfaFactorConfirmation:
+      type: object
+      description: Respuesta de `POST /auth/mfa-factors`.
+      properties:
+        factor: { $ref: '#/components/schemas/MfaFactor' }
+        recovery_codes:
+          type: array
+          nullable: true
+          description: >
+            Solo cuando se han generado — el primer factor confirmado del
+            usuario (§C.4.1 punto 9). En claro, una sola vez (RN-AUTH-56).
+          items: { type: string, example: "A3F7K-9QRT2" }
+
+    MfaStatus:
+      type: object
+      description: Respuesta de `GET /auth/mfa` — estado completo del propio usuario.
+      properties:
+        allowed_methods:
+          type: array
+          description: >
+            1.3b (funcional.md §D.2.4, api.md §D.3.1). `mfa_allowed_methods`
+            del tenant — para que la pantalla ofrezca el correo solo si el
+            centro lo admite. No es un permiso relajado: información sobre
+            la configuración del centro, no de otros usuarios.
+          items: { type: string, enum: [totp, email, sms] }
+        factors:
+          type: array
+          items: { $ref: '#/components/schemas/MfaFactor' }
+        unused_recovery_codes_count: { type: integer }
+        mfa:
+          type: object
+          properties:
+            enrolled: { type: boolean }
+            obligated: { type: boolean }
+            enforced: { type: boolean }
+            grace_deadline_at: { type: string, format: date-time, nullable: true }
+            days_remaining: { type: integer, nullable: true }
+            exempt_until:
+              type: string
+              format: date-time
+              nullable: true
+              description: >
+                1.3b (api.md §D.3.1). Caducidad de la excepción temporal
+                propia, o `null` si no tiene ninguna viva. Permite avisar
+                sin enviar ningún correo (funcional.md §D.4.10). Solo
+                aquí — el bloque `mfa` de `GET /me` no se amplía.
+
+    MfaChallenge:
+      type: object
+      description: >
+        REQ-AUTH-003 (1.3/1.3b), funcional.md §C.4.4/§C.6/§D.4.2. Respuesta
+        202 del paso 1 del login, de POST /auth/mfa-challenges y —desde
+        REQ-AUTH-002 (1.4), api.md §E.5b— de GET /auth/mfa-challenges.
+        Nunca lleva token, session_id ni secreto (RN-AUTH-53/56/84) — la
+        única credencial es la cookie de sesión que el cliente ya tiene.
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        method: { type: string, enum: [totp, email, sms] }
+        available_methods:
+          type: array
+          items: { type: string, enum: [totp, email, sms] }
+        destination_masked:
+          type: string
+          description: >
+            1.3b (RN-AUTH-75/84, api.md §D.6.2). Presente solo si el
+            método en curso del desafío entrega algo — ausente, no nulo,
+            cuando `method=totp`.
+          example: "a···z@e···e.com"
+        expires_at: { type: string, format: date-time, description: "RN-AUTH-54, 5 minutos por defecto." }
+        has_unused_recovery_codes: { type: boolean }
+
+    MfaComplianceSummary:
+      type: object
+      description: >
+        REQ-AUTH-003 (1.3), funcional.md §C.1.1 punto 9. Respuesta de
+        `GET /mfa-compliance` — vista previa hipotética (preview=true,
+        sin escribir nada) o estado real (preview=false) del mismo rol.
+      properties:
+        role:
+          type: object
+          properties:
+            public_id: { $ref: '#/components/schemas/PublicId' }
+            code: { type: string }
+        mfa_required: { type: boolean }
+        preview: { type: boolean }
+        users_total: { type: integer }
+        users_enrolled: { type: integer }
+        users_obligated: { type: integer }
+        users_in_grace: { type: integer }
+        users_enforced: { type: integer }
+        users_exempt: { type: integer }
+
+    MfaExemption:
+      type: object
+      description: >
+        REQ-AUTH-003 (1.3b), funcional.md §D.4.6-§D.4.8, api.md §D.4.
+        Recurso común a los tres endpoints de `/mfa-exemptions`. `state`
+        es derivado (nunca una columna): `live` (`revoked_at` nulo y
+        `expires_at` futuro), `expired` (`revoked_at` nulo y `expires_at`
+        pasado), `revoked` (`revoked_at` informado).
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        user:
+          type: object
+          description: Solo campos públicos — nunca secretos ni estado de factores.
+          properties:
+            public_id: { $ref: '#/components/schemas/PublicId' }
+            given_name: { type: string }
+            family_name_1: { type: string }
+            family_name_2: { type: string }
+            email: { type: string }
+        reason: { type: string }
+        expires_at: { type: string, format: date-time }
+        state: { type: string, enum: [live, expired, revoked] }
+        granted_by:
+          type: object
+          properties:
+            public_id: { $ref: '#/components/schemas/PublicId' }
+            given_name: { type: string }
+            family_name_1: { type: string }
+        granted_at: { type: string, format: date-time, description: 'created_at renombrado: cuándo se concedió.' }
+        revoked_by:
+          type: object
+          nullable: true
+          properties:
+            public_id: { $ref: '#/components/schemas/PublicId' }
+            given_name: { type: string }
+            family_name_1: { type: string }
+        revoked_at: { type: string, format: date-time, nullable: true }
+
+    MfaComplianceUserRow:
+      type: object
+      description: >
+        REQ-AUTH-003 (1.3), api.md §C.5. Fila de
+        `GET /mfa-compliance/users` — restaurado en 1.3 el 2026-08-27.
+        `user` lleva solo campos públicos; nunca secretos, hashes ni
+        recuento de códigos de respaldo restantes (permisos.md §C.6.1).
+      properties:
+        user:
+          type: object
+          properties:
+            public_id: { $ref: '#/components/schemas/PublicId' }
+            given_name: { type: string, nullable: true }
+            family_name_1: { type: string, nullable: true }
+            family_name_2: { type: string, nullable: true }
+            email: { type: string, format: email }
+        state:
+          type: string
+          description: >
+            Valor de la fila — nunca literalmente "obligated" (ese es
+            solo un alias de filtro sobre pending+past_deadline).
+          enum: [enrolled, exempt, pending, past_deadline]
+        grace_deadline_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Solo informado en pending/past_deadline.
+        enrolled_methods:
+          type: array
+          items: { type: string, enum: [totp, email, sms] }
+        required_by_roles:
+          type: array
+          items: { type: string }
+          description: code de los roles vivos del usuario que exigen MFA.
+
+    PlatformAdmin:
+      type: object
+      description: >
+        REQ-BO-007 (1.6), api.md §2.2. `PlatformAdminResource`. `password`
+        nunca viaja (ADR-029).
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        email: { type: string, format: email }
+        name: { type: string }
+        status: { type: string, enum: [activo, suspendido] }
+        locale: { $ref: '#/components/schemas/Locale' }
+        roles:
+          type: array
+          items: { type: string, enum: [soporte, operaciones, comercial, superadministrador] }
+        mfa_enrolled: { type: boolean }
+        last_login_at: { type: string, format: date-time, nullable: true }
+        created_at: { type: string, format: date-time }
+
+    PlatformIpAllowlistEntry:
+      type: object
+      description: REQ-BO-007 (1.6), api.md §2.3. `PlatformIpAllowlistResource`.
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        cidr: { type: string, example: "203.0.113.0/24" }
+        description: { type: string }
+        enabled: { type: boolean }
+        created_at: { type: string, format: date-time }
+
+    AdminActionLog:
+      type: object
+      description: >
+        REQ-BO-007 (1.6), api.md §2.9, datos.md §4. `AdminActionLogResource`
+        — vista completa del backoffice (corre con `plataforma_platform`,
+        BYPASSRLS). No confundir con la proyección de seis columnas de
+        `GET /api/v1/platform-actions` (`PlatformAction`, más abajo).
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        occurred_at: { type: string, format: date-time }
+        actor_type: { type: string, enum: [platform_admin, console, system] }
+        actor_platform_admin_public_id: { $ref: '#/components/schemas/PublicId' }
+        affected_tenant_public_id:
+          $ref: '#/components/schemas/PublicId'
+        subject_type: { type: string }
+        subject_public_id: { $ref: '#/components/schemas/PublicId' }
+        action:
+          type: string
+          description: Vocabulario cerrado (datos.md §4.2). Enumerado extensible (ADR-038 §7.3).
+          enum:
+            - acceso.concedido
+            - acceso.rechazado
+            - acceso.rechazado_por_ip
+            - sesion.cerrada
+            - reautenticacion.superada
+            - admin.creado
+            - admin.actualizado
+            - admin.suspendido
+            - admin.reactivado
+            - admin.eliminado
+            - admin.rol_concedido
+            - admin.rol_retirado
+            - admin.mfa_restablecido
+            - admin.invitado
+            - admin.invitacion_canjeada
+            - ip.permitida_anadida
+            - ip.permitida_retirada
+            - autorizacion.solicitada
+            - autorizacion.aprobada
+            - autorizacion.rechazada
+            - autorizacion.caducada
+            - autorizacion.ejecutada
+            - autorizacion.fallida
+            - tenant.creado
+            - tenant.actualizado
+            - tenant.suspendido
+            - tenant.reactivado
+            - tenant.baja_iniciada
+            - tenant.rescatado
+            - tenant.eliminado
+            - tenant.clonado
+            - tenant.slug_cambiado
+            - tenant.aprovisionamiento_fallido
+            - tenant.gracia_vencida
+            - modulo.contratado
+            - modulo.descontratado
+            - modulo.masivo_ejecutado
+            - job.reintentado
+        reason: { type: string, nullable: true }
+        context: { type: object, nullable: true, additionalProperties: true }
+
+    PlatformAction:
+      type: object
+      description: >
+        REQ-CORE, api.md §2.9. Fila de `GET /api/v1/platform-actions`: el
+        dato nace en `admin_action_logs` (REQ-BO), pero la ruta y el
+        permiso son de `REQ-CORE` (INV-007) — `plataforma_app` sólo tiene
+        `GRANT SELECT` sobre estas seis columnas (datos.md §4.3), nunca
+        `reason`/`context`/`ip_address`.
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        occurred_at: { type: string, format: date-time }
+        action: { type: string, description: Mismo vocabulario que AdminActionLog.action. }
+        affected_tenant_public_id:
+          type: string
+          nullable: true
+          description: Siempre el propio tenant (el filtro ya lo garantiza) — no expone el id interno.
+        subject_type: { type: string }
+        subject_public_id: { $ref: '#/components/schemas/PublicId' }
+
+    PlatformTenant:
+      type: object
+      description: >
+        REQ-BO-001 (1.6b), api.md §2.4.1. `TenantResource`.
+        `provisioning.state` es un enumerado de respuesta extensible
+        (ADR-038 §7.3), derivado y nunca una columna.
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        slug: { type: string }
+        name: { type: string }
+        status: { type: string, enum: [en_alta, activo, suspendido, en_baja, eliminado] }
+        provisioning:
+          type: object
+          properties:
+            state: { type: string, enum: [en_curso, completado, fallido] }
+            started_at: { type: string, format: date-time, nullable: true }
+        suspended_at: { type: string, format: date-time, nullable: true }
+        suspension_message: { type: string, nullable: true }
+        grace_period_ends_at: { type: string, format: date-time, nullable: true }
+        grace_period_expired_at: { type: string, format: date-time, nullable: true }
+        created_at: { type: string, format: date-time }
+
+    PlatformTenantClone:
+      allOf:
+        - { $ref: '#/components/schemas/PlatformTenant' }
+        - type: object
+          description: api.md §2.4.3. `TenantCloneResource` — dice qué se ha copiado y qué no (CA-BO-123).
+          properties:
+            cloned_from:
+              type: object
+              properties:
+                tenant_public_id: { $ref: '#/components/schemas/PublicId' }
+                copied: { type: array, items: { type: string } }
+                not_copied: { type: array, items: { type: string } }
+
+    TenantLifecycleEvent:
+      type: object
+      description: >
+        REQ-BO-001 (1.6b), api.md §2.4, datos.md §5. `TenantLifecycleEventResource`
+        — historia de la máquina de estados de un centro, vista completa
+        del backoffice.
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        from_status: { type: string, enum: [en_alta, activo, suspendido, en_baja, eliminado], nullable: true }
+        to_status: { type: string, enum: [en_alta, activo, suspendido, en_baja, eliminado] }
+        reason: { type: string }
+        occurred_at: { type: string, format: date-time }
+        performed_by: { $ref: '#/components/schemas/PublicId' }
+        dual_authorization_id: { $ref: '#/components/schemas/PublicId' }
+        grace_period_ends_at: { type: string, format: date-time, nullable: true }
+
+    PlatformModule:
+      type: object
+      description: >
+        REQ-BO-002 (1.6c), api.md §2.6.1. Un módulo del catálogo
+        declarado en código. `essential`/`depends_on` salen del
+        descriptor (RN-BO-63), nunca de la tabla `modules`.
+      properties:
+        code: { type: string }
+        name_key: { type: string }
+        phase: { type: string, enum: ["1", "2"] }
+        essential: { type: boolean }
+        depends_on: { type: array, items: { type: string } }
+        retired_at: { type: string, format: date-time, nullable: true }
+
+    PlatformTenantModuleState:
+      type: object
+      description: >
+        REQ-BO-002 (1.6c), api.md §2.6.2. Estado de un módulo para un
+        tenant concreto — los tres estados de ADR-045 §4.7. `reason` es
+        el motivo interno del operador (no visible para el centro,
+        RN-BO-82).
+      properties:
+        code: { type: string }
+        state: { type: string, enum: [no_contratado, contratado, esencial] }
+        enabled_at: { type: string, format: date-time, nullable: true }
+        disabled_at: { type: string, format: date-time, nullable: true }
+        reason: { type: string, nullable: true }
+        depends_on: { type: array, items: { type: string } }
+        missing_dependencies:
+          type: array
+          items: { type: string }
+          description: RN-BO-28. Dependencias contratadas que faltan tras una versión que añadió la arista — se informa, no se corrige solo.
+        dependent_modules: { type: array, items: { type: string } }
+
+    PlatformModuleChangeRequest:
+      type: object
+      required: [module_code, enabled]
+      description: api.md §2.7. Cuerpo de la vista previa de un solo tenant.
+      properties:
+        module_code: { type: string }
+        enabled: { type: boolean }
+        cascade: { type: boolean, default: false }
+
+    PlatformModuleRolloutRequest:
+      type: object
+      required: [module_code, enabled, reason, tenant_public_ids]
+      description: api.md §2.6.4, §2.7. Cuerpo de la masiva y de su vista previa.
+      properties:
+        module_code: { type: string }
+        enabled: { type: boolean, description: Uno para todo el lote (RN-BO-79). }
+        reason: { type: string }
+        cascade: { type: boolean, default: false }
+        tenant_public_ids:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: { $ref: '#/components/schemas/PublicId' }
+          description: Lista explícita. Sin selector por filtro (RN-BO-81).
+
+    PlatformModulePreviewResult:
+      type: object
+      description: api.md §2.7. No reserva nada y no es un contrato (RN-BO-68).
+      properties:
+        affected_tenants: { type: integer }
+        modules_to_contract: { type: array, items: { type: string } }
+        modules_to_decontract: { type: array, items: { type: string } }
+        cascaded_dependencies: { type: array, items: { type: string } }
+        blocked:
+          type: array
+          items:
+            type: object
+            properties:
+              module_code: { type: string }
+              reason_code: { type: string, enum: [bo.module.essential, bo.module.retired] }
+        impact:
+          type: object
+          properties:
+            users_affected: { type: integer }
+            screens_removed:
+              type: array
+              items: { type: string }
+              description: Sale del descriptor del módulo; vacío si no declara ninguna (api.md §2.7).
+            integrations_disabled: { type: array, items: { type: string } }
+
+    PlatformModuleChangeResult:
+      type: object
+      description: api.md §2.6.3. Dice qué se hizo de verdad (RN-BO-68), no lo que se pidió.
+      properties:
+        data:
+          type: object
+          properties:
+            tenant_public_id: { $ref: '#/components/schemas/PublicId' }
+            applied:
+              type: array
+              items:
+                type: object
+                properties:
+                  code: { type: string }
+                  enabled: { type: boolean }
+                  cascaded: { type: boolean }
+                  enabled_at: { type: string, format: date-time, nullable: true }
+                  disabled_at: { type: string, format: date-time, nullable: true }
+            unchanged:
+              type: array
+              items: { type: string }
+              description: RN-BO-69. Contratar lo ya contratado es no-operación completa.
+            cache_invalidated:
+              type: boolean
+              description: "`false`: la fase 2 falló (RN-BO-76) — la escritura ya está confirmada y auditada de todos modos."
+
+    PlatformModuleRolloutAccepted:
+      type: object
+      description: >
+        api.md §2.6.4. Los dos `202` se distinguen por `data.type`, no
+        por el código de estado. `enabled: true` → `module_rollout`
+        (encolado de inmediato); `enabled: false` → `dual_authorization`
+        (nada escrito ni encolado todavía, RN-BO-80).
+      properties:
+        data:
+          oneOf:
+            - type: object
+              properties:
+                type: { type: string, enum: [module_rollout] }
+                state: { type: string, enum: [en_cola] }
+                module_code: { type: string }
+                tenants: { type: integer }
+            - type: object
+              properties:
+                type: { type: string, enum: [dual_authorization] }
+                public_id: { $ref: '#/components/schemas/PublicId' }
+                status: { type: string, enum: [pendiente] }
+                action: { type: string, enum: [modulo.descontratar_masivo] }
+
+    PlatformTenantHealth:
+      type: object
+      description: >
+        REQ-BO-004 reducido, sub-paso 1.6d. api.md §2.10.1. Un campo cuya
+        fuente no existe se omite del todo (RN-BO-83): no hay bloque de
+        uso de recursos, certificado ni conectores en fase 1.
+        `platform_incident` se omite si no hay ninguna entrada.
+      properties:
+        platform:
+          type: object
+          description: Alcance global, idéntico en todos los centros (RN-BO-97).
+          properties:
+            version: { type: string }
+            migrations:
+              type: array
+              items:
+                type: object
+                properties:
+                  name: { type: string }
+                  batch: { type: integer }
+        tenant:
+          type: object
+          properties:
+            status: { type: string, enum: [en_alta, activo, suspendido, en_baja, eliminado] }
+            suspended_at: { type: string, format: date-time, nullable: true }
+            grace_period_ends_at: { type: string, format: date-time, nullable: true }
+            grace_period_expired_at: { type: string, format: date-time, nullable: true }
+            provisioning:
+              type: object
+              properties:
+                state: { type: string, enum: [completado, en_curso, fallido] }
+        jobs:
+          type: object
+          description: >
+            Alcance del centro, por payload.tenant_id — no alcanza a los
+            cuatro trabajos que el backoffice despacha sin tenant activo
+            (RN-BO-90). `last_failed_at` se omite si el centro nunca ha
+            tenido un trabajo fallido.
+          properties:
+            queued: { type: integer }
+            failed: { type: integer }
+            failed_recent: { type: integer }
+            failed_recent_hours: { type: integer }
+            last_failed_at: { type: string, format: date-time }
+        platform_incident:
+          type: object
+          description: Alcance del centro, por affected_tenant_id (funcional.md §5.9.3).
+          properties:
+            action: { type: string, enum: [tenant.aprovisionamiento_fallido, tenant.gracia_vencida] }
+            occurred_at: { type: string, format: date-time }
+        modules:
+          type: object
+          properties:
+            contracted: { type: integer }
+            dependency_inconsistencies:
+              type: array
+              items:
+                type: object
+                properties:
+                  module_code: { type: string }
+                  missing_dependencies: { type: array, items: { type: string } }
+
+    PlatformFailedJob:
+      type: object
+      description: >
+        api.md §2.10.2. RN-BO-84: nunca `payload` ni traza completa.
+        `exception_message` es el mensaje de la excepción (OPEN-BO-22,
+        resuelta: sí).
+      properties:
+        uuid: { type: string, format: uuid }
+        job_class: { type: string, nullable: true, description: "payload.displayName — un nombre de clase PHP, no un dato." }
+        queue: { type: string }
+        connection: { type: string }
+        failed_at: { type: string, format: date-time }
+        exception_class: { type: string, nullable: true }
+        exception_message: { type: string, nullable: true }
+
+    PlatformFailedJobRetryRequest:
+      type: object
+      required: [reason]
+      properties:
+        reason: { type: string }
+
+    PlatformMetricsPlatform:
+      type: object
+      description: >
+        REQ-BO-006 reducido, sub-paso 1.6d. api.md §2.10.4. `closed` y
+        `deleted` son series separadas y no se suman (RN-BO-92): no hay
+        `churn`.
+      properties:
+        tenants_by_status:
+          type: object
+          description: Foto del ahora, sin ventana. Incluye los borrados lógicos (RN-BO-91).
+          properties:
+            en_alta: { type: integer }
+            activo: { type: integer }
+            suspendido: { type: integer }
+            en_baja: { type: integer }
+            eliminado: { type: integer }
+        period:
+          type: object
+          properties:
+            from: { type: string, format: date }
+            to: { type: string, format: date }
+        created: { type: integer, description: tenant_lifecycle_events con from_status IS NULL. }
+        closed: { type: integer, description: to_status = en_baja. }
+        deleted: { type: integer, description: "to_status = eliminado, serie aparte de closed." }
+
+    PlatformModuleAdoption:
+      type: object
+      description: >
+        REQ-BO-006 reducido, sub-paso 1.6d. api.md §2.10.5. La lista la
+        marca el catálogo declarado (ModuleCatalog::all()), no las filas
+        existentes (RN-BO-93).
+      properties:
+        of_tenants: { type: integer, description: Denominador — centros vivos y no eliminado. }
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              module_code: { type: string }
+              phase: { type: string }
+              essential: { type: boolean }
+              retired: { type: boolean }
+              contracted_tenants:
+                type: integer
+                description: Ausente en los esenciales (no tienen fila, RN-BO-65) — nunca 0.
+
+    DualAuthorization:
+      type: object
+      description: REQ-BO-007, api.md §2.8. `DualAuthorizationResource`. Incluye el `payload` congelado.
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        action: { type: string, enum: [tenant.eliminar, tenant.baja, modulo.descontratar_masivo] }
+        payload: { type: object, additionalProperties: true }
+        reason: { type: string }
+        requested_by: { $ref: '#/components/schemas/PublicId' }
+        requested_at: { type: string, format: date-time }
+        expires_at: { type: string, format: date-time }
+        status: { type: string, enum: [pendiente, aprobada, rechazada, caducada, ejecutada, fallida] }
+        approved_by: { $ref: '#/components/schemas/PublicId' }
+        approved_at: { type: string, format: date-time, nullable: true }
+        resolution_reason: { type: string, nullable: true }
+        executed_at: { type: string, format: date-time, nullable: true }
+        execution_error: { type: string, nullable: true }
+
+    PlatformFeatureFlag:
+      type: object
+      description: >
+        REQ-BO-005 puntos 1-2, sub-paso 1.6e. api.md §2.11. Direccionado
+        por `key` (ADR-051), no por `public_id` — `public_id` se
+        conserva de todos modos para `subject_public_id` de
+        `admin_action_logs` (datos.md §9.3.1). `rollout_unit` lo declara
+        el código (RN-BO-36): nunca aparece en un cuerpo de escritura.
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        key: { type: string, example: comedor.reserva_v2 }
+        module_code: { type: string, nullable: true }
+        name_key: { type: string }
+        description_key: { type: string }
+        rollout_unit: { type: string, enum: [tenant, user] }
+        status: { type: string, enum: [activo, forced_off] }
+        status_reason: { type: string, nullable: true }
+        rules_version: { type: integer }
+        retired_at: { type: string, format: date-time, nullable: true }
+        rules_count: { type: integer, description: Sólo en el listado (GET /feature-flags). }
+        rules:
+          type: array
+          description: Sólo en GET /feature-flags/{key} — el conjunto vigente.
+          items: { $ref: '#/components/schemas/PlatformFeatureFlagRule' }
+
+    PlatformFeatureFlagRule:
+      type: object
+      description: datos.md §9.3. Cada eje lleva exactamente su columna y ninguna otra.
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        scope_type: { type: string, enum: [global, tenant, early_adopters, percentage, role] }
+        tenant_public_id: { $ref: '#/components/schemas/PublicId' }
+        role_code: { type: string, nullable: true }
+        percentage: { type: integer, minimum: 0, maximum: 100, nullable: true }
+        enabled: { type: boolean }
+        reason: { type: string }
+
+    PlatformFeatureFlagRuleInput:
+      type: object
+      required: [scope_type]
+      description: >
+        api.md §2.11.1. Una regla dentro del conjunto propuesto — sin
+        `id`/`public_id`: el servidor resuelve la diferencia contra lo
+        que hay (RN-BO-104).
+      properties:
+        scope_type: { type: string, enum: [global, tenant, early_adopters, percentage, role] }
+        tenant_public_id: { $ref: '#/components/schemas/PublicId' }
+        role_code: { type: string }
+        percentage: { type: integer, minimum: 0, maximum: 100 }
+        enabled: { type: boolean, default: true }
+
+    PlatformFeatureFlagRulesRequest:
+      type: object
+      required: [reason, rules]
+      description: >
+        api.md §2.11.1, §2.12 punto 1. El conjunto COMPLETO, no un
+        parche (RN-BO-104). `rules: []` es válido y significa "ninguna
+        regla" (RN-BO-35).
+      properties:
+        reason: { type: string, minLength: 1 }
+        rules:
+          type: array
+          items: { $ref: '#/components/schemas/PlatformFeatureFlagRuleInput' }
+
+    PlatformFeatureFlagRulesPreviewRequest:
+      type: object
+      required: [rules]
+      description: api.md §2.11, §2.13. El mismo conjunto que PUT .../rules, sin `reason` — no escribe nada (RN-BO-68).
+      properties:
+        rules:
+          type: array
+          items: { $ref: '#/components/schemas/PlatformFeatureFlagRuleInput' }
+
+    PlatformFeatureFlagStateRequest:
+      type: object
+      required: [status, reason]
+      description: api.md §2.11.1. El interruptor de emergencia (RNF-MANT-005).
+      properties:
+        status: { type: string, enum: [activo, forced_off] }
+        reason: { type: string, minLength: 1 }
+
+    PlatformFeatureFlagImpact:
+      type: object
+      description: >
+        api.md §2.11.1, §2.13. Mismo cálculo para la vista previa y para
+        el campo `impact` de una escritura real. Listas truncadas a
+        recuento por encima de un umbral.
+      properties:
+        rollout_unit: { type: string, enum: [tenant, user] }
+        exposed_tenants: { type: integer }
+        total_tenants: { type: integer }
+        newly_exposed: { type: array, items: { $ref: '#/components/schemas/PublicId' } }
+        newly_hidden: { type: array, items: { $ref: '#/components/schemas/PublicId' } }
+        by_rule:
+          type: object
+          properties:
+            global: { type: integer }
+            tenant: { type: integer }
+            early_adopters: { type: integer }
+            percentage: { type: integer }
+        role_filter: { type: array, items: { type: string } }
+
+    PlatformFeatureFlagRulesResult:
+      type: object
+      description: api.md §2.11.1. Dice qué quedó escrito de verdad y a quién alcanza.
+      properties:
+        data:
+          type: object
+          properties:
+            key: { type: string }
+            rules_version: { type: integer }
+            rules:
+              type: array
+              items: { $ref: '#/components/schemas/PlatformFeatureFlagRule' }
+            impact: { $ref: '#/components/schemas/PlatformFeatureFlagImpact' }
+
+    PlatformFeatureFlagStateResult:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            key: { type: string }
+            status: { type: string, enum: [activo, forced_off] }
+            status_reason: { type: string, nullable: true }
+            rules_version: { type: integer }
+
+    PlatformTenantFeatureFlagDecision:
+      type: object
+      description: >
+        api.md §2.13. `matched_by` es el vocabulario de
+        `FeatureFlagDecision` (funcional.md §5.11.8.2), enumerado
+        extensible (ADR-038 §7.3).
+      properties:
+        key: { type: string }
+        enabled: { type: boolean }
+        matched_by:
+          type: string
+          enum: [tenant, early_adopters, percentage, global, forced_off, retired, module_disabled, role_filtered, none]
+
+    PlatformTenantEarlyAdopterRequest:
+      type: object
+      required: [early_adopter, reason]
+      description: api.md §2.11.1. RN-BO-46.
+      properties:
+        early_adopter: { type: boolean }
+        reason: { type: string, minLength: 1 }
+
+    PlatformTenantEarlyAdopterResult:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            tenant_public_id: { $ref: '#/components/schemas/PublicId' }
+            early_adopter_since: { type: string, format: date-time, nullable: true }
+
+    TenantFeatureFlags:
+      type: object
+      description: >
+        api.md §2.14. Aplicación del tenant (REQ-CORE), no del
+        backoffice. Sólo las claves que evalúan verdadero para quien
+        pregunta (RN-BO-35, CA-BO-097).
+      properties:
+        data:
+          type: array
+          items: { type: string }
+          example: [comedor.reserva_v2, acad.horario_beta]
+
+    # REQ-FAM-UNIT (paso 1.14-a), docs/modulos/REQ-FAM-UNIT/api.md §1. Enumerados extensibles (ADR-038 §7.3).
+    GuardianRelationship:
+      type: string
+      description: >
+        Tipo de relación del tutor con el alumno (REQ-FAM-UNIT `OPEN-FAM-UNIT-07`). Enumerado **extensible**
+        (ADR-038 §7.3): los clientes tratan un valor desconocido mostrando el código en crudo.
+      enum: [padre, madre, tutor_legal, abuelo, apoderado, otro]
+      x-extensible-enum: true
+
+    GuardianAccessLevel:
+      type: string
+      description: >
+        Nivel de acceso del tutor (REQ-FAM-UNIT-001). Enumerado **extensible**. En `1.14-a` no tiene efecto sobre
+        los recursos del módulo (`OPEN-FAM-UNIT-04`): lo aplican los módulos que tengan algo que escribir.
+      enum: [lectura, lectura_escritura]
+      x-extensible-enum: true
+
+    GuardianRestrictedCategory:
+      type: string
+      description: >
+        Categoría de información que se restringe a un tutor (REQ-FAM-UNIT-002, `OPEN-FAM-UNIT-07`). Hoy solo
+        `salud`. Enumerado **extensible**.
+      enum: [salud]
+      x-extensible-enum: true
+
+    GuardianLinkStatus:
+      type: string
+      description: >
+        Estado del vínculo. `revocado`: el tutor pierde el acceso a ese alumno por resolución judicial sin
+        afectar al resto (REQ-FAM-UNIT-002). Enumerado **extensible**.
+      enum: [activo, revocado]
+      x-extensible-enum: true
+
+    GuardianRevocationReason:
+      type: string
+      description: Motivo de revocación (`OPEN-FAM-UNIT-07`). Hoy solo `resolucion_judicial`. Enumerado **extensible**.
+      enum: [resolucion_judicial]
+      x-extensible-enum: true
+
+    FamilyUnit:
+      type: object
+      description: >
+        REQ-FAM-UNIT/api.md §1.1. Para un sujeto con ámbito `unidad_familiar`, `students_count` cuenta solo los
+        alumnos que alcanza y `guardians_count` solo los tutores con vínculo activo con ellos (RN-FAM-UNIT-36).
+        `deleted_at` solo aparece en una unidad dada de baja (listado con `include_deleted`).
+      required: [public_id, code, principal_guardian, guardians_count, students_count, created_at, updated_at]
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        code: { type: string, minLength: 1, maxLength: 40, example: 'UF-000123' }
+        principal_guardian:
+          description: '`public_id` del tutor principal, o `null` (RN-FAM-UNIT-02, RN-FAM-UNIT-12, RN-FAM-UNIT-38).'
+          oneOf:
+            - { $ref: '#/components/schemas/PublicId' }
+            - { type: 'null' }
+        guardians_count: { type: integer, minimum: 0 }
+        students_count: { type: integer, minimum: 0 }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        deleted_at: { type: string, format: date-time }
+
+    StudentSummary:
+      type: object
+      description: >
+        REQ-ALUM/api.md §1, `GET /students` (1.15-a). Los datos de la persona vienen de `Core` (`alum` no los guarda,
+        RN-ALUM-02). `enrollment`: matrícula vigente en el curso pedido (`academic_year`, o el activo si hay filtro de
+        matrícula) con la forma de `Enrollment`, acotada por el ámbito de `matricula.leer`; `null` sin filtro de curso o año,
+        sin matrícula o sin ese permiso. `deleted_at` solo aparece en un alumno dado de baja (listado con
+        `include_deleted`).
+      required: [public_id, person, display_name, birth_date, enrollment, created_at, updated_at]
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        person:
+          type: object
+          required: [public_id]
+          properties:
+            public_id: { $ref: '#/components/schemas/PublicId' }
+        display_name: { type: string, description: 'Nombre visible; vacío si la persona está dada de baja.' }
+        birth_date:
+          description: '`AAAA-MM-DD`, o `null` si no está informada.'
+          oneOf:
+            - { type: string, format: date }
+            - { type: 'null' }
+        enrollment:
+          oneOf:
+            - { $ref: '#/components/schemas/Enrollment' }
+            - { type: 'null' }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        deleted_at: { type: string, format: date-time }
+
+    Student:
+      type: object
+      description: >
+        REQ-ALUM/api.md §1: ficha del alumno (con `enrollments[]` desde `1.15-b` y `has_photo` desde `1.15-c`; sin `emergency_contact`
+        ni `guardians[]`). **Nunca lleva la URL de la fotografía**: solo el booleano `has_photo`; la URL firmada sale únicamente de
+        `GET /students/{publicId}/photo`. Los datos de la persona vienen de `Core`. **`document_number` va enmascarado** (solo los cuatro últimos
+        caracteres a la vista): la API de alumnado nunca devuelve el documento completo.
+      required: [public_id, person, display_name, given_name, family_name_1, family_name_2, birth_date, locale, document_type, document_number, has_photo, enrollments, created_at, updated_at]
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        person:
+          type: object
+          required: [public_id]
+          properties:
+            public_id: { $ref: '#/components/schemas/PublicId' }
+        display_name: { type: string }
+        given_name: { type: string }
+        family_name_1: { type: string }
+        family_name_2: { type: [string, 'null'] }
+        birth_date:
+          oneOf:
+            - { type: string, format: date }
+            - { type: 'null' }
+        locale:
+          description: Idioma de la persona.
+          oneOf:
+            - { $ref: '#/components/schemas/Locale' }
+            - { type: 'null' }
+        document_type:
+          description: Tipo del catálogo de `Core` (`dni`, `nie`, `pasaporte`), o `null`.
+          type: [string, 'null']
+        document_number:
+          description: Número **enmascarado** (`•••••1234`), o `null`.
+          type: [string, 'null']
+        has_photo:
+          description: '`true` si el alumno tiene una fotografía viva (`1.15-c`, `RN-ALUM-50`). Solo el booleano, nunca la URL.'
+          type: boolean
+        enrollments:
+          type: array
+          description: >
+            Matrículas vivas del alumno (`1.15-b`), con la forma de `GET /enrollments`, de la más reciente a la más
+            antigua. Las de un curso cerrado que el sujeto no puede leer se omiten (RN-ALUM-23).
+            El ámbito de `matricula.leer` acota la lista: sin ese permiso sale `[]`.
+          items: { $ref: '#/components/schemas/Enrollment' }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        deleted_at: { type: string, format: date-time }
+
+    EnrollmentStatus:
+      type: string
+      description: Estado de la matrícula. Enumerado **extensible**.
+      enum: [activa, baja]
+      x-extensible-enum: true
+
+    Enrollment:
+      type: object
+      description: >
+        REQ-ALUM/api.md §2. Matrícula de un alumno en un curso académico, un curso de etapa y, opcionalmente, un grupo.
+        `student`, `academic_year`, `course` y `group` son resúmenes (los datos viven en `Core`, `curso` y `acad`).
+        `group` es `null` si la matrícula no tiene grupo (OPEN-ALUM-11 = B). También es la forma de cada elemento de
+        `enrollments[]` de la ficha del alumno.
+      required: [public_id, student, academic_year, course, group, status, enrolled_on, withdrawn_on, withdrawal_reason, created_at, updated_at]
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        student:
+          type: object
+          required: [public_id, display_name]
+          properties:
+            public_id: { $ref: '#/components/schemas/PublicId' }
+            display_name: { type: string, description: 'Nombre visible; vacío si la persona está dada de baja.' }
+        academic_year:
+          type: object
+          required: [public_id, code]
+          properties:
+            public_id: { $ref: '#/components/schemas/PublicId' }
+            code: { type: string, example: '2026-2027' }
+        course:
+          type: object
+          description: Curso de etapa.
+          required: [public_id, code, name_translations]
+          properties:
+            public_id: { $ref: '#/components/schemas/PublicId' }
+            code: { type: string, example: '1ESO' }
+            name_translations: { type: object, additionalProperties: { type: string }, description: 'Nombre por idioma.' }
+        group:
+          description: Resumen del grupo (`GroupDirectory`), o `null` si no tiene.
+          oneOf:
+            - type: object
+              required: [public_id, code, name]
+              properties:
+                public_id: { $ref: '#/components/schemas/PublicId' }
+                code: { type: string }
+                name: { type: string }
+            - { type: 'null' }
+        status: { $ref: '#/components/schemas/EnrollmentStatus' }
+        enrolled_on: { type: string, format: date }
+        withdrawn_on:
+          oneOf:
+            - { type: string, format: date }
+            - { type: 'null' }
+        withdrawal_reason:
+          description: Motivo de la baja (`traslado`, `baja_voluntaria`, `otro`), o `null`.
+          type: [string, 'null']
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    EnrollmentCreate:
+      type: object
+      required: [student, academic_year, course, enrolled_on]
+      properties:
+        student: { $ref: '#/components/schemas/PublicId' }
+        academic_year: { $ref: '#/components/schemas/PublicId' }
+        course: { allOf: [{ $ref: '#/components/schemas/PublicId' }], description: 'Curso de etapa; debe ser del curso académico.' }
+        group: { allOf: [{ $ref: '#/components/schemas/PublicId' }], description: 'Opcional; debe ser del curso de etapa.' }
+        enrolled_on: { type: string, format: date, description: 'Dentro del curso académico, bordes incluidos (RN-ALUM-29).' }
+
+    EnrollmentUpdate:
+      type: object
+      description: Al menos una clave. `student`, `academic_year` y `course` no se aceptan (`422 immutable`).
+      properties:
+        enrolled_on: { type: string, format: date }
+        group: { allOf: [{ $ref: '#/components/schemas/PublicId' }], description: 'Solo si la matrícula no tiene grupo (RN-ALUM-28).' }
+
+    EnrollmentWithdrawal:
+      type: object
+      required: [withdrawn_on, withdrawal_reason]
+      properties:
+        withdrawn_on: { type: string, format: date, description: 'No anterior a `enrolled_on`.' }
+        withdrawal_reason: { type: string, enum: [traslado, baja_voluntaria, otro] }
+
+    GroupChangeRequestStatus:
+      type: string
+      description: Estado de la solicitud de cambio de grupo (RN-ALUM-42). Enumerado **extensible**.
+      enum: [pendiente, aprobada, rechazada, cancelada]
+      x-extensible-enum: true
+
+    GroupChangeRequest:
+      type: object
+      description: >
+        REQ-ALUM/api.md §3. Solicitud de cambio de grupo de una matrícula (RN-ALUM-40 a -46). `enrollment`, `academic_year`,
+        `from_group`, `to_group`, `requested_by` y `decided_by` son resúmenes. `decided_by` y `decided_at` son `null` mientras
+        está `pendiente`; en `cancelada`, `decided_by` es quien cancela. `reason` y `decision_note` no se registran en la
+        auditoría (RN-ALUM-45).
+      required: [public_id, enrollment, academic_year, from_group, to_group, reason, status, requested_by, decided_by, decided_at, decision_note, created_at, updated_at]
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        enrollment:
+          type: object
+          required: [public_id, student]
+          properties:
+            public_id: { $ref: '#/components/schemas/PublicId' }
+            student:
+              type: object
+              required: [public_id, display_name]
+              properties:
+                public_id: { $ref: '#/components/schemas/PublicId' }
+                display_name: { type: string, description: 'Nombre visible; vacío si la persona está dada de baja.' }
+        academic_year:
+          type: object
+          required: [public_id, code]
+          properties:
+            public_id: { $ref: '#/components/schemas/PublicId' }
+            code: { type: string, example: '2026-2027' }
+        from_group: { $ref: '#/components/schemas/GroupChangeRequestGroup' }
+        to_group: { $ref: '#/components/schemas/GroupChangeRequestGroup' }
+        reason: { type: string, minLength: 1, maxLength: 500 }
+        status: { $ref: '#/components/schemas/GroupChangeRequestStatus' }
+        requested_by: { $ref: '#/components/schemas/GroupChangeRequestUser' }
+        decided_by: { $ref: '#/components/schemas/GroupChangeRequestUser' }
+        decided_at:
+          oneOf:
+            - { type: string, format: date-time }
+            - { type: 'null' }
+        decision_note: { type: [string, 'null'], maxLength: 500 }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    GroupChangeRequestGroup:
+      description: Resumen del grupo (`GroupDirectory`).
+      type: object
+      required: [public_id, code, name]
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        code: { type: string }
+        name: { type: string }
+
+    GroupChangeRequestUser:
+      description: Usuario que solicita o decide, o `null` (`decided_by` de una solicitud `pendiente`). `display_name` vacío si fue borrado.
+      oneOf:
+        - type: object
+          required: [public_id, display_name]
+          properties:
+            public_id: { $ref: '#/components/schemas/PublicId' }
+            display_name: { type: string }
+        - { type: 'null' }
+
+    GroupChangeRequestCreate:
+      type: object
+      required: [enrollment, to_group, reason]
+      properties:
+        enrollment: { allOf: [{ $ref: '#/components/schemas/PublicId' }], description: 'Matrícula `activa` y con grupo.' }
+        to_group: { allOf: [{ $ref: '#/components/schemas/PublicId' }], description: 'Distinto del grupo actual y del mismo curso de etapa (RN-ALUM-40).' }
+        reason: { type: string, minLength: 1, maxLength: 500 }
+
+    GroupChangeRequestDecision:
+      type: object
+      description: Aprobar y cancelar. El cuerpo es opcional.
+      properties:
+        decision_note: { type: string, minLength: 1, maxLength: 500 }
+
+    GroupChangeRequestRejection:
+      type: object
+      required: [decision_note]
+      properties:
+        decision_note: { type: string, minLength: 1, maxLength: 500, description: 'Obligatoria al rechazar.' }
+
+    StudentCreate:
+      type: object
+      description: >
+        REQ-ALUM/api.md §1, `POST /students`. Los nombres de campo son los de la ampliación de `Core`
+        (`PersonDataCorrection`, OPEN-ALUM-19). Texto de 1 a 255 caracteres sin caracteres de control.
+      required: [given_name, family_name_1, birth_date]
+      properties:
+        given_name: { type: string, minLength: 1, maxLength: 255 }
+        family_name_1: { type: string, minLength: 1, maxLength: 255 }
+        family_name_2: { type: [string, 'null'], maxLength: 255 }
+        birth_date:
+          type: string
+          format: date
+          description: '`AAAA-MM-DD`, fecha real y no futura (RN-ALUM-08), si no `422 alum.validation.birth_date_invalid`.'
+        document_type:
+          type: [string, 'null']
+          description: 'Catálogo de `Core` (`dni`, `nie`, `pasaporte`); va junto con `document_number` (RN-CORE-90 a -93).'
+        document_number: { type: [string, 'null'], maxLength: 255 }
+        locale:
+          type: [string, 'null']
+          description: Idioma entre los activos del centro; por defecto, el del centro.
+        family_unit:
+          description: '`public_id` de una unidad familiar viva del centro (RN-ALUM-04). Exige además `familia.actualizar`.'
+          oneOf:
+            - { $ref: '#/components/schemas/PublicId' }
+            - { type: 'null' }
+
+    StudentUpdate:
+      type: object
+      description: >
+        REQ-ALUM/api.md §1, `PATCH /students/{public_id}`: al menos una de estas claves; solo cuentan las presentes.
+        Cualquier otra clave es `422 alum.validation.field_not_editable`. `null` borra `family_name_2`, `document_type` y
+        `document_number` (el par resultante debe seguir completo); `given_name`, `family_name_1`, `birth_date` y
+        `locale` no admiten `null`.
+      additionalProperties: false
+      properties:
+        given_name: { type: string, minLength: 1, maxLength: 255 }
+        family_name_1: { type: string, minLength: 1, maxLength: 255 }
+        family_name_2: { type: [string, 'null'], maxLength: 255 }
+        birth_date: { type: string, format: date }
+        document_type: { type: [string, 'null'] }
+        document_number: { type: [string, 'null'], maxLength: 255 }
+        locale: { type: string }
+
+    Guardian:
+      type: object
+      description: >
+        REQ-FAM-UNIT/api.md §1.2. Faceta de tutor de una persona (ADR-034 §1). **Nunca** correo, teléfono ni
+        documento: son de `Core` y se consultan allí con su permiso (OPEN-FAM-UNIT-20). `display_name` va vacío si
+        el usuario está dado de baja (OPEN-FAM-UNIT-16).
+      required: [public_id, family_unit, user, display_name, is_principal, created_at, updated_at]
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        family_unit: { $ref: '#/components/schemas/PublicId' }
+        user:
+          description: '`public_id` del usuario del tutor.'
+          oneOf:
+            - { $ref: '#/components/schemas/PublicId' }
+            - { type: 'null' }
+        display_name: { type: string }
+        is_principal: { type: boolean }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    FamilyUnitStudent:
+      type: object
+      description: >
+        REQ-FAM-UNIT/api.md §1.3. Pertenencia de un alumno a una unidad. El alumno se nombra por el `public_id`
+        de su **persona** (OPEN-FAM-UNIT-01).
+      required: [public_id, family_unit, student_person, display_name, created_at]
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        family_unit: { $ref: '#/components/schemas/PublicId' }
+        student_person: { $ref: '#/components/schemas/PublicId' }
+        display_name: { type: string }
+        created_at: { type: string, format: date-time }
+
+    GuardianLinkRevocation:
+      type: object
+      description: >
+        Detalle de la revocación (REQ-FAM-UNIT/api.md §1.4). Solo se incluye si el sujeto tiene
+        `revocacion_tutor.leer`; un sujeto con ámbito `unidad_familiar` nunca recibe vínculos revocados (RN-FAM-UNIT-36).
+        Sin texto libre a propósito: el detalle de la resolución no vive aquí.
+      required: [reason, revoked_at, revoked_by]
+      properties:
+        reason: { $ref: '#/components/schemas/GuardianRevocationReason' }
+        revoked_at: { type: string, format: date-time }
+        revoked_by:
+          description: '`public_id` del usuario que revocó.'
+          oneOf:
+            - { $ref: '#/components/schemas/PublicId' }
+            - { type: 'null' }
+
+    GuardianStudentLink:
+      type: object
+      description: >
+        REQ-FAM-UNIT/api.md §1.4. Vínculo tutor ↔ alumno. Puede cruzar unidades (C2). `revocation` solo se incluye
+        con `revocacion_tutor.leer` (`null` si el vínculo está activo); sin el permiso, el campo se omite.
+      required: [public_id, guardian, student_person, relationship, is_legal_guardian, legal_guardian_verified_at, access_level, restricted_categories, is_emergency_contact, status, created_at, updated_at]
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        guardian: { $ref: '#/components/schemas/PublicId' }
+        student_person: { $ref: '#/components/schemas/PublicId' }
+        relationship: { $ref: '#/components/schemas/GuardianRelationship' }
+        is_legal_guardian: { type: boolean, description: 'Representación legal verificada por el centro (patria potestad o tutela). Marcarla rellena la verificación.' }
+        legal_guardian_verified_at:
+          oneOf:
+            - { type: string, format: date-time }
+            - { type: 'null' }
+        access_level: { $ref: '#/components/schemas/GuardianAccessLevel' }
+        restricted_categories:
+          type: array
+          items: { $ref: '#/components/schemas/GuardianRestrictedCategory' }
+        is_emergency_contact: { type: boolean, description: 'Como mucho uno por alumno entre los vínculos activos (RN-FAM-UNIT-31).' }
+        status: { $ref: '#/components/schemas/GuardianLinkStatus' }
+        revocation:
+          oneOf:
+            - { $ref: '#/components/schemas/GuardianLinkRevocation' }
+            - { type: 'null' }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    GuardianLinkRevoked:
+      description: 'Respuesta de `POST /guardian-links/{publicId}/revocation`: el vínculo con `revocation` y `principal_cleared` (RN-FAM-UNIT-38).'
+      allOf:
+        - { $ref: '#/components/schemas/GuardianStudentLink' }
+        - type: object
+          required: [principal_cleared]
+          properties:
+            principal_cleared:
+              type: boolean
+              description: '`true` si era el último vínculo activo del tutor principal con alumnos de su unidad y la unidad queda sin principal.'
+
+    ImageConsentLevel:
+      type: string
+      description: >
+        Nivel del consentimiento de imagen (REQ-FAM-UNIT-004, RN-FAM-UNIT-67): `web` (portal web del centro) y
+        `redes_sociales` (redes, *newsletters* y prensa). Dos niveles por decisión del usuario (2026-10-27): no hay
+        consentimiento por red social. Enumerado **extensible**.
+      enum: [web, redes_sociales]
+      x-extensible-enum: true
+
+    ImageConsentState:
+      type: string
+      description: >
+        Estado vigente **calculado** de un alumno en un nivel (ADR-066 §5.2, RN-FAM-UNIT-45): `no_autorizo` si
+        alguno de quienes deciden lo tiene como decisión vigente; `autorizo` si hay al menos uno y todos `autorizo`;
+        `pendiente` en cualquier otro caso. `pendiente` y `no_autorizo` bloquean la publicación (INV-014). Enumerado
+        **extensible**.
+      enum: [autorizo, no_autorizo, pendiente]
+      x-extensible-enum: true
+
+    ImageConsentDecisionValue:
+      type: string
+      description: >
+        Decisión que se registra. `pendiente` no se registra: es la ausencia de decisión vigente que cuente
+        (RN-FAM-UNIT-67). Enumerado **extensible**.
+      enum: [autorizo, no_autorizo]
+      x-extensible-enum: true
+
+    ImageConsentChannel:
+      type: string
+      description: >
+        Canal de la decisión: `portal` (el propio tutor) o `presencial` (el centro en nombre de un tutor, papel
+        entregado en secretaría). Enumerado **extensible**.
+      enum: [portal, presencial]
+      x-extensible-enum: true
+
+    TermsVersionKind:
+      type: string
+      description: >
+        Tipo de texto legal versionado (ADR-066 §5.5, RN-FAM-UNIT-73). Los dos de imagen se gestionan desde `1.14-b`;
+        `condiciones_uso` desde `1.14-c` (publicarlo activa el muro de condiciones, ADR-067); `autorizacion_recogida`
+        desde `1.14b-a` (el texto que firma el tutor principal al autorizar a un tercero a recoger, RN-FAM-UNIT-85,
+        ADR-068 `L2`). Enumerado **extensible**.
+      enum: [condiciones_uso, consentimiento_imagen_web, consentimiento_imagen_redes, autorizacion_recogida]
+      x-extensible-enum: true
+
+    TermsVersionStatus:
+      type: string
+      description: 'Ciclo de una versión: `borrador` → `publicada` → `retirada`. Como mucho una `publicada` por centro y tipo (RN-FAM-UNIT-60). Enumerado **extensible**.'
+      enum: [borrador, publicada, retirada]
+      x-extensible-enum: true
+
+    TermsVersionRef:
+      type: object
+      description: Referencia a la versión del texto con la que se tomó una decisión (REQ-FAM-UNIT/api.md §1.6).
+      required: [public_id, kind, version_number]
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        kind: { $ref: '#/components/schemas/TermsVersionKind' }
+        version_number: { type: integer, minimum: 1 }
+
+    ImageConsent:
+      type: object
+      description: >
+        REQ-FAM-UNIT/api.md §1.5. Estado vigente de un alumno en un nivel. **Representación calculada** (ADR-066
+        §5.2): no hay tabla ni `public_id`; se identifica por `(student_person, level)`. `last_decision_at` es el
+        `occurred_at` más reciente entre las decisiones que **cuentan** para el estado (RN-FAM-UNIT-45, -72), o `null`;
+        con ámbito `unidad_familiar` nunca refleja la decisión de un tutor revocado (RN-FAM-UNIT-71). `family_unit` es
+        `null` si el alumno no pertenece a ninguna unidad viva.
+      required: [student_person, display_name, family_unit, level, state, last_decision_at]
+      properties:
+        student_person: { $ref: '#/components/schemas/PublicId' }
+        display_name: { type: string }
+        family_unit:
+          oneOf:
+            - { $ref: '#/components/schemas/PublicId' }
+            - { type: 'null' }
+        level: { $ref: '#/components/schemas/ImageConsentLevel' }
+        state: { $ref: '#/components/schemas/ImageConsentState' }
+        last_decision_at:
+          oneOf:
+            - { type: string, format: date-time }
+            - { type: 'null' }
+
+    ImageConsentDecision:
+      type: object
+      description: >
+        REQ-FAM-UNIT/api.md §1.6. Una decisión, **inmutable** (RN-FAM-UNIT-42): no hay `PATCH` ni `DELETE`. No se
+        exponen `ip_address` ni `user_agent` (se conservan como evidencia). `consent_text_version` es `null` solo en un
+        `no_autorizo` sin texto publicado (RN-FAM-UNIT-68). `shown_locale` es el idioma realmente mostrado del texto por
+        el canal `portal` (OPEN-FAM-UNIT-25); `null` por `presencial` (RN-FAM-UNIT-43).
+      required: [public_id, student_person, level, decision, guardian, recorded_by, channel, consent_text_version, shown_locale, occurred_at]
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        student_person: { $ref: '#/components/schemas/PublicId' }
+        level: { $ref: '#/components/schemas/ImageConsentLevel' }
+        decision: { $ref: '#/components/schemas/ImageConsentDecisionValue' }
+        guardian: { allOf: [{ $ref: '#/components/schemas/PublicId' }], description: '`public_id` del tutor que decidió.' }
+        recorded_by:
+          description: '`public_id` del usuario que la registró (el propio tutor o personal del centro).'
+          oneOf:
+            - { $ref: '#/components/schemas/PublicId' }
+            - { type: 'null' }
+        channel: { $ref: '#/components/schemas/ImageConsentChannel' }
+        consent_text_version:
+          oneOf:
+            - { $ref: '#/components/schemas/TermsVersionRef' }
+            - { type: 'null' }
+        shown_locale:
+          oneOf:
+            - { $ref: '#/components/schemas/Locale' }
+            - { type: 'null' }
+        occurred_at: { type: string, format: date-time }
+
+    ImageConsentDecisionRecorded:
+      type: object
+      description: 'Respuesta de `POST /image-consent-decisions`: la decisión y el estado resultante, calculado tras la escritura.'
+      required: [decision, state]
+      properties:
+        decision: { $ref: '#/components/schemas/ImageConsentDecision' }
+        state: { $ref: '#/components/schemas/ImageConsent' }
+
+    ImageConsentText:
+      type: object
+      description: >
+        REQ-FAM-UNIT/api.md §1.9 (RN-FAM-UNIT-75). Texto **publicado** del consentimiento de un nivel, en el idioma de la
+        petición con la caída de ADR-062. `locale` es el idioma en que vienen de verdad título y cuerpo (el mismo que se
+        registra en `shown_locale`). Sin versión `publicada` del nivel, todos los campos salvo `level` son `null`. Nunca
+        un `borrador` ni una `retirada`, y sin `title_translations`/`body_translations` (eso es la gestión de `texto_legal`).
+      required: [level, terms_version, title, body, locale, published_at]
+      properties:
+        level: { $ref: '#/components/schemas/ImageConsentLevel' }
+        terms_version:
+          oneOf:
+            - { $ref: '#/components/schemas/TermsVersionRef' }
+            - { type: 'null' }
+        title: { type: string, nullable: true, description: 'Texto plano (ADR-070): se pinta siempre como texto, nunca como HTML.' }
+        body: { type: string, nullable: true, description: 'Texto plano (ADR-070): los saltos de línea son su única estructura; se pinta siempre como texto, nunca como HTML.' }
+        locale:
+          oneOf:
+            - { $ref: '#/components/schemas/Locale' }
+            - { type: 'null' }
+        published_at:
+          oneOf:
+            - { type: string, format: date-time }
+            - { type: 'null' }
+
+    TermsVersion:
+      type: object
+      description: >
+        REQ-FAM-UNIT/api.md §1.7. Versión de un texto legal del centro. `title` y `body` los resuelve el servidor en el
+        idioma de la petición (ADR-062 §5.4, solo lectura); las traducciones completas son las editables. `kind` es
+        inmutable tras la creación. `requires_reacceptance` solo puede ser `true` en `condiciones_uso` (RN-FAM-UNIT-62).
+      required: [public_id, kind, version_number, title, title_translations, body, body_translations, status, requires_reacceptance, published_at, created_at, updated_at]
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        kind: { $ref: '#/components/schemas/TermsVersionKind' }
+        version_number: { type: integer, minimum: 1, description: 'Correlativo por centro y tipo; no se reutiliza.' }
+        title: { type: string, description: 'Texto plano (ADR-070): se pinta siempre como texto, nunca como HTML.' }
+        title_translations: { type: object, additionalProperties: { type: string }, description: 'Idiomas `es-ES`, `en`, `de`, `fr`; el idioma por defecto del centro es obligatorio (ADR-062). Texto plano (ADR-070): el marcado HTML se rechaza con `422 fam_unit.terms.markup_not_allowed`.' }
+        body: { type: string, description: 'Texto plano (ADR-070): los saltos de línea son su única estructura; se pinta siempre como texto, nunca como HTML.' }
+        body_translations: { type: object, additionalProperties: { type: string }, description: 'Texto plano (ADR-070): el marcado HTML se rechaza con `422 fam_unit.terms.markup_not_allowed`.' }
+        status: { $ref: '#/components/schemas/TermsVersionStatus' }
+        requires_reacceptance: { type: boolean }
+        published_at:
+          oneOf:
+            - { type: string, format: date-time }
+            - { type: 'null' }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    PickupRelationship:
+      type: string
+      description: 'Relación del tercero con el alumno (REQ-FAM-UNIT/datos.md §8.2). Enumerado **extensible**.'
+      enum: [abuelo, personal_apoyo, otra_familia, otro]
+      x-extensible-enum: true
+
+    PickupAuthorizationKind:
+      type: string
+      description: '`permanente` (con vigencia opcional) o `puntual` (una fecha y un motivo, caduca sola). Enumerado **extensible**.'
+      enum: [permanente, puntual]
+      x-extensible-enum: true
+
+    PickupChannel:
+      type: string
+      description: >
+        Canal por el que se registró la autorización (RN-FAM-UNIT-85): `presencial` (papel firmado en secretaría) o
+        `telefono` (solo `puntual`, con devolución de llamada al principal, OPEN-FAM-UNIT-35). `portal` llega con `1.22`.
+        Enumerado **extensible**.
+      enum: [presencial, telefono]
+      x-extensible-enum: true
+
+    PickupBasisKind:
+      type: string
+      description: 'Base por la que una persona figura en la lista: `tutor` (vínculo activo), `tercero` (autorización permanente) o `puntual`. Enumerado **extensible**.'
+      enum: [tutor, tercero, puntual]
+      x-extensible-enum: true
+
+    PickupIneffectiveReason:
+      type: string
+      description: >
+        Por qué una autorización no es vigente ahora (precedencia en este orden). La causa concreta solo la ve quien
+        tiene `revocacion_tutor.leer`; sin ese permiso **toda** causa se muestra como `no_vigente` (no se revela una
+        resolución judicial, RN-FAM-UNIT-36). Enumerado **extensible**.
+      enum: [retirada, fuera_de_vigencia, sin_foto, persona_excluida, no_vigente]
+      x-extensible-enum: true
+
+    PickupDocument:
+      type: object
+      description: 'Documento de identidad de una persona de recogida (`Core`, RN-CORE-90).'
+      required: [type, number]
+      properties:
+        type: { type: string, description: 'Catálogo de `Core` (`dni`, `nie`, `pasaporte`).' }
+        number: { type: string, description: 'Completo: solo en `PickupPerson`, con `autorizado_recogida.crear` o `.actualizar` (RN-FAM-UNIT-90).' }
+
+    PickupPerson:
+      type: object
+      description: >
+        REQ-FAM-UNIT/api.md §8.1. Una persona de recogida (un tutor o un tercero). El documento va **completo** (solo
+        aquí, RN-FAM-UNIT-90); en la lista de recogida va siempre enmascarado. `reused` y `data_mismatch` solo en la
+        respuesta de `POST /pickup-persons` (RN-FAM-UNIT-89). Una persona reutilizada que estos *endpoints* no alcanzan
+        solo expone `person`, `reused` y `data_mismatch`. Nunca incluye la clave del objeto de la fotografía.
+      required: [person]
+      properties:
+        person: { $ref: '#/components/schemas/PublicId' }
+        display_name: { type: string }
+        given_name:
+          description: 'Nombre (aditivo, issue #509): para precargar la edición.'
+          oneOf:
+            - { type: string }
+            - { type: 'null' }
+        family_name_1:
+          description: 'Primer apellido (aditivo, issue #509).'
+          oneOf:
+            - { type: string }
+            - { type: 'null' }
+        family_name_2:
+          description: 'Segundo apellido (aditivo, issue #509).'
+          oneOf:
+            - { type: string }
+            - { type: 'null' }
+        document:
+          oneOf:
+            - { $ref: '#/components/schemas/PickupDocument' }
+            - { type: 'null' }
+        contact_phone:
+          oneOf:
+            - { type: string }
+            - { type: 'null' }
+        has_photo: { type: boolean }
+        photo_updated_at:
+          oneOf:
+            - { type: string, format: date-time }
+            - { type: 'null' }
+        reused: { type: boolean }
+        data_mismatch: { type: boolean }
+
+    PickupPhotoUrl:
+      type: object
+      description: 'URL firmada de caducidad corta (5 minutos por defecto), generada en cada respuesta y nunca cacheable (RN-FAM-UNIT-83).'
+      required: [url, expires_at]
+      properties:
+        url: { type: string, format: uri }
+        expires_at: { type: string, format: date-time }
+
+    StudentPhotoUrl:
+      type: object
+      description: 'URL firmada de caducidad corta (5 minutos por defecto) de la fotografía de un alumno, generada en cada respuesta y nunca cacheable (RN-ALUM-51, RN-ALUM-52).'
+      required: [url, expires_at]
+      properties:
+        url: { type: string, format: uri }
+        expires_at: { type: string, format: date-time }
+
+    StudentPhotoStored:
+      type: object
+      description: 'Respuesta de `PUT /students/{publicId}/photo`: la fotografía queda guardada (RN-ALUM-50).'
+      required: [has_photo]
+      properties:
+        has_photo: { type: boolean, enum: [true] }
+
+    PickupAuthorization:
+      type: object
+      description: >
+        REQ-FAM-UNIT/api.md §8.1. Una autorización de tercero (permanente) o puntual. `is_effective` es el cálculo de
+        ahora (no un dato guardado); `ineffective_reason` es `null` si es vigente. `reason` (texto libre) solo con
+        `autorizado_recogida.leer` de ámbito `todos`. **No** se exponen `ip_address` ni `user_agent` (evidencia).
+      required: [public_id, student_person, person, relationship, kind, valid_from, valid_until, authorized_by, terms_version, channel, authorized_at, recorded_by, is_effective, ineffective_reason, withdrawn_at, created_at]
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        student_person: { $ref: '#/components/schemas/PublicId' }
+        person:
+          type: object
+          required: [public_id, display_name]
+          properties:
+            public_id: { $ref: '#/components/schemas/PublicId' }
+            display_name: { type: string }
+        relationship: { $ref: '#/components/schemas/PickupRelationship' }
+        kind: { $ref: '#/components/schemas/PickupAuthorizationKind' }
+        valid_from: { type: string, format: date }
+        valid_until:
+          oneOf:
+            - { type: string, format: date }
+            - { type: 'null' }
+        reason:
+          oneOf:
+            - { type: string }
+            - { type: 'null' }
+        authorized_by: { $ref: '#/components/schemas/PublicId' }
+        terms_version: { $ref: '#/components/schemas/TermsVersionRef' }
+        channel: { $ref: '#/components/schemas/PickupChannel' }
+        authorized_at: { type: string, format: date-time }
+        recorded_by: { $ref: '#/components/schemas/PublicId' }
+        is_effective: { type: boolean }
+        ineffective_reason:
+          oneOf:
+            - { $ref: '#/components/schemas/PickupIneffectiveReason' }
+            - { type: 'null' }
+        withdrawn_at:
+          oneOf:
+            - { type: string, format: date-time }
+            - { type: 'null' }
+        created_at: { type: string, format: date-time }
+
+    PickupListBasis:
+      type: object
+      description: >
+        Una base de una entrada de la lista. `tutor`: `guardian_link` (`public_id` del vínculo) y su `relationship`.
+        `tercero`: `authorization` y `valid_until`. `puntual`: `authorization`, `valid_from` y `valid_until`. Nunca el
+        motivo de una puntual.
+      required: [basis, relationship]
+      properties:
+        basis: { $ref: '#/components/schemas/PickupBasisKind' }
+        guardian_link: { $ref: '#/components/schemas/PublicId' }
+        authorization: { $ref: '#/components/schemas/PublicId' }
+        relationship: { type: string }
+        valid_from:
+          oneOf:
+            - { type: string, format: date }
+            - { type: 'null' }
+        valid_until:
+          oneOf:
+            - { type: string, format: date }
+            - { type: 'null' }
+
+    PickupListEntry:
+      type: object
+      description: >
+        REQ-FAM-UNIT/api.md §8.1. Una persona de la lista calculada de un alumno; sin `public_id` propio. `photo_url` es
+        una URL firmada de caducidad corta, `null` si no hay fotografía o el sujeto no la ve (ámbito `unidad_familiar`,
+        OPEN-FAM-UNIT-43). `document` va enmascarado siempre (RN-FAM-UNIT-90) y se omite (`null`) en los terceros con
+        ámbito `unidad_familiar` (RN-FAM-UNIT-91). Nunca se incluye la existencia de un vínculo revocado ni de una
+        persona excluida.
+      required: [person, display_name, bases, has_photo, photo_url, photo_url_expires_at, contact_phone, document]
+      properties:
+        person: { $ref: '#/components/schemas/PublicId' }
+        display_name: { type: string }
+        bases:
+          type: array
+          items: { $ref: '#/components/schemas/PickupListBasis' }
+        has_photo: { type: boolean }
+        photo_url:
+          oneOf:
+            - { type: string, format: uri }
+            - { type: 'null' }
+        photo_url_expires_at:
+          oneOf:
+            - { type: string, format: date-time }
+            - { type: 'null' }
+        contact_phone:
+          oneOf:
+            - { type: string }
+            - { type: 'null' }
+        document:
+          oneOf:
+            - type: object
+              required: [type, masked]
+              properties:
+                type: { type: string }
+                masked: { type: string, description: 'Solo los 4 últimos caracteres a la vista (`•••••123X`).' }
+            - { type: 'null' }
+
+    PickupList:
+      type: object
+      description: 'REQ-FAM-UNIT/api.md §8.3. La lista de un alumno en `meta.as_of` (instante del servidor).'
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/PickupListEntry' }
+        meta:
+          type: object
+          required: [as_of]
+          properties:
+            as_of: { type: string, format: date-time }
+
+    # ─── REQ-PRL (1.14b-b): puerta y entrega de menores ───
+
+    MovementDirection:
+      type: string
+      description: 'Sentido de un movimiento del alumno en la puerta. Enumerado **extensible**.'
+      enum: [entrada, salida]
+      x-extensible-enum: true
+
+    MovementVerificationMethod:
+      type: string
+      description: >
+        Cómo verificó quien entrega la identidad de la persona que recoge (RN-PRL-05). Un tutor **sin fotografía** solo
+        admite `documento` (RN-PRL-06). Enumerado **extensible**.
+      enum: [foto, documento, foto_y_documento]
+      x-extensible-enum: true
+
+    MovementOffScheduleReason:
+      type: string
+      description: 'Motivo de un movimiento fuera de horario (RN-PRL-07). `otro` exige además `notes`. Enumerado **extensible**.'
+      enum: [medico, familiar, actividad, retraso, otro]
+      x-extensible-enum: true
+
+    PickupAlertKind:
+      type: string
+      description: 'Tipo de alerta. En `1.14b-b` solo `persona_no_autorizada`; `alumno_no_recogido` llega con `1.14b-d`. Enumerado **extensible**.'
+      enum: [persona_no_autorizada]
+      x-extensible-enum: true
+
+    PickupAlertStatus:
+      type: string
+      description: 'Estado de una alerta: `abierta` o `cerrada` (no se reabre). Enumerado **extensible**.'
+      enum: [abierta, cerrada]
+      x-extensible-enum: true
+
+    PickupAlertResolution:
+      type: string
+      description: 'Resolución con la que se cierra una alerta (RN-PRL-08). Enumerado **extensible**.'
+      enum: [no_entregado, recogido_por_autorizado, autorizacion_puntual_registrada, otro]
+      x-extensible-enum: true
+
+    DoorStudent:
+      type: object
+      description: >
+        REQ-PRL/api.md §8.4. Un alumno del buscador de la puerta, nombrado por el `public_id` de su persona.
+        `family_unit_code` es el código de su unidad familiar, o `null` si solo tiene vínculos (OPEN-068-06).
+      required: [student_person, display_name, family_unit_code]
+      properties:
+        student_person: { $ref: '#/components/schemas/PublicId' }
+        display_name: { type: string }
+        family_unit_code:
+          oneOf:
+            - { type: string }
+            - { type: 'null' }
+
+    DoorPickupList:
+      type: object
+      description: >
+        REQ-PRL/api.md §8.4. La lista de puerta de un alumno en `meta.as_of` (instante del servidor): la misma forma que
+        `PickupList` de `fam_unit`. Sin caché (`Cache-Control: no-store`; las URLs de fotografía caducan en minutos).
+        `meta.protocol_available`: el protocolo de actuación ante una persona no autorizada está disponible (siempre el
+        mínimo del producto en `1.14b-b`).
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/PickupListEntry' }
+        meta:
+          type: object
+          required: [as_of, protocol_available]
+          properties:
+            as_of: { type: string, format: date-time }
+            protocol_available: { type: boolean }
+
+    StudentMovement:
+      type: object
+      description: >
+        REQ-PRL/api.md §8.4. Un movimiento de un alumno en la puerta: **solo anexar**, no se edita ni se borra (RN-PRL-04);
+        una corrección es otro movimiento con `corrects`. `basis` y `verification_method` son `null` en una entrada.
+        `delivered_by` y `recorded_by` son el `public_id` de un usuario. No se exponen las referencias internas de la
+        evidencia (vínculo o autorización).
+      required: [public_id, student_person, direction, off_schedule, off_schedule_reason, notes, picked_up_by, basis, verification_method, delivered_by, recorded_by, corrects, correction_reason, occurred_at]
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        student_person: { $ref: '#/components/schemas/PublicId' }
+        direction: { $ref: '#/components/schemas/MovementDirection' }
+        off_schedule: { type: boolean }
+        off_schedule_reason:
+          oneOf:
+            - { $ref: '#/components/schemas/MovementOffScheduleReason' }
+            - { type: 'null' }
+        notes:
+          oneOf:
+            - { type: string, maxLength: 500 }
+            - { type: 'null' }
+        picked_up_by:
+          oneOf:
+            - type: object
+              required: [person, display_name]
+              properties:
+                person: { $ref: '#/components/schemas/PublicId' }
+                display_name: { type: string }
+            - { type: 'null' }
+        basis:
+          oneOf:
+            - { $ref: '#/components/schemas/PickupBasisKind' }
+            - { type: 'null' }
+        verification_method:
+          oneOf:
+            - { $ref: '#/components/schemas/MovementVerificationMethod' }
+            - { type: 'null' }
+        delivered_by: { $ref: '#/components/schemas/PublicId' }
+        recorded_by: { $ref: '#/components/schemas/PublicId' }
+        corrects:
+          oneOf:
+            - { $ref: '#/components/schemas/PublicId' }
+            - { type: 'null' }
+        correction_reason:
+          oneOf:
+            - { type: string, maxLength: 500 }
+            - { type: 'null' }
+        occurred_at: { type: string, format: date-time }
+
+    StudentMovementRequest:
+      type: object
+      description: >
+        REQ-PRL/api.md §8.4. Cuerpo de `POST /student-movements`. El servidor resuelve `basis` y la referencia con la lista
+        de `fam_unit` **dentro de la transacción** (el cliente no los envía). Una `salida` exige `picked_up_by` y
+        `verification_method`; una `entrada` no lleva ninguno. `delivered_by` nulo = quien registra; si se indica, es un
+        usuario vivo y activo del centro. `off_schedule = true` exige `off_schedule_reason` (y `notes` con `otro`).
+        `corrects` (movimiento del mismo alumno) exige `correction_reason`.
+      required: [student_person, direction]
+      properties:
+        student_person: { $ref: '#/components/schemas/PublicId' }
+        direction: { $ref: '#/components/schemas/MovementDirection' }
+        picked_up_by:
+          oneOf:
+            - { $ref: '#/components/schemas/PublicId' }
+            - { type: 'null' }
+        verification_method:
+          oneOf:
+            - { $ref: '#/components/schemas/MovementVerificationMethod' }
+            - { type: 'null' }
+        delivered_by:
+          oneOf:
+            - { $ref: '#/components/schemas/PublicId' }
+            - { type: 'null' }
+        off_schedule: { type: boolean, default: false }
+        off_schedule_reason:
+          oneOf:
+            - { $ref: '#/components/schemas/MovementOffScheduleReason' }
+            - { type: 'null' }
+        notes:
+          oneOf:
+            - { type: string, maxLength: 500 }
+            - { type: 'null' }
+        corrects:
+          oneOf:
+            - { $ref: '#/components/schemas/PublicId' }
+            - { type: 'null' }
+        correction_reason:
+          oneOf:
+            - { type: string, maxLength: 500 }
+            - { type: 'null' }
+
+    PickupAlert:
+      type: object
+      description: >
+        REQ-PRL/api.md §8.4. Alerta por persona no autorizada (RN-PRL-08). Una alerta **cerrada** no se reabre (`409
+        prl.alert.closed`) ni se borra. `protocol` y `contacts` van solo en el alta y en el detalle **mientras está
+        abierta**, calculados al leer y nunca guardados: el protocolo de actuación (texto mínimo del producto en el idioma
+        de la petición) y los teléfonos del tutor principal y del contacto de emergencia para la llamada manual
+        (`null` si no hay o no se pueden mostrar). **No envía nada** automáticamente (OPEN-FAM-UNIT-33).
+      required: [public_id, student_person, student_display_name, kind, presenter_description, status, raised_by, raised_by_display_name, raised_at, principal_contacted_at, resolution, resolution_notes, resolved_by, resolved_by_display_name, resolved_at]
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        student_person: { $ref: '#/components/schemas/PublicId' }
+        student_display_name: { type: string, description: 'Nombre visible del alumno; vacío si la persona está borrada.' }
+        kind: { $ref: '#/components/schemas/PickupAlertKind' }
+        presenter_description: { type: string, maxLength: 500 }
+        status: { $ref: '#/components/schemas/PickupAlertStatus' }
+        raised_by: { $ref: '#/components/schemas/PublicId' }
+        raised_by_display_name: { type: string, description: 'Nombre visible de quien abrió la alerta; vacío si el usuario está borrado.' }
+        raised_at: { type: string, format: date-time }
+        principal_contacted_at:
+          oneOf:
+            - { type: string, format: date-time }
+            - { type: 'null' }
+        resolution:
+          oneOf:
+            - { $ref: '#/components/schemas/PickupAlertResolution' }
+            - { type: 'null' }
+        resolution_notes:
+          oneOf:
+            - { type: string, maxLength: 1000 }
+            - { type: 'null' }
+        resolved_by:
+          oneOf:
+            - { $ref: '#/components/schemas/PublicId' }
+            - { type: 'null' }
+        resolved_by_display_name:
+          description: Nombre visible de quien cerró la alerta (vacío si el usuario está borrado); `null` mientras está abierta.
+          oneOf:
+            - { type: string }
+            - { type: 'null' }
+        resolved_at:
+          oneOf:
+            - { type: string, format: date-time }
+            - { type: 'null' }
+        protocol: { type: string }
+        contacts:
+          type: object
+          required: [principal_phone, emergency_phone]
+          properties:
+            principal_phone:
+              oneOf:
+                - { type: string }
+                - { type: 'null' }
+            emergency_phone:
+              oneOf:
+                - { type: string }
+                - { type: 'null' }
+
+    PickupAlertCreateRequest:
+      type: object
+      description: 'REQ-PRL/api.md §8.4. Cuerpo de `POST /pickup-alerts`. `presenter_description`: nombre declarado y documento exhibido por quien se presenta (1 a 500 caracteres).'
+      required: [student_person, presenter_description]
+      properties:
+        student_person: { $ref: '#/components/schemas/PublicId' }
+        kind: { $ref: '#/components/schemas/PickupAlertKind' }
+        presenter_description: { type: string, minLength: 1, maxLength: 500 }
+
+    PickupAlertUpdateRequest:
+      type: object
+      description: >
+        REQ-PRL/api.md §8.4. Cuerpo de `PATCH /pickup-alerts/{id}`: al menos un campo. `principal_contacted_at` registra la
+        llamada al tutor principal (no futura ni anterior a la apertura); `resolution` cierra la alerta y `resolution_notes`
+        (hasta 1 000 caracteres) solo va con ella. Cualquier otro campo de la alerta no se edita (`422`).
+      properties:
+        principal_contacted_at:
+          oneOf:
+            - { type: string, format: date-time }
+            - { type: 'null' }
+        resolution: { $ref: '#/components/schemas/PickupAlertResolution' }
+        resolution_notes:
+          oneOf:
+            - { type: string, maxLength: 1000 }
+            - { type: 'null' }
+
+    MyTerms:
+      type: object
+      description: >
+        REQ-FAM-UNIT/api.md §2.8 (1.14-c), `GET /me/terms`. La versión de las condiciones de uso **pendiente** del usuario
+        autenticado: `required = true` con la versión publicada si el usuario está obligado (RN-FAM-UNIT-61) y no tiene
+        aceptación exigible (RN-FAM-UNIT-62); `required = false` y `version = null` en cualquier otro caso (sin versión
+        publicada, no obligado o ya aceptada). Sin caché (ADR-067 §5.8).
+      required: [required, version]
+      properties:
+        required: { type: boolean }
+        version:
+          oneOf:
+            - { $ref: '#/components/schemas/TermsVersion' }
+            - { type: 'null' }
+
+    TermsAcceptance:
+      type: object
+      description: >
+        REQ-FAM-UNIT/api.md §1.8, datos.md §1.9. Aceptación inmutable de una versión de las condiciones de uso
+        (RN-FAM-UNIT-64): no hay `PATCH` ni `DELETE`. No se exponen `ip_address` ni `user_agent` (se conservan como
+        evidencia). `shown_locale` es el idioma **realmente mostrado** del texto tras la caída de ADR-062 (RN-FAM-UNIT-65).
+      required: [public_id, user, terms_version, version_number, shown_locale, accepted_at]
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        user:
+          description: '`public_id` del usuario que aceptó.'
+          oneOf:
+            - { $ref: '#/components/schemas/PublicId' }
+            - { type: 'null' }
+        terms_version:
+          description: '`public_id` de la versión aceptada.'
+          oneOf:
+            - { $ref: '#/components/schemas/PublicId' }
+            - { type: 'null' }
+        version_number: { type: integer, minimum: 1, nullable: true }
+        shown_locale: { type: string, enum: [es-ES, en, de, fr], x-extensible-enum: true }
+        accepted_at: { type: string, format: date-time }
+
+    PublicId:
+      type: string
+      format: ulid
+      description: ADR-029. Nunca la clave interna bigint.
+      example: "01J8ZZZZZZZZZZZZZZZZZZZZZZ"
+
+    Locale:
+      type: string
+      enum: [es-ES, en, de, fr]
+
+    DocumentType:
+      type: string
+      enum: [dni, nie, pasaporte]
+      description: >
+        Catálogo cerrado de tipos de documento de identidad (RN-CORE-90,
+        funcional.md §14.6.4). Fuente única: `App\Modules\Core\Domain\DocumentType`
+        (el test `CA-CORE-279` lo comprueba). Formato del número tras normalizar
+        (RN-CORE-92: sin espacios al principio ni al final, en mayúsculas; en `dni` y
+        `nie`, además sin espacios ni guiones intermedios): `dni` `^\d{8}[A-Z]$` con
+        letra de control módulo 23; `nie` `^[XYZ]\d{7}[A-Z]$` con la misma letra de
+        control (X, Y, Z valen 0, 1, 2); `pasaporte` `^[A-Z0-9]{1,32}$` sin dígito de
+        control. Tipo y número se informan los dos o ninguno (RN-CORE-91).
+
+  parameters:
+    AcademicYearFilterParam:
+      name: academic_year
+      in: query
+      description: >
+        `public_id` del curso académico. Omitido: el activo; sin activo, `404 curso.no_active_year`.
+        Inexistente o de otro centro: `404`. Un curso `cerrado`/`archivado` sin `curso_historico.leer`: `404`.
+      schema: { $ref: '#/components/schemas/PublicId' }
+    AcadSortParam:
+      name: sort
+      in: query
+      description: Prefijo "-" para descendente (ADR-038 §5.3). Lista blanca cerrada; desempate por `code` (en `position`) y `id`.
+      schema:
+        type: string
+        enum: [position, -position, code, -code]
+        default: position
+    AcademicPeriodSortParam:
+      name: sort
+      in: query
+      description: >
+        Prefijo "-" para descendente (ADR-038 §5.3). Lista blanca cerrada. Por defecto `starts_on`
+        (desempate por `position` e `id`); `position` desempata por `starts_on` e `id` (RN-ACAD-60).
+      schema:
+        type: string
+        enum: [starts_on, -starts_on, position, -position]
+        default: starts_on
+    FacilitySortParam:
+      name: sort
+      in: query
+      description: Prefijo "-" para descendente (ADR-038 §5.3). Lista blanca cerrada; desempate por `id`.
+      schema:
+        type: string
+        enum: [code, -code]
+        default: code
+    TimetableFrameSortParam:
+      name: sort
+      in: query
+      description: >
+        Prefijo "-" para descendente (ADR-038 §5.3). Lista blanca cerrada: orden por etapa (su posición),
+        luego `frame_type` e `id` (REQ-ACAD/api.md §12.4).
+      schema:
+        type: string
+        enum: [education_level, -education_level]
+        default: education_level
+    TeachingAssignmentSortParam:
+      name: sort
+      in: query
+      description: Prefijo "-" para descendente (ADR-038 §5.3). Lista blanca cerrada; `id` es el orden de alta.
+      schema:
+        type: string
+        enum: [id, -id]
+        default: id
+    GradingScaleSortParam:
+      name: sort
+      in: query
+      description: Prefijo "-" para descendente (ADR-038 §5.3). Lista blanca cerrada. Por defecto `code` (desempate por `id`).
+      schema:
+        type: string
+        enum: [code, -code]
+        default: code
+    FamilyUnitSortParam:
+      name: sort
+      in: query
+      description: Prefijo "-" para descendente (ADR-038 §5.3). Lista blanca cerrada; desempate por `id`.
+      schema:
+        type: string
+        enum: [code, -code, created_at, -created_at]
+        default: code
+    StudentSortParam:
+      name: sort
+      in: query
+      description: Prefijo "-" para descendente (ADR-038 §5.3). Lista blanca cerrada; desempate por `id`.
+      schema:
+        type: string
+        enum: [name, -name, created_at, -created_at]
+        default: name
+    EnrollmentSortParam:
+      name: sort
+      in: query
+      description: Prefijo "-" para descendente (ADR-038 §5.3). Lista blanca cerrada; desempate por `id`.
+      schema:
+        type: string
+        enum: [name, -name, enrolled_on, -enrolled_on]
+        default: name
+    FamUnitCreatedAtSortParam:
+      name: sort
+      in: query
+      description: Prefijo "-" para descendente (ADR-038 §5.3). Lista blanca cerrada; desempate por `id`.
+      schema:
+        type: string
+        enum: [created_at, -created_at]
+        default: created_at
+    ImageConsentSortParam:
+      name: sort
+      in: query
+      description: Prefijo "-" para descendente (ADR-038 §5.3). Lista blanca cerrada; desempate por alumno y nivel. Defecto `last_decision_at` (los que nunca han decidido, primero).
+      schema:
+        type: string
+        enum: [last_decision_at, -last_decision_at, state, -state]
+        default: last_decision_at
+    TermsVersionSortParam:
+      name: sort
+      in: query
+      description: Prefijo "-" para descendente (ADR-038 §5.3). Lista blanca cerrada; desempate por `id`.
+      schema:
+        type: string
+        enum: [version_number, -version_number]
+        default: -version_number
+    PickupAuthorizationSortParam:
+      name: sort
+      in: query
+      description: Prefijo "-" para descendente (ADR-038 §5.3). Lista blanca cerrada; desempate por `id`.
+      schema:
+        type: string
+        enum: [valid_from, -valid_from, created_at, -created_at]
+        default: -valid_from
+    PageParam:
+      name: page
+      in: query
+      schema: { type: integer, minimum: 1, default: 1 }
+    PerPageParam:
+      name: per_page
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 25 }
+    CursorParam:
+      name: cursor
+      in: query
+      description: Opaco y cifrado, emitido por una respuesta anterior. ADR-038 §4.4.
+      schema: { type: string }
+    LimitParam:
+      name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+    SortParam:
+      name: sort
+      in: query
+      description: Prefijo "-" para descendente. Lista blanca cerrada por endpoint (ADR-038 §5.3).
+      schema: { type: string }
+    QParam:
+      name: q
+      in: query
+      description: Búsqueda de texto libre. Campos sobre los que busca declarados por endpoint.
+      schema: { type: string }
+    PrlIdempotencyKeyHeader:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: >
+        REQ-PRL RN-PRL-09 (INV-011). Opcional: de 1 a 128 caracteres ASCII visibles. La misma clave del mismo usuario con el
+        mismo cuerpo devuelve el resultado original sin duplicar (`201` con `Idempotency-Replayed: true`); con otro cuerpo,
+        `409 prl.idempotency_mismatch`. No es la cabecera ULID obligatoria del resto de la API: aquí la deduplicación es de la
+        propia tabla.
+      schema: { type: string, minLength: 1, maxLength: 128 }
+    IdempotencyKeyHeader:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: ULID generado por el cliente (ADR-038 §8).
+      schema: { type: string, format: ulid }
+
+  headers:
+    XRequestId:
+      description: Generado siempre por el servidor (INV-013). Un valor entrante del cliente se ignora.
+      schema: { type: string, format: ulid }
+    ContentLanguage:
+      description: Idioma resuelto de la respuesta (ADR-038 §11).
+      schema: { $ref: '#/components/schemas/Locale' }
+    IdempotencyReplayed:
+      description: Presente y "true" cuando la respuesta es la repetición de una ejecución anterior (ADR-038 §8.2).
+      schema: { type: string, enum: ["true"] }
+    RetryAfter:
+      description: Segundos a esperar antes de reintentar (429/503).
+      schema: { type: integer }
+
+  responses:
+    Unauthenticated:
+      description: Sin sesión válida (401).
+      headers:
+        X-Request-Id: { $ref: '#/components/headers/XRequestId' }
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Forbidden:
+      description: Autenticado, sin el permiso requerido (403).
+      headers:
+        X-Request-Id: { $ref: '#/components/headers/XRequestId' }
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    NotFound:
+      description: Inexistente o de otro tenant (404). Nunca confirma la existencia de un recurso ajeno.
+      headers:
+        X-Request-Id: { $ref: '#/components/headers/XRequestId' }
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    ValidationError:
+      description: Validación de cuerpo o de parámetros (422).
+      headers:
+        X-Request-Id: { $ref: '#/components/headers/XRequestId' }
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Conflict:
+      description: Regla de negocio o transición de estado inválida (409).
+      headers:
+        X-Request-Id: { $ref: '#/components/headers/XRequestId' }
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Gone:
+      description: >
+        Recurso ya no disponible (410). REQ-AUTH: token de invitación,
+        restablecimiento o desbloqueo inexistente, caducado, revocado, ya
+        usado o de otro tenant — cuerpo idéntico en todos los casos
+        (funcional.md §4.7).
+      headers:
+        X-Request-Id: { $ref: '#/components/headers/XRequestId' }
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Locked:
+      description: >
+        Cuenta bloqueada por intentos fallidos (423, REQ-AUTH-001).
+        Respuesta idéntica exista o no la cuenta detrás del correo
+        (RN-AUTH-15, api.md §1.1).
+      headers:
+        X-Request-Id: { $ref: '#/components/headers/XRequestId' }
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    TooManyRequests:
+      description: Límite de tasa excedido (429). operacion.md §6, ADR-038 §6.5.
+      headers:
+        X-Request-Id: { $ref: '#/components/headers/XRequestId' }
+        Retry-After: { $ref: '#/components/headers/RetryAfter' }
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    PlatformHostMismatch:
+      description: >
+        REQ-BO-007 (1.6), RN-BO-48. El `Host` de la petición no coincide
+        con `BACKOFFICE_HOST` — 404, no 401/403, antes de sesión y de
+        credenciales, indistinguible de una ruta inexistente (CA-BO-016).
+        Aplica a TODA ruta de `/api/platform/v1/*`, no se repite endpoint
+        a endpoint en este fichero.
+      headers:
+        X-Request-Id: { $ref: '#/components/headers/XRequestId' }
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    PlatformIpNotAllowed:
+      description: >
+        REQ-BO-007 (1.6), RN-BO-06/RN-BO-07. Dirección de origen fuera de
+        la lista blanca de plataforma — 403 genérico, auditado
+        (`urn:pge:error:ip-not-allowed`), antes de tocar la base de datos
+        de administradores. Lista vacía ⇒ denegar siempre.
+      headers:
+        X-Request-Id: { $ref: '#/components/headers/XRequestId' }
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    ModuleDisabled:
+      description: >
+        RMOD-009 (REQ-ACAD, 1.11-b). El módulo no está contratado por el centro: `403` con el `type`
+        `urn:pge:error:module-disabled`, antes de comprobar el permiso.
+      headers:
+        X-Request-Id: { $ref: '#/components/headers/XRequestId' }
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    AcademicYearClosed:
+      description: >
+        ADR-057 §5.5, RN-CURSO-21 (REQ-CURSO, 1.10). Escritura sobre datos de un curso
+        `cerrado` o `archivado`, desde cualquier módulo: `409` con el `type` propio
+        `urn:pge:error:academic-year-closed` (amplía el catálogo cerrado de ADR-038 §6.2).
+        No es `403`: el usuario puede tener el permiso; lo que falla es el estado del dato.
+        `errors.academic_year[0]` lleva `code` `curso.academic_year_closed` y `params`
+        `{code, status}` (el código y el estado del curso). Lo impone un disparador de
+        PostgreSQL (`SQLSTATE YC001`), que `Curso` traduce a esta respuesta.
+      headers:
+        X-Request-Id: { $ref: '#/components/headers/XRequestId' }
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+          example:
+            type: "urn:pge:error:academic-year-closed"
+            title: "El curso académico es de solo lectura"
+            status: 409
+            detail: "El curso «2025-2026» está cerrado y sus datos son de solo lectura. No se pueden crear, modificar ni eliminar datos de un curso cerrado."
+            instance: "/api/v1/…"
+            errors:
+              academic_year:
+                - code: "curso.academic_year_closed"
+                  message: "El curso «2025-2026» está cerrado y sus datos son de solo lectura."
+                  params: { code: "2025-2026", status: "cerrado" }
+    PlatformReauthenticationRequired:
+      description: >
+        REQ-BO-007 (1.6), api.md §4, RN-BO-08. Operación sensible sin
+        reautenticación viva dentro de la ventana (`BO_REAUTH_WINDOW`) —
+        403 con `urn:pge:error:reauthentication-required`, distinto del
+        403 genérico de falta de capacidad.
+      headers:
+        X-Request-Id: { $ref: '#/components/headers/XRequestId' }
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+
+  securitySchemes:
+    SessionCookie:
+      type: apiKey
+      in: cookie
+      name: plataforma-de-gestion-educativa-session
+      description: >
+        Cookie de sesión httpOnly/Secure/SameSite=Lax, host-only (sin
+        atributo Domain — issue #8, RN-AUTH-26), con CSRF vía cabecera
+        X-XSRF-TOKEN (ADR-025). Entregada por REQ-AUTH (1.2):
+        POST /auth/session la establece, DELETE /auth/session la revoca.
+        Nombre real de config('session.cookie') — depende de APP_NAME,
+        verificar si ese valor cambia en despliegue.
+
+    PlatformSessionCookie:
+      type: apiKey
+      in: cookie
+      name: pge-backoffice-session
+      description: >
+        REQ-BO-007 (1.6), api.md §1. Cookie de sesión de PLATAFORMA —
+        distinta de SessionCookie (nombre, tabla de sesión
+        `platform_sessions`, guard `platform`, sin `tenant_id`). Sólo
+        alcanzable bajo `BACKOFFICE_HOST` (`RequirePlatformHost`, RN-BO-48);
+        una petición a cualquier otro host recibe 404, no 401/403, y ni
+        siquiera revela que esta superficie existe (CA-BO-016). CSRF vía
+        X-XSRF-TOKEN, igual que SessionCookie. Nombre real de
+        config('backoffice.session_cookie') (BO_SESSION_COOKIE).

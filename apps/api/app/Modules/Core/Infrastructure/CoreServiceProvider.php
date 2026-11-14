@@ -1,0 +1,236 @@
+<?php
+
+namespace App\Modules\Core\Infrastructure;
+
+use App\Models\PermissionRole;
+use App\Modules\Core\Application\ModuleContractingService;
+use App\Modules\Core\Application\ProvisionTenantDefaults;
+use App\Modules\Core\Domain\AuditoriaPropiosScopeResolver;
+use App\Modules\Core\Domain\AuditQuery;
+use App\Modules\Core\Domain\BulkUserImporter;
+use App\Modules\Core\Domain\ExportJobLifecycle;
+use App\Modules\Core\Domain\ExportRequestService;
+use App\Modules\Core\Domain\FeatureFlagAdministration;
+use App\Modules\Core\Domain\InvitationRedeemer;
+use App\Modules\Core\Domain\Models\DataExport;
+use App\Modules\Core\Domain\Models\TenantSetting;
+use App\Modules\Core\Domain\Models\UserImport;
+use App\Modules\Core\Domain\Models\UserInvitation;
+use App\Modules\Core\Domain\ModuleCatalog;
+use App\Modules\Core\Domain\ModuleContracting;
+use App\Modules\Core\Domain\PersonDirectory;
+use App\Modules\Core\Domain\PersonRegistrar;
+use App\Modules\Core\Domain\TenantProvisioner;
+use App\Modules\Core\Domain\TenantSettingsReader;
+use App\Modules\Core\Domain\UserDirectory;
+use App\Modules\Core\Infrastructure\Console\GrantAcademicYearPermissionsCommand;
+use App\Modules\Core\Infrastructure\Console\GrantAlumPermissionsCommand;
+use App\Modules\Core\Infrastructure\Console\GrantFamUnitPermissionsCommand;
+use App\Modules\Core\Infrastructure\Console\GrantReopenPermissionCommand;
+use App\Modules\Core\Infrastructure\Console\GrantRoleAdministrationCommand;
+use App\Modules\Core\Infrastructure\Console\GrantRolloverPermissionsCommand;
+use App\Modules\Core\Infrastructure\Console\GrantStructurePermissionsCommand;
+use App\Modules\Core\Infrastructure\Console\ProvisionTenantDefaultsCommand;
+use App\Modules\Core\Infrastructure\Console\PurgeCoreMaintenanceCommand;
+use App\Modules\Core\Infrastructure\Console\QueueHealthCommand;
+use App\Support\Authorization\ScopeResolverRegistry;
+use App\Support\FeatureFlags\FeatureFlagCatalogInvalidator;
+use App\Support\FeatureFlags\FeatureFlagEvaluator;
+use App\Support\FeatureFlags\FeatureFlagExplainer;
+use App\Support\Mail\MailEnvironmentGuard;
+use App\Support\Modules\DeclaresModuleRegistry;
+use App\Support\Modules\ModuleAvailability;
+use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Support\ServiceProvider;
+
+/**
+ * ADR-034 §2, §5, §7: descubierto por ModuleServiceProviderDiscovery
+ * (convención de ruta y namespace), sin registro a mano en
+ * bootstrap/providers.php. Declara el catálogo de permisos de
+ * permisos.md §2 para que `platform:sync-registry` los materialice.
+ */
+class CoreServiceProvider extends ServiceProvider implements DeclaresModuleRegistry
+{
+    public function register(): void
+    {
+        $this->app->singleton(TenantSettingsCache::class);
+        $this->app->bind(TenantSettingsReader::class, EloquentTenantSettingsReader::class);
+        // INV-007, ADR-056 AR-02: SyncModuleRegistry (App\Support) invalida la caché por esta interfaz.
+        $this->app->bind(FeatureFlagCatalogInvalidator::class, FeatureFlagCatalogCache::class);
+        $this->app->bind(AuditQuery::class, EloquentAuditQuery::class);
+        $this->app->bind(ExportRequestService::class, EloquentExportRequestService::class);
+        // REQ-FAM-UNIT/api.md §4 (1.14-b): el trabajo en cola de un módulo con `kind` propio recorre los estados de la solicitud.
+        $this->app->bind(ExportJobLifecycle::class, EloquentExportJobLifecycle::class);
+        $this->app->bind(BulkUserImporter::class, EloquentBulkUserImporter::class);
+        $this->app->bind(UserDirectory::class, EloquentUserDirectory::class);
+        // REQ-FAM-UNIT `OPEN-FAM-UNIT-03` (1.14-a): lectura de personas y resolución usuario ⇄ persona.
+        $this->app->bind(PersonDirectory::class, EloquentPersonDirectory::class);
+        $this->app->bind(PersonRegistrar::class, EloquentPersonRegistrar::class);
+        $this->app->bind(InvitationRedeemer::class, EloquentInvitationRedeemer::class);
+
+        // ADR-048 §4.4: ProvisionTenantDefaults NO sigue la convención
+        // Eloquent* de sus cinco hermanas — no es un adaptador de
+        // persistencia, es un servicio de aplicación que orquesta una
+        // transacción, un contexto de tenant y un actor de auditoría.
+        $this->app->bind(TenantProvisioner::class, ProvisionTenantDefaults::class);
+
+        // REQ-PERM/operacion.md §6.2 (1.5, ADR-044 §4.9): REQ-CORE posee la
+        // interfaz que consume App\Support\Authorization sin importar nada
+        // de este módulo (INV-007).
+        $this->app->bind(ModuleAvailability::class, EloquentModuleAvailability::class);
+
+        // funcional.md §5.8.2, OPEN-BO-18 (1.6c): singleton porque
+        // DeclaredModuleCatalog memoiza el catálogo una sola vez por
+        // proceso (RN-BO-63) — un `bind()` normal crearía una instancia
+        // nueva (y por tanto una memoización nueva) en cada resolución.
+        $this->app->singleton(ModuleCatalog::class, DeclaredModuleCatalog::class);
+        $this->app->bind(ModuleContracting::class, ModuleContractingService::class);
+
+        // funcional.md §5.11.8 (1.6e): mismo precedente que
+        // ModuleAvailability. Una sola implementación sirve las dos
+        // interfaces de App\Support\FeatureFlags (RN-BO-101) — `bind()`
+        // y no `singleton()`: no memoiza nada por sí misma (el estado
+        // compartido vive en Redis, vía FeatureFlagCatalogCache), así
+        // que no hay motivo para atarla a la vida del proceso.
+        $this->app->bind(FeatureFlagEvaluator::class, EloquentFeatureFlagEvaluator::class);
+        $this->app->bind(FeatureFlagExplainer::class, EloquentFeatureFlagEvaluator::class);
+        $this->app->bind(FeatureFlagAdministration::class, EloquentFeatureFlagAdministration::class);
+    }
+
+    public function boot(): void
+    {
+        $this->loadMigrationsFrom(app_path('Modules/Core/Database/migrations'));
+        $this->loadViewsFrom(app_path('Modules/Core/Infrastructure/resources/views'), 'core');
+
+        // merge=true (por defecto): se suma al morph map de AppServiceProvider,
+        // no lo sustituye — cada módulo registra el suyo (INV-007).
+        Relation::enforceMorphMap([
+            'tenant_setting' => TenantSetting::class,
+            'user_invitation' => UserInvitation::class,
+            'user_import' => UserImport::class,
+            'data_export' => DataExport::class,
+            // REQ-PERM/datos.md §5.2 (1.5, issue #165): PermissionRole pasa
+            // a Auditable — sin alias estable, AuditRecorder lanzaría
+            // RuntimeException en la primera concesión.
+            'permission_role' => PermissionRole::class,
+        ]);
+
+        // REQ-PERM/funcional.md §6, ADR-044 §8 (1.5): el único resolutor
+        // real de este paso, registrado desde el módulo propietario de
+        // `auditoria` — el núcleo de autorización nunca sabe qué es
+        // `auditoria`, solo implementa el contrato ScopeResolver.
+        $this->app->make(ScopeResolverRegistry::class)->register(new AuditoriaPropiosScopeResolver);
+
+        $this->forceDocumentValidationInProduction();
+
+        // Issue #128, revisión de seguridad A-1: con worker real, el mailer
+        // `log`/`array` fuera de local/testing filtraría códigos MFA.
+        $this->app->make(MailEnvironmentGuard::class)->verify();
+
+        if ($this->app->runningInConsole()) {
+            $this->commands([
+                ProvisionTenantDefaultsCommand::class,
+                PurgeCoreMaintenanceCommand::class,
+                QueueHealthCommand::class,
+                GrantRoleAdministrationCommand::class,
+                GrantAcademicYearPermissionsCommand::class,
+                GrantReopenPermissionCommand::class,
+                GrantRolloverPermissionsCommand::class,
+                GrantStructurePermissionsCommand::class,
+                GrantFamUnitPermissionsCommand::class,
+                GrantAlumPermissionsCommand::class,
+            ]);
+        }
+    }
+
+    /**
+     * OPEN-CORE-06, decisión (b): producción fuerza
+     * `core.documents.validate_check_digit` a `true` sin excepción, en
+     * código — no basta con documentarlo. Cualquier valor de entorno que
+     * lo desactive en producción se ignora aquí, no se respeta.
+     */
+    private function forceDocumentValidationInProduction(): void
+    {
+        if ($this->app->environment('production')) {
+            config(['core.documents.validate_check_digit' => true]);
+        }
+    }
+
+    public function moduleDescriptor(): array
+    {
+        // RN-BO-63, CA-BO-036 (1.6c): `essential: true` sustituye a la
+        // entrada de `core` en `ALWAYS_ENABLED` de
+        // `EloquentModuleAvailability`, que desaparece con este cambio.
+        return [
+            'code' => 'core',
+            'name_key' => 'modules.core',
+            'phase' => '1',
+            'depends_on' => [],
+            'essential' => true,
+        ];
+    }
+
+    public function declaredPermissions(): array
+    {
+        $resourceActions = [
+            'usuario' => ['leer', 'crear', 'actualizar', 'eliminar', 'importar', 'exportar'],
+            'invitacion' => ['leer', 'crear', 'eliminar'],
+            'asignacion_rol' => ['leer', 'crear', 'eliminar'],
+            // REQ-AUTH/funcional.md §C.2.2, §C.16 (1.3): 'actualizar' se
+            // añade aquí, no en AuthServiceProvider — el recurso 'rol' es
+            // de REQ-CORE, se gobierna con el permiso de ese recurso
+            // (mismo criterio que 'configuracion.actualizar' en 1.2,
+            // permisos.md §4.1), aunque quien lo use en 1.3 sea el
+            // PATCH acotado a mfa_required.
+            // REQ-PERM/permisos.md §2 (1.5): 'crear' y 'eliminar' se
+            // añaden — POST /roles y DELETE /roles/{id}.
+            'rol' => ['leer', 'actualizar', 'crear', 'eliminar'],
+            'permiso' => ['leer'],
+            'configuracion' => ['leer', 'actualizar'],
+            'modulo' => ['leer', 'actualizar'],
+            'auditoria' => ['leer', 'exportar'],
+        ];
+
+        $permissions = [];
+
+        foreach ($resourceActions as $resource => $actions) {
+            foreach ($actions as $action) {
+                $permissions[] = [
+                    'code' => "{$resource}.{$action}",
+                    'resource' => $resource,
+                    'action' => $action,
+                    'is_special_category' => false,
+                    'resource_label_key' => "core.permissions.resources.{$resource}",
+                    // REQ-PERM/permisos.md §3.1 (1.5): 'auditoria.leer' y
+                    // 'auditoria.exportar' son el único caso real de 1.5
+                    // (funcional.md §6) — el resto se queda en la regla
+                    // conservadora (omisión = ['todos'], CA-PERM-007).
+                    ...($resource === 'auditoria' ? ['applicable_scopes' => ['todos', 'propios']] : []),
+                ];
+            }
+        }
+
+        // REQ-PERM/permisos.md §2 (1.5, ADR-044 §4.4/§5): dos recursos
+        // nuevos, ninguno con acción inventada — rol_datos_especiales.actualizar
+        // gobierna el atributo special_data_access separado del resto del
+        // rol; permiso_efectivo.leer protege la resolución completa de
+        // otro usuario (OPEN-PERM-01).
+        $permissions[] = [
+            'code' => 'rol_datos_especiales.actualizar',
+            'resource' => 'rol_datos_especiales',
+            'action' => 'actualizar',
+            'is_special_category' => false,
+            'resource_label_key' => 'core.permissions.resources.rol_datos_especiales',
+        ];
+
+        $permissions[] = [
+            'code' => 'permiso_efectivo.leer',
+            'resource' => 'permiso_efectivo',
+            'action' => 'leer',
+            'is_special_category' => false,
+            'resource_label_key' => 'core.permissions.resources.permiso_efectivo',
+        ];
+
+        return $permissions;
+    }
+}

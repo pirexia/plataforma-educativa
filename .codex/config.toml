@@ -1,0 +1,17 @@
+# Configuración de proyecto para el CLI de Codex, versionada a propósito
+# (es una protección, no una preferencia — ADR-049 §5.2/§5.5).
+#
+# Esto NO sustituye a la lista `deny` de `.claude/settings.json`: el
+# sandbox de Codex restringe escritura y red, nunca lectura, así que
+# `Read(./.env)` no tiene equivalente aquí (ADR-049 §5.3). La protección
+# real de los secretos de desarrollo depende de que no haya ninguna
+# credencial válida fuera de esta máquina en el árbol de trabajo —
+# auditado y confirmado por el usuario el 2026-09-14— y de que este
+# fichero se cumpla de verdad (comprobar la configuración EFECTIVA antes
+# de la primera ejecución, no solo este fichero — ADR-049 §5.2).
+#
+# No se fija aquí modelo ni esfuerzo de razonamiento: caducarían en
+# meses y este fichero es el que se audita en cada revisión de proceso.
+
+sandbox_mode    = "read-only"
+approval_policy = "never"

@@ -1,0 +1,486 @@
+{
+  "acad": {
+    "nav": {
+      "structure": "Akademische Struktur",
+      "backToStructure": "Zurück zur akademischen Struktur",
+      "backToLevel": "Zurück zur Stufe {code}",
+      "backToLevelGeneric": "Zurück zur Stufe",
+      "backToCourse": "Zurück zum Jahrgang {code}",
+      "backToCourseGeneric": "Zurück zum Jahrgang",
+      "gradingScales": "Bewertungsskalen",
+      "backToScales": "Zurück zu den Bewertungsskalen",
+      "facilities": "Räume",
+      "timetable": "Stundenpläne",
+      "bookings": "Reservierungen"
+    },
+    "readOnly": "Dieses Schuljahr ist schreibgeschützt: Seine Struktur kann nicht angelegt, geändert oder gelöscht werden.",
+    "fields": {
+      "code": "Kürzel",
+      "name": "Name",
+      "stage": "Stufenart",
+      "regime": "Trägerschaft",
+      "position": "Position",
+      "actions": "Aktionen",
+      "periodType": "Art des Zeitraums",
+      "startsOn": "Beginn",
+      "endsOn": "Ende",
+      "scaleType": "Skalenart",
+      "minValue": "Minimum",
+      "maxValue": "Maximum",
+      "decimals": "Nachkommastellen",
+      "passingMinValue": "Mindestnote zum Bestehen",
+      "label": "Bezeichnung",
+      "isPassing": "Bestanden",
+      "rangeMin": "Von",
+      "rangeMax": "Bis",
+      "range": "Bereich",
+      "facilityType": "Raumtyp",
+      "frameType": "Typ des Stundenplanrahmens",
+      "validFrom": "Gültig ab",
+      "validTo": "Gültig bis"
+    },
+    "stage": {
+      "infantil": "Frühkindliche Bildung",
+      "primaria": "Primarstufe",
+      "eso": "Pflichtsekundarstufe (ESO)",
+      "bachillerato": "Oberstufe (Bachillerato)",
+      "fp": "Berufsbildung",
+      "universidad": "Universität"
+    },
+    "regime": {
+      "publico": "Öffentlich",
+      "privado": "Privat",
+      "concertado": "Staatlich gefördert"
+    },
+    "dependents": {
+      "courses": "Jahrgänge",
+      "groups": "Gruppen",
+      "subjects": "Fächer",
+      "subgroups": "Untergruppen",
+      "group_subjects": "Gruppen zugeordnete Fächer",
+      "academic_periods": "Unterrichtszeiträume",
+      "group_tutors": "Klassenleitungen",
+      "teaching_assignments": "Lehraufträge",
+      "timetable_frames": "Stundenplanrahmen",
+      "timetable_sessions": "Unterrichtsstunden",
+      "facility_bookings": "Raumreservierungen"
+    },
+    "structure": {
+      "title": "Akademische Struktur",
+      "intro": "Stufen, Jahrgänge, Gruppen, Untergruppen und Fächer des gewählten Schuljahres.",
+      "caption": "Stufen des Schuljahres",
+      "new": "Neue Stufe",
+      "filters": {
+        "stage": "Stufenart",
+        "regime": "Trägerschaft"
+      },
+      "empty": {
+        "title": "Dieses Schuljahr hat keine Stufen",
+        "text": "Legen Sie die erste Stufe an, um die Struktur zu definieren."
+      },
+      "noActive": {
+        "title": "Es gibt kein aktives Schuljahr",
+        "text": "Wählen Sie in der Auswahl der oberen Leiste ein Schuljahr, um seine Struktur anzuzeigen."
+      }
+    },
+    "level": {
+      "title": "Stufe",
+      "courses": "Jahrgänge der Stufe",
+      "coursesCaption": "Jahrgänge der Stufe",
+      "newCourse": "Neuer Jahrgang",
+      "noCourses": "Diese Stufe hat keine Jahrgänge"
+    },
+    "course": {
+      "title": "Jahrgang",
+      "groups": "Gruppen",
+      "groupsCaption": "Gruppen des Jahrgangs",
+      "newGroup": "Neue Gruppe",
+      "noGroups": "Dieser Jahrgang hat keine Gruppen",
+      "subjects": "Fächer",
+      "subjectsCaption": "Fächer des Jahrgangs",
+      "newSubject": "Neues Fach",
+      "noSubjects": "Dieser Jahrgang hat keine Fächer"
+    },
+    "group": {
+      "title": "Gruppe",
+      "subjects": "Belegte Fächer",
+      "editSubjects": "Fächer bearbeiten",
+      "chooseSubjects": "Fächer des Jahrgangs, die diese Gruppe belegt",
+      "noAvailable": "Der Jahrgang hat keine zuzuordnenden Fächer.",
+      "noSubjects": "Diese Gruppe belegt keine Fächer.",
+      "subgroups": "Untergruppen",
+      "subgroupsCaption": "Untergruppen der Gruppe",
+      "newSubgroup": "Neue Untergruppe",
+      "noSubgroups": "Diese Gruppe hat keine Untergruppen"
+    },
+    "subject": {
+      "title": "Fach",
+      "groups": "Gruppen, die es belegen",
+      "noGroups": "Keine Gruppe belegt dieses Fach."
+    },
+    "detail": {
+      "actions": "Aktionen",
+      "data": "Angaben",
+      "edit": "Bearbeiten",
+      "delete": "Löschen"
+    },
+    "form": {
+      "close": "Schließen",
+      "cancel": "Abbrechen",
+      "create": "Anlegen",
+      "save": "Speichern",
+      "choose": "Option auswählen",
+      "description": "Pflichtfelder sind gekennzeichnet. Schuljahr und übergeordnetes Element können später nicht geändert werden.",
+      "positionHint": "Optional. Wenn leer, wird es ans Ende gesetzt.",
+      "title": {
+        "create": {
+          "level": "Neue Stufe",
+          "course": "Neuer Jahrgang",
+          "subject": "Neues Fach",
+          "group": "Neue Gruppe",
+          "subgroup": "Neue Untergruppe",
+          "period": "Neuer Zeitraum",
+          "scale": "Neue Skala"
+        },
+        "edit": {
+          "level": "Stufe bearbeiten",
+          "course": "Jahrgang bearbeiten",
+          "subject": "Fach bearbeiten",
+          "group": "Gruppe bearbeiten",
+          "subgroup": "Untergruppe bearbeiten",
+          "period": "Zeitraum bearbeiten",
+          "scale": "Skala bearbeiten"
+        }
+      },
+      "errors": {
+        "defaultLocaleRequired": "Der Name in der Standardsprache der Schule fehlt."
+      }
+    },
+    "confirm": {
+      "delete": {
+        "confirm": "{code} löschen",
+        "level": {
+          "title": "Stufe {code} löschen",
+          "description": "Die Stufe wird aus dem Schuljahr gelöscht. Sie kann nicht gelöscht werden, wenn sie Jahrgänge hat."
+        },
+        "course": {
+          "title": "Jahrgang {code} löschen",
+          "description": "Der Jahrgang wird aus dem Schuljahr gelöscht. Er kann nicht gelöscht werden, wenn er Gruppen oder Fächer hat."
+        },
+        "group": {
+          "title": "Gruppe {code} löschen",
+          "description": "Die Gruppe wird gelöscht. Sie kann nicht gelöscht werden, wenn sie Untergruppen oder zugeordnete Fächer hat."
+        },
+        "subgroup": {
+          "title": "Untergruppe {code} löschen",
+          "description": "Die Untergruppe wird aus der Gruppe gelöscht."
+        },
+        "subject": {
+          "title": "Fach {code} löschen",
+          "description": "Das Fach wird gelöscht. Es kann nicht gelöscht werden, wenn es einer Gruppe zugeordnet ist."
+        },
+        "period": {
+          "title": "Zeitraum {name} löschen",
+          "description": "Der Zeitraum wird aus der Stufe gelöscht."
+        },
+        "scale": {
+          "title": "Skala {code} löschen",
+          "description": "Die Skala und alle ihre Werte werden gelöscht."
+        },
+        "facility": {
+          "title": "Raum {code} löschen",
+          "description": "Der Raum wird aus der Schule gelöscht. Er kann nicht gelöscht werden, wenn Unterrichtsstunden eines Schuljahrs in Planung oder aktiv ihn verwenden."
+        },
+        "frame": {
+          "title": "Stundenplanrahmen {name} löschen",
+          "description": "Der Rahmen und alle seine Zeitfenster werden gelöscht. Er kann nicht gelöscht werden, wenn ein Zeitfenster Unterrichtsstunden hat."
+        }
+      }
+    },
+    "flash": {
+      "levelCreated": "Stufe angelegt.",
+      "levelUpdated": "Stufe aktualisiert.",
+      "levelDeleted": "Stufe gelöscht.",
+      "courseCreated": "Jahrgang angelegt.",
+      "courseUpdated": "Jahrgang aktualisiert.",
+      "courseDeleted": "Jahrgang gelöscht.",
+      "groupCreated": "Gruppe angelegt.",
+      "groupUpdated": "Gruppe aktualisiert.",
+      "groupDeleted": "Gruppe gelöscht.",
+      "subgroupCreated": "Untergruppe angelegt.",
+      "subgroupUpdated": "Untergruppe aktualisiert.",
+      "subgroupDeleted": "Untergruppe gelöscht.",
+      "subjectCreated": "Fach angelegt.",
+      "subjectUpdated": "Fach aktualisiert.",
+      "subjectDeleted": "Fach gelöscht.",
+      "subjectsAssigned": "Fächer der Gruppe aktualisiert.",
+      "periodCreated": "Zeitraum angelegt.",
+      "periodUpdated": "Zeitraum aktualisiert.",
+      "periodDeleted": "Zeitraum gelöscht.",
+      "scaleCreated": "Skala angelegt.",
+      "scaleUpdated": "Skala aktualisiert.",
+      "scaleDeleted": "Skala gelöscht.",
+      "facilityCreated": "Raum angelegt.",
+      "facilityUpdated": "Raum aktualisiert.",
+      "facilityDeleted": "Raum gelöscht.",
+      "frameUpdated": "Stundenplanrahmen aktualisiert.",
+      "frameDeleted": "Stundenplanrahmen gelöscht.",
+      "assignmentCreated": "Lehrkraft zugewiesen.",
+      "assignmentDeleted": "Lehrauftrag entfernt.",
+      "tutorsUpdated": "Klassenleitung der Gruppe aktualisiert.",
+      "sessionCreated": "Unterrichtsstunde angelegt.",
+      "sessionUpdated": "Unterrichtsstunde aktualisiert.",
+      "sessionDeleted": "Unterrichtsstunde gelöscht.",
+      "bookingCreated": "Reservierung erstellt.",
+      "bookingCancelled": "Reservierung storniert."
+    },
+    "errors": {
+      "unexpected": "Die Aktion konnte nicht abgeschlossen werden. Bitte versuchen Sie es erneut.",
+      "dependentsTitle": "Elemente, die dies verhindern:"
+    },
+    "periodType": {
+      "trimestre": "Trimester",
+      "cuatrimestre": "Tertial",
+      "semestre": "Semester"
+    },
+    "periods": {
+      "title": "Unterrichtszeiträume",
+      "caption": "Unterrichtszeiträume der Stufe",
+      "new": "Neuer Zeitraum",
+      "empty": "Diese Stufe hat keine Unterrichtszeiträume",
+      "yearRange": "Zwischen {start} und {end}",
+      "overlapWith": "Der Zeitraum überschneidet sich mit „{name}“ derselben Stufe.",
+      "editFor": "Zeitraum {name} bearbeiten",
+      "deleteFor": "Zeitraum {name} löschen",
+      "typePlaceholder": "Art des Zeitraums wählen"
+    },
+    "readOnlyConfig": "Dieses Schuljahr ist schreibgeschützt: Seine Zeiträume und Skalen können nicht angelegt, geändert oder gelöscht werden.",
+    "scaleType": {
+      "numerica": "Numerisch",
+      "cualitativa": "Qualitativ",
+      "mixta": "Gemischt"
+    },
+    "scales": {
+      "title": "Bewertungsskalen",
+      "intro": "Skalen, mit denen im ausgewählten Schuljahr bewertet wird.",
+      "caption": "Skalen des Schuljahres",
+      "new": "Neue Skala",
+      "empty": "Dieses Schuljahr hat keine Skalen",
+      "values": "Werte",
+      "bands": "Bereiche",
+      "addValue": "Wert hinzufügen",
+      "addBand": "Bereich hinzufügen",
+      "remove": "Entfernen",
+      "moveUp": "Nach oben",
+      "moveDown": "Nach unten",
+      "itemLegend": "Wert {n}",
+      "moved": "{label} jetzt an Position {n}",
+      "passing": "Bestanden",
+      "failing": "Nicht bestanden",
+      "typeLocked": "Die Art kann nicht geändert werden: Legen Sie für eine andere Art eine neue Skala an.",
+      "detailTitle": "Skala",
+      "rangeValue": "Von {min} bis {max}",
+      "valuesCount": "Keine Werte | {count} Wert | {count} Werte",
+      "passingFrom": "Ab {value}"
+    },
+    "facilityType": {
+      "aula": "Klassenzimmer",
+      "recurso": "Ressource"
+    },
+    "frameType": {
+      "ordinaria": "Regulär",
+      "especial": "Sonderrahmen"
+    },
+    "weekday": {
+      "1": "Montag",
+      "2": "Dienstag",
+      "3": "Mittwoch",
+      "4": "Donnerstag",
+      "5": "Freitag",
+      "6": "Samstag",
+      "7": "Sonntag"
+    },
+    "readOnlyTimetable": "Dieses Schuljahr ist schreibgeschützt: Stundenplanrahmen, Zuweisungen und Unterrichtsstunden können nicht angelegt, geändert oder gelöscht werden.",
+    "facilities": {
+      "title": "Räume",
+      "intro": "Klassenzimmer und Ressourcen der Schule. Sie hängen nicht vom Schuljahr ab.",
+      "new": "Neuer Raum",
+      "caption": "Räume der Schule",
+      "empty": "Die Schule hat keine Räume",
+      "editFor": "Raum {code} bearbeiten",
+      "deleteFor": "Raum {code} löschen",
+      "form": {
+        "title": {
+          "create": "Neuer Raum",
+          "edit": "Raum bearbeiten"
+        },
+        "typeImmutable": "Der Typ eines Raums kann nach dem Anlegen nicht mehr geändert werden."
+      }
+    },
+    "timetable": {
+      "frames": {
+        "title": "Stundenplanrahmen",
+        "new": "Neuer Stundenplanrahmen",
+        "caption": "Stundenplanrahmen der Stufe",
+        "empty": "Diese Stufe hat keinen Stundenplanrahmen",
+        "form": {
+          "title": "Neuer Stundenplanrahmen",
+          "description": "Ein regulärer Rahmen gilt für das ganze Schuljahr, ein besonderer (Kurztag) nur zwischen zwei Daten. Die Zeitfenster werden anschließend auf seiner Seite hinzugefügt.",
+          "validityHint": "Die Daten sind einschließlich, müssen innerhalb des Schuljahres liegen und dürfen sich nicht mit einem anderen Sonderrahmen der Stufe überschneiden."
+        },
+        "validity": "Gültigkeit",
+        "validityRange": "Vom {from} bis {to}",
+        "allYear": "Ganzes Schuljahr"
+      },
+      "frame": {
+        "title": "Stundenplanrahmen",
+        "slotsCount": "Zeitfenster"
+      },
+      "slots": {
+        "title": "Zeitfenster",
+        "hint": "Jedes Zeitfenster ist ein Wochentag und ein Zeitraum der Schulstunden. Die Endzeit ist nicht eingeschlossen: Ein Zeitfenster bis 09:25 und eines ab 09:25 überschneiden sich nicht.",
+        "empty": "Dieser Rahmen hat keine Zeitfenster.",
+        "rowLegend": "Zeitfenster {number}",
+        "weekday": "Tag",
+        "startsAt": "Beginn",
+        "endsAt": "Ende",
+        "remove": "Entfernen",
+        "removeFor": "Zeitfenster {number} entfernen",
+        "add": "Zeitfenster hinzufügen",
+        "caption": "Zeitfenster des Stundenplanrahmens"
+      },
+      "title": "Stundenpläne",
+      "description": "Wochenraster der Unterrichtsstunden nach Gruppe, Lehrkraft, Raum oder Fach.",
+      "selection": "Auswahl der Ansicht",
+      "viewLabel": "Ansicht nach",
+      "views": {
+        "group": "Gruppe",
+        "teacher": "Lehrkraft",
+        "facility": "Raum",
+        "subject": "Fach"
+      },
+      "entity": {
+        "group": "Gruppe",
+        "teacher": "Lehrkraft",
+        "facility": "Raum",
+        "subject": "Fach"
+      },
+      "chooseEntity": "Wählen Sie eine Option, um ihren Stundenplan zu sehen.",
+      "noFrame": "Die Stufe dieser Gruppe hat keinen Stundenplanrahmen. Legen Sie den Rahmen und seine Zeitfenster auf der Seite der Stufe an.",
+      "grid": {
+        "caption": "Wochenstundenplan nach {view}",
+        "noSlots": "Es gibt keine Zeitfenster oder Unterrichtsstunden anzuzeigen.",
+        "time": "Uhrzeit",
+        "range": "{start}–{end}",
+        "edit": "Bearbeiten",
+        "add": "Unterrichtsstunde hinzufügen",
+        "free": "Frei",
+        "noSlot": "Kein Zeitfenster",
+        "facilityDeleted": "Raum außer Betrieb"
+      },
+      "form": {
+        "title": {
+          "create": "Neue Unterrichtsstunde",
+          "edit": "Unterrichtsstunde bearbeiten"
+        },
+        "assignment": "Lehrauftrag",
+        "slot": "Zeitfenster",
+        "facility": "Raum",
+        "noFacility": "Kein Raum",
+        "noAssignments": "Der Gruppe sind keine Lehrkräfte zugewiesen. Weisen Sie sie auf der Seite der Gruppe zu.",
+        "assignmentRequired": "Wählen Sie einen Lehrauftrag.",
+        "remove": "Unterrichtsstunde entfernen"
+      },
+      "conflict": {
+        "title": "Die Unterrichtsstunde kollidiert mit einer anderen:",
+        "kind": {
+          "teacher": "Lehrkraft",
+          "facility": "Raum",
+          "group": "Gruppe"
+        },
+        "with": "{kind}: {subject} · {group} · {teacher} · {slot}",
+        "withUnknown": "{kind}: Unterrichtsstunde {session}"
+      },
+      "confirmDelete": {
+        "title": "Die Unterrichtsstunde {subject} entfernen?",
+        "description": "Die Unterrichtsstunde wird aus dem Raster gelöscht; der Lehrauftrag bleibt unverändert.",
+        "confirm": "Unterrichtsstunde entfernen"
+      },
+      "frameLabel": "Stundenplanrahmen"
+    },
+    "staff": {
+      "search": "Benutzer nach Name oder E-Mail suchen",
+      "loading": "Benutzer werden geladen …",
+      "empty": "Keine passenden aktiven Benutzer.",
+      "loadError": "Die Benutzer konnten nicht geladen werden."
+    },
+    "teaching": {
+      "title": "Lehrkräfte",
+      "tutors": "Klassenleitung",
+      "editTutors": "Klassenleitung bearbeiten",
+      "chooseTutors": "Klassenleitung der Gruppe auswählen",
+      "noTutors": "Diese Gruppe hat keine Klassenleitung.",
+      "assignments": "Unterricht nach Fach",
+      "assign": "Lehrkräfte zuweisen",
+      "caption": "Lehraufträge der Gruppe",
+      "empty": "Dieser Gruppe sind keine Lehrkräfte zugewiesen.",
+      "remove": "Entfernen",
+      "subject": "Fach",
+      "subgroup": "Untergruppe",
+      "teacher": "Lehrkraft",
+      "wholeGroup": "Ganze Gruppe",
+      "unknownTeacher": "Benutzer nicht verfügbar",
+      "confirmDelete": {
+        "title": "{teacher} aus {subject} entfernen?",
+        "description": "Der Lehrauftrag wird entfernt. Hat er Unterrichtsstunden im Stundenplan, müssen diese zuerst gelöscht werden.",
+        "confirm": "Lehrauftrag entfernen"
+      },
+      "form": {
+        "title": "Lehrkräfte zuweisen",
+        "description": "Wählen Sie das Fach der Gruppe, die Untergruppe bei geteiltem Unterricht und die Lehrkraft. Die Zuweisung erteilt keine Berechtigungen.",
+        "submit": "Zuweisen"
+      },
+      "errors": {
+        "subjectRequired": "Wählen Sie ein Fach.",
+        "teacherRequired": "Wählen Sie eine Lehrkraft."
+      }
+    },
+    "readOnlyBookings": "Dieses Schuljahr ist schreibgeschützt: Reservierungen können weder erstellt noch storniert werden.",
+    "bookings": {
+      "title": "Reservierungen",
+      "intro": "Reservierungen von Klassenräumen und Ressourcen des Schuljahres nach Datum und Uhrzeit. Sie werden nicht bearbeitet, sondern storniert und neu angelegt.",
+      "new": "Neue Reservierung",
+      "caption": "Reservierungen von Räumen",
+      "empty": "Es gibt keine Reservierungen",
+      "cancel": "Stornieren",
+      "cancelFor": "Die Reservierung von {facility} am {date} um {start} stornieren",
+      "fields": {
+        "facility": "Raum",
+        "date": "Datum",
+        "startsAt": "Beginn",
+        "endsAt": "Ende",
+        "interval": "Uhrzeit",
+        "bookedBy": "Reserviert von"
+      },
+      "form": {
+        "title": "Neue Reservierung",
+        "description": "Wählen Sie den Raum, das Datum und die Uhrzeit. Die Reservierung darf sich nicht mit einer anderen Reservierung und bei einem Klassenraum nicht mit einer Unterrichtsstunde überschneiden.",
+        "intervalHint": "Die Endzeit ist nicht eingeschlossen: Eine Reservierung, die um 11:00 endet, und eine, die um 11:00 beginnt, überschneiden sich nicht.",
+        "noFacilities": "Es gibt keine Räume zum Reservieren, oder Sie haben keine Berechtigung, sie zu sehen.",
+        "submit": "Reservieren"
+      },
+      "conflict": {
+        "title": "Die Reservierung kollidiert mit:",
+        "booking": "Reservierung von {facility} am {date}, {start}–{end}, von {by}",
+        "session": "Unterrichtsstunde: {subject} · {group} · {teacher} · {slot}",
+        "bookingUnknown": "Eine andere Reservierung desselben Raums zu dieser Zeit",
+        "sessionUnknown": "Eine Unterrichtsstunde in diesem Klassenraum zu dieser Zeit"
+      },
+      "confirmCancel": {
+        "title": "Die Reservierung von {facility} stornieren?",
+        "description": "Die Reservierung vom {when} wird storniert. Der Termin wird frei.",
+        "confirm": "Reservierung stornieren"
+      }
+    }
+  }
+}

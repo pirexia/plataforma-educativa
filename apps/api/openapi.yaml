@@ -1,0 +1,507 @@
+openapi: 3.1.0
+info:
+  title: Plataforma de Gestión Educativa — API
+  version: 0.1.0
+  description: >
+    Fuente de verdad funcional: docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md.
+    API-first (INV-006): todo endpoint existe aquí antes que en la SPA.
+    Convenciones transversales: docs/adr/ADR-038-convenciones-api-rest.md.
+servers:
+  - url: http://localhost:8000
+    description: Desarrollo local
+
+tags:
+  - name: Plataforma
+  - name: Plataforma / Sesión
+  - name: Plataforma / Administradores
+  - name: Plataforma / Lista blanca IP
+  - name: Plataforma / Auditoría
+  - name: Core / Tenant
+  - name: Core / Usuarios
+  - name: Core / Invitaciones
+  - name: Core / Roles
+  - name: Core / Módulos
+  - name: Core / Importación
+  - name: Core / Auditoría
+  - name: Core / Autoservicio
+  - name: Curso / Cursos académicos
+  - name: Acad / Estructura académica
+  - name: Acad / Configuración académica
+  - name: Acad / Horarios
+  - name: Acad / Reservas
+  - name: Alum / Alumnado
+  - name: Alum / Matrícula
+  - name: FamUnit / Unidades familiares
+  - name: FamUnit / Tutores
+  - name: FamUnit / Vínculos
+  - name: FamUnit / Consentimiento de imagen
+  - name: FamUnit / Textos legales
+  - name: FamUnit / Autorizaciones de recogida
+  - name: Prl / Puerta
+  - name: Prl / Movimientos
+  - name: Prl / Alertas
+  - name: Auth / Sesión
+  - name: Auth / Canje
+  - name: Auth / Recuperación
+  - name: Auth / Bloqueo
+  - name: Auth / MFA
+  - name: Auth / OAuth
+  - name: Auth / SSO
+
+# ADR-038 §12.2: componentes compartidos (Problem, PageMeta, CursorMeta,
+# parámetros comunes) en un fichero propio, referenciados por $ref desde
+# cada módulo — nunca redefinidos.
+components:
+  $ref: "openapi/components.yaml#/components"
+
+# Cada ruta es un $ref de Path Item Object hacia el fichero del módulo
+# correspondiente (ADR-038 §12.2: "$ref entre ficheros hermanos, sin paso
+# de empaquetado"). Añadir un módulo nuevo es añadir sus entradas aquí,
+# nunca escribir la ruta dos veces.
+paths:
+  /api/health:
+    get:
+      operationId: getHealth
+      summary: Estado de la API
+      description: Comprobación de vida sin autenticación. No expone datos de negocio.
+      tags: [Plataforma]
+      security: []
+      responses:
+        '200':
+          description: La API responde
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, version, timestamp]
+                properties:
+                  status:
+                    type: string
+                    enum: [ok]
+                  version:
+                    type: string
+                    example: 0.1.0
+                  timestamp:
+                    type: string
+                    format: date-time
+
+  # REQ-CORE (paso 1.1) — apps/api/openapi/paths/core.yaml
+  /api/v1/tenant:
+    $ref: "openapi/paths/core.yaml#/paths/~1api~1v1~1tenant"
+  /api/v1/tenant/branding:
+    $ref: "openapi/paths/core.yaml#/paths/~1api~1v1~1tenant~1branding"
+  /api/v1/tenant/settings:
+    $ref: "openapi/paths/core.yaml#/paths/~1api~1v1~1tenant~1settings"
+  /api/v1/tenant/settings/assets/{kind}:
+    $ref: "openapi/paths/core.yaml#/paths/~1api~1v1~1tenant~1settings~1assets~1{kind}"
+  /api/v1/me:
+    $ref: "openapi/paths/core.yaml#/paths/~1api~1v1~1me"
+  /api/v1/users:
+    $ref: "openapi/paths/core.yaml#/paths/~1api~1v1~1users"
+  /api/v1/users/{publicId}:
+    $ref: "openapi/paths/core.yaml#/paths/~1api~1v1~1users~1{publicId}"
+  /api/v1/users/{publicId}/restore:
+    $ref: "openapi/paths/core.yaml#/paths/~1api~1v1~1users~1{publicId}~1restore"
+  /api/v1/users/{publicId}/status:
+    $ref: "openapi/paths/core.yaml#/paths/~1api~1v1~1users~1{publicId}~1status"
+  /api/v1/invitations:
+    $ref: "openapi/paths/core.yaml#/paths/~1api~1v1~1invitations"
+  /api/v1/users/{publicId}/invitations:
+    $ref: "openapi/paths/core.yaml#/paths/~1api~1v1~1users~1{publicId}~1invitations"
+  /api/v1/invitations/{publicId}:
+    $ref: "openapi/paths/core.yaml#/paths/~1api~1v1~1invitations~1{publicId}"
+  /api/v1/roles:
+    $ref: "openapi/paths/core.yaml#/paths/~1api~1v1~1roles"
+  /api/v1/roles/{publicId}:
+    $ref: "openapi/paths/core.yaml#/paths/~1api~1v1~1roles~1{publicId}"
+  /api/v1/permissions:
+    $ref: "openapi/paths/core.yaml#/paths/~1api~1v1~1permissions"
+  /api/v1/users/{publicId}/roles:
+    $ref: "openapi/paths/core.yaml#/paths/~1api~1v1~1users~1{publicId}~1roles"
+  /api/v1/modules:
+    $ref: "openapi/paths/core.yaml#/paths/~1api~1v1~1modules"
+  /api/v1/module-subscriptions/{publicId}:
+    $ref: "openapi/paths/core.yaml#/paths/~1api~1v1~1module-subscriptions~1{publicId}"
+  /api/v1/user-imports:
+    $ref: "openapi/paths/core.yaml#/paths/~1api~1v1~1user-imports"
+  /api/v1/user-imports/{publicId}:
+    $ref: "openapi/paths/core.yaml#/paths/~1api~1v1~1user-imports~1{publicId}"
+  /api/v1/user-imports/{publicId}/execute:
+    $ref: "openapi/paths/core.yaml#/paths/~1api~1v1~1user-imports~1{publicId}~1execute"
+  /api/v1/audit-logs:
+    $ref: "openapi/paths/core.yaml#/paths/~1api~1v1~1audit-logs"
+  /api/v1/audit-logs/exports:
+    $ref: "openapi/paths/core.yaml#/paths/~1api~1v1~1audit-logs~1exports"
+  /api/v1/data-exports/{publicId}:
+    $ref: "openapi/paths/core.yaml#/paths/~1api~1v1~1data-exports~1{publicId}"
+
+  # REQ-AUTH (paso 1.2). apps/api/openapi/paths/auth.yaml.
+  /api/v1/auth/csrf-cookie:
+    $ref: "openapi/paths/auth.yaml#/paths/~1api~1v1~1auth~1csrf-cookie"
+  /api/v1/auth/session:
+    $ref: "openapi/paths/auth.yaml#/paths/~1api~1v1~1auth~1session"
+  /api/v1/auth/invitation-redemptions:
+    $ref: "openapi/paths/auth.yaml#/paths/~1api~1v1~1auth~1invitation-redemptions"
+  /api/v1/auth/password-reset-requests:
+    $ref: "openapi/paths/auth.yaml#/paths/~1api~1v1~1auth~1password-reset-requests"
+  /api/v1/auth/password-resets:
+    $ref: "openapi/paths/auth.yaml#/paths/~1api~1v1~1auth~1password-resets"
+  /api/v1/auth/account-unlocks:
+    $ref: "openapi/paths/auth.yaml#/paths/~1api~1v1~1auth~1account-unlocks"
+  /api/v1/auth/password-changes:
+    $ref: "openapi/paths/auth.yaml#/paths/~1api~1v1~1auth~1password-changes"
+  /api/v1/account-lockouts:
+    $ref: "openapi/paths/auth.yaml#/paths/~1api~1v1~1account-lockouts"
+  /api/v1/account-lockouts/{publicId}:
+    $ref: "openapi/paths/auth.yaml#/paths/~1api~1v1~1account-lockouts~1{publicId}"
+
+  # REQ-AUTH-003 (paso 1.3). apps/api/openapi/paths/mfa.yaml. El
+  # undécimo endpoint de este paso, PATCH /api/v1/roles/{publicId}
+  # acotado a mfa_required, está arriba junto al resto de REQ-CORE
+  # (core.yaml): REQ-CORE es dueño del recurso roles (§C.2.2).
+  /api/v1/auth/mfa-enrollments:
+    $ref: "openapi/paths/mfa.yaml#/paths/~1api~1v1~1auth~1mfa-enrollments"
+  /api/v1/auth/mfa-factors:
+    $ref: "openapi/paths/mfa.yaml#/paths/~1api~1v1~1auth~1mfa-factors"
+  /api/v1/auth/mfa-factors/{publicId}:
+    $ref: "openapi/paths/mfa.yaml#/paths/~1api~1v1~1auth~1mfa-factors~1{publicId}"
+  /api/v1/auth/mfa:
+    $ref: "openapi/paths/mfa.yaml#/paths/~1api~1v1~1auth~1mfa"
+  /api/v1/auth/mfa-recovery-codes:
+    $ref: "openapi/paths/mfa.yaml#/paths/~1api~1v1~1auth~1mfa-recovery-codes"
+  /api/v1/auth/mfa-challenges:
+    $ref: "openapi/paths/mfa.yaml#/paths/~1api~1v1~1auth~1mfa-challenges"
+  /api/v1/auth/mfa-verifications:
+    $ref: "openapi/paths/mfa.yaml#/paths/~1api~1v1~1auth~1mfa-verifications"
+  /api/v1/mfa-compliance:
+    $ref: "openapi/paths/mfa.yaml#/paths/~1api~1v1~1mfa-compliance"
+  /api/v1/mfa-compliance/users:
+    $ref: "openapi/paths/mfa.yaml#/paths/~1api~1v1~1mfa-compliance~1users"
+  /api/v1/mfa-resets:
+    $ref: "openapi/paths/mfa.yaml#/paths/~1api~1v1~1mfa-resets"
+
+  # REQ-AUTH-002 (paso 1.4). apps/api/openapi/paths/oauth.yaml.
+  /api/v1/auth/identity-providers:
+    $ref: "openapi/paths/oauth.yaml#/paths/~1api~1v1~1auth~1identity-providers"
+  /api/v1/auth/oauth-authorizations:
+    $ref: "openapi/paths/oauth.yaml#/paths/~1api~1v1~1auth~1oauth-authorizations"
+  /api/v1/auth/oauth/google/callback:
+    $ref: "openapi/paths/oauth.yaml#/paths/~1api~1v1~1auth~1oauth~1google~1callback"
+  /api/v1/auth/identities:
+    $ref: "openapi/paths/oauth.yaml#/paths/~1api~1v1~1auth~1identities"
+  /api/v1/auth/identities/{publicId}:
+    $ref: "openapi/paths/oauth.yaml#/paths/~1api~1v1~1auth~1identities~1{publicId}"
+
+  # REQ-AUTH-004 (paso 1.4b). apps/api/openapi/paths/sso.yaml.
+  /api/v1/identity-providers:
+    $ref: "openapi/paths/sso.yaml#/paths/~1api~1v1~1identity-providers"
+  /api/v1/identity-providers/{publicId}:
+    $ref: "openapi/paths/sso.yaml#/paths/~1api~1v1~1identity-providers~1{publicId}"
+  /api/v1/identity-providers/{publicId}/secrets:
+    $ref: "openapi/paths/sso.yaml#/paths/~1api~1v1~1identity-providers~1{publicId}~1secrets"
+  /api/v1/identity-providers/{publicId}/secrets/{secretPublicId}:
+    $ref: "openapi/paths/sso.yaml#/paths/~1api~1v1~1identity-providers~1{publicId}~1secrets~1{secretPublicId}"
+  /api/v1/identity-providers/{publicId}/discovery-refreshes:
+    $ref: "openapi/paths/sso.yaml#/paths/~1api~1v1~1identity-providers~1{publicId}~1discovery-refreshes"
+  /api/v1/auth/oauth/oidc/callback:
+    $ref: "openapi/paths/sso.yaml#/paths/~1api~1v1~1auth~1oauth~1oidc~1callback"
+
+  # REQ-AUTH-004 (paso 1.4c). apps/api/openapi/paths/sso.yaml.
+  /api/v1/identity-providers/{publicId}/metadata:
+    $ref: "openapi/paths/sso.yaml#/paths/~1api~1v1~1identity-providers~1{publicId}~1metadata"
+  /api/v1/identity-providers/{publicId}/certificates:
+    $ref: "openapi/paths/sso.yaml#/paths/~1api~1v1~1identity-providers~1{publicId}~1certificates"
+  /api/v1/identity-providers/{publicId}/certificates/{certificatePublicId}:
+    $ref: "openapi/paths/sso.yaml#/paths/~1api~1v1~1identity-providers~1{publicId}~1certificates~1{certificatePublicId}"
+  /api/v1/identity-providers/{publicId}/metadata-refreshes:
+    $ref: "openapi/paths/sso.yaml#/paths/~1api~1v1~1identity-providers~1{publicId}~1metadata-refreshes"
+  /api/v1/auth/saml/{publicId}/acs:
+    $ref: "openapi/paths/sso.yaml#/paths/~1api~1v1~1auth~1saml~1{publicId}~1acs"
+
+  # REQ-BO-007 (1.6). El dato nace en admin_action_logs (REQ-BO), pero la
+  # ruta y el permiso son de REQ-CORE (INV-007) — issue #175, junto con
+  # las trece de abajo. Definida en core.yaml, no en platform.yaml.
+  /api/v1/platform-actions:
+    $ref: "openapi/paths/core.yaml#/paths/~1api~1v1~1platform-actions"
+
+  # REQ-BO-007 (paso 1.6). apps/api/openapi/paths/platform.yaml. Grupo
+  # hermano de /api/v1, servido bajo BACKOFFICE_HOST (api.md §0, §1.1) —
+  # issue #175: dieciocho rutas del chasis, más
+  # /admin-invitation-redemptions (issue #173).
+  /api/platform/v1/csrf-cookie:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1csrf-cookie"
+  /api/platform/v1/auth/session:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1auth~1session"
+  /api/platform/v1/auth/session/mfa:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1auth~1session~1mfa"
+  /api/platform/v1/admin-invitation-redemptions:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1admin-invitation-redemptions"
+  /api/platform/v1/auth/reauthenticate:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1auth~1reauthenticate"
+  /api/platform/v1/me:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1me"
+  /api/platform/v1/mfa/factors:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1mfa~1factors"
+  /api/platform/v1/mfa/factors/{publicId}/confirm:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1mfa~1factors~1{publicId}~1confirm"
+  /api/platform/v1/mfa/recovery-codes:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1mfa~1recovery-codes"
+  /api/platform/v1/admins:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1admins"
+  /api/platform/v1/admins/{publicId}:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1admins~1{publicId}"
+  /api/platform/v1/admins/{publicId}/roles:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1admins~1{publicId}~1roles"
+  /api/platform/v1/admins/{publicId}/status:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1admins~1{publicId}~1status"
+  /api/platform/v1/admins/{publicId}/mfa:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1admins~1{publicId}~1mfa"
+  /api/platform/v1/ip-allowlist:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1ip-allowlist"
+  /api/platform/v1/ip-allowlist/{publicId}:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1ip-allowlist~1{publicId}"
+  /api/platform/v1/admin-action-logs:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1admin-action-logs"
+  /api/platform/v1/tenants/{publicId}/admin-action-logs:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1tenants~1{publicId}~1admin-action-logs"
+
+  # REQ-BO-001 (1.6b). Inventario y ciclo de vida de tenants.
+  /api/platform/v1/tenants:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1tenants"
+  /api/platform/v1/tenants/{publicId}:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1tenants~1{publicId}"
+  /api/platform/v1/tenants/{publicId}/transitions:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1tenants~1{publicId}~1transitions"
+  /api/platform/v1/tenants/{publicId}/lifecycle-events:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1tenants~1{publicId}~1lifecycle-events"
+  /api/platform/v1/tenants/{publicId}/clone:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1tenants~1{publicId}~1clone"
+  /api/platform/v1/tenants/{publicId}/slug:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1tenants~1{publicId}~1slug"
+
+  # REQ-BO-007 (1.6b). Doble autorización.
+  /api/platform/v1/dual-authorizations:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1dual-authorizations"
+  /api/platform/v1/dual-authorizations/{publicId}:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1dual-authorizations~1{publicId}"
+  /api/platform/v1/dual-authorizations/{publicId}/approval:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1dual-authorizations~1{publicId}~1approval"
+  /api/platform/v1/dual-authorizations/{publicId}/rejection:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1dual-authorizations~1{publicId}~1rejection"
+
+  # REQ-BO-002 (1.6c). Módulos. Hallazgo de esta sesión (1.6d): estas seis
+  # rutas ya estaban completas en platform.yaml desde 1.6c pero nunca se
+  # habían enlazado en este índice raíz — issue de documentación,
+  # severidad Media (CLAUDE.md §6 regla 6), corregido de paso.
+  /api/platform/v1/modules:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1modules"
+  /api/platform/v1/tenants/{publicId}/modules:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1tenants~1{publicId}~1modules"
+  /api/platform/v1/tenants/{publicId}/modules/preview:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1tenants~1{publicId}~1modules~1preview"
+  /api/platform/v1/tenants/{publicId}/modules/{moduleCode}:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1tenants~1{publicId}~1modules~1{moduleCode}"
+  /api/platform/v1/module-rollouts/preview:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1module-rollouts~1preview"
+  /api/platform/v1/module-rollouts:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1module-rollouts"
+
+  # REQ-BO-004/REQ-BO-006 reducidos (1.6d). Salud y métricas de plataforma.
+  /api/platform/v1/tenants/{publicId}/health:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1tenants~1{publicId}~1health"
+  /api/platform/v1/tenants/{publicId}/failed-jobs:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1tenants~1{publicId}~1failed-jobs"
+  /api/platform/v1/tenants/{publicId}/failed-jobs/{uuid}/retry:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1tenants~1{publicId}~1failed-jobs~1{uuid}~1retry"
+  /api/platform/v1/metrics/platform:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1metrics~1platform"
+  /api/platform/v1/metrics/module-adoption:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1metrics~1module-adoption"
+
+  # REQ-CURSO (paso 1.10). apps/api/openapi/paths/curso.yaml
+  /api/v1/academic-years:
+    $ref: "openapi/paths/curso.yaml#/paths/~1api~1v1~1academic-years"
+  /api/v1/academic-years/current:
+    $ref: "openapi/paths/curso.yaml#/paths/~1api~1v1~1academic-years~1current"
+  /api/v1/academic-years/selectable:
+    $ref: "openapi/paths/curso.yaml#/paths/~1api~1v1~1academic-years~1selectable"
+  /api/v1/academic-years/{publicId}:
+    $ref: "openapi/paths/curso.yaml#/paths/~1api~1v1~1academic-years~1{publicId}"
+  /api/v1/academic-years/{publicId}/status:
+    $ref: "openapi/paths/curso.yaml#/paths/~1api~1v1~1academic-years~1{publicId}~1status"
+  /api/v1/academic-years/{publicId}/reopen:
+    $ref: "openapi/paths/curso.yaml#/paths/~1api~1v1~1academic-years~1{publicId}~1reopen"
+  # REQ-CURSO (paso 1.12b, REQ-CURSO-002), apertura del curso siguiente.
+  /api/v1/academic-year-rollovers/elements:
+    $ref: "openapi/paths/curso.yaml#/paths/~1api~1v1~1academic-year-rollovers~1elements"
+  /api/v1/academic-year-rollovers/preview:
+    $ref: "openapi/paths/curso.yaml#/paths/~1api~1v1~1academic-year-rollovers~1preview"
+  /api/v1/academic-year-rollovers:
+    $ref: "openapi/paths/curso.yaml#/paths/~1api~1v1~1academic-year-rollovers"
+  /api/v1/academic-year-rollovers/{publicId}:
+    $ref: "openapi/paths/curso.yaml#/paths/~1api~1v1~1academic-year-rollovers~1{publicId}"
+  /api/v1/academic-year-rollovers/{publicId}/revert:
+    $ref: "openapi/paths/curso.yaml#/paths/~1api~1v1~1academic-year-rollovers~1{publicId}~1revert"
+  /api/v1/academic-year-rollovers/{publicId}/cancel:
+    $ref: "openapi/paths/curso.yaml#/paths/~1api~1v1~1academic-year-rollovers~1{publicId}~1cancel"
+
+  # REQ-ACAD (paso 1.11-b). apps/api/openapi/paths/acad.yaml
+  /api/v1/education-levels:
+    $ref: "openapi/paths/acad.yaml#/paths/~1api~1v1~1education-levels"
+  /api/v1/education-levels/{publicId}:
+    $ref: "openapi/paths/acad.yaml#/paths/~1api~1v1~1education-levels~1{publicId}"
+  /api/v1/courses:
+    $ref: "openapi/paths/acad.yaml#/paths/~1api~1v1~1courses"
+  /api/v1/courses/{publicId}:
+    $ref: "openapi/paths/acad.yaml#/paths/~1api~1v1~1courses~1{publicId}"
+  /api/v1/groups:
+    $ref: "openapi/paths/acad.yaml#/paths/~1api~1v1~1groups"
+  /api/v1/groups/{publicId}:
+    $ref: "openapi/paths/acad.yaml#/paths/~1api~1v1~1groups~1{publicId}"
+  /api/v1/groups/{groupPublicId}/subgroups:
+    $ref: "openapi/paths/acad.yaml#/paths/~1api~1v1~1groups~1{groupPublicId}~1subgroups"
+  /api/v1/subgroups/{publicId}:
+    $ref: "openapi/paths/acad.yaml#/paths/~1api~1v1~1subgroups~1{publicId}"
+  /api/v1/subjects:
+    $ref: "openapi/paths/acad.yaml#/paths/~1api~1v1~1subjects"
+  /api/v1/subjects/{publicId}:
+    $ref: "openapi/paths/acad.yaml#/paths/~1api~1v1~1subjects~1{publicId}"
+  /api/v1/groups/{groupPublicId}/subjects:
+    $ref: "openapi/paths/acad.yaml#/paths/~1api~1v1~1groups~1{groupPublicId}~1subjects"
+
+  # REQ-ACAD (paso 1.11d-a), períodos lectivos. apps/api/openapi/paths/acad.yaml
+  /api/v1/academic-periods:
+    $ref: "openapi/paths/acad.yaml#/paths/~1api~1v1~1academic-periods"
+  /api/v1/academic-periods/{publicId}:
+    $ref: "openapi/paths/acad.yaml#/paths/~1api~1v1~1academic-periods~1{publicId}"
+
+  # REQ-ACAD (paso 1.11d-b), escalas de calificación. apps/api/openapi/paths/acad.yaml
+  /api/v1/grading-scales:
+    $ref: "openapi/paths/acad.yaml#/paths/~1api~1v1~1grading-scales"
+  /api/v1/grading-scales/{publicId}:
+    $ref: "openapi/paths/acad.yaml#/paths/~1api~1v1~1grading-scales~1{publicId}"
+
+  # REQ-ACAD (paso 1.12-a), espacios, marcos horarios, asignación docente, tutores y sesiones. apps/api/openapi/paths/acad.yaml
+  /api/v1/facilities:
+    $ref: "openapi/paths/acad.yaml#/paths/~1api~1v1~1facilities"
+  /api/v1/facilities/{publicId}:
+    $ref: "openapi/paths/acad.yaml#/paths/~1api~1v1~1facilities~1{publicId}"
+  /api/v1/timetable-frames:
+    $ref: "openapi/paths/acad.yaml#/paths/~1api~1v1~1timetable-frames"
+  /api/v1/timetable-frames/{publicId}:
+    $ref: "openapi/paths/acad.yaml#/paths/~1api~1v1~1timetable-frames~1{publicId}"
+  /api/v1/teaching-assignments:
+    $ref: "openapi/paths/acad.yaml#/paths/~1api~1v1~1teaching-assignments"
+  /api/v1/teaching-assignments/{publicId}:
+    $ref: "openapi/paths/acad.yaml#/paths/~1api~1v1~1teaching-assignments~1{publicId}"
+  /api/v1/groups/{groupPublicId}/tutors:
+    $ref: "openapi/paths/acad.yaml#/paths/~1api~1v1~1groups~1{groupPublicId}~1tutors"
+  /api/v1/timetable-sessions:
+    $ref: "openapi/paths/acad.yaml#/paths/~1api~1v1~1timetable-sessions"
+  /api/v1/timetable-sessions/{publicId}:
+    $ref: "openapi/paths/acad.yaml#/paths/~1api~1v1~1timetable-sessions~1{publicId}"
+  /api/v1/facility-bookings:
+    $ref: "openapi/paths/acad.yaml#/paths/~1api~1v1~1facility-bookings"
+  /api/v1/facility-bookings/{publicId}:
+    $ref: "openapi/paths/acad.yaml#/paths/~1api~1v1~1facility-bookings~1{publicId}"
+
+  # Los endpoints de los módulos siguientes se añaden aquí conforme se
+  # implementan, cada uno con su propio apps/api/openapi/paths/<modulo>.yaml.
+
+  # REQ-ALUM (paso 1.15-a), alumnado: listado, alta, ficha, corrección, baja y restauración. apps/api/openapi/paths/alum.yaml
+  /api/v1/students:
+    $ref: "openapi/paths/alum.yaml#/paths/~1api~1v1~1students"
+  /api/v1/students/{publicId}:
+    $ref: "openapi/paths/alum.yaml#/paths/~1api~1v1~1students~1{publicId}"
+  /api/v1/students/{publicId}/restore:
+    $ref: "openapi/paths/alum.yaml#/paths/~1api~1v1~1students~1{publicId}~1restore"
+  /api/v1/students/{publicId}/photo:
+    $ref: "openapi/paths/alum.yaml#/paths/~1api~1v1~1students~1{publicId}~1photo"
+  # REQ-ALUM (paso 1.15-b), matrícula: listado, alta, detalle, edición, baja y anulación.
+  /api/v1/enrollments:
+    $ref: "openapi/paths/alum.yaml#/paths/~1api~1v1~1enrollments"
+  /api/v1/enrollments/exports:
+    $ref: "openapi/paths/alum.yaml#/paths/~1api~1v1~1enrollments~1exports"
+  /api/v1/enrollments/{publicId}:
+    $ref: "openapi/paths/alum.yaml#/paths/~1api~1v1~1enrollments~1{publicId}"
+  /api/v1/enrollments/{publicId}/withdrawal:
+    $ref: "openapi/paths/alum.yaml#/paths/~1api~1v1~1enrollments~1{publicId}~1withdrawal"
+  /api/v1/group-change-requests:
+    $ref: "openapi/paths/alum.yaml#/paths/~1api~1v1~1group-change-requests"
+  /api/v1/group-change-requests/{publicId}:
+    $ref: "openapi/paths/alum.yaml#/paths/~1api~1v1~1group-change-requests~1{publicId}"
+  /api/v1/group-change-requests/{publicId}/approval:
+    $ref: "openapi/paths/alum.yaml#/paths/~1api~1v1~1group-change-requests~1{publicId}~1approval"
+  /api/v1/group-change-requests/{publicId}/rejection:
+    $ref: "openapi/paths/alum.yaml#/paths/~1api~1v1~1group-change-requests~1{publicId}~1rejection"
+  /api/v1/group-change-requests/{publicId}/cancellation:
+    $ref: "openapi/paths/alum.yaml#/paths/~1api~1v1~1group-change-requests~1{publicId}~1cancellation"
+
+  # REQ-FAM-UNIT (pasos 1.14-a, 1.14-b, 1.14-c y 1.14b-a), unidades familiares, tutores, alumnado, vínculos, revocación,
+  # consentimiento de imagen, textos legales y autorizados de recogida. apps/api/openapi/paths/fam-unit.yaml
+  /api/v1/family-units:
+    $ref: "openapi/paths/fam-unit.yaml#/paths/~1api~1v1~1family-units"
+  /api/v1/family-units/{publicId}:
+    $ref: "openapi/paths/fam-unit.yaml#/paths/~1api~1v1~1family-units~1{publicId}"
+  /api/v1/family-units/{publicId}/restore:
+    $ref: "openapi/paths/fam-unit.yaml#/paths/~1api~1v1~1family-units~1{publicId}~1restore"
+  /api/v1/family-units/{publicId}/students:
+    $ref: "openapi/paths/fam-unit.yaml#/paths/~1api~1v1~1family-units~1{publicId}~1students"
+  /api/v1/family-units/{publicId}/students/{membershipPublicId}:
+    $ref: "openapi/paths/fam-unit.yaml#/paths/~1api~1v1~1family-units~1{publicId}~1students~1{membershipPublicId}"
+  /api/v1/guardians:
+    $ref: "openapi/paths/fam-unit.yaml#/paths/~1api~1v1~1guardians"
+  /api/v1/guardians/{publicId}:
+    $ref: "openapi/paths/fam-unit.yaml#/paths/~1api~1v1~1guardians~1{publicId}"
+  /api/v1/guardian-links:
+    $ref: "openapi/paths/fam-unit.yaml#/paths/~1api~1v1~1guardian-links"
+  /api/v1/guardian-links/{publicId}:
+    $ref: "openapi/paths/fam-unit.yaml#/paths/~1api~1v1~1guardian-links~1{publicId}"
+  /api/v1/guardian-links/{publicId}/revocation:
+    $ref: "openapi/paths/fam-unit.yaml#/paths/~1api~1v1~1guardian-links~1{publicId}~1revocation"
+  /api/v1/image-consents:
+    $ref: "openapi/paths/fam-unit.yaml#/paths/~1api~1v1~1image-consents"
+  /api/v1/image-consents/exports:
+    $ref: "openapi/paths/fam-unit.yaml#/paths/~1api~1v1~1image-consents~1exports"
+  /api/v1/image-consent-decisions:
+    $ref: "openapi/paths/fam-unit.yaml#/paths/~1api~1v1~1image-consent-decisions"
+  /api/v1/image-consent-texts:
+    $ref: "openapi/paths/fam-unit.yaml#/paths/~1api~1v1~1image-consent-texts"
+  /api/v1/terms-versions:
+    $ref: "openapi/paths/fam-unit.yaml#/paths/~1api~1v1~1terms-versions"
+  /api/v1/terms-versions/{publicId}:
+    $ref: "openapi/paths/fam-unit.yaml#/paths/~1api~1v1~1terms-versions~1{publicId}"
+  /api/v1/terms-versions/{publicId}/publish:
+    $ref: "openapi/paths/fam-unit.yaml#/paths/~1api~1v1~1terms-versions~1{publicId}~1publish"
+  /api/v1/terms-acceptances:
+    $ref: "openapi/paths/fam-unit.yaml#/paths/~1api~1v1~1terms-acceptances"
+  /api/v1/me/terms:
+    $ref: "openapi/paths/fam-unit.yaml#/paths/~1api~1v1~1me~1terms"
+  /api/v1/me/terms-acceptances:
+    $ref: "openapi/paths/fam-unit.yaml#/paths/~1api~1v1~1me~1terms-acceptances"
+  /api/v1/pickup-persons:
+    $ref: "openapi/paths/fam-unit.yaml#/paths/~1api~1v1~1pickup-persons"
+  /api/v1/pickup-persons/{personPublicId}:
+    $ref: "openapi/paths/fam-unit.yaml#/paths/~1api~1v1~1pickup-persons~1{personPublicId}"
+  /api/v1/pickup-persons/{personPublicId}/photo:
+    $ref: "openapi/paths/fam-unit.yaml#/paths/~1api~1v1~1pickup-persons~1{personPublicId}~1photo"
+  /api/v1/pickup-authorizations:
+    $ref: "openapi/paths/fam-unit.yaml#/paths/~1api~1v1~1pickup-authorizations"
+  /api/v1/pickup-authorizations/{publicId}:
+    $ref: "openapi/paths/fam-unit.yaml#/paths/~1api~1v1~1pickup-authorizations~1{publicId}"
+  /api/v1/pickup-authorizations/{publicId}/withdrawal:
+    $ref: "openapi/paths/fam-unit.yaml#/paths/~1api~1v1~1pickup-authorizations~1{publicId}~1withdrawal"
+  /api/v1/pickup-lists/{studentPersonPublicId}:
+    $ref: "openapi/paths/fam-unit.yaml#/paths/~1api~1v1~1pickup-lists~1{studentPersonPublicId}"
+  /api/v1/door/students:
+    $ref: "openapi/paths/prl.yaml#/paths/~1api~1v1~1door~1students"
+  /api/v1/door/students/{studentPersonPublicId}/pickup-list:
+    $ref: "openapi/paths/prl.yaml#/paths/~1api~1v1~1door~1students~1{studentPersonPublicId}~1pickup-list"
+  /api/v1/student-movements:
+    $ref: "openapi/paths/prl.yaml#/paths/~1api~1v1~1student-movements"
+  /api/v1/student-movements/{publicId}:
+    $ref: "openapi/paths/prl.yaml#/paths/~1api~1v1~1student-movements~1{publicId}"
+  /api/v1/pickup-alerts:
+    $ref: "openapi/paths/prl.yaml#/paths/~1api~1v1~1pickup-alerts"
+  /api/v1/pickup-alerts/{publicId}:
+    $ref: "openapi/paths/prl.yaml#/paths/~1api~1v1~1pickup-alerts~1{publicId}"

@@ -1,5 +1,5 @@
 {
-  "$comment": "Configuración compartida del proyecto. Lo personal va en settings.local.json, que está en .gitignore. Verifica el esquema soportado por tu versión de Claude Code antes de ampliarlo.",
+  "model": "sonnet",
   "permissions": {
     "allow": [
       "Bash(git status:*)",
@@ -10,6 +10,8 @@
       "Bash(git switch:*)",
       "Bash(php artisan test:*)",
       "Bash(./vendor/bin/pest:*)",
+      "Bash(composer test:*)",
+      "Bash(podman exec -w /var/www/html plataforma-api composer test:*)",
       "Bash(./vendor/bin/pint:*)",
       "Bash(./vendor/bin/phpstan:*)",
       "Bash(npm run test:*)",
@@ -20,7 +22,36 @@
       "Bash(podman compose ps:*)",
       "Bash(podman compose logs:*)",
       "Bash(podman logs:*)",
-      "Bash(systemctl status:*)"
+      "Bash(systemctl status:*)",
+      "Bash(node /home/amatias/.claude/plugins/cache/openai-codex/codex/1.0.6/scripts/codex-companion.mjs review *)",
+      "Bash(node /home/amatias/.claude/plugins/cache/openai-codex/codex/1.0.6/scripts/codex-companion.mjs adversarial-review *)",
+      "Bash(node /home/amatias/.claude/plugins/cache/openai-codex/codex/1.0.6/scripts/codex-companion.mjs status *)",
+      "Bash(node /home/amatias/.claude/plugins/cache/openai-codex/codex/1.0.6/scripts/codex-companion.mjs result *)"
+    ],
+    "deny": [
+      "Bash(node /home/amatias/.claude/plugins/cache/openai-codex/codex/*/scripts/codex-companion.mjs task*)",
+      "Bash(node /home/amatias/.claude/plugins/cache/openai-codex/codex/*/scripts/codex-companion.mjs transfer*)",
+      "Bash(node /home/amatias/.claude/plugins/cache/openai-codex/codex/*/scripts/codex-companion.mjs task-worker*)",
+      "Bash(git push --force:*)",
+      "Bash(git reset --hard:*)",
+      "Bash(php artisan migrate:fresh:*)",
+      "Bash(php artisan db:wipe:*)",
+      "Bash(podman volume rm:*)",
+      "Bash(podman system reset:*)",
+      "Read(./.env)",
+      "Read(./.env.local)",
+      "Read(./.env.development)",
+      "Read(./.env.dev)",
+      "Read(./.env.testing)",
+      "Read(./.env.test)",
+      "Read(./.env.staging)",
+      "Read(./.env.production)",
+      "Read(./.env.prod)",
+      "Read(./.env.backup)",
+      "Read(./.env.*.local)",
+      "Read(./**/secrets/**)",
+      "Read(./**/*.pem)",
+      "Read(./**/*.key)"
     ],
     "ask": [
       "Bash(git push:*)",
@@ -29,19 +60,47 @@
       "Bash(podman compose down:*)",
       "Bash(podman network rm:*)",
       "Bash(podman system prune:*)"
-    ],
-    "deny": [
-      "Bash(git push --force:*)",
-      "Bash(git reset --hard:*)",
-      "Bash(php artisan migrate:fresh:*)",
-      "Bash(php artisan db:wipe:*)",
-      "Bash(podman volume rm:*)",
-      "Bash(podman system reset:*)",
-      "Read(./.env)",
-      "Read(./.env.*)",
-      "Read(./**/secrets/**)",
-      "Read(./**/*.pem)",
-      "Read(./**/*.key)"
     ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/block-protected-branch.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/format-on-edit.sh",
+            "timeout": 90
+          }
+        ]
+      }
+    ]
+  },
+  "worktree": {
+    "baseRef": "head"
+  },
+  "enabledPlugins": {
+    "codex@openai-codex": true
+  },
+  "$comment": "Configuración compartida del proyecto. Lo personal va en settings.local.json, que está en .gitignore. Verifica el esquema soportado por tu versión de Claude Code antes de ampliarlo.",
+  "extraKnownMarketplaces": {
+    "openai-codex": {
+      "source": {
+        "source": "github",
+        "repo": "openai/codex-plugin-cc"
+      }
+    }
   }
 }

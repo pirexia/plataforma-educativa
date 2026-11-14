@@ -1,0 +1,3 @@
+# Soporte de pruebas con efectos destructivos sobre la base: no debe viajar en la imagen
+# de producción (tests/Support/e2e-real-tenant.php, CA-PERM-133).
+tests/Support

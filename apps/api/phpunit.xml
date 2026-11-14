@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="tests/bootstrap.php"
+         colors="true"
+>
+    <testsuites>
+        <testsuite name="Unit">
+            <directory>tests/Unit</directory>
+        </testsuite>
+        <testsuite name="Feature">
+            <directory>tests/Feature</directory>
+        </testsuite>
+        <testsuite name="Concurrency">
+            <directory>tests/Concurrency</directory>
+        </testsuite>
+        <!-- ADR-076 §5: requiere un S3 real (Garage); `composer test:conformance`. No entra en `composer test`. -->
+        <testsuite name="StorageConformance">
+            <directory>tests/StorageConformance</directory>
+        </testsuite>
+    </testsuites>
+    <source>
+        <include>
+            <directory>app</directory>
+        </include>
+    </source>
+    <php>
+        <!--
+            force="true" en todas: sin él, PHPUnit NO sobreescribe una
+            variable que ya exista como entorno real del proceso, y
+            apps/api/.env (vía env_file en compose.yaml) define todas estas
+            claves como entorno real del contenedor. Sin force, este bloque
+            entero era un no-op silencioso desde el paso 0.4 — los tests
+            llevaban corriendo contra la base de datos de desarrollo real,
+            no contra SQLite como se documentó (hallazgo del paso 0.7,
+            severidad media, ver memory.md).
+        -->
+        <env name="APP_ENV" value="testing" force="true"/>
+        <env name="APP_MAINTENANCE_DRIVER" value="file" force="true"/>
+        <!--
+            REQ-AUTH (1.2), RN-AUTH-03: "coste bcrypt mínimo 12... nunca en
+            claro", sin excepción de entorno documentada (a diferencia de
+            SESSION_SECURE_COOKIE, que sí la tiene para desarrollo local).
+            config/hashing.php ya no lee BCRYPT_ROUNDS (línea histórica,
+            ahora sin efecto: ver su comentario) sino AUTH_BCRYPT_ROUNDS,
+            que se deja SIN forzar aquí a propósito — que la suite hashee a
+            coste 12 real es lo que hace fiable CA-AUTH-022 y el test de
+            PasswordPolicyEnvironmentGuard (operacion.md §2.1), aunque sea
+            más lento (200-400 ms por operación, operacion.md §8).
+        -->
+        <env name="BCRYPT_ROUNDS" value="4" force="true"/>
+        <env name="BROADCAST_CONNECTION" value="null" force="true"/>
+        <!--
+            redis, no array: el prefijo de caché por tenant (ADR-033 §9) se
+            aplica reconstruyendo el store con Cache::forgetDriver(). El
+            store "array" pierde todo su contenido en cada reconstrucción
+            (es un array en memoria ligado a la instancia del objeto, no un
+            backend compartido), así que con "array" cualquier test de
+            aislamiento de caché da verde sin haber probado nada. REDIS_CACHE_DB
+            distinto del de desarrollo (1) para no compartir claves.
+        -->
+        <env name="CACHE_STORE" value="redis" force="true"/>
+        <env name="REDIS_CACHE_DB" value="2" force="true"/>
+        <!--
+            ADR-033 §10: PostgreSQL real, no SQLite — RLS es la barrera
+            primaria y SQLite no la tiene, así que un test de aislamiento
+            sobre SQLite daría verde con las políticas ausentes.
+            Host/puerto/usuario/contraseña de las tres conexiones (pgsql,
+            pgsql_owner, pgsql_platform) NO se fijan aquí: vienen de
+            apps/api/.env (o de las variables de entorno reales en CI), que
+            ya tiene los tres roles de ADR-033 provisionados. Aquí solo se
+            cambia la base de datos, para no tocar la de desarrollo.
+        -->
+        <env name="DB_CONNECTION" value="pgsql" force="true"/>
+        <env name="DB_DATABASE" value="plataforma_test" force="true"/>
+        <env name="DB_URL" value="" force="true"/>
+        <!--
+            1.14b-a (decisión del usuario del 2026-11-02): el entorno de desarrollo fija FILESYSTEM_DISK=s3 (Garage) y
+            PrivateObjectStore rechaza un disco local fuera de testing. Los tests simulan el disco con Storage::fake('local'),
+            así que el disco por defecto de la suite tiene que ser `local` aunque el contenedor traiga FILESYSTEM_DISK=s3.
+        -->
+        <env name="FILESYSTEM_DISK" value="local" force="true"/>
+        <env name="MAIL_MAILER" value="array" force="true"/>
+        <env name="QUEUE_CONNECTION" value="sync" force="true"/>
+        <!--
+            1.2b, RN-AUTH-49: SessionEnvironmentGuard aborta el arranque de
+            TODA la aplicación (no solo de REQ-AUTH) con cualquier driver
+            distinto de "database", en todos los entornos — incluida la
+            suite de tests. Antes de 1.2b era "array" (sesión en memoria,
+            sin fila persistida); algún test que necesitaba una fila real
+            en `sessions` lo sobreescribía él mismo con config(). A partir
+            de 1.2b el valor por defecto tiene que ser "database" o
+            ningún test arranca la aplicación.
+        -->
+        <env name="SESSION_DRIVER" value="database" force="true"/>
+        <!--
+            REQ-AUTH (1.2), CA-AUTH-052: la guarda de arranque de
+            SessionEnvironmentGuard aborta si SESSION_LIFETIME es menor que
+            AUTH_SESSION_TIMEOUT_MAX_MINUTES (480 por defecto). Sin este
+            valor, TODA la suite fallaría al arrancar, no solo los tests de
+            REQ-AUTH — la guarda corre en todos los entornos.
+        -->
+        <env name="SESSION_LIFETIME" value="480" force="true"/>
+        <env name="SESSION_DOMAIN" value="" force="true"/>
+        <env name="TENANCY_BASE_DOMAIN" value="plataforma.test" force="true"/>
+        <!--
+            REQ-BO (1.6), RN-BO-49: nunca derivado de TENANCY_BASE_DOMAIN
+            ni subdominio suyo — "backoffice.test" terminaría en
+            ".test" pero no en ".plataforma.test", así que TenantHost::
+            slugFrom() no lo resuelve como ningún tenant.
+        -->
+        <env name="BACKOFFICE_HOST" value="backoffice.test" force="true"/>
+        <env name="PULSE_ENABLED" value="false" force="true"/>
+        <env name="TELESCOPE_ENABLED" value="false" force="true"/>
+        <env name="NIGHTWATCH_ENABLED" value="false" force="true"/>
+        <!--
+            REQ-AUTH-004 (1.4b). El emisor OIDC simulado que usa casi toda
+            la suite de tests del paso (`OIDC_DISCOVERY_URL` en
+            tests/Pest.php, operacion.md §F.10) se sirve por `http://`
+            desde dentro del propio contenedor de test: sin esto, la
+            inmensa mayoría de esos tests fallarían por
+            `esquema_no_admitido` en un entorno que no arrastre un
+            AUTH_SSO_ALLOW_INSECURE_DISCOVERY=true ambiental (como CI, que
+            arranca de `.env.example`, donde no está declarada). A
+            diferencia de AUTH_OAUTH_DRIVER (donde cada test de Google
+            elige explícitamente `fake`/`none` según lo que prueba, porque
+            las tres opciones son igual de legítimas), aquí el valor
+            correcto es `true` para casi toda la suite y solo un puñado de
+            tests necesita lo contrario — de ahí forzarlo aquí en vez de
+            repetirlo en cada fichero. `SsoEnvironmentGuard` sigue
+            abortando el arranque si esto llegara a `true` fuera de
+            `local`/`testing`, en todos los entornos (operacion.md §F.2.1)
+            — este forzado no lo afloja, solo fija el valor por defecto
+            dentro de `testing`. Los tests que necesitan lo contrario
+            (CA-AUTH-262, CA-AUTH-264) ya gestionan su propio valor de
+            `config()`, así que no se ven afectados.
+        -->
+        <env name="AUTH_SSO_ALLOW_INSECURE_DISCOVERY" value="true" force="true"/>
+        <!--
+            REQ-AUTH-004 (1.4c). Mismo argumento exacto que
+            AUTH_SSO_ALLOW_INSECURE_DISCOVERY, un bloque más arriba: el IdP
+            SAML simulado (operacion.md §G.10) sirve su documento de
+            metadatos y su SingleSignOnService por http:// desde dentro del
+            propio contenedor de test. SamlEnvironmentGuard sigue abortando
+            el arranque si esto llegara a true fuera de local/testing, en
+            todos los entornos (operacion.md §G.2.2) — este forzado no lo
+            afloja, solo fija el valor por defecto dentro de testing.
+        -->
+        <env name="AUTH_SAML_ALLOW_INSECURE_METADATA" value="true" force="true"/>
+    </php>
+</phpunit>

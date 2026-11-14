@@ -1,6 +1,6 @@
 # ADR-032 · Fuente única de autorizaciones de recogida de menores
 
-**Estado**: PROPUESTA
+**Estado**: ACEPTADA (2026-08-12 — decisión de alcance para `REQ-FAM-UNIT-005`, módulo todavía sin construir)
 **Fecha**: 2026-08-12
 **Afecta a**: `REQ-FAM-UNIT`, `REQ-PRL-004`, `REQ-TRAN-005`, `REQ-COMED`, `REQ-EXTRA`, `REQ-ACOG`, `REQ-INF`
 

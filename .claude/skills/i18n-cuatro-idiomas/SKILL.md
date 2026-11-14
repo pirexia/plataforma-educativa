@@ -22,4 +22,6 @@ La capa 2 es la que se olvida y la que no se puede añadir después sin reescrib
 - Nunca construyas frases concatenando fragmentos traducidos: el orden cambia entre idiomas. Usa una clave por frase completa con parámetros.
 - Cuidado con plurales y géneros: usa el sistema de pluralización, no condicionales.
 - Toda clave nueva se añade a los cuatro ficheros de idioma en el mismo commit, aunque sea con el texto en castellano pendiente de traducir.
+- La traducción a en/de/fr de esas claves pendientes: hasta ~15 claves nuevas no legales las traduce la sesión orquestadora directamente (lanzar `traductor` cuesta más que traducirlas); con más, el subagente `traductor` (Haiku), después de `implementer`. Tratamiento formal («Sie», «vous»), placeholders intactos y paridad comprobada con `TranslationParityTest` (`CLAUDE.md §2`, «Ahorro de cuota», punto 9).
+- **Excepción**: los textos legales, de consentimiento, de privacidad y de seguridad (p. ej. `prl.protocol.minimal`) **no se traducen automáticamente en ningún caso**, ni por `traductor` ni por la sesión: los traduce una persona. Mientras tanto, la clave queda en es-ES en los cuatro ficheros (paridad sin traducción) y se anota como pregunta abierta.
 - Antes de cerrar un módulo, ejecuta el informe de cobertura de traducción.

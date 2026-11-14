@@ -1,0 +1,403 @@
+# REQ-CORE · Permisos
+
+> Sección 11 del documento de requisitos (`RPERM-001` a `RPERM-015`) aplicada a este módulo. El **resolutor granular** es el paso 1.5 (`ADR-034 §2`), **ya cerrado** — ver `docs/modulos/REQ-PERM/permisos.md` para la matriz completa post-1.5, la siembra de sus cuatro permisos nuevos y las reglas de ámbito. Lo que se fija aquí es el catálogo de permisos de `REQ-CORE`, ahora con `applicable_scopes` operativo.
+>
+> Fuente de verdad del catálogo: **el código del módulo** (`INV-007`), materializado en la tabla `permissions` por `platform:sync-registry` (`ADR-034 §2`). Esta tabla es su reflejo documental, no su origen.
+
+---
+
+## 1. Recursos que aporta el módulo
+
+| Recurso | Qué representa |
+|---------|----------------|
+| `usuario` | Cuenta de usuario del centro y la persona asociada |
+| `invitacion` | Invitación de activación con enlace caducable |
+| `asignacion_rol` | Vínculo entre un usuario y un rol (`role_user`) |
+| `rol` | Rol del centro, predefinido o personalizado |
+| `permiso` | Catálogo de permisos de la plataforma (referencia, solo lectura) |
+| `configuracion` | Configuración del centro: regional, fiscal y branding |
+| `modulo` | Suscripción del centro a un módulo y su configuración |
+| `auditoria` | Registro inmutable de operaciones del tenant |
+
+Las **acciones** son las de `RPERM-003` sin excepción: `crear`, `leer`, `actualizar`, `eliminar`, `exportar`, `importar`, `aprobar`, `firmar`, `publicar`. No se inventa ninguna acción nueva. Por eso la invitación es un **recurso** (`invitacion.crear`) y no una acción `usuario.invitar`, y la asignación de roles es un recurso (`asignacion_rol.crear`) y no `rol.asignar`.
+
+Los **ámbitos** son los de `RPERM-004`: `todos`, `propios`, `departamento`, `grupo`, `clase`, `unidad_familiar`. En 1.1 **solo se usa `todos`**: ver §5.
+
+---
+
+## 2. Catálogo de permisos que declara `REQ-CORE`
+
+`module_code = 'core'`, `is_special_category = false` en todos (este módulo no expone salud, NEAE ni convivencia — §6). `applicable_scopes` operativo desde 1.5 (`REQ-PERM/permisos.md §3.1`) — columna añadida a la derecha; solo `auditoria.leer`/`.exportar` admiten algo distinto de `todos`.
+
+| `code` | Recurso | Acción | Endpoints que lo exigen | `applicable_scopes` |
+|--------|---------|--------|--------------------------|----------------------|
+| `usuario.leer` | `usuario` | `leer` | `GET /users`, `GET /users/{id}` | `todos` |
+| `usuario.crear` | `usuario` | `crear` | `POST /users` | `todos` |
+| `usuario.actualizar` | `usuario` | `actualizar` | `PATCH /users/{id}`, `POST /users/{id}/status` | `todos` |
+| `usuario.eliminar` | `usuario` | `eliminar` | `DELETE /users/{id}`, `POST /users/{id}/restore`, `GET /users?include_deleted=true` | `todos` |
+| `usuario.importar` | `usuario` | `importar` | `POST /user-imports`, `GET /user-imports`, `GET /user-imports/{id}`, `POST /user-imports/{id}/execute`, `DELETE /user-imports/{id}` | `todos` |
+| `usuario.exportar` | `usuario` | `exportar` | `POST /users/exports` y `GET /data-exports/{id}` de tipo `users` (1.9b; en 1.1 estaba reservado sin endpoint, ver §7) | `todos` |
+| `invitacion.leer` | `invitacion` | `leer` | `GET /invitations` | `todos` |
+| `invitacion.crear` | `invitacion` | `crear` | `POST /users/{id}/invitations` | `todos` |
+| `invitacion.eliminar` | `invitacion` | `eliminar` | `DELETE /invitations/{id}` | `todos` |
+| `asignacion_rol.leer` | `asignacion_rol` | `leer` | `GET /users/{id}/roles` | `todos` |
+| `asignacion_rol.crear` | `asignacion_rol` | `crear` | `PUT /users/{id}/roles` (al añadir), `POST /users` con `role_ids` | `todos` |
+| `asignacion_rol.eliminar` | `asignacion_rol` | `eliminar` | `PUT /users/{id}/roles` (al retirar) — **comprobación implementada en 1.5**, ver §9 de `REQ-PERM/api.md §8.2` | `todos` |
+| `rol.leer` | `rol` | `leer` | `GET /roles`, `GET /roles/{id}` | `todos` |
+| `rol.crear` | `rol` | `crear` | `POST /roles` (1.5, `RPERM-005`/`006`) | `todos` |
+| `rol.actualizar` | `rol` | `actualizar` | `PATCH /roles/{id}` (1.3, acotado a `mfa_required`; editor completo desde 1.5) | `todos` |
+| `rol.eliminar` | `rol` | `eliminar` | `DELETE /roles/{id}` (1.5) | `todos` |
+| `rol_datos_especiales.actualizar` | `rol_datos_especiales` | `actualizar` | `PATCH /roles/{id}` con `special_data_access`, `POST /roles` con `special_data_access: true` (1.5) | `todos` |
+| `permiso_efectivo.leer` | `permiso_efectivo` | `leer` | `GET /users/{id}/effective-permissions` (1.5, `RPERM-009`) | `todos` |
+| `permiso.leer` | `permiso` | `leer` | `GET /permissions` | `todos` |
+| `configuracion.leer` | `configuracion` | `leer` | `GET /tenant`, `GET /tenant/settings` | `todos` |
+| `configuracion.actualizar` | `configuracion` | `actualizar` | `PATCH /tenant/settings`, `PUT`/`DELETE /tenant/settings/assets/{kind}` | `todos` |
+| `modulo.leer` | `modulo` | `leer` | `GET /modules` | `todos` |
+| `modulo.actualizar` | `modulo` | `actualizar` | `PATCH /module-subscriptions/{id}` (solo `settings`) — desde `1.6c` (`REQ-BO/datos.md §7`) ese alcance lo respalda un privilegio de columna (`GRANT UPDATE (settings, updated_at, updated_by, deleted_at)`), no sólo la validación de `ModulesController::updateSettings()`: un intento de escribir `enabled` lo rechaza el motor, no la aplicación | `todos` |
+| `auditoria.leer` | `auditoria` | `leer` | `GET /audit-logs` | `todos`, `propios` |
+| `auditoria.exportar` | `auditoria` | `exportar` | `POST /audit-logs/exports`, `GET /data-exports/{id}` de tipo `audit_logs` (el de tipo `users` exige `usuario.exportar`) | `todos`, `propios` |
+
+**Endpoints sin permiso, a propósito y de forma auditada:**
+
+| Endpoint | Por qué |
+|----------|---------|
+| `GET /tenant/branding` | Sin autenticación. La pantalla de login lo necesita antes de que exista sesión (`funcional.md` §4.8). Su superficie está cerrada por contrato y limitada por tasa. |
+| `GET /me`, `PATCH /me` | Autorizado **por identidad del sujeto**, no por permiso. Ver §5: la regla de fondo sigue en vigor, con motivo distinto tras 1.5. |
+| `GET /me/effective-permissions` | Autoservicio por identidad, igual que `GET /me` (1.5, `REQ-PERM/permisos.md §2.2`). Nunca `403`, solo `401` sin sesión. |
+
+---
+
+## 3. Matriz recurso × acción × ámbito
+
+Estado tras el cierre de 1.5. `—` significa que el permiso no existe en este módulo. Cada celda es el ámbito que **admite** el permiso (`applicable_scopes`), no lo que se concede a quién (eso es §4).
+
+| Recurso | crear | leer | actualizar | eliminar | exportar | importar | aprobar | firmar | publicar |
+|---------|-------|------|------------|----------|----------|----------|---------|--------|----------|
+| `usuario` | `todos` | `todos` | `todos` | `todos` | `todos` (§7) | `todos` | — | — | — |
+| `invitacion` | `todos` | `todos` | — | `todos` | — | — | — | — | — |
+| `asignacion_rol` | `todos` | `todos` | — | `todos` | — | — | — | — | — |
+| `rol` | `todos` | `todos` | `todos` | `todos` | — (§9.3) | — | — | — | — |
+| `rol_datos_especiales` | — | — | `todos` | — | — | — | — | — | — |
+| `permiso_efectivo` | — | `todos` | — | — | — (§9.3) | — | — | — | — |
+| `permiso` | — | `todos` | — | — | — | — | — | — | — |
+| `configuracion` | — | `todos` | `todos` | — | — | — | — | — | — |
+| `modulo` | — | `todos` | `todos` | — | — | — | — | — | — |
+| `auditoria` | — | `todos`, `propios` | — | — | `todos`, `propios` | — | — | — | — |
+
+`auditoria` no tiene `crear`, `actualizar` ni `eliminar` **por diseño**: la tabla es *append-only* con `REVOKE UPDATE, DELETE` en el motor (`ADR-034 §3`) y la escribe el *observer*, no un usuario. Declarar esos permisos sería sugerir que existe una forma de editar el registro.
+
+`rol` y `permiso_efectivo` no tienen `exportar`: resuelto en 1.5 (`REQ-PERM/permisos.md §2.1`) — la vista previa de permisos efectivos es una fotografía calculada para diagnosticar, no un artefacto que sale del sistema.
+
+---
+
+## 4. Asignación en los roles predefinidos
+
+La sección 11.1 enumera 17 roles, pero solo **16** se siembran como fila de `roles` en el aprovisionamiento del tenant (`funcional.md` §4.7) con `is_system = true` y `name_key = 'roles.{code}'`: `super_administrador` no es uno de ellos (§4.5). Confirmado por el usuario, issue [#48](https://github.com/pirexia/plataforma-educativa/issues/48).
+
+### 4.1 Permisos de `REQ-CORE` por rol
+
+Denegación por defecto (`RPERM-011`): lo que no aparece, no se concede.
+
+| Rol (`code`) | Permisos de `REQ-CORE` | Ámbito |
+|--------------|------------------------|--------|
+| `administrador_centro` | **Todos** los de §2, incluidos `rol.crear`, `rol.eliminar`, `rol_datos_especiales.actualizar` y `permiso_efectivo.leer` (1.5, `OPEN-PERM-07`) | `todos` |
+| `direccion` | `usuario.leer`, `rol.leer`, `asignacion_rol.leer`, `configuracion.leer`, `modulo.leer` | `todos` |
+| `secretaria` | `usuario.leer`, `invitacion.leer` | `todos` |
+| `administrativo` | `usuario.leer` | `todos` |
+| `docente` | — | — |
+| `tutor_grupo` | — | — |
+| `orientador` | — | — |
+| `coordinador_bienestar` | — | — |
+| `estudiante` | — | — |
+| `tutor_legal` | — | — |
+| `responsable_economico` | — | — |
+| `bibliotecario` | — | — |
+| `monitor_extraescolares` | — | — |
+| `personal_sanitario` | — | — |
+| `conserjeria_pas` | — | — |
+| `soporte_plataforma` | — (ver §4.4) | — |
+| `super_administrador` | **No existe como fila de `roles`** (§4.5) | — |
+
+Los roles sin permisos de `REQ-CORE` no se quedan sin nada útil: acceden a `/me` por identidad y recibirán sus permisos de los módulos de negocio de su ámbito.
+
+**`auditoria.leer` solo lo tiene `administrador_centro`.** Es deliberado: el registro de auditoría es un mapa completo de la actividad de todo el personal del centro, incluida la de Dirección. Ampliarlo a más roles es una decisión del centro que 1.5 permitirá con roles personalizados, no un valor por defecto.
+
+**`configuracion.actualizar` solo lo tiene `administrador_centro`.** Cambia la identidad visual, los idiomas y los datos fiscales del centro.
+
+### 4.2 `mfa_obligatorio` (`RPERM-014`)
+
+Todo rol lleva el atributo `roles.mfa_required` desde 0.8. En 1.1 **solo se siembra su valor**; la exigencia efectiva la implementa 1.3.
+
+| Rol | `mfa_required` | Motivo |
+|-----|----------------|--------|
+| `administrador_centro` | **`true`** | Puede crear, modificar y dar de baja a cualquier usuario del centro, cambiar su configuración y leer todo el registro de auditoría. Es la cuenta cuyo compromiso entrega el centro entero. |
+| `soporte_plataforma` | **`true`** | Rol interno del proveedor con *impersonation* auditada (`REQ-SUP-003`). |
+| Resto | `false` en 1.1 | **Decisión de 1.3**, no de 1.1 |
+
+Recomendación explícita para 1.3, no aplicada aquí: `direccion`, `orientador`, `coordinador_bienestar`, `personal_sanitario` y `responsable_economico` son candidatos claros a `mfa_required = true` por el tipo de dato que manejan. Fijarlo ahora sería adelantar una decisión de un paso que todavía no ha visto el problema completo (período de gracia, resolución restrictiva en multi-rol).
+
+### 4.3 `acceso_datos_especiales` (`RPERM-015`)
+
+Atributo `roles.special_data_access`, también sembrado en 1.1 y consumido por los módulos que expongan categoría especial.
+
+| Rol | `special_data_access` |
+|-----|-----------------------|
+| `orientador` | `true` (atención a la diversidad, informes psicopedagógicos) |
+| `coordinador_bienestar` | `true` (protocolos de protección del menor, LOPII) |
+| `personal_sanitario` | `true` (fichas de salud, medicación) |
+| Resto, incluido `administrador_centro` | `false` |
+
+**`administrador_centro` con `special_data_access = false` es intencionado.** `RPERM-012` exige que los permisos sobre datos de categoría especial estén separados y **no incluidos en ningún rol por defecto**. Administrar el centro no es tratar datos de salud; concederlo por comodidad convertiría la cuenta más usada en la más peligrosa.
+
+### 4.4 `soporte_plataforma`
+
+Se siembra el rol (existe en la sección 11.1) **sin ningún permiso de `REQ-CORE`**. Su acceso real es *impersonation* auditada, que especifica `REQ-SUP-003`, no una concesión directa de permisos. Sembrarlo con permisos aquí sería crear una puerta permanente del proveedor dentro de cada centro.
+
+### 4.5 `super_administrador`
+
+**No es una fila de `roles`.** `ADR-034 §2` lo decidió: los roles de plataforma viven en `platform_admins` y sus propias tablas, sin `tenant_id`, en el paso 1.6. «Insertar un superadministrador en `roles` sería darle un tenant, que es exactamente lo que no es.»
+
+---
+
+## 5. Ámbitos: nota histórica (1.1-1.4c) y regla vigente tras 1.5
+
+**Esta sección describía una regla de seguridad que ya se ha cumplido y cerrado.** Se conserva, no se borra (`ADR-044 §8`), porque el motivo por el que existió es exactamente lo que `REQ-PERM`/1.5 vino a cerrar y una revisión futura debe poder leerlo.
+
+### 5.1 Regla histórica, cerrada por 1.5
+
+Entre 1.1 y 1.4c, el resolutor provisional (`ADR-034 §2`) **leía `permission_role.effect` e ignoraba `permission_role.scope`**: una concesión con ámbito `propios` se evaluaba exactamente igual que una con ámbito `todos`. La regla 1 de entonces —«toda fila creada lleva `scope = 'todos'`», verificada por `CA-CORE-042`— existía para que ese ámbito ignorado nunca se usara para nada distinto de `todos` y así no abriera un acceso total en silencio.
+
+`CA-CORE-042` queda **absorbido por `CA-PERM-003`** (`REQ-PERM/permisos.md §9.6`), que es la versión más fuerte de la misma comprobación: ahora garantizada por `CHECK` en el motor (`RN-PERM-02`), no solo por un test sobre lo que sembraba el aprovisionamiento.
+
+### 5.2 Regla vigente: el autoservicio no se modela como permiso con ámbito
+
+**Sigue en vigor después de 1.5**, con un motivo distinto (`REQ-PERM/permisos.md §5.3`): ya no es que el ámbito no se evalúe —`propios` sobre `auditoria` funciona de verdad desde 1.5—, es que **un permiso puede ponerse a `false`**, y un usuario tiene que poder saber siempre qué puede hacer. `GET /me`/`PATCH /me` y, desde 1.5, `GET /me/effective-permissions` se autorizan comprobando identidad, nunca permiso.
+
+### 5.3 Lo que 1.5 entregó
+
+Resolutor completo (`App\Support\Authorization`), vocabulario cerrado de seis ámbitos con `CHECK` en `permission_role.scope`, y un resolutor real —`propios` sobre `auditoria`— probado de punta a punta. Detalle completo en `docs/modulos/REQ-PERM/`.
+
+---
+
+## 6. Datos de categoría especial
+
+**`REQ-CORE` no expone datos de categoría especial** (salud, NEAE, convivencia). Ninguno de sus permisos lleva `is_special_category = true`.
+
+Matices que sí conviene registrar:
+
+- `people.document_number` y `people.birth_date` son datos personales identificativos, no de categoría especial. Su tratamiento en el registro de auditoría lo cubre la política `Selective` de `ADR-035` (se registra que el atributo cambió, nunca su valor).
+- `GET /audit-logs` **no** es un permiso de categoría especial, pero es el permiso más sensible del módulo: por eso solo lo tiene `administrador_centro` (§4.1) y por eso la consulta se limita a lo que ya está almacenado, sin poder recuperar valores redactados.
+- La **auditoría reforzada de lectura** de `RPERM-015` (evento `read` en `audit_logs`, ya previsto en el vocabulario de `event`) no se dispara en 1.1 porque no hay lectura de categoría especial que auditar. El mecanismo existe desde 0.9.
+
+---
+
+## 7. Permisos declarados sin endpoint en 1.1
+
+Solo uno, y con motivo:
+
+- **`usuario.exportar`** — `REQ-CORE-003` no pide explícitamente exportar el listado de usuarios, pero `RPERM-003` incluye `exportar` como acción y la primitiva `data_exports` ya existe en este módulo. Se declara el permiso y **no** se implementa el endpoint en 1.1, para que la interfaz de 1.8/1.9 (exportación desde la tabla de datos, `RUX`/TanStack Table) no tenga que añadir un permiso nuevo y ejecutar `platform:sync-registry` en caliente.
+
+Si esto se considera adelantarse, la alternativa es retirarlo del catálogo de 1.1 y que lo declare el paso que implemente el endpoint. Es reversible: añadir un permiso al catálogo es idempotente y sin migración.
+
+**Cerrado.** `rol.actualizar` lo declaró 1.3; `rol.crear` y `rol.eliminar`, 1.5. La concesión y revocación de permisos a un rol **no recibe permiso propio**: `PUT /roles/{id}/permissions` se gobierna con `rol.actualizar` (`REQ-PERM/permisos.md §2.1`) — separarlo obligaría a comprobar dos permisos para guardar una fila de la matriz.
+
+---
+
+## 8. Reglas de autorización que no son un permiso
+
+Comprobaciones adicionales que ningún permiso cubre y que hay que implementar explícitamente:
+
+| Regla | Dónde |
+|-------|-------|
+| `RPERM-013` — nadie concede un permiso que no posee | `POST /users` con `role_ids` y `PUT /users/{id}/roles`. Se compara el conjunto de permisos concedidos por los roles destino contra los permisos efectivos del solicitante. Falta alguno ⇒ `403` (`CA-CORE-017`). *(1.11-b, acotada: al asignar o clonar un rol que ya contiene permisos de un módulo no contratado, estos se ignoran —inertes también para el destinatario—, salvo `deny` explícito del asignador, código desconocido o retirado, o permiso inerte nuevo en un rol, que se exige poseer; fuente: `docs/modulos/REQ-PERM/funcional.md §8`.)* |
+| `RN-CORE-06` — nadie se da de baja ni se cambia los roles a sí mismo | `DELETE /users/{id}`, `POST /users/{id}/status`, `PUT /users/{id}/roles` ⇒ `409` |
+| `RN-CORE-07` — siempre al menos un `administrador_centro` vivo y activo | Mismas rutas ⇒ `409`. Desde 1.5b se añade `RN-PERM-47` (el centro conserva al menos un usuario activo con la capacidad completa de administración; `REQ-PERM/funcional.md §20.2.1`), con su propio código `core.validation.administration_capacity_lost`. **Serialización (issue #349)**: `RN-CORE-07` se vuelve a comprobar dentro de `AdministrationCapacityGuard::protect()`, con el bloqueo por tenant tomado (`pg_advisory_xact_lock`) y sobre lecturas frescas, antes de escribir; la comprobación previa se conserva solo como rechazo temprano que fija el orden de errores. Dos bajas o desactivaciones simultáneas de los dos últimos administradores se ejecutan una detrás de otra y la segunda responde `409`. |
+| Aislamiento de tenant | RLS más *scope* global (`INV-001`). Un `public_id` de otro tenant ⇒ `404`, nunca `403` |
+| Descarga de exportaciones | Solo el usuario que la solicitó, además del permiso (`GET /data-exports/{id}`) |
+
+---
+
+## 9. Verificación
+
+- **`CA-CORE-019`** — un usuario sin permisos recibe `403` en `GET /users`.
+- **`CA-CORE-042`** — **absorbido por `CA-PERM-003`** (§5.1): ninguna fila de `permission_role` con `scope` nulo o fuera del vocabulario, garantizado por `CHECK`.
+- **`CA-CORE-017`** — `RPERM-013` verificado con un caso real; **ampliado por `CA-PERM-040`-`044`** (`REQ-PERM/permisos.md §9.6`), que lo prueban comparando pares (código, ámbito).
+- **`CA-CORE-070`** — todo endpoint del módulo responde `401` sin sesión y `403` sin permiso.
+- **`CA-CORE-073`** — recurso de otro tenant ⇒ `404`.
+- Test de catálogo: tras `platform:sync-registry`, la tabla `permissions` contiene exactamente los 25 códigos de §2 con `module_code = 'core'`, ninguno marcado `retired_at`, y cada uno con su `applicable_scopes`.
+
+Los criterios propios de `REQ-PERM` (`CA-PERM-001` a `CA-PERM-093`) están en `docs/modulos/REQ-PERM/funcional.md §17`.
+
+---
+
+## 10. Paso 1.8 (`REQ-CORE-008`): navegación y panel
+
+> Estado: **APROBADO** (2026-09-23), con `funcional.md §12`.
+
+### 10.1 Ningún permiso nuevo
+
+1.8 no declara, retira ni concede ningún permiso, y no cambia la asignación de §4.1. No ejecuta `platform:sync-registry` distinto del de cualquier despliegue. La matriz de §3 queda igual.
+
+**Motivo**: el *shell* solo **lee** —el propio perfil y el *branding* público— y decide qué **mostrar**. Mostrar no es un recurso ni una acción de `RPERM-003`. Inventar un permiso `panel.leer` sería redundante con la autenticación y crearía una forma de dejar a alguien sin poder ver su propio panel, que es exactamente lo que `§5.2` prohíbe para el autoservicio.
+
+### 10.2 Visibilidad en la interfaz: permiso, nunca rol
+
+| Elemento | Criterio de visibilidad | Quién decide de verdad |
+|----------|-------------------------|------------------------|
+| Entrada de menú / acceso directo | Se deriva de `meta.permissions` (anyOf) de la ruta que nombra (`ADR-053 §3`): la entrada no declara permisos propios | El *endpoint* de la vista, con su `permission:` (`INV-002`) |
+| Entrada de autoservicio (Inicio, Mi cuenta) | Estar autenticado. Lista cerrada (`RN-CORE-24`) | Identidad, como `/me` (§5.2) |
+| Bloque «Estado de la cuenta» | `mfa.obligated && !mfa.enrolled` | `REQ-AUTH` (1.3) |
+| Ruta con `meta.permissions` | Igual que la entrada de menú; si falla, estado «sin acceso» sin montar la vista | El servidor, con `403` |
+
+Reglas que se derivan de la *skill* `permisos-y-roles` y de `INV-002`:
+
+1. **La interfaz oculta; no protege.** Todo lo que el *shell* esconde lo sigue denegando el servidor. Ningún criterio de 1.8 sustituye a `CA-CORE-070`.
+2. **Nunca se comprueba el rol** (`RN-CORE-23`, `CA-CORE-102`). Un rol personalizado de 1.5 con los mismos permisos que `direccion` ve exactamente lo mismo que `direccion`, sin tocar el cliente.
+3. **Multi-rol y `deny`** los resuelve el servidor: `/me.permissions` ya es la unión con veto (`RPERM-007`). El cliente no recombina roles.
+4. **Módulo desactivado**: sus permisos llegan inertes y **no** aparecen en `/me.permissions` (`REQ-PERM/api.md §7.2`, `inerte_modulo`). Por eso el criterio 2 de `REQ-CORE-008` («ninguna referencia visible») se cumple sin consultar `GET /modules`, que además exige `modulo.leer` y la mayoría de usuarios no tiene.
+5. **Categoría especial**: 1.8 no muestra ningún dato de salud, NEAE ni convivencia, ni resúmenes de ellos. Un bloque futuro que lo haga lleva permiso de categoría especial propio y auditoría de lectura (`RPERM-012`, `RPERM-015`); el punto de extensión de `funcional.md §12.4` no lo exime.
+6. **Sin peticiones a ciegas** (`RN-CORE-33`): el panel no llama a *endpoints* cuyo permiso el usuario no tiene. Un `403` esperado no es un mecanismo de descubrimiento.
+
+### 10.3 Lo que ve cada rol predefinido al cerrar 1.8
+
+Con los permisos sembrados hoy (`OPEN-CORE-12` difiere las pantallas de `REQ-CORE` a `1.9b`):
+
+| Rol | Navegación |
+|-----|------------|
+| `administrador_centro` | Inicio, Mi cuenta, Administración de MFA, SSO |
+| `direccion`, `secretaria`, `administrativo` | Inicio, Mi cuenta (tienen permisos de lectura de `REQ-CORE`, pero ninguna pantalla que los use) |
+| Los otros doce | Inicio, Mi cuenta |
+
+Qué permisos exactos abren «Administración de MFA» lo fija `REQ-AUTH/permisos.md §D.6.3`; el registro de navegación los copia de ahí (`funcional.md §12.5`).
+
+### 10.4 Verificación
+
+- `CA-CORE-095` — ruta sin permiso ⇒ «sin acceso», vista no montada.
+- `CA-CORE-100`/`CA-CORE-101` — navegación por permisos efectivos; módulo desactivado sin rastro.
+- `CA-CORE-102` — ningún literal de código de rol ni decisión por `roles[].code` en `src/`.
+- `CA-CORE-105` — el panel no pide *endpoints* no permitidos.
+- Los de servidor ya existentes (`CA-CORE-070`, `CA-PERM-*`) no cambian y siguen siendo la barrera real.
+
+---
+
+## 11. Paso 1.9 (tablas de datos)
+
+> Estado: **APROBADO** (2026-09-30, decisión del usuario), **ajustado a `ADR-054`, ratificado entero por el usuario el 2026-09-30 (ACEPTADA)**, con `funcional.md §13`. **Implementado** (2026-09-30); revisión independiente hecha (sin Crítico/Alto). Ninguna de las decisiones del usuario de esa fecha (`OPEN-CORE-19` a `-29`) ni ninguna precisión de `ADR-054` añade, retira ni cambia un permiso.
+
+### 11.1 Ningún permiso nuevo
+
+1.9 no declara, retira ni concede ningún permiso. El componente de tabla no es un recurso: pinta lo que devuelve un *endpoint* que ya tiene su permiso.
+
+### 11.2 Matriz de lo que el componente muestra u oculta
+
+| Elemento | Criterio de visibilidad en la interfaz | Quién decide de verdad |
+|----------|----------------------------------------|------------------------|
+| La tabla entera | La ruta de la vista (`meta.permissions`, §10.2) | El *endpoint* de listado (`<recurso>.leer` con su ámbito, `INV-002`, `ADR-044`) |
+| Filas | Las que devuelve el servidor, ya acotadas por ámbito (`ScopedQuery`, 1.5) | El servidor. **El cliente no filtra filas por permisos** |
+| Botón de exportar | `<recurso>.exportar` presente en `/me.permissions` (`RN-CORE-51`), nunca por rol (`RN-CORE-23`). Con búsqueda `q` activa, presente pero deshabilitado (`RN-CORE-57`): no es una regla de permiso, sino de qué se puede exportar | `POST /<recurso>/exports` con su permiso; el trabajo en cola **vuelve a acotar por ámbito** (`GenerateAuditLogExport`, `RN-PERM-15`) |
+| Descarga | El enlace solo existe para quien pidió la exportación en esa vista | `GET /data-exports/{id}`: permiso del recurso **y** solicitante (§8) |
+| Acciones de fila | Las declara el consumidor según sus permisos de `/me` | El *endpoint* de cada acción |
+
+### 11.3 Reglas derivadas
+
+1. **Exportar no es leer.** Que un usuario vea las filas no le permite exportarlas: por eso la SPA **no genera ficheros** con lo que tiene en memoria (`RN-CORE-46`). Un fichero generado en cliente saltaría el permiso `exportar`, la auditoría `exported` y el acotado por ámbito del trabajo en cola.
+2. **Ámbito**: una tabla sobre un recurso con ámbito restringido (`propios`, y más adelante `grupo`/`clase`/`unidad familiar`) no necesita nada del cliente. El total de `meta.total` ya es el del conjunto acotado, y el componente no calcula recuentos por su cuenta.
+3. **Categoría especial**: 1.9 no muestra datos de salud, NEAE ni convivencia. Una tabla futura que los muestre lleva permiso propio y auditoría de lectura en su *endpoint* (`RPERM-012`/`RPERM-015`). Además, su configuración de columnas (`RN-CORE-43`) no guarda nada más que `id` de columna, y sus filas nunca salen de la memoria (`RN-CORE-50`).
+4. *(Histórico: resuelto en 1.9b, véase §12.4.)* **`usuario.exportar`** seguía sin *endpoint* (§7). Si `1.9b` ofrece exportar usuarios, el *endpoint* es trabajo de `apps/api` en ese paso, con su test de `403`, de acotado por ámbito dentro del trabajo y de acceso de otro tenant (`404`), más los de la norma de `ADR-054 §8.2`/`§9` (paridad de filtros con `GET /users` y `q` ⇒ `422`, `api.md §13.4`).
+5. **Paridad de filtros y privacidad**: un *endpoint* de exportación al que le falte un filtro de su listado exporta en silencio más de lo que el usuario ve filtrado. El ámbito del permiso se sigue aplicando dentro del trabajo, así que no sale nada que el usuario no pueda leer; pero el fichero no corresponde a lo que ve. Es regla de servidor, no del cliente (`ADR-054 §8.2`, `INV-006`).
+
+### 11.4 Verificación
+
+- `CA-CORE-188` — sin `canExport` no hay control de exportación; con él, se envían los filtros del listado sin paginación, sin `sort` y sin `q`.
+- `CA-CORE-205` — con búsqueda activa, exportar está deshabilitado.
+- `CA-CORE-192` — ningún fichero de exportación generado en el cliente.
+- `CA-CORE-195` — ninguna fila persistida en almacenamiento del navegador.
+- Los de servidor (`CA-CORE-070`, `CA-PERM-*`, y los de cada *endpoint* de exportación) siguen siendo la barrera real.
+
+---
+
+## 12. Paso 1.9b (pantallas de gestión)
+
+> Estado: **APROBADA** (2026-10-01, decisión del usuario), con `funcional.md §14`. Cubre los cinco sub-pasos `1.9b`-`1.9f`, incluidas las pantallas de módulos contratados y perfil propio que añadió `OPEN-CORE-31` = B en `1.9e`. **Implementado en `1.9b`** (2026-10-02): la autorización de `GET /data-exports/{id}` por `kind` (§12.4) vive en `DataExportsController::PERMISSION_BY_KIND` (la ruta ya no lleva `permission:auditoria.exportar`); **`1.9d` y `1.9e` implementados** (2026-10-03, sin permisos nuevos; la ruta `core-profile` se autoriza por identidad, §5.2); **`1.9c` implementado** (2026-10-02/03, sin permisos nuevos, §13; revisado sin Crítico/Alto, pendiente de mezcla); un test compara las claves de esa constante con los valores del `CHECK` de `data_exports.kind`, de modo que ningún `kind` admitido quede sin permiso.
+
+### 12.1 Ningún permiso nuevo; uno pasa a tener *endpoint*
+
+1.9b **no declara, retira ni concede ningún permiso**, ni cambia la asignación de §4.1. No hace falta `platform:sync-registry` extraordinario.
+
+- **`usuario.exportar`** deja de estar «declarado sin *endpoint*» (§7): lo exige `POST /users/exports` y, por `kind = users`, `GET /data-exports/{id}` (`api.md §14.1`-`§14.2`). Sigue concedido solo a `administrador_centro` por defecto (§4.1, «todos los de §2»).
+- **`GET /data-exports/{id}`** deja de exigir `auditoria.exportar` fijo y pasa a exigir **el permiso de exportar del `kind`** (§12.4).
+
+### 12.2 Matriz pantalla × acción × permiso × ámbito
+
+Ámbito: `todos` en todas las filas, el único que admiten estos permisos (§2), salvo `auditoria.*`, que admite `todos` y `propios` y cuyo acotado aplica el servidor en el listado y dentro del trabajo de exportación (`RN-PERM-15`); la interfaz no hace nada distinto con `propios` (§11.3 punto 2).
+
+| Pantalla | Acción en la interfaz | Permiso que la hace visible (`/me.permissions`) | *Endpoint* | Quién decide de verdad |
+|----------|-----------------------|--------------------------------------------------|------------|------------------------|
+| Usuarios | Ver la pantalla y la ficha | `usuario.leer` (ruta) | `GET /users`, `GET /users/{id}` | Servidor |
+| Usuarios | Filtro de rol, nombres de rol en opciones | `rol.leer` | `GET /roles` | Servidor |
+| Usuarios | Ver dados de baja | `usuario.eliminar` (además de `usuario.leer`) | `GET /users?include_deleted=true`, `GET /users/{id}?include_deleted=true` | Servidor (§2) |
+| Usuarios | Exportar | `usuario.exportar` | `POST /users/exports`, `GET /data-exports/{id}` | Servidor + solicitante (§8) |
+| Usuarios | Nuevo | `usuario.crear` (ruta) | `POST /users` | Servidor |
+| Usuarios | Asignar roles en el alta | `asignacion_rol.crear` y `rol.leer` | `POST /users` con `role_ids` | Servidor + `RPERM-013` |
+| Usuarios | Editar | `usuario.actualizar` (ruta) | `PATCH /users/{id}` | Servidor |
+| Usuarios | Activar / desactivar | `usuario.actualizar` | `POST /users/{id}/status` | Servidor + `RN-CORE-06`/`07` |
+| Usuarios | Dar de baja / restaurar | `usuario.eliminar` | `DELETE /users/{id}`, `POST /users/{id}/restore` | Servidor + `RN-CORE-06`/`07` |
+| Usuarios | Invitar / reenviar | `invitacion.crear` | `POST /users/{id}/invitations` | Servidor + `RN-CORE-12` |
+| Usuarios | Ver roles del usuario | `asignacion_rol.leer` | `GET /users/{id}/roles` | Servidor |
+| Usuarios | Cambiar roles (`OPEN-CORE-43` = A) | `asignacion_rol.crear` (y `asignacion_rol.eliminar` si retira alguno; la interfaz no lo comprueba por separado, lo decide el servidor) y `rol.leer` | `PUT /users/{id}/roles` | Servidor + `RPERM-013` + `RN-CORE-06`/`07` |
+| Usuarios | «Ver su actividad» (1.9d, `OPEN-CORE-33` = C, resuelta) | `auditoria.leer` | navegación | Servidor en `GET /audit-logs` |
+| Invitaciones | Ver | `invitacion.leer` (ruta) | `GET /invitations` | Servidor |
+| Invitaciones | Revocar | `invitacion.eliminar` | `DELETE /invitations/{id}` | Servidor |
+| Invitaciones | Reenviar | `invitacion.crear` | `POST /users/{id}/invitations` | Servidor |
+| Invitaciones | Enlace a la ficha del usuario | `usuario.leer` | navegación | Servidor |
+| Importación | Ver, subir, ejecutar, descartar | `usuario.importar` (ruta y acciones) | `GET`/`POST /user-imports`, `GET /user-imports/{id}`, `POST …/execute`, `DELETE …` | Servidor |
+| Roles | Ver | `rol.leer` (ruta) | `GET /roles` (no `GET /roles/{id}`: `OPEN-CORE-36` = A) | Servidor |
+| Roles | Crear, editar, borrar | **Ninguna en 1.9b** (`RN-CORE-75`, **sustituida por `REQ-PERM §20` desde 1.5b**: con 1.5b la interfaz ofrece alta, edición, baja y concesiones por permiso, `REQ-PERM/permisos.md §12`) | — | — |
+| Auditoría | Ver | `auditoria.leer` (ruta) | `GET /audit-logs` | Servidor, con ámbito |
+| Auditoría | Filtro por usuario (`OPEN-CORE-33`) | `usuario.leer` | `GET /users?q=`, `GET /users/{id}` | Servidor |
+| Auditoría | Filtro de módulo / tipo de entidad (`OPEN-CORE-34` = B) | `auditoria.leer` | `GET /audit-logs/facets` | Servidor |
+| Auditoría | Ver su actividad (ficha de usuario) | `auditoria.leer` | navegación | Servidor |
+| Auditoría | Exportar | `auditoria.exportar` | `POST /audit-logs/exports`, `GET /data-exports/{id}` | Servidor + solicitante, ámbito en el trabajo |
+| Configuración | Ver | `configuracion.leer` (ruta) | `GET /tenant/settings` | Servidor |
+| Configuración | Editar | `configuracion.actualizar` | `PATCH /tenant/settings` | Servidor |
+| Activos de marca | Ver | `configuracion.leer` (ruta) | `GET /tenant/settings` | Servidor |
+| Activos de marca | Sustituir, eliminar | `configuracion.actualizar` | `PUT`/`DELETE /tenant/settings/assets/{kind}` | Servidor |
+| Módulos contratados (1.9e) | Ver | `modulo.leer` (ruta) | `GET /modules` | Servidor |
+| Módulos contratados (1.9e) | Configurar `settings` | **Ninguna en 1.9b-1.9f**, aunque se tenga `modulo.actualizar`: la pantalla es de solo lectura (`OPEN-CORE-31` = B, `RN-CORE-87`); `PATCH /module-subscriptions/{id}` no se consume | — | — |
+| Perfil propio (1.9e) | Ver y editar correo y teléfono de contacto | **Ninguno: identidad** (§5.2). Ruta con `meta.permissions: []`, séptima de la lista cerrada de `RN-CORE-24` (`funcional.md §14.3.1`) | `PATCH /me` (y el `GET /me` del *guard*) | Servidor, por identidad del portador de la sesión; sin comprobación de permiso (errores documentados: `401`, `422`, `api.md §3`) |
+| `/administracion/mfa` (área de exenciones, migrada) | Sin cambios | `exencion_mfa.*` (`REQ-AUTH/permisos.md §D.6.3`) | `/mfa-exemptions` | Servidor |
+| `/administracion/sso` (migrada) | Sin cambios | `proveedor_identidad.*` | `/identity-providers` | Servidor |
+| `/cuenta/sesiones` (migrada) | Sin cambios | Identidad (§5.2) | `/auth/sessions` | Servidor |
+
+### 12.3 Reglas derivadas
+
+1. **La interfaz oculta; no protege** (`INV-002`). Cada fila de la matriz tiene su barrera en el servidor, ya probada desde 1.1/1.5; 1.9b añade las de §12.4 y las de `POST /users/exports`.
+2. **Permiso, nunca rol** (`RN-CORE-23`, `RN-CORE-61`). Las reglas de «no a uno mismo» y «último administrador» las aplica el servidor; la interfaz solo deshabilita por **identidad** (mismo `public_id` que `/me`), nunca por código de rol.
+3. **Sin sondeo** (`RN-CORE-62`): una vista no llama a un *endpoint* auxiliar cuyo permiso el usuario no tiene; la parte de la interfaz que lo usaría no se ofrece.
+4. **Nadie concede lo que no tiene** (`RPERM-013`): la interfaz no filtra los roles ofrecidos por los permisos del solicitante (no tiene con qué: `GET /roles` no trae concesiones). Ofrece los de `GET /roles` y muestra el `403` del servidor. Filtrarlos en cliente exigiría `GET /roles/{id}` por rol, y seguiría sin ser la barrera.
+5. **Exportar no es leer** (§11.3 punto 1): ver el listado de usuarios no permite exportarlo; la exportación exige `usuario.exportar` en servidor, se audita y se ejecuta en cola.
+6. **Datos de categoría especial**: 1.9b no muestra salud, NEAE ni convivencia. El atributo `special_data_access` de un rol se muestra (es un atributo del rol, no un dato especial). Los valores redactados de auditoría (`special`) **nunca** se reconstruyen (`RN-CORE-77`, `ADR-035`).
+
+### 12.4 Autorización de `GET /data-exports/{id}` por `kind` (`RN-CORE-86`)
+
+| `kind` | Permiso exigido | Además |
+|--------|-----------------|--------|
+| `audit_logs` | `auditoria.exportar` | Ser el solicitante (`requested_by`) |
+| `users` | `usuario.exportar` | Ser el solicitante |
+| Cualquier otro | **Denegado** (`403`) hasta que el paso que lo añada amplíe la correspondencia | — |
+
+La correspondencia vive en código, cerrada, junto al controlador o a `ExportRequestService` (`1.14-b` añade `image_consents` → `consentimiento_imagen.exportar`, `REQ-FAM-UNIT/api.md §4`; ampliación de `Core` aprobada por el usuario el 2026-10-27 (`1.14-b`, `REQ-FAM-UNIT/funcional.md §18` D-18 y D-27)); nunca se deduce del nombre del `kind`. Un `public_id` de otro tenant sigue siendo `404` (RLS, `CA-CORE-073`); uno del mismo tenant solicitado por otro usuario, `403` (§8). **Por qué es necesaria**: con la ruta actual, quien tiene `usuario.exportar` y no `auditoria.exportar` no podría consultar su propia exportación de usuarios (fallo funcional), y quien hubiera perdido `usuario.exportar` después de solicitarla podría seguir descargándola mientras conserve `auditoria.exportar` (autorización por el permiso equivocado). Hoy no ocurre porque no existe ningún `kind` distinto de `audit_logs`.
+
+### 12.5 Verificación
+
+- `CA-CORE-209`, `-210`, `-211`, `-212`, `-216`, `-240`, `-248`, `-267`, `-268` (interfaz por permiso, nunca por rol; sin sondeo; módulos en solo lectura). `CA-CORE-240` está **retirado** y sustituido por `CA-PERM-101` (`REQ-PERM/funcional.md §20.17.2`).
+- `CA-CORE-264`, `-265` (perfil propio por identidad; lista cerrada de `RN-CORE-24` ampliada a siete).
+- `CA-CORE-223`, `-225`, `-228`, `-229` (servidor: `403`, `404` entre tenants, `include_deleted`, autorización por `kind`).
+- `CA-CORE-102` sigue en verde con las pantallas nuevas.
+- Test de catálogo de §9: sigue habiendo exactamente 25 códigos con `module_code = 'core'`; ninguno nuevo.
+
+## 13. Paso 1.9c (importación de usuarios)
+
+1.9c **no declara, retira ni concede ningún permiso**, ni cambia la asignación de §4.1; no hace falta `platform:sync-registry` extraordinario. Las dos pantallas de importación (`/administracion/importaciones` y `/administracion/importaciones/:publicId`) exigen `usuario.importar` (ámbito `todos`) en `meta.permissions` de la ruta, el permiso de todos los *endpoints* de `/user-imports` (`api.md §7`); ninguna usa `permissions: []`. Todas las acciones del detalle (ejecutar, descartar, renovar el enlace del informe) son del mismo permiso, así que no hay acciones secundarias con permiso propio que ocultar (`RN-CORE-61`). Quien decide de verdad es el servidor (`INV-002`): un lote de otro centro responde `404`, nunca `403`.
+
+El catálogo de tipos de documento no es un permiso ni un dato por rol: es el mismo para todos los centros (`RN-CORE-90`).

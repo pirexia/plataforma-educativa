@@ -1,0 +1,104 @@
+<?php
+
+// Rutas de REQ-ACAD (pasos 1.11-b, 1.11d-a, 1.11d-b, 1.12-a y 1.12-b), documentadas en
+// apps/api/openapi/paths/acad.yaml (docs/modulos/REQ-ACAD/api.md §2 y §11).
+// Requerido desde routes/api-v1.php, ya dentro del grupo
+// prefix('v1')->middleware(['resolve-tenant', 'resolve-locale', ...]).
+//
+// Módulo NO esencial (OPEN-ACAD-10): toda ruta lleva la cadena
+// autenticación -> module-enabled:acad -> permission:<código> (AR-07a,
+// AR-07b, RMOD-009). `RequireAuthenticatedUser` va primero para que una
+// petición anónima sea 401 aunque el módulo no esté contratado; no se usa el
+// alias `auth` porque Laravel lo ordena antes de `resolve-tenant` (500 real). Los permisos son
+// del recurso `estructura_academica` (las 27 rutas de la estructura) o de `configuracion_academica`
+// (períodos lectivos y escalas), ámbito `todos` (permisos.md §2 y §2.2).
+
+use App\Http\Middleware\RequireAuthenticatedUser;
+use App\Modules\Acad\Http\Controllers\AcademicPeriodsController;
+use App\Modules\Acad\Http\Controllers\CoursesController;
+use App\Modules\Acad\Http\Controllers\EducationLevelsController;
+use App\Modules\Acad\Http\Controllers\FacilitiesController;
+use App\Modules\Acad\Http\Controllers\FacilityBookingsController;
+use App\Modules\Acad\Http\Controllers\GradingScalesController;
+use App\Modules\Acad\Http\Controllers\GroupsController;
+use App\Modules\Acad\Http\Controllers\GroupSubjectsController;
+use App\Modules\Acad\Http\Controllers\GroupTutorsController;
+use App\Modules\Acad\Http\Controllers\SubgroupsController;
+use App\Modules\Acad\Http\Controllers\SubjectsController;
+use App\Modules\Acad\Http\Controllers\TeachingAssignmentsController;
+use App\Modules\Acad\Http\Controllers\TimetableFramesController;
+use App\Modules\Acad\Http\Controllers\TimetableSessionsController;
+use Illuminate\Support\Facades\Route;
+
+Route::middleware([RequireAuthenticatedUser::class, 'module-enabled:acad'])->group(function (): void {
+    Route::get('/education-levels', [EducationLevelsController::class, 'index'])->middleware('permission:estructura_academica.leer')->name('acad.education-levels.index');
+    Route::post('/education-levels', [EducationLevelsController::class, 'store'])->middleware('permission:estructura_academica.crear')->name('acad.education-levels.store');
+    Route::get('/education-levels/{publicId}', [EducationLevelsController::class, 'show'])->middleware('permission:estructura_academica.leer')->name('acad.education-levels.show');
+    Route::patch('/education-levels/{publicId}', [EducationLevelsController::class, 'update'])->middleware('permission:estructura_academica.actualizar')->name('acad.education-levels.update');
+    Route::delete('/education-levels/{publicId}', [EducationLevelsController::class, 'destroy'])->middleware('permission:estructura_academica.eliminar')->name('acad.education-levels.destroy');
+    Route::get('/courses', [CoursesController::class, 'index'])->middleware('permission:estructura_academica.leer')->name('acad.courses.index');
+    Route::post('/courses', [CoursesController::class, 'store'])->middleware('permission:estructura_academica.crear')->name('acad.courses.store');
+    Route::get('/courses/{publicId}', [CoursesController::class, 'show'])->middleware('permission:estructura_academica.leer')->name('acad.courses.show');
+    Route::patch('/courses/{publicId}', [CoursesController::class, 'update'])->middleware('permission:estructura_academica.actualizar')->name('acad.courses.update');
+    Route::delete('/courses/{publicId}', [CoursesController::class, 'destroy'])->middleware('permission:estructura_academica.eliminar')->name('acad.courses.destroy');
+    Route::get('/groups', [GroupsController::class, 'index'])->middleware('permission:estructura_academica.leer')->name('acad.groups.index');
+    Route::post('/groups', [GroupsController::class, 'store'])->middleware('permission:estructura_academica.crear')->name('acad.groups.store');
+    Route::get('/groups/{publicId}', [GroupsController::class, 'show'])->middleware('permission:estructura_academica.leer')->name('acad.groups.show');
+    Route::patch('/groups/{publicId}', [GroupsController::class, 'update'])->middleware('permission:estructura_academica.actualizar')->name('acad.groups.update');
+    Route::delete('/groups/{publicId}', [GroupsController::class, 'destroy'])->middleware('permission:estructura_academica.eliminar')->name('acad.groups.destroy');
+    Route::get('/subjects', [SubjectsController::class, 'index'])->middleware('permission:estructura_academica.leer')->name('acad.subjects.index');
+    Route::post('/subjects', [SubjectsController::class, 'store'])->middleware('permission:estructura_academica.crear')->name('acad.subjects.store');
+    Route::get('/subjects/{publicId}', [SubjectsController::class, 'show'])->middleware('permission:estructura_academica.leer')->name('acad.subjects.show');
+    Route::patch('/subjects/{publicId}', [SubjectsController::class, 'update'])->middleware('permission:estructura_academica.actualizar')->name('acad.subjects.update');
+    Route::delete('/subjects/{publicId}', [SubjectsController::class, 'destroy'])->middleware('permission:estructura_academica.eliminar')->name('acad.subjects.destroy');
+    Route::get('/groups/{groupPublicId}/subgroups', [SubgroupsController::class, 'index'])->middleware('permission:estructura_academica.leer')->name('acad.groups.subgroups.index');
+    Route::post('/groups/{groupPublicId}/subgroups', [SubgroupsController::class, 'store'])->middleware('permission:estructura_academica.crear')->name('acad.groups.subgroups.store');
+    Route::get('/subgroups/{publicId}', [SubgroupsController::class, 'show'])->middleware('permission:estructura_academica.leer')->name('acad.subgroups.show');
+    Route::patch('/subgroups/{publicId}', [SubgroupsController::class, 'update'])->middleware('permission:estructura_academica.actualizar')->name('acad.subgroups.update');
+    Route::delete('/subgroups/{publicId}', [SubgroupsController::class, 'destroy'])->middleware('permission:estructura_academica.eliminar')->name('acad.subgroups.destroy');
+    Route::get('/groups/{groupPublicId}/subjects', [GroupSubjectsController::class, 'index'])->middleware('permission:estructura_academica.leer')->name('acad.groups.subjects.index');
+    Route::put('/groups/{groupPublicId}/subjects', [GroupSubjectsController::class, 'update'])->middleware('permission:estructura_academica.actualizar')->name('acad.groups.subjects.update');
+    // 1.11d-a (api.md §11): períodos lectivos, recurso `configuracion_academica` (RN-ACAD-50).
+    Route::get('/academic-periods', [AcademicPeriodsController::class, 'index'])->middleware('permission:configuracion_academica.leer')->name('acad.academic-periods.index');
+    Route::post('/academic-periods', [AcademicPeriodsController::class, 'store'])->middleware('permission:configuracion_academica.crear')->name('acad.academic-periods.store');
+    Route::get('/academic-periods/{publicId}', [AcademicPeriodsController::class, 'show'])->middleware('permission:configuracion_academica.leer')->name('acad.academic-periods.show');
+    Route::patch('/academic-periods/{publicId}', [AcademicPeriodsController::class, 'update'])->middleware('permission:configuracion_academica.actualizar')->name('acad.academic-periods.update');
+    Route::delete('/academic-periods/{publicId}', [AcademicPeriodsController::class, 'destroy'])->middleware('permission:configuracion_academica.eliminar')->name('acad.academic-periods.destroy');
+    // 1.11d-b (api.md §11): escalas de calificación con sus valores dentro (RN-ACAD-80), recurso `configuracion_academica`.
+    Route::get('/grading-scales', [GradingScalesController::class, 'index'])->middleware('permission:configuracion_academica.leer')->name('acad.grading-scales.index');
+    Route::post('/grading-scales', [GradingScalesController::class, 'store'])->middleware('permission:configuracion_academica.crear')->name('acad.grading-scales.store');
+    Route::get('/grading-scales/{publicId}', [GradingScalesController::class, 'show'])->middleware('permission:configuracion_academica.leer')->name('acad.grading-scales.show');
+    Route::patch('/grading-scales/{publicId}', [GradingScalesController::class, 'update'])->middleware('permission:configuracion_academica.actualizar')->name('acad.grading-scales.update');
+    Route::delete('/grading-scales/{publicId}', [GradingScalesController::class, 'destroy'])->middleware('permission:configuracion_academica.eliminar')->name('acad.grading-scales.destroy');
+    // 1.12-a (api.md §12): espacios, recurso `espacios` (RN-ACAD-101); del centro, sin curso académico.
+    Route::get('/facilities', [FacilitiesController::class, 'index'])->middleware('permission:espacios.leer')->name('acad.facilities.index');
+    Route::post('/facilities', [FacilitiesController::class, 'store'])->middleware('permission:espacios.crear')->name('acad.facilities.store');
+    Route::get('/facilities/{publicId}', [FacilitiesController::class, 'show'])->middleware('permission:espacios.leer')->name('acad.facilities.show');
+    Route::patch('/facilities/{publicId}', [FacilitiesController::class, 'update'])->middleware('permission:espacios.actualizar')->name('acad.facilities.update');
+    Route::delete('/facilities/{publicId}', [FacilitiesController::class, 'destroy'])->middleware('permission:espacios.eliminar')->name('acad.facilities.destroy');
+    // 1.12-a (api.md §12): marcos horarios con sus franjas dentro (RN-ACAD-113), recurso `horarios`.
+    Route::get('/timetable-frames', [TimetableFramesController::class, 'index'])->middleware('permission:horarios.leer')->name('acad.timetable-frames.index');
+    Route::post('/timetable-frames', [TimetableFramesController::class, 'store'])->middleware('permission:horarios.crear')->name('acad.timetable-frames.store');
+    Route::get('/timetable-frames/{publicId}', [TimetableFramesController::class, 'show'])->middleware('permission:horarios.leer')->name('acad.timetable-frames.show');
+    Route::patch('/timetable-frames/{publicId}', [TimetableFramesController::class, 'update'])->middleware('permission:horarios.actualizar')->name('acad.timetable-frames.update');
+    Route::delete('/timetable-frames/{publicId}', [TimetableFramesController::class, 'destroy'])->middleware('permission:horarios.eliminar')->name('acad.timetable-frames.destroy');
+    // 1.12-a (api.md §12): asignación docente (inmutable, sin PATCH: RN-ACAD-95), recurso `asignacion_docente`.
+    Route::get('/teaching-assignments', [TeachingAssignmentsController::class, 'index'])->middleware('permission:asignacion_docente.leer')->name('acad.teaching-assignments.index');
+    Route::post('/teaching-assignments', [TeachingAssignmentsController::class, 'store'])->middleware('permission:asignacion_docente.crear')->name('acad.teaching-assignments.store');
+    Route::get('/teaching-assignments/{publicId}', [TeachingAssignmentsController::class, 'show'])->middleware('permission:asignacion_docente.leer')->name('acad.teaching-assignments.show');
+    Route::delete('/teaching-assignments/{publicId}', [TeachingAssignmentsController::class, 'destroy'])->middleware('permission:asignacion_docente.eliminar')->name('acad.teaching-assignments.destroy');
+    // 1.12-a (api.md §12): tutores de un grupo (RN-ACAD-97), mismo recurso.
+    Route::get('/groups/{groupPublicId}/tutors', [GroupTutorsController::class, 'index'])->middleware('permission:asignacion_docente.leer')->name('acad.groups.tutors.index');
+    Route::put('/groups/{groupPublicId}/tutors', [GroupTutorsController::class, 'update'])->middleware('permission:asignacion_docente.actualizar')->name('acad.groups.tutors.update');
+    // 1.12-a (api.md §12): sesiones de horario y vistas semanales (RN-ACAD-120 a -128), recurso `horarios`.
+    Route::get('/timetable-sessions', [TimetableSessionsController::class, 'index'])->middleware('permission:horarios.leer')->name('acad.timetable-sessions.index');
+    Route::post('/timetable-sessions', [TimetableSessionsController::class, 'store'])->middleware('permission:horarios.crear')->name('acad.timetable-sessions.store');
+    Route::get('/timetable-sessions/{publicId}', [TimetableSessionsController::class, 'show'])->middleware('permission:horarios.leer')->name('acad.timetable-sessions.show');
+    Route::patch('/timetable-sessions/{publicId}', [TimetableSessionsController::class, 'update'])->middleware('permission:horarios.actualizar')->name('acad.timetable-sessions.update');
+    Route::delete('/timetable-sessions/{publicId}', [TimetableSessionsController::class, 'destroy'])->middleware('permission:horarios.eliminar')->name('acad.timetable-sessions.destroy');
+    // 1.12-b (api.md §12): reservas de espacios (RN-ACAD-140 a -143), recurso `reservas`. Sin PATCH: no se editan (RN-ACAD-142).
+    Route::get('/facility-bookings', [FacilityBookingsController::class, 'index'])->middleware('permission:reservas.leer')->name('acad.facility-bookings.index');
+    Route::post('/facility-bookings', [FacilityBookingsController::class, 'store'])->middleware('permission:reservas.crear')->name('acad.facility-bookings.store');
+    Route::get('/facility-bookings/{publicId}', [FacilityBookingsController::class, 'show'])->middleware('permission:reservas.leer')->name('acad.facility-bookings.show');
+    Route::delete('/facility-bookings/{publicId}', [FacilityBookingsController::class, 'destroy'])->middleware('permission:reservas.eliminar')->name('acad.facility-bookings.destroy');
+});

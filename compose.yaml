@@ -1,0 +1,329 @@
+name: plataforma-educativa
+
+# Perfil reducido (ADR-030): por defecto PostgreSQL, Redis, api y web.
+# Garage (S3 de desarrollo, ADR-076) y el worker se levantan a demanda con: podman compose --profile full up -d
+#
+# El servicio de renderizado PDF queda pendiente de elegir motor concreto
+# (ver paso 1.17); no se define aquí para no fijar una dependencia sin
+# decisión documentada.
+
+networks:
+  default:
+    name: plataforma-net
+    external: true
+
+volumes:
+  # PostgreSQL 18 (ADR-061): montaje en /var/lib/postgresql (PGDATA = 18/docker).
+  postgres-cluster:
+  redis-data:
+  garage-data:
+
+services:
+  postgres:
+    image: docker.io/library/postgres:18
+    container_name: plataforma-postgres
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-plataforma}
+      POSTGRES_USER: ${POSTGRES_USER:-plataforma}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?falta POSTGRES_PASSWORD en .env}
+      TENANCY_OWNER_PASSWORD: ${TENANCY_OWNER_PASSWORD:?falta TENANCY_OWNER_PASSWORD en .env}
+      TENANCY_APP_PASSWORD: ${TENANCY_APP_PASSWORD:?falta TENANCY_APP_PASSWORD en .env}
+      TENANCY_PLATFORM_PASSWORD: ${TENANCY_PLATFORM_PASSWORD:?falta TENANCY_PLATFORM_PASSWORD en .env}
+    volumes:
+      - postgres-cluster:/var/lib/postgresql:Z
+      - ./infra/containers/postgres/init:/docker-entrypoint-initdb.d:Z,ro
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-plataforma}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: docker.io/library/redis:8-alpine
+    container_name: plataforma-redis
+    restart: unless-stopped
+    volumes:
+      - redis-data:/data:Z
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build:
+      context: infra/containers/api
+      target: dev
+    container_name: plataforma-api
+    restart: unless-stopped
+    env_file: apps/api/.env
+    environment:
+      DB_HOST: postgres
+      REDIS_HOST: redis
+      # Issue #236: config/cache.php cae a 'database' si esto no está
+      # fijado — Redis está desplegado y en uso desde 0.7 (prefijo por
+      # tenant, ADR-033 §9), pero nada fijaba CACHE_STORE para el
+      # runtime real, solo phpunit.xml lo forzaba para los tests.
+      CACHE_STORE: redis
+      # 1.15-b: la cola de hoy es el driver `database` (CLAUDE.md §1, config/queue.php); el worker
+      # consume esa conexión. Un `QUEUE_CONNECTION=redis` heredado de apps/api/.env encolaba en Redis
+      # sin consumidor y las exportaciones nunca completaban. Redis + Horizon: OPEN-BO-23.
+      QUEUE_CONNECTION: database
+      # ADR-014: sin dominio real todavía (OPEN-08, bloqueante). Valor de
+      # desarrollo para poder probar la resolución de tenant por subdominio
+      # con curl -H "Host: <slug>.plataforma.test" sin depender de DNS.
+      TENANCY_BASE_DOMAIN: plataforma.test
+      # Issue #71: la SPA debe servirse desde el mismo host que la API
+      # (demo.plataforma.test) para que document.cookie pueda leer
+      # XSRF-TOKEN — una cookie fijada por un host no es legible desde la
+      # página de otro, el puerto no importa pero el host sí. Por eso el
+      # origen permitido ya no es localhost:5173 sino el mismo host con el
+      # puerto de Vite. Requiere "127.0.0.1 demo.plataforma.test" en el
+      # hosts de Windows (documentado en SYSADMIN.md §2c).
+      CORS_ALLOWED_ORIGINS: "http://demo.plataforma.test:5173"
+      # REQ-AUTH-002 (1.4), operacion.md §E.2.1, issue #140: AUTH_OAUTH_DRIVER
+      # ya no hereda `fake` de un valor por defecto implícito (el defecto del
+      # código es ahora `none`, seguro en cualquier entorno) — el entorno de
+      # desarrollo lo declara a mano. Parche temporal: pertenece a apps/api/.env, no editable desde
+      # esta sesión (bloqueo de permisos). TODO: mover cuando sea editable.
+      AUTH_OAUTH_DRIVER: "fake"
+      # REQ-AUTH-004 (1.4b), operacion.md §F.2.1, §F.10: sin dominio
+      # público (0.10b pendiente) el emisor OIDC simulado se sirve por la
+      # propia API en local/testing sobre http y en la red del contenedor
+      # — guardas 1 y 2 de funcional.md §F.4.2 aflojadas a propósito, con
+      # SsoEnvironmentGuard::verify() como barrera de arranque fuera de
+      # local/testing. Mismo patrón de parche temporal que las dos
+      # variables de arriba: pertenece a apps/api/.env, no editable desde
+      # esta sesión (bloqueo de permisos). TODO: mover cuando sea editable.
+      AUTH_SSO_ALLOW_INSECURE_DISCOVERY: "true"
+      # REQ-AUTH-004 (1.4c), operacion.md §G.2.1, §G.10: mismo argumento
+      # exacto que AUTH_SSO_ALLOW_INSECURE_DISCOVERY, un bloque más
+      # arriba, para el IdP SAML simulado — sirve sus metadatos y su
+      # SingleSignOnService por http en local/testing, con
+      # SamlEnvironmentGuard::verify() como barrera de arranque fuera de
+      # esos entornos. Mismo patrón de parche temporal: pertenece a
+      # apps/api/.env, no editable desde esta sesión (bloqueo de
+      # permisos). TODO: mover cuando sea editable.
+      AUTH_SAML_ALLOW_INSECURE_METADATA: "true"
+      # Almacenamiento privado S3 compatible (ADR-013, ADR-068 §5.3, ADR-076): Garage en desarrollo, CI y E2E (perfil `full`).
+      # `PrivateObjectStore` rechaza un disco `local` en `production` y `staging`: el perfil reducido de desarrollo
+      # (APP_ENV=local, sin Garage) usa el disco local por defecto; con el perfil `full` se arranca con
+      # `FILESYSTEM_DISK=s3 podman compose --profile full up -d` y se inicializa Garage una vez con `infra/garage/init.sh`
+      # (SYSADMIN.md). Los scripts de E2E real lo hacen solos. Credenciales y bucket vienen de `.env` sin valor de reserva
+      # (ADR-076 §4); región igual a `s3_region` de infra/garage/garage.toml. `AWS_URL_SIGNING_ENDPOINT` es el endpoint
+      # que alcanza el navegador (la firma SigV4 incluye `Host`); `AWS_ENDPOINT`, el de la red de contenedores.
+      FILESYSTEM_DISK: ${FILESYSTEM_DISK:-local}
+      AWS_ENDPOINT: "http://plataforma-garage:3900"
+      AWS_URL_SIGNING_ENDPOINT: "http://127.0.0.1:3900"
+      AWS_ACCESS_KEY_ID: ${GARAGE_ACCESS_KEY_ID:?falta GARAGE_ACCESS_KEY_ID en .env}
+      AWS_SECRET_ACCESS_KEY: ${GARAGE_SECRET_ACCESS_KEY:?falta GARAGE_SECRET_ACCESS_KEY en .env}
+      AWS_DEFAULT_REGION: garage
+      AWS_BUCKET: ${GARAGE_BUCKET:?falta GARAGE_BUCKET en .env}
+      AWS_USE_PATH_STYLE_ENDPOINT: "true"
+    volumes:
+      - ./apps/api:/var/www/html:Z
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      - postgres
+      - redis
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  # Worker de colas (issue #128). `queue:work` sobre el driver `database`;
+  # Horizon NO se adopta (OPEN-BO-23, CLAUDE.md §1). Misma imagen y mismo
+  # código que `api`, sin puerto. Perfil reducido (ADR-030): no arranca con
+  # `podman compose up -d`; se activa con
+  #   podman compose --profile worker up -d worker
+  # Orden de --queue = prioridad: correo de usuario primero, `default`,
+  # mantenimiento, y exportaciones/importaciones (las más lentas) al final.
+  # Toda cola con ->onQueue() en el código debe estar aquí (lo comprueba
+  # tests/Feature/Core/QueueWorkerTest.php). --max-time hace que el proceso termine solo
+  # cada hora y `restart` lo relance con el código vigente; los trabajos
+  # encolados por la versión anterior se procesan igual (payload serializado
+  # por nombre de clase, CLAUDE.md §9). --timeout (120) < retry_after (180).
+  worker:
+    build:
+      context: infra/containers/api
+      target: dev
+    container_name: plataforma-worker
+    restart: unless-stopped
+    # Revisión B-2: el worker no escucha puertos ni cambia de usuario.
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: 130s
+    # Discrepancia declarada con producción (revisión M-1): en desarrollo el
+    # worker comparte apps/api/.env con la API (un único fichero de desarrollo,
+    # sin secretos reales), así que ve DB_OWNER_*; en producción usa
+    # plataforma-worker.env, que no lleva BACKOFFICE_*.
+    env_file: apps/api/.env
+    environment:
+      DB_HOST: postgres
+      REDIS_HOST: redis
+      CACHE_STORE: redis
+      QUEUE_CONNECTION: database
+      TENANCY_BASE_DOMAIN: plataforma.test
+      DB_QUEUE_RETRY_AFTER: "180"
+      # Almacenamiento privado S3 compatible (ADR-013, ADR-068 §5.3, ADR-076): Garage en desarrollo, CI y E2E (perfil `full`).
+      # `PrivateObjectStore` rechaza un disco `local` en `production` y `staging`: el perfil reducido de desarrollo
+      # (APP_ENV=local, sin Garage) usa el disco local por defecto; con el perfil `full` se arranca con
+      # `FILESYSTEM_DISK=s3 podman compose --profile full up -d` y se inicializa Garage una vez con `infra/garage/init.sh`
+      # (SYSADMIN.md). Los scripts de E2E real lo hacen solos. Credenciales y bucket vienen de `.env` sin valor de reserva
+      # (ADR-076 §4); región igual a `s3_region` de infra/garage/garage.toml. `AWS_URL_SIGNING_ENDPOINT` es el endpoint
+      # que alcanza el navegador (la firma SigV4 incluye `Host`); `AWS_ENDPOINT`, el de la red de contenedores.
+      FILESYSTEM_DISK: ${FILESYSTEM_DISK:-local}
+      AWS_ENDPOINT: "http://plataforma-garage:3900"
+      AWS_URL_SIGNING_ENDPOINT: "http://127.0.0.1:3900"
+      AWS_ACCESS_KEY_ID: ${GARAGE_ACCESS_KEY_ID:?falta GARAGE_ACCESS_KEY_ID en .env}
+      AWS_SECRET_ACCESS_KEY: ${GARAGE_SECRET_ACCESS_KEY:?falta GARAGE_SECRET_ACCESS_KEY en .env}
+      AWS_DEFAULT_REGION: garage
+      AWS_BUCKET: ${GARAGE_BUCKET:?falta GARAGE_BUCKET en .env}
+      AWS_USE_PATH_STYLE_ENDPOINT: "true"
+    command:
+      - php
+      - artisan
+      - queue:work
+      - database
+      - --queue=auth-mail,core-mail,bo-mail,default,auth-maintenance,core-maintenance,backoffice-maintenance,core-exports,core-imports
+      - --tries=3
+      - --backoff=30
+      - --timeout=120
+      - --sleep=3
+      - --max-time=3600
+      - --max-jobs=1000
+    volumes:
+      - ./apps/api:/var/www/html:Z
+    depends_on:
+      - postgres
+      - redis
+    healthcheck:
+      test: ["CMD", "php", "artisan", "core:queue-health", "--queues=auth-mail,core-mail,bo-mail,default,auth-maintenance,core-maintenance,backoffice-maintenance,core-exports,core-imports"]
+      interval: 60s
+      timeout: 20s
+      retries: 3
+      start_period: 30s
+    profiles: ["worker", "full"]
+
+  # Worker de la cola `long` (REQ-CURSO 1.12b, operacion.md §1 y §4.1): copia y reversión del rollover del
+  # curso. Un proceso `queue:work` lee UNA conexión y su `retry_after` es el de esa conexión; la cola `long` va
+  # por `database_long` (config/queue.php, retry_after 900) y por eso no la consume el servicio `worker` de
+  # arriba (retry_after 180, que reentregaría el trabajo a los 3 minutos mientras sigue en marcha). Mismo
+  # perfil, imagen y entorno que `worker`. Un solo intento sin reentrega (`--tries=1`, RN-CURSO-84):
+  # --timeout (600) < retry_after (900). Toda cola con ->onQueue() debe estar en uno de los dos workers (lo
+  # comprueba tests/Feature/Core/QueueWorkerTest.php). stop_grace_period deja acabar la copia en curso.
+  worker-long:
+    build:
+      context: infra/containers/api
+      target: dev
+    container_name: plataforma-worker-long
+    restart: unless-stopped
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: 620s
+    env_file: apps/api/.env
+    environment:
+      # Equivalente en desarrollo de plataforma-worker-long.env (revisión de seguridad M2): ningún trabajo de la
+      # cola `long` usa `pgsql_owner` ni `pgsql_platform`; vaciadas aquí, si alguno lo intentara fallaría visible.
+      DB_OWNER_USERNAME: ""
+      DB_OWNER_PASSWORD: ""
+      DB_PLATFORM_USERNAME: ""
+      DB_PLATFORM_PASSWORD: ""
+      DB_HOST: postgres
+      REDIS_HOST: redis
+      CACHE_STORE: redis
+      TENANCY_BASE_DOMAIN: plataforma.test
+    command:
+      - php
+      - artisan
+      - queue:work
+      - database_long
+      - --queue=long
+      - --tries=1
+      - --timeout=600
+      - --sleep=3
+      - --max-time=3600
+      - --max-jobs=100
+    volumes:
+      - ./apps/api:/var/www/html:Z
+    depends_on:
+      - postgres
+      - redis
+    healthcheck:
+      test: ["CMD", "php", "artisan", "core:queue-health", "--queues=long"]
+      interval: 60s
+      timeout: 20s
+      retries: 3
+      start_period: 30s
+    profiles: ["worker", "full"]
+
+  web:
+    build:
+      context: infra/containers/web
+      target: dev
+    container_name: plataforma-web
+    restart: unless-stopped
+    env_file: apps/web/.env
+    environment:
+      # Issue #71 (2026-08-25), mismo patrón de parche temporal que
+      # AUTH_OAUTH_DRIVER en el servicio `api`: apps/web/.env fija
+      # VITE_API_URL a un host plano ("localhost"), pero
+      # TenantHost::slugFrom() exige que el host de la petición termine en
+      # TENANCY_BASE_DOMAIN (plataforma.test) — sin esto, cualquier login
+      # real desde el navegador da 404 al no resolver tenant. Fijado aquí
+      # al tenant `demo` de desarrollo porque no hay forma de derivar el
+      # tenant activo sin decisión de producto (ver el issue). Requiere una
+      # entrada en el hosts de Windows: 127.0.0.1 demo.plataforma.test — la
+      # SPA se sigue sirviendo en localhost:5173 sin cambios, solo cambia a
+      # qué host van las peticiones a la API.
+      # TODO: mover a apps/web/.env cuando sea editable desde la sesión, o
+      # sustituir por una solución que no fije un tenant concreto (ver #71).
+      VITE_API_URL: "http://demo.plataforma.test:8000/api/v1"
+    volumes:
+      - ./apps/web:/app:Z
+    ports:
+      - "127.0.0.1:5173:5173"
+    depends_on:
+      - api
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5173/"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 15s
+
+  # ADR-076 §6: servidor S3 de desarrollo, CI y E2E (un nodo, solo datos
+  # sintéticos). La imagen no trae shell: se inicializa con
+  # infra/garage/init.sh, que corre en el host.
+  garage:
+    image: docker.io/dxflrs/garage:v2.5.0@sha256:677e5b758e4425a325b811c425c026bf35a4bf42f7ddbaa773de3f4fd779a5a5
+    container_name: plataforma-garage
+    restart: unless-stopped
+    environment:
+      GARAGE_RPC_SECRET: ${GARAGE_RPC_SECRET:?falta GARAGE_RPC_SECRET en .env}
+      GARAGE_ADMIN_TOKEN: ${GARAGE_ADMIN_TOKEN:?falta GARAGE_ADMIN_TOKEN en .env}
+    volumes:
+      - ./infra/garage/garage.toml:/etc/garage.toml:Z,ro
+      - garage-data:/var/lib/garage:Z
+    ports:
+      - "127.0.0.1:3900:3900"
+    healthcheck:
+      test: ["CMD", "/garage", "status"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    profiles: ["full"]

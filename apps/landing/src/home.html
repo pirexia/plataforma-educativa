@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="{{v:lang}}" dir="{{v:dir}}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>{{t:home.title}}</title>
+<meta name="description" content="{{t:home.meta.description}}">
+{{include:head-links}}
+<script src="/js/carousel.js" defer></script>
+</head>
+<body>
+{{include:header}}
+<main id="main" tabindex="-1">
+  <section class="hero" aria-labelledby="hero-title">
+    <div class="container hero-copy">
+      <p class="badge">{{t:home.status.badge}}</p>
+      <h1 id="hero-title">{{t:home.hero.title}}</h1>
+      <p class="lead">{{t:home.hero.lead}}</p>
+      <p class="actions">
+        <a class="btn btn-primary" href="mailto:founders@adagiox.com">{{t:home.hero.cta.contact}}</a>
+        <a class="btn btn-secondary" href="#features">{{t:home.hero.cta.more}}</a>
+      </p>
+    </div>
+    <div class="carousel" role="region" aria-label="{{t:home.carousel.label}}" tabindex="0"
+      data-prev="{{t:home.carousel.prev}}" data-next="{{t:home.carousel.next}}"
+      data-goto="{{t:home.carousel.goto}}" data-pause="{{t:home.carousel.pause}}"
+      data-resume="{{t:home.carousel.resume}}">
+      <ul class="slides">
+      <li class="slide">
+        <figure>
+          <div class="window">{{img:sign-in:lcp}}</div>
+          <figcaption>{{t:home.carousel.cap.sign-in}}</figcaption>
+        </figure>
+      </li>
+      <li class="slide">
+        <figure>
+          <div class="window">{{img:hero-schedule}}</div>
+          <figcaption>{{t:home.carousel.cap.hero-schedule}}</figcaption>
+        </figure>
+      </li>
+      <li class="slide">
+        <figure>
+          <div class="window">{{img:schedule-conflict}}</div>
+          <figcaption>{{t:home.carousel.cap.schedule-conflict}}</figcaption>
+        </figure>
+      </li>
+      <li class="slide">
+        <figure>
+          <div class="window">{{img:role-permissions}}</div>
+          <figcaption>{{t:home.carousel.cap.role-permissions}}</figcaption>
+        </figure>
+      </li>
+      <li class="slide">
+        <figure>
+          <div class="window">{{img:audit-log}}</div>
+          <figcaption>{{t:home.carousel.cap.audit-log}}</figcaption>
+        </figure>
+      </li>
+      <li class="slide">
+        <figure>
+          <div class="window">{{img:family-unit}}</div>
+          <figcaption>{{t:home.carousel.cap.family-unit}}</figcaption>
+        </figure>
+      </li>
+      <li class="slide">
+        <figure>
+          <div class="window">{{img:pickup-door}}</div>
+          <figcaption>{{t:home.carousel.cap.pickup-door}}</figcaption>
+        </figure>
+      </li>
+      <li class="slide">
+        <figure>
+          <div class="window">{{img:school-branding}}</div>
+          <figcaption>{{t:home.carousel.cap.school-branding}}</figcaption>
+        </figure>
+      </li>
+      </ul>
+    </div>
+    <p class="container hint">{{t:home.carousel.hint}}</p>
+  </section>
+
+  <section id="features" class="container section" aria-labelledby="features-title">
+    <h2 id="features-title">{{t:home.features.title}}</h2>
+    <p class="section-lead">{{t:home.features.intro}}</p>
+    <article class="feature" aria-labelledby="feature-access">
+      <div class="feature-text">
+        <h3 id="feature-access">{{t:home.s.access.title}}</h3>
+        <p>{{t:home.s.access.text}}</p>
+        <ul class="ticks">
+          <li>{{t:home.s.access.i1}}</li>
+          <li>{{t:home.s.access.i2}}</li>
+          <li>{{t:home.s.access.i3}}</li>
+          <li>{{t:home.s.access.i4}}</li>
+        </ul>
+      </div>
+      <div class="feature-media window">{{img:sign-in}}</div>
+    </article>
+    <article class="feature" aria-labelledby="feature-tenant">
+      <div class="feature-text">
+        <h3 id="feature-tenant">{{t:home.s.tenant.title}}</h3>
+        <p>{{t:home.s.tenant.text}}</p>
+        <ul class="ticks">
+          <li>{{t:home.s.tenant.i1}}</li>
+          <li>{{t:home.s.tenant.i2}}</li>
+          <li>{{t:home.s.tenant.i3}}</li>
+          <li>{{t:home.s.tenant.i4}}</li>
+        </ul>
+      </div>
+      <div class="feature-media window">{{img:school-branding}}</div>
+    </article>
+    <article class="feature" aria-labelledby="feature-roles">
+      <div class="feature-text">
+        <h3 id="feature-roles">{{t:home.s.roles.title}}</h3>
+        <p>{{t:home.s.roles.text}}</p>
+        <ul class="ticks">
+          <li>{{t:home.s.roles.i1}}</li>
+          <li>{{t:home.s.roles.i2}}</li>
+          <li>{{t:home.s.roles.i3}}</li>
+        </ul>
+      </div>
+      <div class="feature-media window">{{img:role-permissions}}</div>
+    </article>
+    <article class="feature" aria-labelledby="feature-audit">
+      <div class="feature-text">
+        <h3 id="feature-audit">{{t:home.s.audit.title}}</h3>
+        <p>{{t:home.s.audit.text}}</p>
+        <ul class="ticks">
+          <li>{{t:home.s.audit.i1}}</li>
+          <li>{{t:home.s.audit.i2}}</li>
+        </ul>
+      </div>
+      <div class="feature-media window">{{img:audit-log}}</div>
+    </article>
+    <article class="feature" aria-labelledby="feature-timetable">
+      <div class="feature-text">
+        <h3 id="feature-timetable">{{t:home.s.timetable.title}}</h3>
+        <p>{{t:home.s.timetable.text}}</p>
+        <ul class="ticks">
+          <li>{{t:home.s.timetable.i1}}</li>
+          <li>{{t:home.s.timetable.i2}}</li>
+          <li>{{t:home.s.timetable.i3}}</li>
+        </ul>
+      </div>
+      <div class="feature-media window">{{img:schedule-conflict}}</div>
+    </article>
+    <article class="feature" aria-labelledby="feature-families">
+      <div class="feature-text">
+        <h3 id="feature-families">{{t:home.s.families.title}}</h3>
+        <p>{{t:home.s.families.text}}</p>
+        <ul class="ticks">
+          <li>{{t:home.s.families.i1}}</li>
+          <li>{{t:home.s.families.i2}}</li>
+          <li>{{t:home.s.families.i3}}</li>
+        </ul>
+      </div>
+      <div class="feature-media window">{{img:family-unit}}</div>
+    </article>
+    <article class="feature" aria-labelledby="feature-pickup">
+      <div class="feature-text">
+        <h3 id="feature-pickup">{{t:home.s.pickup.title}}</h3>
+        <p>{{t:home.s.pickup.text}}</p>
+        <ul class="ticks">
+          <li>{{t:home.s.pickup.i1}}</li>
+          <li>{{t:home.s.pickup.i2}}</li>
+        </ul>
+      </div>
+      <div class="feature-media window">{{img:pickup-door}}</div>
+    </article>
+  </section>
+
+  <section class="container section" aria-labelledby="also-title">
+    <h2 id="also-title">{{t:home.also.title}}</h2>
+    <ul class="cards">
+      <li class="card">
+        <h3>{{t:home.also.academic.title}}</h3>
+        <p>{{t:home.also.academic.text}}</p>
+      </li>
+      <li class="card">
+        <h3>{{t:home.also.year.title}}</h3>
+        <p>{{t:home.also.year.text}}</p>
+      </li>
+      <li class="card">
+        <h3>{{t:home.also.languages.title}}</h3>
+        <p>{{t:home.also.languages.text}}</p>
+      </li>
+    </ul>
+  </section>
+
+  <section class="band" aria-labelledby="next-title">
+    <div class="container band-inner">
+      <h2 id="next-title">{{t:home.next.title}}</h2>
+      <p class="section-lead">{{t:home.next.text}}</p>
+      <ul class="pills">
+      <li>{{t:home.next.i1}}</li>
+      <li>{{t:home.next.i2}}</li>
+      <li>{{t:home.next.i3}}</li>
+      <li>{{t:home.next.i4}}</li>
+      <li>{{t:home.next.i5}}</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="container section closing" aria-labelledby="contact-title">
+    <div>
+      <h2 id="built-title">{{t:home.built.title}}</h2>
+      <p>{{t:home.built.text}}</p>
+    </div>
+    <div>
+      <h2 id="contact-title">{{t:home.contact.title}}</h2>
+      <p>{{t:home.contact.text}}</p>
+      <p><a class="btn btn-primary" href="mailto:founders@adagiox.com">{{t:home.contact.link}}</a></p>
+    </div>
+  </section>
+</main>
+{{include:footer}}
+</body>
+</html>

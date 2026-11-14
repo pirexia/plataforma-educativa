@@ -1,0 +1,522 @@
+<?php
+
+use App\Models\User;
+use App\Modules\Auth\Infrastructure\MfaEnrollmentWall;
+use App\Modules\FamUnit\Infrastructure\TermsAcceptanceWall;
+use App\Support\Modules\DeclaresModuleRegistry;
+use App\Support\Modules\ModuleServiceProviderDiscovery;
+use App\Support\Sessions\SessionWall;
+use App\Support\Sessions\SessionWallRegistry;
+use Illuminate\Support\Facades\Route;
+
+pest()->group('arch');
+
+// ADR-056 AR-07a (CA-056-08, INV-002) y AR-07b (CA-056-08, RMOD-009,
+// ADR-044 §4.9), INV-015. Sobre la TABLA DE RUTAS registrada (patrón de
+// `ADR-051 §5.2` y `CA-BO-013`): lo que de verdad responde, no lo que dice el
+// texto de `routes.php`. Calculada en entorno de test, como la suite: incluye
+// las rutas de simulador que solo existen aquí.
+
+/**
+ * Excepciones de AR-07a: lista CERRADA y nominal por nombre de ruta (ADR-056
+ * §3.2). Solo puede reducirse; añadir una exige especificación aprobada por
+ * el usuario (OPEN-056-02). Son rutas de autoservicio o públicas que no
+ * llevan `permission:` porque no hay recurso con permiso que comprobar.
+ *
+ * @return array<string, string> nombre de ruta => motivo
+ */
+function routesWithoutPermissionExceptions(): array
+{
+    $auth = 'REQ-AUTH: anónima o de autoservicio, se autoriza por identidad o posesión de credencial (REQ-AUTH/permisos.md §1)';
+    $me = 'REQ-CORE: autoservicio del propio usuario autenticado';
+
+    return [
+        'core.tenant.branding' => 'REQ-CORE: marca pública del centro, anónima por diseño',
+        'core.me.show' => $me,
+        'core.me.update' => $me,
+        'core.me.effective-permissions' => $me,
+        'core.feature-flags.index' => 'REQ-CORE: evaluación de feature flags del propio usuario/centro',
+        'curso.academic-years.current' => 'REQ-CURSO: curso activo del centro, dato del centro y no de una persona; autoservicio por identidad como GET /me (OPEN-CURSO-15, ampliación aprobada por el usuario el 2026-10-07, ADR-056 §3.2)',
+        'curso.academic-years.selectable' => 'REQ-CURSO: opciones del selector de curso académico, dato del centro y no de una persona; autoservicio por identidad (OPEN-ACAD-11, issue #409, CA-ACAD-043, ampliación aprobada por el usuario el 2026-10-10, ADR-056 §3.2)',
+        'core.data-exports.show' => 'REQ-CORE: autoriza por `kind` en el controlador (el permiso depende del tipo de exportación)',
+        // L1 (ADR-067 §6, aprobada por el usuario el 2026-10-28): autoservicio por identidad como GET /me
+        // (REQ-FAM-UNIT/permisos.md §2); llevan module-enabled:fam_unit (AR-07b).
+        'fam-unit.me-terms.show' => 'REQ-FAM-UNIT: autoservicio por identidad, como GET /me; texto de condiciones pendiente del propio usuario (ADR-067 L1)',
+        'fam-unit.me-terms-acceptances.store' => 'REQ-FAM-UNIT: autoservicio por identidad, como GET /me; el usuario acepta por sí mismo (ADR-067 L1)',
+        'auth.csrf-cookie' => $auth,
+        'auth.session.store' => $auth,
+        'auth.session.destroy' => $auth,
+        'auth.invitation-redemptions.store' => $auth,
+        'auth.password-reset-requests.store' => $auth,
+        'auth.password-resets.store' => $auth,
+        'auth.account-unlocks.store' => $auth,
+        'auth.password-changes.store' => $auth,
+        'auth.sessions.index' => $auth,
+        'auth.sessions.destroy' => $auth,
+        'auth.sessions.destroy-all' => $auth,
+        'auth.mfa.show' => $auth,
+        'auth.mfa-enrollments.store' => $auth,
+        'auth.mfa-factors.store' => $auth,
+        'auth.mfa-factors.destroy' => $auth,
+        'auth.mfa-recovery-codes.store' => $auth,
+        'auth.mfa-challenges.store' => $auth,
+        'auth.mfa-challenges.show' => $auth,
+        'auth.mfa-verifications.store' => $auth,
+        'auth.identity-providers.index' => $auth,
+        'auth.oauth-authorizations.store' => $auth,
+        'auth.oauth.google.callback' => $auth,
+        'auth.identities.index' => $auth,
+        'auth.identities.destroy' => $auth,
+        'auth.oauth.fake.authorize' => $auth.' (simulador, solo entorno de test)',
+        'auth.oauth.oidc.callback' => $auth,
+        'auth.saml.acs' => $auth,
+    ];
+}
+
+/**
+ * @param  list<array{name: ?string, uri: string, middleware: list<string>, module: ?string}>  $routes
+ * @param  list<string>  $exceptions  nombres de ruta exentos
+ * @return list<string> rutas de `api/v1` sin `permission:` y fuera de la lista
+ */
+function routesMissingPermission(array $routes, array $exceptions): array
+{
+    $missing = [];
+
+    foreach ($routes as $route) {
+        if (! str_starts_with($route['uri'], 'api/v1')) {
+            continue;
+        }
+
+        $hasPermission = array_filter($route['middleware'], static fn (string $m): bool => str_starts_with($m, 'permission:')) !== [];
+
+        if ($hasPermission || in_array($route['name'], $exceptions, true)) {
+            continue;
+        }
+
+        $missing[] = ($route['name'] ?? '(sin nombre)').' '.$route['uri'];
+    }
+
+    return $missing;
+}
+
+/**
+ * RMOD-009, ADR-044 §4.9: toda ruta de un módulo NO esencial lleva
+ * `module-enabled:<código>` y, si lleva `permission:`, va ANTES.
+ *
+ * @param  list<array{name: ?string, uri: string, middleware: list<string>, module: ?string}>  $routes
+ * @param  array<string, bool>  $essentialByModuleCode  código => essential
+ * @return list<string>
+ */
+function routesMissingModuleGate(array $routes, array $essentialByModuleCode): array
+{
+    $violations = [];
+
+    foreach ($routes as $route) {
+        $code = $route['module'];
+
+        if ($code === null || ($essentialByModuleCode[$code] ?? true) === true) {
+            continue;
+        }
+
+        $gate = array_search("module-enabled:{$code}", $route['middleware'], true);
+        $permission = null;
+
+        foreach ($route['middleware'] as $index => $middleware) {
+            if (str_starts_with($middleware, 'permission:')) {
+                $permission = $index;
+                break;
+            }
+        }
+
+        $label = ($route['name'] ?? '(sin nombre)').' '.$route['uri'];
+
+        if ($gate === false) {
+            $violations[] = "{$label}: falta module-enabled:{$code}";
+        } elseif ($permission !== null && $permission < $gate) {
+            $violations[] = "{$label}: permission: va antes que module-enabled:{$code}";
+        }
+    }
+
+    return $violations;
+}
+
+/**
+ * Tabla de rutas registrada, normalizada.
+ *
+ * @return list<array{name: ?string, uri: string, middleware: list<string>, module: ?string}>
+ */
+function registeredRouteTable(): array
+{
+    $codes = [];
+
+    foreach (ModuleServiceProviderDiscovery::discover(app_path('Modules')) as $provider) {
+        $instance = new $provider(app());
+
+        if ($instance instanceof DeclaresModuleRegistry) {
+            $codes[explode('\\', $provider)[2]] = $instance->moduleDescriptor()['code'];
+        }
+    }
+
+    $table = [];
+
+    foreach (Route::getRoutes() as $route) {
+        $controller = $route->getControllerClass();
+        $module = null;
+
+        if (is_string($controller) && str_starts_with($controller, 'App\\Modules\\')) {
+            $module = $codes[explode('\\', $controller)[2]] ?? null;
+        }
+
+        $table[] = [
+            'name' => $route->getName(),
+            'uri' => $route->uri(),
+            'middleware' => array_values(array_filter($route->gatherMiddleware(), 'is_string')),
+            'module' => $module,
+        ];
+    }
+
+    return $table;
+}
+
+/**
+ * @return array<string, bool> código de módulo => essential
+ */
+function moduleEssentialByCode(): array
+{
+    $essential = [];
+
+    foreach (ModuleServiceProviderDiscovery::discover(app_path('Modules')) as $provider) {
+        $instance = new $provider(app());
+
+        if ($instance instanceof DeclaresModuleRegistry) {
+            $descriptor = $instance->moduleDescriptor();
+            $essential[$descriptor['code']] = $descriptor['essential'] ?? false;
+        }
+    }
+
+    return $essential;
+}
+
+test('AR-07a CA-056-08 INV-002: toda ruta de api/v1 lleva permission: o está en la lista cerrada', function (): void {
+    $table = registeredRouteTable();
+    $apiV1 = array_filter($table, static fn (array $r): bool => str_starts_with($r['uri'], 'api/v1'));
+
+    expect(count($apiV1))->toBeGreaterThan(50);
+
+    $missing = routesMissingPermission($table, array_keys(routesWithoutPermissionExceptions()));
+
+    expect($missing)->toBe([], "rutas de api/v1 sin permission: (INV-002, denegar por defecto):\n".implode("\n", $missing));
+});
+
+test('AR-07a CA-056-15: cada excepción nominal existe como ruta de api/v1 y sigue sin permission:', function (): void {
+    $table = registeredRouteTable();
+    $byName = [];
+
+    foreach ($table as $route) {
+        if ($route['name'] !== null && str_starts_with($route['uri'], 'api/v1')) {
+            $byName[$route['name']] = $route;
+        }
+    }
+
+    $stale = [];
+
+    foreach (array_keys(routesWithoutPermissionExceptions()) as $name) {
+        if (! isset($byName[$name])) {
+            $stale[] = "{$name}: la ruta ya no existe en api/v1";
+
+            continue;
+        }
+
+        if (array_filter($byName[$name]['middleware'], static fn (string $m): bool => str_starts_with($m, 'permission:')) !== []) {
+            $stale[] = "{$name}: ya lleva permission:";
+        }
+    }
+
+    expect($stale)->toBe([], "excepciones de AR-07a que ya no hacen falta, retirarlas de la lista:\n".implode("\n", $stale))
+        ->and(routesWithoutPermissionExceptions())->toHaveCount(37);
+});
+
+/**
+ * Códigos de permiso declarados por los módulos (`declaredPermissions()` de
+ * cada `DeclaresModuleRegistry`), que `platform:sync-registry` materializa.
+ *
+ * @return list<string>
+ */
+function declaredPermissionCodes(): array
+{
+    $codes = [];
+
+    foreach (ModuleServiceProviderDiscovery::discover(app_path('Modules')) as $provider) {
+        $instance = new $provider(app());
+
+        if ($instance instanceof DeclaresModuleRegistry) {
+            foreach ($instance->declaredPermissions() as $permission) {
+                $codes[] = $permission['code'];
+            }
+        }
+    }
+
+    return array_values(array_unique($codes));
+}
+
+/**
+ * Issue #378 B3, CA-ACAD-039 (OPEN-ACAD-15): una errata en `permission:<código>`
+ * hace que la ruta exija un permiso que nadie puede conceder (siempre `403`),
+ * y hoy solo se descubre en ejecución. Devuelve las rutas de `api/v1` cuyo
+ * `permission:` nombra un código que ningún módulo declara.
+ *
+ * @param  list<array{name: ?string, uri: string, middleware: list<string>, module: ?string}>  $routes
+ * @param  list<string>  $declared
+ * @return list<string>
+ */
+function routesWithUndeclaredPermission(array $routes, array $declared): array
+{
+    $violations = [];
+
+    foreach ($routes as $route) {
+        if (! str_starts_with($route['uri'], 'api/v1')) {
+            continue;
+        }
+
+        foreach ($route['middleware'] as $middleware) {
+            if (! str_starts_with($middleware, 'permission:')) {
+                continue;
+            }
+
+            $code = substr($middleware, strlen('permission:'));
+
+            if (! in_array($code, $declared, true)) {
+                $violations[] = ($route['name'] ?? '(sin nombre)').' '.$route['uri'].": permission:{$code} no está declarado por ningún módulo";
+            }
+        }
+    }
+
+    return $violations;
+}
+
+test('AR-07a CA-ACAD-039 #378 B3: el código de cada permission: de api/v1 está declarado en el catálogo de algún módulo', function (): void {
+    $declared = declaredPermissionCodes();
+    $table = registeredRouteTable();
+    $withPermission = array_filter($table, static fn (array $r): bool => str_starts_with($r['uri'], 'api/v1')
+        && array_filter($r['middleware'], static fn (string $m): bool => str_starts_with($m, 'permission:')) !== []);
+
+    // No vacuidad: hay catálogo y hay rutas con permission: que comprobar.
+    expect(count($declared))->toBeGreaterThan(30)
+        ->and(count($withPermission))->toBeGreaterThan(50);
+
+    $violations = routesWithUndeclaredPermission($table, $declared);
+
+    expect($violations)->toBe([], "rutas con un permission: que ningún módulo declara (errata o permiso retirado):\n".implode("\n", $violations));
+});
+
+test('AR-07a CA-ACAD-039 control negativo: detecta un permission: no declarado, también en un módulo no esencial, y no uno declarado ni una ruta fuera de api/v1', function (): void {
+    $routes = [
+        ['name' => 'x.ok', 'uri' => 'api/v1/x', 'middleware' => ['module-enabled:x', 'permission:x.leer'], 'module' => 'x'],
+        ['name' => 'x.errata', 'uri' => 'api/v1/x/a', 'middleware' => ['module-enabled:x', 'permission:x.lear'], 'module' => 'x'],
+        ['name' => 'x.sin-nombre', 'uri' => 'api/v1/x/b', 'middleware' => ['permission:fantasma.crear'], 'module' => null],
+        ['name' => 'x.sin-permiso', 'uri' => 'api/v1/x/c', 'middleware' => ['module-enabled:x'], 'module' => 'x'],
+        ['name' => 'fuera', 'uri' => 'api/platform/z', 'middleware' => ['permission:no.declarado'], 'module' => null],
+    ];
+
+    expect(routesWithUndeclaredPermission($routes, ['x.leer']))->toBe([
+        'x.errata api/v1/x/a: permission:x.lear no está declarado por ningún módulo',
+        'x.sin-nombre api/v1/x/b: permission:fantasma.crear no está declarado por ningún módulo',
+    ]);
+});
+
+test('AR-07b CA-056-08 RMOD-009: toda ruta de un módulo no esencial lleva module-enabled:<código> antes de permission:', function (): void {
+    $essential = moduleEssentialByCode();
+
+    expect($essential)->not->toBe([]);
+
+    $violations = routesMissingModuleGate(registeredRouteTable(), $essential);
+
+    expect($violations)->toBe([], "rutas de módulos activables sin module-enabled (RMOD-009):\n".implode("\n", $violations));
+});
+
+test('AR-07a AR-07b control negativo: las funciones detectan ruta sin permission:, sin module-enabled y en orden inverso', function (): void {
+    $routes = [
+        ['name' => 'x.ok', 'uri' => 'api/v1/x', 'middleware' => ['module-enabled:x', 'permission:x.leer'], 'module' => 'x'],
+        ['name' => 'x.sin-permiso', 'uri' => 'api/v1/x/a', 'middleware' => ['module-enabled:x'], 'module' => 'x'],
+        ['name' => 'x.sin-modulo', 'uri' => 'api/v1/x/b', 'middleware' => ['permission:x.leer'], 'module' => 'x'],
+        ['name' => 'x.orden', 'uri' => 'api/v1/x/c', 'middleware' => ['permission:x.leer', 'module-enabled:x'], 'module' => 'x'],
+        ['name' => 'x.exenta', 'uri' => 'api/v1/x/d', 'middleware' => ['module-enabled:x'], 'module' => 'x'],
+        ['name' => 'esencial.sin', 'uri' => 'api/v1/e', 'middleware' => ['permission:e.leer'], 'module' => 'e'],
+        ['name' => 'fuera', 'uri' => 'api/platform/z', 'middleware' => [], 'module' => null],
+    ];
+
+    expect(routesMissingPermission($routes, ['x.exenta']))->toBe(['x.sin-permiso api/v1/x/a'])
+        ->and(routesMissingModuleGate($routes, ['x' => false, 'e' => true]))->toBe([
+            'x.sin-modulo api/v1/x/b: falta module-enabled:x',
+            'x.orden api/v1/x/c: permission: va antes que module-enabled:x',
+        ]);
+});
+
+// ─── ADR-067 §7: ningún endpoint escapa a los muros de sesión (INV-015, INV-010) ───
+
+/**
+ * L7 (ADR-067 §6): rutas de `api/v1` sin `require-session-walls`. El ACS de SAML llega sin sesión por diseño
+ * (`ADR-043 §2.1`); es la única.
+ *
+ * @return list<string>
+ */
+function routesWithoutSessionWallsExceptions(): array
+{
+    return ['auth.saml.acs'];
+}
+
+/**
+ * @param  list<array{name: ?string, uri: string, middleware: list<string>, module: ?string}>  $routes
+ * @param  list<string>  $exceptions  nombres de ruta exentos
+ * @return list<string> rutas de `api/v1` sin `require-session-walls` y fuera de la lista
+ */
+function routesMissingSessionWalls(array $routes, array $exceptions): array
+{
+    $missing = [];
+
+    foreach ($routes as $route) {
+        if (! str_starts_with($route['uri'], 'api/v1') || in_array($route['name'], $exceptions, true)) {
+            continue;
+        }
+
+        if (! in_array('require-session-walls', $route['middleware'], true)) {
+            $missing[] = ($route['name'] ?? '(sin nombre)').' '.$route['uri'];
+        }
+    }
+
+    return $missing;
+}
+
+test('CA-067-01 ADR-067 §7: toda ruta de api/v1 lleva require-session-walls salvo L7, y ninguna de api/platform/* lo lleva', function (): void {
+    $table = registeredRouteTable();
+    $apiV1 = array_filter($table, static fn (array $r): bool => str_starts_with($r['uri'], 'api/v1'));
+
+    expect(count($apiV1))->toBeGreaterThan(50);
+
+    $missing = routesMissingSessionWalls($table, routesWithoutSessionWallsExceptions());
+
+    expect($missing)->toBe([], "rutas de api/v1 fuera del muro de sesión (INV-010):\n".implode("\n", $missing));
+
+    // L7: la excepción existe, sigue sin el muro y es la única.
+    $names = array_column($table, 'name');
+    expect(routesWithoutSessionWallsExceptions())->each->toBeIn($names);
+
+    $without = array_filter($apiV1, static fn (array $r): bool => ! in_array('require-session-walls', $r['middleware'], true));
+    expect(array_column($without, 'name'))->toBe(routesWithoutSessionWallsExceptions());
+
+    $platform = array_filter($table, static fn (array $r): bool => str_starts_with($r['uri'], 'api/platform'));
+    expect(count($platform))->toBeGreaterThan(0);
+
+    foreach ($platform as $route) {
+        expect($route['middleware'])->not->toContain('require-session-walls');
+    }
+});
+
+test('CA-067-01 control negativo: detecta una ruta de api/v1 sin el muro y respeta L7 y las rutas fuera de api/v1', function (): void {
+    $routes = [
+        ['name' => 'x.ok', 'uri' => 'api/v1/x', 'middleware' => ['require-session-walls'], 'module' => null],
+        ['name' => 'x.sin-muro', 'uri' => 'api/v1/y', 'middleware' => ['module-enabled:x'], 'module' => null],
+        ['name' => 'auth.saml.acs', 'uri' => 'api/v1/auth/saml/{publicId}/acs', 'middleware' => [], 'module' => null],
+        ['name' => 'fuera', 'uri' => 'api/platform/z', 'middleware' => [], 'module' => null],
+    ];
+
+    expect(routesMissingSessionWalls($routes, routesWithoutSessionWallsExceptions()))->toBe(['x.sin-muro api/v1/y']);
+});
+
+test('CA-067-02 ADR-067 §7: cada ruta exenta de un muro existe en api/v1, está en AR-07a y la lista coincide exactamente con la aprobada (L3, L4)', function (): void {
+    $approved = [
+        'mfa-enrollment' => [
+            'core.me.show', 'auth.mfa.show', 'auth.mfa-enrollments.store', 'auth.mfa-factors.store',
+            'auth.session.destroy', 'auth.csrf-cookie', 'core.tenant.branding',
+        ],
+        'terms-acceptance' => [
+            'core.me.show', 'fam-unit.me-terms.show', 'fam-unit.me-terms-acceptances.store',
+            'auth.session.destroy', 'auth.csrf-cookie', 'core.tenant.branding',
+        ],
+    ];
+
+    $byName = [];
+
+    foreach (registeredRouteTable() as $route) {
+        if ($route['name'] !== null && str_starts_with($route['uri'], 'api/v1')) {
+            $byName[$route['name']] = $route;
+        }
+    }
+
+    $selfService = array_keys(routesWithoutPermissionExceptions());
+    $walls = array_map(static fn (string $class) => app($class), app(SessionWallRegistry::class)->ordered());
+
+    expect(array_map(static fn ($wall): string => $wall->code(), $walls))->toBe(array_keys($approved));
+
+    foreach ($walls as $wall) {
+        $exempt = $wall->exemptRouteNames();
+        $expected = $approved[$wall->code()];
+        sort($exempt);
+        sort($expected);
+
+        expect($exempt)->toBe($expected, "lista exenta de {$wall->code()}");
+
+        $problems = [];
+
+        foreach ($exempt as $name) {
+            if (! isset($byName[$name])) {
+                $problems[] = "{$wall->code()}: la ruta exenta {$name} ya no existe en api/v1";
+            }
+
+            if (! in_array($name, $selfService, true)) {
+                $problems[] = "{$wall->code()}: la ruta exenta {$name} debe estar en AR-07a (autoservicio)";
+            }
+        }
+
+        expect($problems)->toBe([]);
+    }
+});
+
+test('CA-067-03 ADR-067 §5.2, L6: el orden del registro es exactamente mfa-enrollment, terms-acceptance, y un código fuera de L6 o duplicado falla', function (): void {
+    $registry = app(SessionWallRegistry::class);
+
+    expect(SessionWallRegistry::ORDER)->toBe(['mfa-enrollment', 'terms-acceptance'])
+        ->and($registry->ordered())->toBe([
+            MfaEnrollmentWall::class,
+            TermsAcceptanceWall::class,
+        ]);
+
+    $fresh = new SessionWallRegistry;
+    $fresh->register(TermsAcceptanceWall::class);
+    $fresh->register(MfaEnrollmentWall::class);
+
+    // El orden lo fija la constante, no el orden de registro.
+    expect($fresh->ordered())->toBe($registry->ordered());
+
+    expect(fn () => $fresh->register(MfaEnrollmentWall::class))->toThrow(LogicException::class, 'ya está registrado');
+
+    $other = new class implements SessionWall
+    {
+        public function code(): string
+        {
+            return 'otro-muro';
+        }
+
+        public function errorType(): string
+        {
+            return 'forbidden';
+        }
+
+        public function moduleCode(): string
+        {
+            return 'core';
+        }
+
+        public function exemptRouteNames(): array
+        {
+            return [];
+        }
+
+        public function blocks(User $user): bool
+        {
+            return false;
+        }
+    };
+
+    expect(fn () => (new SessionWallRegistry)->register($other::class))->toThrow(LogicException::class, 'no está en el orden cerrado');
+});

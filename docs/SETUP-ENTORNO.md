@@ -1,6 +1,6 @@
 # SETUP-ENTORNO.md · Puesta en marcha del entorno de desarrollo
 
-> **Versión 1.1.0** · 2026-08-12 
+> **Versión 1.3.0** · 2026-08-13 
 > De un equipo con Windows recién encendido a Claude Code trabajando sobre el repositorio.
 > Corresponde a los pasos **0.1, 0.2 y 0.3** de `PLAN-IMPLEMENTACION.md`.
 
@@ -278,6 +278,7 @@ plataforma-educativa/
 ├── ARCHITECTURE.md               · stack, despliegue, dimensionado
 ├── PLAN-IMPLEMENTACION.md        · pasos de ejecución
 ├── .gitignore
+├── .mcp.json                     · opcional, ver 7.3 (sin secretos dentro)
 │
 ├── .claude/
 │   ├── settings.json             · permisos, con destructivos denegados
@@ -448,42 +449,217 @@ Con las tres divergencias de `ADR-029` documentadas: `TIMESTAMPTZ` siempre, `tex
 
 ### 7.3 Servidores MCP
 
-Ahora mismo, dos:
+Ahora mismo, dos: **GitHub** y **Context7**.
+
+#### Ámbitos: elige bien antes de instalar
+
+Claude Code guarda la configuración de MCP en tres ámbitos distintos, y equivocarse es el error más común:
+
+| Ámbito | Dónde vive | Cuándo usarlo |
+|--------|-----------|---------------|
+| `local` | Solo tu equipo, solo este proyecto | Pruebas |
+| `project` | `.mcp.json`, **se versiona** | Configuración compartida del proyecto |
+| `user` | Tu equipo, todos los proyectos | Herramientas personales |
+
+Los nombres de los ámbitos han cambiado entre versiones. Comprueba antes con:
 
 ```bash
-claude mcp add github -- npx -y @modelcontextprotocol/server-github
+claude mcp add --help
+```
+
+#### Paso 1 · Crear el token de GitHub
+
+GitHub → *Settings* → *Developer settings* → *Personal access tokens* → **Fine-grained tokens**.
+
+| Campo | Valor |
+|-------|-------|
+| Nombre | `claude-code-plataforma-educativa` |
+| Caducidad | 90 días (renovable; no elijas "sin caducidad") |
+| Repository access | **Only select repositories** → `plataforma-educativa` |
+
+Permisos mínimos para lo que necesitamos según `CLAUDE.md`:
+
+| Permiso | Nivel | Para qué |
+|---------|-------|----------|
+| Issues | Lectura y escritura | Política de severidad de incidencias |
+| Pull requests | Lectura y escritura | Flujo de ramas |
+| Contents | Lectura y escritura | Leer y proponer cambios |
+| Metadata | Lectura | Obligatorio, se marca solo |
+
+No concedas `Administration` ni acceso a toda la organización. El token es para un repositorio.
+
+Copia el token: **solo se muestra una vez**.
+
+#### Paso 2 · Guardar el token fuera del repositorio
+
+**Nunca escribas el token en un fichero del proyecto.** Guárdalo en un fichero de entorno personal:
+
+```bash
+mkdir -p ~/.config/plataforma
+cat > ~/.config/plataforma/env << 'EOF'
+export GITHUB_TOKEN="github_pat_TU_TOKEN_AQUI"
+EOF
+chmod 600 ~/.config/plataforma/env
+```
+
+Cárgalo al abrir la terminal, añadiendo a `~/.bashrc`:
+
+```bash
+[ -f ~/.config/plataforma/env ] && source ~/.config/plataforma/env
+```
+
+Recarga y comprueba que existe sin imprimirlo entero:
+
+```bash
+source ~/.bashrc
+echo "${GITHUB_TOKEN:0:12}..."      # solo el prefijo
+```
+
+#### Paso 3 · Registrar el servidor
+
+GitHub mantiene un **servidor oficial remoto**. Es el que hay que usar: el paquete de referencia `@modelcontextprotocol/server-github` quedó descontinuado.
+
+```bash
+claude mcp add --transport http github \
+  https://api.githubcopilot.com/mcp/ \
+  --header "Authorization: Bearer ${GITHUB_TOKEN}"
+```
+
+> **Sobre OAuth**: el servidor remoto de GitHub lo soporta, pero el flujo completo funciona con fiabilidad en VS Code, no en Claude Code. Para Claude Code, usa el token. Si en tu versión el flujo de `claude mcp auth github` funciona, mejor todavía: los tokens quedan en el llavero del sistema en lugar de en un fichero.
+
+#### Paso 4 · Comprobar dónde ha quedado el token
+
+Aquí está el detalle que importa. Al pasar `${GITHUB_TOKEN}` en la línea de comandos, **el shell lo expande antes de que Claude Code lo reciba**, así que el valor literal acaba escrito en la configuración:
+
+```bash
+grep -o 'github_pat_[A-Za-z0-9_]\{6\}' ~/.claude.json 2>/dev/null && \
+  echo "⚠ El token está en claro en ~/.claude.json"
+```
+
+Si aparece, tienes dos opciones:
+
+**Opción A · aceptar y proteger el fichero** (suficiente en un equipo personal):
+
+```bash
+chmod 600 ~/.claude.json
+```
+
+**Opción B · usar `.mcp.json` de proyecto con referencia a la variable** (preferible, y necesaria si algún día hay equipo). Crea `.mcp.json` en la raíz del repositorio:
+
+```json
+{
+  "mcpServers": {
+    "github": {
+      "type": "http",
+      "url": "https://api.githubcopilot.com/mcp/",
+      "headers": {
+        "Authorization": "Bearer ${GITHUB_TOKEN}"
+      }
+    },
+    "context7": {
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp"]
+    }
+  }
+}
+```
+
+Claude Code expande `${GITHUB_TOKEN}` **en tiempo de ejecución**, así que el fichero se puede versionar sin exponer nada: lleva la referencia, no el valor. Elimina entonces la entrada duplicada:
+
+```bash
+claude mcp remove github
+```
+
+#### Paso 5 · Context7
+
+```bash
 claude mcp add context7 -- npx -y @upstash/context7-mcp
 ```
 
-El token de GitHub se crea en *Settings → Developer settings → Personal access tokens (fine-grained)*, con permisos de **Issues (lectura y escritura)**, **Pull requests** y **Contents** solo sobre este repositorio.
+No necesita credenciales. Es el que evita que Claude invente API de versiones que no son las tuyas.
 
-**Nunca escribas el token en un fichero del repositorio.** Va en variable de entorno o en el gestor de credenciales de Claude Code.
+#### Paso 6 · Verificar
 
-Los tres restantes se añaden conforme avance el plan:
+```bash
+claude mcp list
+```
 
-| MCP | Cuándo | Nota |
-|-----|--------|------|
-| Laravel Boost | Tras el paso 0.4 | Antes no tiene nada que leer |
-| Playwright | Tras el paso 0.5 | |
-| PostgreSQL | Tras el paso 0.8 | **Solo lectura y nunca contra producción** |
-
-Comprueba:
+Dentro de Claude Code:
 
 ```
 /mcp
 ```
 
+Ambos deben aparecer conectados. Si GitHub da 401, el token ha caducado o le falta permiso; si da error de conexión, revisa que la variable esté cargada en la sesión desde la que lanzas Claude Code.
+
+#### Renovación
+
+El token caduca en 90 días. Cuando ocurra, las herramientas de GitHub dejarán de responder con un 401. Genera uno nuevo, actualiza `~/.config/plataforma/env` y reinicia Claude Code. Con la opción B no hay que tocar nada más.
+
+#### Los tres restantes
+
+| MCP | Cuándo | Nota |
+|-----|--------|------|
+| Laravel Boost | Tras el paso 0.4 | Antes no tiene nada que leer |
+| Playwright | Tras el paso 0.5 | |
+| PostgreSQL | Tras el paso 0.8 | **Usuario de solo lectura y nunca contra producción**: dar a un agente capacidad de ejecutar SQL sobre datos de alumnos es un riesgo real |
+
 ### 7.4 Prueba de funcionamiento
 
-Con Claude Code abierto, pide:
+#### Qué está cargado
 
-1. *"Resume el estado del proyecto"* → debe leer `memory.md` y `PLAN-IMPLEMENTACION.md` sin que se lo indiques.
-2. *"Escribe una consulta que liste alumnos de un grupo"* → debe activarse la skill `aislamiento-tenant` y mencionar el filtrado por tenant.
-3. *"Crea un issue de prueba"* → debe aparecer en GitHub.
+```
+/context
+```
 
-Si las tres funcionan, el paso 0.2 está cerrado.
+Debe aparecer `CLAUDE.md`. Pregunta además, en lenguaje natural:
 
----
+> ¿Qué skills tienes disponibles en este proyecto?
+
+Deben salir las diez.
+
+#### Prueba 1 · El contexto permanente
+
+> Resume el estado del proyecto.
+
+Sin que se lo pidas, debe leer `memory.md` y `PLAN-IMPLEMENTACION.md`, y decirte en qué paso estás.
+
+#### Prueba 2 · La Regla 0
+
+> Escribe una consulta que liste los alumnos de un grupo.
+
+**La respuesta correcta es negarse.** No existe esquema, ni migraciones, ni especificación de `REQ-ALUM` o `REQ-ACAD`. Si escribe la consulta sin más, la Regla 0 no está funcionando y hay que revisar por qué no se carga `CLAUDE.md`.
+
+Si se niega citando el plan y ofreciendo alternativas, el gobierno funciona.
+
+#### Prueba 3 · Las skills, de verdad
+
+> ⚠ **Cuidado con las pruebas que no discriminan.** `CLAUDE.md` ya contiene la lista de invariantes, así que si Claude menciona "aislamiento de tenant" **no demuestra** que la skill se haya activado: puede venir del contexto permanente. Hay que preguntar por contenido que esté **solo** en la skill.
+
+| Pregunta | Respuesta que confirma la activación | Skill |
+|----------|--------------------------------------|-------|
+| ¿Qué devuelve la API si un usuario pide un recurso de otro colegio? | **404, no 403**, para no revelar la existencia del recurso | `aislamiento-tenant` |
+| ¿Dónde es más fácil que se escape el filtrado de tenant? | Jobs en cola, comandos de consola, tareas programadas, listeners y seeders: ahí no hay middleware | `aislamiento-tenant` |
+| ¿Qué test debe llevar todo módulo nuevo? | Dos tenants con datos equivalentes, verificando que ninguno alcanza los del otro | `aislamiento-tenant` |
+| ¿Puedo reiniciar la API sin tocar el frontend? | Sí, porque el frontend no hace de proxy: Traefik enruta. Y `Wants=`, nunca `Requires=` | `contenedores-y-red` |
+| ¿Dónde se guardan las personas autorizadas a recoger a un alumno? | En la unidad familiar, `REQ-FAM-UNIT-005`, como lista maestra única | `datos-personales` |
+| ¿Qué tipo uso para una marca de tiempo? | `TIMESTAMPTZ`, y ojo con `timestamps()` de Laravel, que genera `timestamp` sin zona | `postgres-rendimiento` |
+
+Cuando una skill se activa, Claude Code la muestra en la línea de herramientas usadas de esa respuesta. Si no aparece ninguna y la respuesta es genérica, revisa que cada skill esté en **su propio directorio** con el fichero `SKILL.md` dentro:
+
+```bash
+ls .claude/skills/
+```
+
+Diez directorios, no diez ficheros sueltos.
+
+#### Prueba 4 · El MCP de GitHub
+
+> Crea un issue de prueba titulado "Verificación de entorno" y ciérralo.
+
+Debe aparecer en GitHub y cerrarse. Si da 401, revisa el token (punto 7.3).
+
+Si las cuatro pruebas pasan, el paso 0.2 está cerrado.
 
 ## Fase 8 · Verificar el generador de datos
 
@@ -510,6 +686,8 @@ Debe terminar con *"Todas las comprobaciones pasan"*. Los ficheros de `seed/sali
 - [ ] Repositorio con `main` y `develop`, ambas protegidas
 - [ ] `/agents` lista los 9 subagentes con el modelo correcto
 - [ ] `/mcp` lista GitHub y Context7
+- [ ] Claude Code se **niega** a escribir código sin especificación (Regla 0)
+- [ ] Una pregunta discriminante activa la skill correspondiente
 - [ ] Claude Code crea un issue de prueba en GitHub
 - [ ] El generador sintético pasa el verificador
 - [ ] Ningún dato real en el equipo
@@ -527,6 +705,10 @@ Debe terminar con *"Todas las comprobaciones pasan"*. Los ficheros de `seed/sali
 **`npm install` tarda muchísimo.** El proyecto está en `/mnt/c`. Muévelo a `~/proyectos`.
 
 **Git pide la passphrase en cada operación.** El agente SSH no arranca; revisa el bloque de `~/.bashrc` del paso 2.2.
+
+**El MCP de GitHub responde 401.** Token caducado o sin el permiso necesario. Comprueba en GitHub que sigue activo y que tiene Issues, Pull requests y Contents en lectura y escritura.
+
+**El MCP de GitHub no arranca.** La variable `GITHUB_TOKEN` no está cargada en la sesión desde la que lanzaste Claude Code. Ejecuta `source ~/.bashrc` y vuelve a abrir.
 
 **Claude Code no lee `CLAUDE.md`.** Lo has arrancado fuera del directorio del proyecto. Debe ejecutarse desde la raíz del repositorio.
 

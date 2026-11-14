@@ -1,0 +1,735 @@
+/*
+ * Estilos de la landing (ADR-072 §4.1, ADR-074 §4.4-§4.5). Escritos a mano, sin importar nada de apps/web.
+ * Identidad propia de AdagioX: tinta índigo sobre fondos casi blancos (o su variante oscura) y un
+ * único acento. Todos los pares texto/fondo cumplen WCAG 2.2 AA (>= 4,5:1; los de texto corriente
+ * superan 7:1). Sin fuentes ni recursos de terceros; CSP: style-src 'self'.
+ */
+:root {
+  color-scheme: light dark;
+  --background: oklch(0.99 0.004 270);
+  --foreground: oklch(0.2 0.04 270);
+  --muted-foreground: oklch(0.42 0.035 270);
+  --surface: oklch(0.965 0.012 270);
+  --surface-strong: oklch(0.93 0.025 270);
+  --border: oklch(0.87 0.02 270);
+  --input: oklch(0.62 0.04 270);
+  --brand: oklch(0.45 0.19 272);
+  --brand-hover: oklch(0.38 0.19 272);
+  --brand-foreground: oklch(0.99 0 0);
+  --accent: oklch(0.72 0.15 55);
+  --hero-glow: oklch(0.92 0.06 280);
+  --shadow: 0 1.25rem 2.5rem -1rem oklch(0.25 0.1 272 / 35%);
+  --ring: var(--brand);
+  --radius: 0.75rem;
+  --font-sans: system-ui, 'Segoe UI', Roboto, sans-serif;
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+  --gutter: max(var(--space-4), calc((100% - 64rem) / 2 + var(--space-4)));
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: oklch(0.17 0.03 270);
+    --foreground: oklch(0.96 0.01 270);
+    --muted-foreground: oklch(0.78 0.03 270);
+    --surface: oklch(0.22 0.035 270);
+    --surface-strong: oklch(0.27 0.045 270);
+    --border: oklch(0.34 0.045 270);
+    --input: oklch(0.6 0.05 270);
+    --brand: oklch(0.8 0.12 275);
+    --brand-hover: oklch(0.88 0.09 275);
+    --brand-foreground: oklch(0.18 0.04 270);
+    --hero-glow: oklch(0.3 0.09 275);
+    --shadow: 0 1.25rem 2.5rem -1rem oklch(0 0 0 / 60%);
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+.container {
+  width: 100%;
+  max-width: 64rem;
+  margin-inline: auto;
+  padding-inline: var(--space-4);
+}
+
+a {
+  color: var(--foreground);
+  text-underline-offset: 0.2em;
+}
+
+a:focus-visible,
+main:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+main:focus {
+  outline: none;
+}
+
+.skip-link {
+  position: absolute;
+  left: var(--space-4);
+  top: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  background: var(--primary);
+  color: var(--primary-foreground);
+  border-radius: var(--radius);
+  transform: translateY(-200%);
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+  z-index: 10;
+}
+
+.site-header {
+  border-bottom: 1px solid var(--border);
+}
+
+.header-inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-block: var(--space-4);
+}
+
+.brand {
+  font-size: 1.25rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.lang-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lang-list a[aria-current='page'] {
+  font-weight: 700;
+}
+
+main {
+  padding-block: 0 var(--space-8);
+}
+
+/* ---------- Cabecera (hero) ---------- */
+
+.hero {
+  position: relative;
+  isolation: isolate;
+  padding-block: var(--space-12) var(--space-8);
+  background: radial-gradient(60rem 28rem at 85% -10%, var(--hero-glow), transparent 70%);
+}
+
+.hero::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: -1;
+  height: 32rem;
+  background: url('/img/hero-bg.svg') center top / cover no-repeat;
+  mask-image: linear-gradient(to bottom, #000 30%, transparent);
+}
+
+.hero-copy {
+  max-width: 64rem;
+}
+
+h1 {
+  max-width: 22ch;
+  margin: 0 0 var(--space-4);
+  font-size: clamp(2.125rem, 6.5vw, 3.75rem);
+  line-height: 1.08;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
+
+h2 {
+  margin: var(--space-12) 0 var(--space-3);
+  font-size: clamp(1.5rem, 3.6vw, 2.125rem);
+  line-height: 1.2;
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+
+h3 {
+  margin: 0 0 var(--space-2);
+  font-size: 1.25rem;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+}
+
+.lead {
+  max-width: 40rem;
+  margin: 0 0 var(--space-6);
+  font-size: clamp(1.0625rem, 2.4vw, 1.3125rem);
+  line-height: 1.55;
+  color: var(--muted-foreground);
+}
+
+.note {
+  max-width: 42rem;
+  margin: 0;
+  color: var(--muted-foreground);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-6);
+  padding: var(--space-1) var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--input);
+  border-radius: 999px;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.badge::before {
+  content: '';
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem;
+  padding: var(--space-2) var(--space-6);
+  border: 2px solid var(--brand);
+  border-radius: 999px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.btn-primary {
+  background: var(--brand);
+  color: var(--brand-foreground);
+}
+
+.btn-primary:hover {
+  background: var(--brand-hover);
+  border-color: var(--brand-hover);
+}
+
+.btn-secondary {
+  background: transparent;
+  color: var(--foreground);
+}
+
+.btn-secondary:hover {
+  background: var(--surface-strong);
+}
+
+a.btn:focus-visible {
+  outline-offset: 3px;
+}
+
+/* ---------- Carrusel (ADR-074 §4.5, ADR-075): usable sin JavaScript; con él, controles añadidos ---------- */
+
+.carousel {
+  margin-top: var(--space-12);
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scroll-padding-inline: var(--gutter);
+  scrollbar-width: thin;
+  scrollbar-color: var(--input) transparent;
+  padding-block: var(--space-2) var(--space-6);
+  /* Reserva el hueco de la barra de controles (los crea el script): sin ella, la página saltaría al cargarlo. */
+  margin-bottom: 3.5rem;
+}
+
+.carousel:focus-visible {
+  outline: 3px solid var(--ring);
+  outline-offset: -3px;
+  border-radius: var(--radius);
+}
+
+.slides {
+  display: flex;
+  gap: var(--space-6);
+  margin: 0;
+  padding: 0 var(--gutter);
+  list-style: none;
+  width: max-content;
+}
+
+.slide {
+  flex: 0 0 min(84vw, 44rem);
+  scroll-snap-align: start;
+}
+
+.slide figure {
+  margin: 0;
+}
+
+.slide figcaption {
+  margin-top: var(--space-3);
+  max-width: 40rem;
+  color: var(--muted-foreground);
+  font-size: 0.9375rem;
+}
+
+/* Controles del carrusel (ADR-075 §2): los crea carousel.js, así que sin JavaScript no existen. */
+.carousel-frame {
+  position: relative;
+  display: flow-root;
+}
+
+.carousel-arrow,
+.carousel-dot,
+.carousel-pause {
+  font: inherit;
+  cursor: pointer;
+}
+
+.carousel-arrow {
+  position: absolute;
+  /* Centro de la ventana de la primera diapositiva: margen y relleno del carrusel, barra de título de 2rem
+     y la imagen (proporción 16:10) a la anchura de .slide. */
+  top: calc(var(--space-12) + var(--space-2) + (min(84vw, 44rem) * 0.625 + 2rem) / 2);
+  z-index: 1;
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+  border: 2px solid var(--input);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--foreground);
+  box-shadow: var(--shadow);
+  transform: translateY(-50%);
+}
+
+.carousel-arrow[data-dir='prev'] {
+  inset-inline-start: max(var(--space-2), calc(var(--gutter) - 3.5rem));
+}
+
+.carousel-arrow[data-dir='next'] {
+  inset-inline-end: max(var(--space-2), calc(var(--gutter) - 3.5rem));
+}
+
+/* Chevrón dibujado con bordes: no hay texto ni imagen, y se invierte solo con dir="rtl". */
+.carousel-arrow::before {
+  content: '';
+  display: block;
+  width: 0.75rem;
+  height: 0.75rem;
+  margin: auto;
+  border: solid currentcolor;
+  border-width: 0 0 3px 3px;
+  transform: translateX(15%) rotate(45deg);
+}
+
+.carousel-arrow[data-dir='next']::before {
+  transform: translateX(-15%) rotate(-135deg);
+}
+
+[dir='rtl'] .carousel-arrow::before {
+  scale: -1 1;
+}
+
+.carousel-arrow:hover {
+  background: var(--surface-strong);
+}
+
+.carousel-arrow:focus-visible,
+.carousel-dot:focus-visible,
+.carousel-pause:focus-visible {
+  outline: 3px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.carousel-bar {
+  position: absolute;
+  inset-inline: var(--gutter);
+  bottom: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  column-gap: var(--space-2);
+}
+
+.carousel-pause {
+  min-height: 2.75rem;
+  margin-inline-end: var(--space-4);
+  padding: var(--space-1) var(--space-4);
+  border: 2px solid var(--brand);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--foreground);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.carousel-pause[hidden] {
+  display: none;
+}
+
+.carousel-pause:hover {
+  background: var(--surface-strong);
+}
+
+.carousel-dot {
+  position: relative;
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+/* El punto es el ::before; el botón mide 44 px para el dedo. */
+.carousel-dot::before {
+  content: '';
+  position: absolute;
+  inset: 50% auto auto 50%;
+  width: 0.75rem;
+  height: 0.75rem;
+  border: 2px solid var(--muted-foreground);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.carousel-dot[aria-current='true']::before {
+  width: 1rem;
+  height: 1rem;
+  border-color: var(--brand);
+  background: var(--brand);
+}
+
+@media (max-width: 40rem) {
+  .carousel {
+    margin-bottom: 6.5rem;
+  }
+
+  .carousel-arrow {
+    width: 2.75rem;
+    height: 2.75rem;
+    border-width: 1px;
+    opacity: 0.88;
+    box-shadow: none;
+  }
+
+  .carousel-bar {
+    column-gap: 0;
+  }
+
+  .carousel-pause {
+    margin-inline-end: 0;
+  }
+}
+
+.hint {
+  margin-block: 0;
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+}
+
+/* Marco de ventana de aplicación dibujado con CSS: no es una imagen. */
+.window {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.window::before {
+  content: '';
+  display: block;
+  height: 2rem;
+  border-bottom: 1px solid var(--border);
+  background:
+    radial-gradient(circle 0.3125rem at 1rem 50%, var(--input) 96%, transparent),
+    radial-gradient(circle 0.3125rem at 2.25rem 50%, var(--input) 96%, transparent),
+    radial-gradient(circle 0.3125rem at 3.5rem 50%, var(--input) 96%, transparent),
+    var(--surface-strong);
+}
+
+.window picture,
+.window img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* ---------- Secciones de detalle ---------- */
+
+.section {
+  padding-block: var(--space-4);
+}
+
+.section-lead {
+  max-width: 44rem;
+  margin: 0 0 var(--space-8);
+  color: var(--muted-foreground);
+  font-size: 1.125rem;
+}
+
+.feature {
+  display: grid;
+  gap: var(--space-6);
+  align-items: center;
+  padding-block: var(--space-8);
+  border-top: 1px solid var(--border);
+}
+
+.feature-text p {
+  margin: 0 0 var(--space-4);
+}
+
+.ticks {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ticks li {
+  position: relative;
+  padding-inline-start: var(--space-8);
+}
+
+.ticks li::before {
+  content: '';
+  position: absolute;
+  inset-inline-start: 0.375rem;
+  top: 0.35em;
+  width: 0.375rem;
+  height: 0.75rem;
+  border: solid var(--brand);
+  border-width: 0 2px 2px 0;
+  transform: rotate(40deg);
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.card {
+  padding: var(--space-6);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.card p {
+  margin: 0;
+  color: var(--muted-foreground);
+}
+
+.band {
+  margin-block: var(--space-12);
+  background: var(--surface);
+  border-block: 1px solid var(--border);
+}
+
+.band-inner {
+  padding-block: var(--space-8) var(--space-12);
+}
+
+.band-inner h2 {
+  margin-top: var(--space-8);
+}
+
+.pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pills li {
+  padding: var(--space-2) var(--space-4);
+  background: var(--background);
+  border: 1px dashed var(--input);
+  border-radius: 999px;
+}
+
+.closing {
+  display: grid;
+  gap: var(--space-8);
+}
+
+.closing h2 {
+  margin-top: var(--space-4);
+}
+
+.closing p {
+  margin: 0 0 var(--space-4);
+}
+
+@media (min-width: 48rem) {
+  .hero {
+    padding-block: var(--space-16) var(--space-12);
+  }
+
+  .feature {
+    grid-template-columns: 1fr 1.15fr;
+    gap: var(--space-12);
+    padding-block: var(--space-12);
+  }
+
+  .feature:nth-of-type(even) .feature-media {
+    order: -1;
+  }
+
+  .feature:nth-of-type(even) {
+    grid-template-columns: 1.15fr 1fr;
+  }
+
+  .closing {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.prose {
+  max-width: 48rem;
+}
+
+.prose h2 {
+  margin-top: var(--space-8);
+}
+
+.prose h3 {
+  margin-top: var(--space-6);
+}
+
+.prose dl {
+  margin: 0 0 var(--space-4);
+}
+
+.prose dt {
+  font-weight: 600;
+}
+
+.prose dd {
+  margin: 0 0 var(--space-2);
+  overflow-wrap: anywhere;
+}
+
+.site-footer {
+  margin-top: var(--space-8);
+  border-top: 1px solid var(--border);
+  color: var(--muted-foreground);
+}
+
+.site-footer a {
+  color: var(--foreground);
+}
+
+.footer-inner {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-6);
+  padding-block: var(--space-6);
+}
+
+.footer-inner p {
+  margin: 0;
+}
+
+/* ---------- Efectos de scroll (ADR-074 §4.5) ----------
+ * Solo con movimiento permitido Y soporte de animation-timeline. Solo se anima transform:
+ * sin soporte, o con reduce, el contenido está en su estado final desde el principio. */
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    @keyframes rise {
+      from {
+        transform: translateY(2.5rem);
+      }
+
+      to {
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes drift {
+      from {
+        transform: translateY(0);
+      }
+
+      to {
+        transform: translateY(-4rem);
+      }
+    }
+
+    .feature-media,
+    .card {
+      animation: rise linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 70%;
+    }
+
+    .hero::before {
+      animation: drift linear both;
+      animation-timeline: scroll(root block);
+      animation-range: 0 40rem;
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}

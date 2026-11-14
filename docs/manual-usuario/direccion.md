@@ -1,0 +1,58 @@
+# Manual de dirección
+
+> Estructura académica (`REQ-ACAD-001`, pasos `1.11-b`, `1.11d-a` y `1.11d-b`), conserjería (`REQ-PRL-004`, paso `1.14b-c2`) y aprobación de cambios de grupo (`REQ-ALUM`, paso `1.15-d`). El resto de funciones de este perfil se documentan con cada módulo.
+
+## Estructura académica del centro
+
+**Qué ves.** En **Estructura académica** (`/academico/estructura`, en el menú lateral) consultas cómo se organiza el centro en cada curso académico: **etapas**, **cursos de etapa**, **grupos**, **subgrupos** y **asignaturas**, y qué asignaturas cursa cada grupo. Por defecto, la Dirección tiene el permiso de leer la estructura. Es solo consulta: ver la estructura no es ver alumnado; los datos de alumnos tendrán su propio permiso y pantallas.
+
+**Cómo navegar.** La tabla de **etapas** (filtrable por tipo de etapa y por régimen) lleva a la ficha de cada una; la etapa muestra sus cursos, el curso sus grupos y asignaturas, y el grupo sus subgrupos y las asignaturas que cursa. Las migas de pan y los enlaces «Volver a…» te devuelven al nivel anterior.
+
+**El selector de curso académico.** En la barra superior, **«Curso académico»** muestra el curso que estás viendo (por defecto, el activo). Al elegir otro, la dirección de la página incluye `?academic_year=…`, que puedes guardar o compartir. Los cursos **cerrados** solo se pueden consultar si tienes el permiso de leer el histórico de cursos cerrados (por defecto la Dirección lo tiene); sin él no aparecen en el selector y, aunque tengas el enlace, la aplicación responde como si no existieran. Un curso cerrado muestra un aviso permanente de solo lectura.
+
+**Nombres en tu idioma.** Los nombres de etapas, cursos y asignaturas se muestran en el idioma de tu perfil; si el centro no los ha traducido a ese idioma, ves el del idioma por defecto del centro.
+
+**Períodos lectivos de una etapa.** En la ficha de una etapa, la sección **«Períodos lectivos»** lista, de solo lectura, los trimestres, cuatrimestres o semestres de esa etapa en el curso que estás viendo (nombre en tu idioma, tipo, inicio, fin y posición). Por defecto, la Dirección tiene el permiso de leer la configuración académica, que es el que muestra esta sección. No hay «Nuevo período», «Editar» ni «Borrar»: los períodos los gestiona la administración del centro. Si ves la estructura pero no esta sección, te falta el permiso de leer la configuración académica; díselo a quien administra el centro. En un curso cerrado, la sección sigue siendo de consulta.
+
+**Escalas de calificación.** En **Escalas de calificación** (`/academico/escalas`, en el menú lateral) consultas, de solo lectura, las escalas con las que se califica en el curso que estás viendo en el selector: código, nombre en tu idioma, tipo (numérica, cualitativa o mixta), rango y aprobado (en la numérica y la mixta, «Desde 5»; en la cualitativa, los códigos de los valores aprobados). La ficha de cada escala muestra sus valores o tramos en orden, con «Aprobado» o «Suspenso» escrito. Por defecto, la Dirección tiene el permiso de leer la configuración académica, que es el que muestra esta entrada del menú. No hay «Nueva escala», «Editar» ni «Borrar»: las escalas las gestiona la administración del centro. Si no ves la entrada, te falta el permiso de leer la configuración académica; díselo a quien administra el centro. En un curso cerrado, las escalas siguen siendo de consulta (y solo se ven con el permiso de leer el histórico de cursos cerrados).
+
+**Qué no puedes hacer.** Crear, editar o borrar elementos de la estructura (no hay botones) ni asignar asignaturas a un grupo: lo hace la administración del centro. Si crees que te falta algún permiso, díselo a quien administra el centro.
+
+## Horarios y profesorado
+
+**Qué puedes hacer.** Por defecto, la Dirección compone el horario y gestiona el profesorado: en **Administración → Horarios** (`/academico/horarios`) ves y editas la rejilla semanal por grupo, profesor, aula o asignatura, y en la ficha de cada grupo, **«Profesorado»**, asignas tutores y docencia por asignatura. Los **espacios** (aulas y recursos) solo los consultas. En la ficha de cada etapa, **«Marcos horarios»**, puedes crear **jornadas especiales** (jornada intensiva) con su vigencia entre dos fechas, y en **Administración → Reservas** (`/academico/reservas`) reservas y cancelas aulas y recursos de cualquier persona. Es un permiso del rol: si tu centro lo ha cambiado, las acciones que no tengas no aparecen.
+
+**Cómo funciona.** Una sesión es una asignación docente en una franja del marco horario de la etapa, con un aula opcional. No puede coincidir con otra del mismo profesor, aula o grupo (los desdobles por subgrupo sí conviven); si choca, el aviso nombra la sesión con la que choca y no se guarda. Asignar profesorado no concede permisos. Una jornada especial sustituye al marco ordinario de su etapa mientras dura su vigencia y convive con los marcos de las demás etapas; una reserva no puede coincidir con otra del mismo espacio ni, en un aula, con una sesión del horario de ese día. El horario y las reservas de un curso cerrado son de solo lectura. El detalle paso a paso está en el manual del Administrador de Centro («Horarios y profesorado»). Si una persona del profesorado ya no existe en el centro (se ha dado de baja), en las asignaciones, tutorías, sesiones y reservas aparece como **«Usuario eliminado»**: el historial se conserva, pero su nombre ya no se muestra.
+
+
+## Conserjería: entrega de alumnos en la puerta
+
+**Quién la usa.** Conserjería (y el personal con permisos de entrega de menores) en **Conserjería** (`/conserjeria`, en el menú lateral). Conserjería, secretaría y dirección ven el listado y el detalle de **Alertas de entrega** (`/conserjeria/alertas`, `alerta_entrega.leer`); registran la llamada y cierran la alerta dirección y la administración del centro. El manual propio de conserjería, con los pasos detallados, es `docs/manual-usuario/conserjeria.md`.
+
+**Buscar al alumno.** Escribe al menos 2 letras del nombre o de los apellidos. Cada resultado muestra la unidad familiar; elige al alumno.
+
+**Lista de puerta.** Muestra, a la hora de la consulta, a quienes pueden recoger a ese alumno **ahora**, con fotografía, documento enmascarado y teléfono. No entregues al alumno a nadie que no figure; si la lista está vacía, no lo entregues y avisa a dirección. Consultar la lista queda registrado con tu usuario, la fecha y la hora, y tiene un cupo de consultas por hora; **«Volver a cargar la lista»** la recalcula.
+
+**Salida.** (Conserjería y administración, `entrega_menor.crear`; dirección solo consulta.) Con **«Entregar a …»** eliges cómo has comprobado la identidad (fotografía, documento o ambos; si la persona no tiene fotografía solo vale el documento). Si es fuera de horario, indica el motivo y, si es «Otro», una nota. Al confirmar, la salida queda registrada con la hora.
+
+**Entrada fuera de horario.** (Mismo permiso, `entrega_menor.crear`.) **«Registrar entrada fuera de horario»**: motivo obligatorio y, si es «Otro», una nota.
+
+**Alerta.** Si quien se presenta **no está en la lista**, pulsa **«Quien se presenta no está en la lista»**: describe a la persona (nombre que dice tener y, si lo enseña, su documento). Se muestra el protocolo y los teléfonos del tutor principal y del contacto de emergencia. El sistema **no envía ningún aviso**: llamas tú. Abrir y consultar una alerta abierta queda registrado y gasta cupo de consultas.
+
+**Llamada y cierre.** (`alerta_entrega.actualizar`: dirección y administración del centro sí; conserjería no, y a quien no lo tiene se le muestra «avisa a dirección».) Dirección registra en la alerta la hora de la llamada al tutor principal con **«Guardar la llamada»** y la cierra con **«Cerrar la alerta»**, eligiendo la resolución (no entregado, recogido por una persona autorizada, autorización puntual registrada u otra). Una alerta cerrada **no se puede reabrir** ni borrar. En **Alertas de entrega** filtras por estado y por fecha de apertura; el listado muestra nombres, no teléfonos, y su consulta también queda registrada.
+
+**Si algo falla.** Un aviso de «vuelve a intentarlo en N segundos» significa que has agotado el cupo de consultas: espera o pide a administración que lo restablezca. Algunos textos de seguridad están todavía solo en castellano hasta que una persona los traduzca.
+
+## Alumnado y cambios de grupo
+
+**Qué ves.** Por defecto, la Dirección consulta el alumnado (**Alumnado**, `/alumnado`, con la ficha de cada alumno: datos personales con el documento enmascarado, fotografía y matrículas) y las **Listas de clase** (`/alumnado/listas`), que además puede **exportar** en CSV (se genera en segundo plano y el enlace de descarga caduca). No da de alta ni corrige alumnos ni matrículas: eso es de Secretaría.
+
+**Aprobar o rechazar un cambio de grupo.** En **Cambios de grupo** (`/alumnado/cambios-de-grupo`) ves las solicitudes del curso elegido, con alumno, grupo de origen y de destino, motivo, estado, quién la solicitó y la fecha. Con el permiso de aprobar, en cada solicitud **pendiente** hay dos acciones:
+
+- **«Aprobar»** abre un diálogo con una nota opcional (hasta 500 caracteres). Al confirmar, la matrícula pasa al grupo de destino. **No puedes aprobar una solicitud que hayas hecho tú**: el servidor la rechaza con un aviso; la decide otra persona con permiso. Si entretanto la matrícula se dio de baja o cambió de grupo, la aprobación falla y no cambia nada.
+- **«Rechazar»** exige una **nota** (obligatoria, hasta 500 caracteres) con el motivo. La solicitud queda «Rechazada» con quién y cuándo.
+
+Quien tiene el permiso de actualizar matrículas puede **«Cancelar»** una solicitud pendiente (también la propia). Una solicitud ya decidida no admite más cambios. El motivo y la nota son texto libre y no se guardan en el registro de cambios de la auditoría.
+
+**Con el curso cerrado.** Si el curso seleccionado es de solo lectura, un aviso lo indica y desaparecen **Aprobar, Rechazar y Cancelar**; las solicitudes pendientes se siguen viendo y la lista de clase se puede exportar. **Sin curso resuelto** (ni `?academic_year=` en la dirección ni curso activo) no se ofrece ninguna acción ni la exportación, y la lista de clase y los cambios de grupo avisan de que falta un curso académico: elige uno en el selector de la barra superior.
+

@@ -1,0 +1,20 @@
+<?php
+
+use App\Modules\{{ name }}\Infrastructure\{{ name }}ServiceProvider;
+use App\Support\Modules\ModuleServiceProviderDiscovery;
+
+// ADR-056 §3.5 (generado por `php artisan make:module`), AR-03, ADR-034 §5:
+// el módulo {{ name }} se descubre solo y declara su código; no es esencial.
+
+test('AR-03 ADR-056: el ServiceProvider de {{ name }} se descubre sin registro a mano', function (): void {
+    expect(ModuleServiceProviderDiscovery::discover(app_path('Modules')))->toContain({{ name }}ServiceProvider::class);
+});
+
+test('ADR-034 §5 ADR-056: el descriptor de {{ name }} declara su código, la clave de nombre y no es esencial', function (): void {
+    $descriptor = (new {{ name }}ServiceProvider(app()))->moduleDescriptor();
+
+    expect($descriptor['code'])->toBe('{{ code }}')
+        ->and($descriptor['name_key'])->toBe('modules.{{ code }}')
+        ->and($descriptor['essential'])->toBeFalse()
+        ->and($descriptor['depends_on'])->toBe([]);
+});

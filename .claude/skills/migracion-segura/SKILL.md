@@ -26,6 +26,7 @@ Un cambio destructivo se reparte en tres entregas:
 - Cambiar el tipo de una columna con datos sin columna intermedia.
 - Migraciones que recorran millones de filas dentro de la petición de despliegue: van a un job.
 - Migraciones irreversibles sin aprobación explícita documentada.
+- Ampliar o corregir un `CHECK` con `ADD CONSTRAINT … CHECK` a secas sobre una tabla que ya puede tener filas en producción: toma un lock `ACCESS EXCLUSIVE` mientras valida todas las filas. Usa `DROP CONSTRAINT` + `ADD CONSTRAINT … NOT VALID` + `VALIDATE CONSTRAINT`. En una tabla nueva o vacía en todos los entornos no hace falta. Patrón completo y motivo (#186, #201): `references/check-not-valid.md`.
 
 ## Obligatorio en toda tabla de negocio
 
@@ -35,3 +36,7 @@ Un cambio destructivo se reparte en tres entregas:
 - Importes en enteros de céntimos o decimal exacto. Nunca coma flotante.
 - Fechas en UTC.
 - Particionado por curso académico en tablas de alto crecimiento: asistencia, calificaciones, auditoría, notificaciones.
+
+## Tablas con disparador `academic_year_write_guard` (`ADR-057`)
+
+Al retirar `academic_year_id` de una tabla (fase *contract*), `DROP TRIGGER academic_year_write_guard ON <tabla>` va **antes** de `DROP COLUMN academic_year_id`. El disparador lee `NEW.academic_year_id`: si sobrevive a la columna, cada escritura de esa tabla falla. `AR-13` lo detecta (tabla con el disparador y sin la columna). Crear la columna y el disparador se hace siempre con los ayudantes de `TenantMigration`, nunca con `CREATE TRIGGER` a mano.

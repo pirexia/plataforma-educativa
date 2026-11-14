@@ -1,0 +1,128 @@
+<?php
+
+// REQ-FAM-UNIT (pasos 1.14-a y 1.14-b), docs/modulos/REQ-FAM-UNIT/api.md §7. INV-009: ningún literal visible vive fuera de aquí.
+// El `code` de cada error de api.md §7 es a la vez la clave de su mensaje. Los enumerados (`relationship`,
+// `access_level`, `status`...) viajan como código técnico (`ADR-038 §3.2`) y la SPA traduce su etiqueta.
+
+return [
+    'permissions' => [
+        'resources' => [
+            'familia' => 'Familieneinheiten, Erziehungsberechtigte und Schülerschaft',
+            'vinculo_tutor' => 'Verknüpfungen Erziehungsberechtigte-Schüler',
+            'revocacion_tutor' => 'Entzug des Zugangs eines Erziehungsberechtigten',
+            'consentimiento_imagen' => 'Einwilligung zur Bildnutzung',
+            'texto_legal' => 'Rechtstexte der Schule',
+            'aceptacion_condiciones' => 'Zustimmungen zu den Nutzungsbedingungen',
+            'autorizado_recogida' => 'Zur Abholung eines Minderjährigen berechtigte Personen',
+        ],
+    ],
+
+    'family_unit' => [
+        'code_taken' => 'Es existiert bereits eine Familieneinheit mit diesem Code.',
+        'code_invalid' => 'Der Code der Familieneinheit muss zwischen 1 und 40 Zeichen lang sein und darf keine Steuerzeichen enthalten.',
+        'principal_not_member' => 'Der Hauptverantwortliche muss ein Erziehungsberechtigter derselben Familieneinheit sein.',
+        'has_members' => 'Die Familieneinheit hat Erziehungsberechtigte oder Schüler: Entfernen Sie diese, bevor Sie sie löschen.',
+    ],
+
+    'guardian' => [
+        'already_exists' => 'Diese Person ist bereits Erziehungsberechtigte einer Familieneinheit.',
+        'not_editable' => 'Ein Erziehungsberechtigter wechselt nicht die Einheit: Löschen Sie ihn und legen Sie ihn in der anderen Einheit neu an.',
+        'user_not_eligible' => 'Der Benutzer muss den Status „ausstehend" oder „aktiv" haben, um Erziehungsberechtigter zu werden.',
+    ],
+
+    'student' => [
+        'already_in_unit' => 'Dieser Schüler gehört bereits zu einer Familieneinheit.',
+    ],
+
+    'link' => [
+        'already_exists' => 'Zwischen diesem Erziehungsberechtigten und diesem Schüler besteht bereits eine Verknüpfung.',
+        'self_link' => 'Eine Person kann nicht ihr eigener Erziehungsberechtigter sein.',
+        'emergency_contact_taken' => 'Dieser Schüler hat bereits einen anderen Notfallkontakt.',
+        'invalid_transition' => 'Die Verknüpfung befindet sich nicht in einem Zustand, der diesen Vorgang zulässt.',
+        'not_editable' => 'Der Status der Verknüpfung und ihr Entzug können nicht bearbeitet werden: Verwenden Sie die Entzugsressource.',
+        'emergency_contact_revoked' => 'Eine entzogene Verknüpfung kann kein Notfallkontakt sein.',
+        'revoked_not_deletable' => 'Eine entzogene Verknüpfung kann nicht gelöscht werden: Heben Sie zuerst den Entzug auf.',
+    ],
+
+    'image_consent' => [
+        'text_version_outdated' => 'Die angezeigte Textversion ist nicht mehr die aktuelle: Lesen Sie den veröffentlichten Text erneut, bevor Sie einwilligen.',
+        'not_legal_guardian' => 'Nur ein Erziehungsberechtigter mit gesetzlicher Vertretung des Schülers kann über die Einwilligung zur Bildnutzung entscheiden.',
+        'guardian_required' => 'Geben Sie den Erziehungsberechtigten an, der entschieden hat (on_behalf_of), wenn Sie seine Entscheidung im Namen der Familie erfassen.',
+        'guardian_not_linked' => 'Der angegebene Erziehungsberechtigte ist nicht mit diesem Schüler verknüpft.',
+        'text_not_published' => 'Die Schule hat den Einwilligungstext für diese Stufe nicht veröffentlicht: Ohne Text kann nicht eingewilligt werden.',
+        'text_version_invalid' => 'Die angegebene Textversion ist für diese Stufe oder diesen Kanal nicht gültig.',
+    ],
+
+    'terms' => [
+        'kind_not_editable' => 'Die Art eines Rechtstexts kann nach dem Anlegen nicht geändert werden.',
+        'kind_invalid' => 'Die Art des Rechtstexts ist nicht gültig.',
+        'requires_reacceptance_not_allowed' => 'Eine erneute Zustimmung kann nur für die Nutzungsbedingungen verlangt werden, nicht für die Einwilligung zur Bildnutzung.',
+        'version_not_current' => 'Die angezeigte Fassung der Bedingungen ist nicht mehr die gültige: Lesen Sie den veröffentlichten Text erneut, bevor Sie akzeptieren.',
+        'not_draft' => 'Nur eine Entwurfsversion kann bearbeitet, gelöscht oder veröffentlicht werden.',
+        'default_locale_missing' => 'Titel und Text müssen vor der Veröffentlichung in der Standardsprache der Schule (:locale) vorliegen.',
+        'markup_not_allowed' => 'Der Text darf in der Sprache :locale kein Markup (HTML) enthalten: Bitte schreiben Sie ihn als reinen Text mit Zeilenumbrüchen.',
+    ],
+
+    'pickup' => [
+        'principal_required' => 'Nur der Hauptverantwortliche der Familieneinheit mit aktiver Verknüpfung und gesetzlicher Vertretung des Schülers kann eine Person zur Abholung berechtigen.',
+        'text_not_published' => 'Die Schule hat den Text zur Abholberechtigung nicht veröffentlicht: Ohne Text kann niemand berechtigt werden.',
+        'text_version_invalid' => 'Die angegebene Textversion ist nicht gültig: Sie muss eine veröffentlichte oder zurückgezogene Fassung des Textes zur Abholberechtigung sein.',
+        'text_version_outdated' => 'Die angezeigte Textversion ist nicht mehr die aktuelle: Lesen Sie den veröffentlichten Text erneut, bevor Sie berechtigen.',
+        'person_not_eligible' => 'Diese Person kann für diesen Schüler nicht berechtigt werden.',
+        'already_exists' => 'Für diese Person und diesen Schüler besteht bereits eine gültige Berechtigung.',
+        'channel_requires_puntual' => 'Eine telefonisch erfasste Berechtigung kann nur einmalig sein.',
+        'withdrawn' => 'Die Berechtigung wurde zurückgezogen und kann nicht geändert werden.',
+        'invalid_transition' => 'Die Berechtigung wurde bereits zurückgezogen.',
+        'not_editable' => 'Dieses Datum der Berechtigung kann nicht geändert werden: Ziehen Sie sie zurück und erstellen Sie eine neue.',
+        'document_not_editable' => 'Art und Nummer des Ausweisdokuments einer Person können hier nicht geändert werden.',
+    ],
+
+    'photo' => [
+        'type_mismatch' => 'Der Inhalt des Bildes stimmt nicht mit seiner Dateiendung überein oder kann nicht gelesen werden.',
+        'dimensions' => 'Die Abmessungen des Bildes überschreiten das zulässige Maximum oder können nicht gelesen werden.',
+    ],
+
+    'export' => [
+        'q_not_allowed' => 'Der Einwilligungsbericht unterstützt keine Freitextsuche (q).',
+    ],
+
+    'errors' => [
+        'consent_rate_limited' => 'Sie haben das Limit für Bildentscheidungen oder Einwilligungsberichte erreicht. Versuchen Sie es in etwa :minutes Minuten erneut.',
+        'revocation_rate_limited' => 'Das Limit für Entzüge oder Aufhebungen von Entzügen wurde erreicht. Versuche es in etwa :minutes Minuten erneut.',
+        'pickup_read_rate_limited' => 'Sie haben das Limit für Abfragen der Abholliste und der Fotos erreicht. Versuchen Sie es in etwa :minutes Minuten erneut.',
+        'pickup_person_rate_limited' => 'Sie haben das Limit für Suchen von Abholpersonen anhand des Dokuments oder für Neuanlagen von Personen erreicht. Versuchen Sie es in etwa :minutes Minuten erneut.',
+    ],
+
+    'validation' => [
+        'terms_version_not_found' => 'Die angegebene Fassung der Nutzungsbedingungen existiert nicht.',
+        'user_not_found' => 'Der angegebene Benutzer existiert nicht.',
+        'student_not_found' => 'Der angegebene Schüler existiert nicht.',
+        'guardian_not_found' => 'Der angegebene Erziehungsberechtigte existiert nicht.',
+        'family_unit_not_found' => 'Die angegebene Familieneinheit existiert nicht.',
+        'principal_guardian_not_found' => 'Der angegebene Hauptverantwortliche existiert nicht.',
+        'relationship_invalid' => 'Die Art der Beziehung ist ungültig.',
+        'access_level_invalid' => 'Die Zugriffsstufe ist ungültig.',
+        'restricted_category_invalid' => 'Die eingeschränkte Kategorie ist ungültig.',
+        'reason_invalid' => 'Der Entzugsgrund ist ungültig.',
+        'required' => 'Dieses Feld ist erforderlich.',
+        'boolean_invalid' => 'Der Wert muss wahr oder falsch sein.',
+        'reference_invalid' => 'Die angegebene Kennung ist ungültig.',
+        'filter_forbidden' => 'Sie haben keine Berechtigung, diesen Filter zu verwenden.',
+        'level_invalid' => 'Die Einwilligungsstufe ist nicht gültig.',
+        'decision_invalid' => 'Die Entscheidung ist nicht gültig.',
+        'channel_invalid' => 'Der Kanal ist für diesen Eintrag nicht gültig.',
+        'state_invalid' => 'Der Status ist nicht gültig.',
+        'cursor_invalid' => 'Der Cursor ist für diese Abfrage nicht gültig.',
+        'person_not_found' => 'Die angegebene Person existiert nicht.',
+        'pickup_relationship_invalid' => 'Die Beziehung zum Schüler ist nicht gültig.',
+        'pickup_kind_invalid' => 'Die Art der Berechtigung ist nicht gültig.',
+        'date_invalid' => 'Das Datum ist nicht gültig (Format JJJJ-MM-TT).',
+        'date_range_invalid' => 'Das Enddatum darf nicht vor dem Anfangsdatum liegen (bei einer einmaligen Berechtigung muss es am selben Tag sein).',
+        'datetime_invalid' => 'Datum und Uhrzeit sind nicht gültig (Format ISO 8601).',
+        'authorized_at_future' => 'Datum und Uhrzeit der Berechtigung dürfen nicht in der Zukunft liegen.',
+        'reason_too_long' => 'Der Grund darf :max Zeichen nicht überschreiten.',
+        'text_invalid' => 'Der Wert muss ein Text sein.',
+        'text_too_long' => 'Der Text darf :max Zeichen nicht überschreiten.',
+        'at_least_one_field' => 'Geben Sie mindestens eine Angabe zur Korrektur an.',
+    ],
+];

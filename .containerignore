@@ -1,0 +1,21 @@
+# Contexto de construcción de la imagen web (infra/containers/web/
+# Containerfile usa la raíz del repo como contexto, ver su cabecera).
+# El COPY real de esa etapa solo toma apps/web/, así que esto no filtra a
+# la imagen — pero reduce lo que se envía al demonio de construcción y es
+# defensa en profundidad si el Containerfile cambia algún día. Hallazgo de
+# la revisión independiente de security-reviewer sobre 0.9b (issue #35).
+
+apps/api/.env
+apps/api/.env.*
+!apps/api/.env.example
+apps/api/storage/*.key
+apps/api/auth.json
+apps/web/.env
+apps/web/.env.*
+!apps/web/.env.example
+**/node_modules
+**/vendor
+.git
+docs
+marketing
+seed

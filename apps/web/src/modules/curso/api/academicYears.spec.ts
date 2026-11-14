@@ -1,0 +1,84 @@
+/**
+ * Issue #385: los identificadores que entran en una ruta se codifican
+ * (`encodeURIComponent`), también los de `REQ-CURSO-001`.
+ */
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+const apiFetch = vi.fn()
+
+vi.mock('@/api/client', () => ({
+  apiFetch: (...args: unknown[]) => apiFetch(...args),
+}))
+
+const {
+  getAcademicYear,
+  listSelectableAcademicYears,
+  reopenAcademicYear,
+  transitionAcademicYear,
+  updateAcademicYear,
+} = await import('./academicYears')
+
+const HOSTILE = '01ABC/../x?y=1#z'
+const ENCODED = encodeURIComponent(HOSTILE)
+
+beforeEach(() => {
+  apiFetch.mockReset().mockResolvedValue({})
+})
+
+describe('REQ-CURSO-001 #385: academicYears codifica el identificador de la ruta', () => {
+  it('getAcademicYear', async () => {
+    await getAcademicYear(HOSTILE)
+
+    expect(apiFetch.mock.calls[0]![0]).toBe(`/academic-years/${ENCODED}`)
+  })
+
+  it('updateAcademicYear', async () => {
+    await updateAcademicYear(HOSTILE, { code: '2026-2027' })
+
+    expect(apiFetch.mock.calls[0]![0]).toBe(`/academic-years/${ENCODED}`)
+  })
+
+  it('transitionAcademicYear', async () => {
+    await transitionAcademicYear(HOSTILE, 'activo')
+
+    expect(apiFetch.mock.calls[0]![0]).toBe(`/academic-years/${ENCODED}/status`)
+  })
+
+  it('reopenAcademicYear', async () => {
+    await reopenAcademicYear(HOSTILE, 'Cierre por error.')
+
+    expect(apiFetch.mock.calls[0]![0]).toBe(`/academic-years/${ENCODED}/reopen`)
+  })
+
+  it('un ULID normal no cambia', async () => {
+    await getAcademicYear('01JD7XXXXXXXXXXXXXXXXXXXXX')
+
+    expect(apiFetch.mock.calls[0]![0]).toBe('/academic-years/01JD7XXXXXXXXXXXXXXXXXXXXX')
+  })
+})
+
+describe('CA-ACAD-043 (REQ-ACAD-001, #409): GET /academic-years/selectable', () => {
+  it('listSelectableAcademicYears pide la ruta de autoservicio, sin parámetros', async () => {
+    apiFetch.mockResolvedValue({ data: [] })
+
+    await expect(listSelectableAcademicYears()).resolves.toEqual({ data: [] })
+    expect(apiFetch.mock.calls[0]![0]).toBe('/academic-years/selectable')
+    expect(apiFetch.mock.calls[0]![1]).toBeUndefined()
+  })
+})
+
+describe('CA-CURSO-100 (ADR-059): POST /academic-years/{id}/reopen', () => {
+  it('reopenAcademicYear envía POST con { reason } y devuelve el curso', async () => {
+    apiFetch.mockResolvedValue({ public_id: 'Y1', status: 'activo' })
+
+    await expect(reopenAcademicYear('Y1', 'Cierre por error.')).resolves.toEqual({
+      public_id: 'Y1',
+      status: 'activo',
+    })
+    expect(apiFetch.mock.calls[0]![0]).toBe('/academic-years/Y1/reopen')
+    expect(apiFetch.mock.calls[0]![1]).toEqual({
+      method: 'POST',
+      body: JSON.stringify({ reason: 'Cierre por error.' }),
+    })
+  })
+})

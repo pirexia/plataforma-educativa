@@ -1,0 +1,295 @@
+# REQ-PRL (paso 1.14b-b, `REQ-PRL-004`), docs/modulos/REQ-PRL/api.md §8.4. Puerta y entrega de menores: buscador de alumnos y
+# lista de puerta (lectura auditada y limitada de `fam_unit`, finalidad `puerta`), movimientos de solo anexar y alertas por
+# persona no autorizada. Convenciones de ADR-038. Todas las rutas llevan `module-enabled:prl` y `permission:<código>`; ningún
+# permiso de `prl` admite ámbito distinto de `todos`. Enumerados extensibles (ADR-038 §7.3).
+paths:
+  /api/v1/door/students:
+    get:
+      operationId: searchDoorStudents
+      summary: Busca alumnos por el comienzo de su nombre (puerta)
+      description: >
+        Permiso `entrega_menor.leer`. `q` de 2 a 100 caracteres (`422` fuera de ese rango). Devuelve como máximo 20, sin
+        paginar, por coincidencia de prefijo y después por nombre. Universo previo a `1.15` (OPEN-068-06): toda persona con
+        pertenencia viva a una unidad familiar o con algún vínculo vivo (activo o revocado) como alumno. No es un directorio
+        de personas. Sin auditoría de lectura (no devuelve fotografía ni documento).
+      tags: ['Prl / Puerta']
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: Comienzo del nombre o de los apellidos del alumno (2 a 100 caracteres).
+          schema: { type: string, minLength: 2, maxLength: 100 }
+      responses:
+        '200':
+          description: Alumnos que coinciden
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    maxItems: 20
+                    items: { $ref: '../components.yaml#/components/schemas/DoorStudent' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `prl` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+
+  /api/v1/door/students/{studentPersonPublicId}/pickup-list:
+    parameters:
+      - name: studentPersonPublicId
+        in: path
+        required: true
+        description: '`public_id` de la persona del alumno.'
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    get:
+      operationId: getDoorPickupList
+      summary: Lista de puerta de un alumno
+      description: >
+        Permiso `entrega_menor.leer`. Es la **lectura auditada y limitada de `fam_unit`** con finalidad `puerta`
+        (RN-PRL-10, CA-PRL-010): una fila `read` por consulta, escrita antes de devolver nada, y el límite de 300 lecturas por
+        centro y usuario y hora (`429` con `Retry-After`). La lista se calcula en cada petición (RN-FAM-UNIT-79, -81): tutores
+        con vínculo activo, terceros con autorización permanente vigente y puntuales de hoy, menos toda persona con acceso
+        revocado. Las URLs de fotografía son firmadas, de caducidad corta, y se generan en cada respuesta
+        (`Cache-Control: no-store`). Documento siempre enmascarado. Nunca se revela que una persona esté excluida por
+        revocación (OPEN-FAM-UNIT-34). `404` si el alumno no existe o es de otro centro.
+      tags: ['Prl / Puerta']
+      security: [{ SessionCookie: [] }]
+      responses:
+        '200':
+          description: La lista de ahora
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/DoorPickupList' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `prl` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '429': { $ref: '../components.yaml#/components/responses/TooManyRequests' }
+
+  /api/v1/student-movements:
+    get:
+      operationId: listStudentMovements
+      summary: Lista los movimientos de alumnado en la puerta
+      description: >
+        Permiso `entrega_menor.leer`. Paginación por cursor opaco y cifrado (ADR-038 §4.4) sobre `(occurred_at DESC, id
+        DESC)`; orden fijo; `limit` de 1 a 200 (defecto 50). Filtros `student_person`, `date` (fecha civil del centro),
+        `direction` y `off_schedule`. El cursor de otra consulta o de otro centro es `422`.
+      tags: ['Prl / Movimientos']
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - name: student_person
+          in: query
+          schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+        - name: date
+          in: query
+          description: Fecha civil del centro (`AAAA-MM-DD`).
+          schema: { type: string, format: date }
+        - name: direction
+          in: query
+          schema: { $ref: '../components.yaml#/components/schemas/MovementDirection' }
+        - name: off_schedule
+          in: query
+          schema: { type: boolean }
+        - { $ref: '../components.yaml#/components/parameters/CursorParam' }
+        - { $ref: '../components.yaml#/components/parameters/LimitParam' }
+      responses:
+        '200':
+          description: Página de movimientos, el más reciente primero
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '../components.yaml#/components/schemas/StudentMovement' }
+                  meta: { $ref: '../components.yaml#/components/schemas/CursorMeta' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `prl` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+    post:
+      operationId: createStudentMovement
+      summary: Registra un movimiento (salida verificada, entrada o fuera de horario)
+      description: >
+        Permiso `entrega_menor.crear`. **De solo anexar**: no hay `PATCH` ni `DELETE` (RN-PRL-04); un error se corrige con
+        otro movimiento que lleva `corrects` (del mismo alumno) y `correction_reason`. Una `salida` con persona que recoge
+        **recomprueba dentro de la transacción** que la persona figura en la lista de `fam_unit` (RN-PRL-02, CA-PRL-003); si
+        no, `422 prl.movement.person_not_authorized` y no se escribe nada, **con el mismo cuerpo** para «no figura»,
+        «excluida por revocación» y «la persona no existe» (CA-PRL-002, OPEN-FAM-UNIT-34). El servidor guarda la base
+        (`tutor`, `tercero`, `puntual`) y la referencia de evidencia; el cliente no los envía. Un tutor **sin fotografía**
+        solo se verifica por `documento` (`422 prl.movement.verification_requires_document`, RN-PRL-06). Fuera de horario
+        exige motivo (`422 prl.movement.reason_required`, RN-PRL-07). **Idempotencia** (RN-PRL-09): con `Idempotency-Key`
+        repetida y el mismo cuerpo, `201` con el movimiento original y `Idempotency-Replayed: true`; con otro cuerpo, `409
+        prl.idempotency_mismatch`. Se audita.
+      tags: ['Prl / Movimientos']
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - { $ref: '../components.yaml#/components/parameters/PrlIdempotencyKeyHeader' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '../components.yaml#/components/schemas/StudentMovementRequest' }
+      responses:
+        '201':
+          description: El movimiento registrado
+          headers:
+            Location: { schema: { type: string } }
+            Idempotency-Replayed: { $ref: '../components.yaml#/components/headers/IdempotencyReplayed' }
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/StudentMovement' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `prl` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '409': { $ref: '../components.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+        '503': { description: 'La puerta no obtuvo el bloqueo de las filas que sostienen la decisión en `prl.lock_timeout_ms` (3000 ms) o agotó los reintentos por interbloqueo (`prl.errors.busy`, RN-PRL-16): no se escribió nada; reintente tras `Retry-After: 1`. Una repetición con la misma `Idempotency-Key` se trata como petición nueva.', headers: { Retry-After: { $ref: '../components.yaml#/components/headers/RetryAfter' } }, content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+
+  /api/v1/student-movements/{publicId}:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    get:
+      operationId: getStudentMovement
+      summary: Detalle de un movimiento
+      description: Permiso `entrega_menor.leer`. `404` si no existe o es de otro centro.
+      tags: ['Prl / Movimientos']
+      security: [{ SessionCookie: [] }]
+      responses:
+        '200':
+          description: El movimiento
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/StudentMovement' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `prl` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+
+  /api/v1/pickup-alerts:
+    get:
+      operationId: listPickupAlerts
+      summary: Lista las alertas por persona no autorizada
+      description: >
+        Permiso `alerta_entrega.leer`. Paginación por página (defecto 25, máximo 100), `raised_at` descendente (orden fijo),
+        desempate por `id`. Filtros `status`, `date` (fecha civil del centro en la que se abrió) y `student_person`. El
+        listado no lleva `protocol` ni `contacts`, pero devuelve nombres de alumno y de quien abre o cierra: si hay
+        resultados escribe una fila de auditoría `read` (`puerta_alerta`) y gasta el cupo de lectura de `prl` (DP-11).
+      tags: ['Prl / Alertas']
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - name: status
+          in: query
+          schema: { $ref: '../components.yaml#/components/schemas/PickupAlertStatus' }
+        - name: date
+          in: query
+          description: Fecha civil del centro (`AAAA-MM-DD`).
+          schema: { type: string, format: date }
+        - name: student_person
+          in: query
+          schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+        - { $ref: '../components.yaml#/components/parameters/PageParam' }
+        - { $ref: '../components.yaml#/components/parameters/PerPageParam' }
+      responses:
+        '200':
+          description: Página de alertas
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '../components.yaml#/components/schemas/PickupAlert' }
+                  meta: { $ref: '../components.yaml#/components/schemas/PageMeta' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `prl` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+        '429': { $ref: '../components.yaml#/components/responses/TooManyRequests' }
+    post:
+      operationId: createPickupAlert
+      summary: Abre una alerta por persona no autorizada
+      description: >
+        Permiso `alerta_entrega.crear`. Se abre con el alumno y la descripción de quien se presenta (RN-PRL-08). La
+        respuesta lleva el `protocol` de actuación del centro (hoy, el texto mínimo del producto en el idioma de la
+        petición, OPEN-FAM-UNIT-40) y los teléfonos del tutor principal y del contacto de emergencia para la llamada
+        manual. **No envía nada** (OPEN-FAM-UNIT-33, hasta `1.19`). `404` si el alumno no existe. **Idempotencia**
+        (RN-PRL-09): como `POST /student-movements`. Se audita.
+      tags: ['Prl / Alertas']
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - { $ref: '../components.yaml#/components/parameters/PrlIdempotencyKeyHeader' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '../components.yaml#/components/schemas/PickupAlertCreateRequest' }
+      responses:
+        '201':
+          description: La alerta abierta
+          headers:
+            Location: { schema: { type: string } }
+            Idempotency-Replayed: { $ref: '../components.yaml#/components/headers/IdempotencyReplayed' }
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/PickupAlert' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `prl` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../components.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+        '503': { description: 'La puerta no obtuvo el bloqueo de las filas que sostienen la decisión en `prl.lock_timeout_ms` (3000 ms) o agotó los reintentos por interbloqueo (`prl.errors.busy`, RN-PRL-16): no se escribió nada; reintente tras `Retry-After: 1`. Una repetición con la misma `Idempotency-Key` se trata como petición nueva.', headers: { Retry-After: { $ref: '../components.yaml#/components/headers/RetryAfter' } }, content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+
+  /api/v1/pickup-alerts/{publicId}:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    get:
+      operationId: getPickupAlert
+      summary: Detalle de una alerta
+      description: >
+        Permiso `alerta_entrega.leer`. Mientras está abierta incluye el `protocol` y los teléfonos (`contacts`), calculados
+        al leer. `404` si no existe o es de otro centro.
+      tags: ['Prl / Alertas']
+      security: [{ SessionCookie: [] }]
+      responses:
+        '200':
+          description: La alerta
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/PickupAlert' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `prl` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+    patch:
+      operationId: updatePickupAlert
+      summary: Registra la llamada al tutor principal y/o cierra la alerta
+      description: >
+        Permiso `alerta_entrega.actualizar`. `principal_contacted_at` registra la llamada manual; `resolution` (con
+        `resolution_notes` opcional) **cierra** la alerta. Una alerta cerrada no se reabre ni se modifica por `PATCH`:
+        `409 prl.alert.closed` (CA-PRL-008). No hay `DELETE`: la alerta es evidencia. Se audita.
+      tags: ['Prl / Alertas']
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '../components.yaml#/components/schemas/PickupAlertUpdateRequest' }
+      responses:
+        '200':
+          description: La alerta actualizada
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/PickupAlert' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `prl` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../components.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }

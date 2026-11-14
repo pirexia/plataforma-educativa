@@ -1,0 +1,229 @@
+/**
+ * `docs/adr/ADR-053-registro-de-navegacion-y-bloques-del-panel.md` §2,
+ * `docs/modulos/REQ-CORE/funcional.md §12.11`
+ * (`CA-CORE-103`, `CA-CORE-106`).
+ *
+ * `RN-CORE-24`/`CA-CORE-103` enumeran **seis** rutas (desde `1.9e`, **siete**: se añade
+ * `core-profile`, `funcional.md §14.3.1`, `CA-CORE-264`) con `meta.permissions`
+ * vacía: Inicio, Contraseña, Sesiones, Seguridad, `mfa-enrollment-wall` y
+ * `not-found` — ninguna de las dos últimas tiene un permiso real que
+ * declarar sin inventarlo (`INV-002`); motivo documentado también en el
+ * comentario de cabecera de `src/modules/auth/shell.ts` y en
+ * `src/router/index.ts`. La especificación solo citaba cuatro hasta que
+ * el issue #260 (severidad Media) lo corrigió. Desde `1.14-c` son **ocho**: se añade
+ * `fam-unit-terms-wall` (`ADR-067 §6`, ampliación L2, `CA-067-09`).
+ */
+import { describe, expect, it } from 'vitest'
+import router from '@/router'
+import { allDashboardBlocks, allNavigationEntries } from './registry'
+import { SECTION_IDS } from './sections'
+import type { NavigationEntry } from './types'
+
+const EMPTY_PERMISSIONS_CLOSED_LIST = [
+  'home',
+  'password-change',
+  'sessions',
+  'mfa-security',
+  'mfa-enrollment-wall',
+  'not-found',
+  // Desde 1.9e (`funcional.md §14.3.1`, `CA-CORE-264`): perfil propio, autoservicio por identidad.
+  'core-profile',
+  // Desde 1.14-c (ADR-067 L2, aprobada el 2026-10-28): el muro de condiciones de uso, segunda ruta `bare`.
+  'fam-unit-terms-wall',
+].sort()
+
+describe('registro de navegación ensamblado — CA-CORE-103', () => {
+  it('toda entrada apunta a un nombre de ruta registrado con meta.layout === "app"', () => {
+    for (const entry of allNavigationEntries()) {
+      const route = router.getRoutes().find((r) => r.name === entry.route)
+
+      expect(
+        route,
+        `entrada ${entry.id} apunta a una ruta inexistente (${entry.route})`,
+      ).toBeDefined()
+      expect(route?.meta.layout, `entrada ${entry.id} no apunta a una ruta app`).toBe('app')
+    }
+  })
+
+  it('toda ruta app/bare declara meta.permissions explícitamente (nunca ausente)', () => {
+    for (const route of router.getRoutes()) {
+      if (route.meta.layout === 'public') {
+        continue
+      }
+
+      expect(
+        Array.isArray(route.meta.permissions),
+        `${String(route.name)} (${route.meta.layout}) no declara meta.permissions`,
+      ).toBe(true)
+    }
+  })
+
+  it('las únicas rutas app/bare con meta.permissions vacía son la lista cerrada', () => {
+    const empty = router
+      .getRoutes()
+      .filter((route) => route.meta.layout !== 'public' && route.meta.permissions?.length === 0)
+      .map((route) => String(route.name))
+      .sort()
+
+    expect(empty).toEqual(EMPTY_PERMISSIONS_CLOSED_LIST)
+  })
+})
+
+describe('lista cerrada de rutas con permissions vacío — CA-CORE-264 (RN-CORE-24, §14.3.1)', () => {
+  function emptyPermissionRoutes(
+    routes: {
+      name?: string | symbol
+      meta: { layout?: string; permissions?: readonly string[] }
+    }[],
+  ): string[] {
+    return routes
+      .filter((route) => route.meta.layout !== 'public' && route.meta.permissions?.length === 0)
+      .map((route) => String(route.name))
+      .sort()
+  }
+
+  it('CA-067-09 (L2): son exactamente ocho: las seis de CA-CORE-103 más core-profile y fam-unit-terms-wall', () => {
+    expect(EMPTY_PERMISSIONS_CLOSED_LIST).toHaveLength(8)
+    expect(EMPTY_PERMISSIONS_CLOSED_LIST).toContain('core-profile')
+    expect(EMPTY_PERMISSIONS_CLOSED_LIST).toContain('fam-unit-terms-wall')
+    expect(emptyPermissionRoutes(router.getRoutes())).toEqual(EMPTY_PERMISSIONS_CLOSED_LIST)
+  })
+
+  it('core-modules declara modulo.leer', () => {
+    const route = router.getRoutes().find((candidate) => candidate.name === 'core-modules')
+
+    expect(route?.meta.permissions).toEqual(['modulo.leer'])
+  })
+
+  it('caso fijo: una novena ruta con [] haría fallar la comprobación', () => {
+    const withNinth = [
+      ...router.getRoutes(),
+      { name: 'novena-ruta', meta: { layout: 'app', permissions: [] as string[] } },
+    ]
+
+    expect(emptyPermissionRoutes(withNinth)).not.toEqual(EMPTY_PERMISSIONS_CLOSED_LIST)
+    expect(emptyPermissionRoutes(withNinth)).toContain('novena-ruta')
+  })
+})
+
+describe('registro de navegación ensamblado — CA-CORE-106', () => {
+  it('(a) todo id de entrada y bloque de panel es único y lleva prefijo de módulo', () => {
+    const ids = [...allNavigationEntries(), ...allDashboardBlocks()].map((item) => item.id)
+
+    expect(new Set(ids).size, 'hay ids duplicados en el registro').toBe(ids.length)
+
+    for (const id of ids) {
+      expect(id, `${id} no lleva prefijo <módulo>.`).toMatch(/^[a-z]+(-[a-z]+)*\.[a-zA-Z0-9]+$/)
+    }
+  })
+
+  it('(a, caso fijo) un id duplicado se detecta', () => {
+    const fixture: NavigationEntry[] = [
+      { id: 'auth.sessions', route: 'sessions', labelKey: 'x', icon: {}, section: 'cuenta' },
+      { id: 'auth.sessions', route: 'password-change', labelKey: 'y', icon: {}, section: 'cuenta' },
+    ]
+
+    const ids = fixture.map((entry) => entry.id)
+    expect(new Set(ids).size).not.toBe(ids.length)
+  })
+
+  it('(b) todo nombre de ruta es único entre todos los módulos', () => {
+    const names = router.getRoutes().map((route) => String(route.name))
+
+    expect(new Set(names).size, 'hay nombres de ruta duplicados').toBe(names.length)
+  })
+
+  it('(c) toda section de toda entrada existe en el catálogo de sections.ts', () => {
+    for (const entry of allNavigationEntries()) {
+      expect(SECTION_IDS, `sección desconocida en ${entry.id}: ${entry.section}`).toContain(
+        entry.section,
+      )
+    }
+  })
+
+  it('(c, caso fijo) una sección inexistente se detecta', () => {
+    const fixtureSection = 'inexistente' as unknown as (typeof SECTION_IDS)[number]
+
+    expect(SECTION_IDS).not.toContain(fixtureSection)
+  })
+})
+
+describe('CA-PERM-100 (RN-PERM-25, ADR-053 §2): rutas de 1.5b', () => {
+  /** `REQ-PERM/funcional.md §20.3`, columna 2: el permiso de la lectura o escritura principal de cada pantalla. */
+  const EXPECTED: Record<string, readonly string[]> = {
+    'core-role-new': ['rol.crear'],
+    'core-role-detail': ['rol.leer'],
+    'core-role-clone': ['rol.crear'],
+    'core-role-edit': ['rol.actualizar'],
+    'core-role-permissions': ['rol.actualizar'],
+    'core-user-effective-permissions': ['permiso_efectivo.leer'],
+  }
+
+  it('existen las seis rutas nuevas con meta.layout === "app" y meta.permissions exactamente igual a §20.3', () => {
+    for (const [name, permissions] of Object.entries(EXPECTED)) {
+      const route = router.getRoutes().find((candidate) => candidate.name === name)
+
+      expect(route, `falta la ruta ${name}`).toBeDefined()
+      expect(route?.meta.layout, name).toBe('app')
+      expect(route?.meta.permissions, name).toEqual(permissions)
+    }
+  })
+
+  it('la lista cerrada de rutas con [] (ocho desde 1.14-c, L2) no incluye ninguna de 1.5b', () => {
+    expect(EMPTY_PERMISSIONS_CLOSED_LIST).toHaveLength(8)
+
+    for (const name of Object.keys(EXPECTED)) {
+      expect(EMPTY_PERMISSIONS_CLOSED_LIST).not.toContain(name)
+    }
+  })
+
+  it('las rutas secundarias declaran su padre de miga de pan y títulos en core.*', () => {
+    const parents: Record<string, string> = {
+      'core-role-new': 'core-roles',
+      'core-role-detail': 'core-roles',
+      'core-role-clone': 'core-role-detail',
+      'core-role-edit': 'core-role-detail',
+      'core-role-permissions': 'core-role-detail',
+      'core-user-effective-permissions': 'core-user-detail',
+    }
+
+    for (const [name, parent] of Object.entries(parents)) {
+      const route = router.getRoutes().find((candidate) => candidate.name === name)!
+
+      expect(route.meta.breadcrumbParent, name).toBe(parent)
+      expect(route.meta.titleKey, name).toMatch(/^core\./)
+      expect(route.meta.breadcrumbKey, name).toMatch(/^core\./)
+    }
+  })
+
+  it('ninguna de las seis tiene entrada de menú (son destinos de acciones)', () => {
+    const routes = new Set(allNavigationEntries().map((entry) => entry.route))
+
+    for (const name of Object.keys(EXPECTED)) {
+      expect(routes.has(name), name).toBe(false)
+    }
+  })
+
+  it('el padre de cada ruta secundaria existe y es una ruta app', () => {
+    for (const name of Object.keys(EXPECTED)) {
+      const route = router.getRoutes().find((candidate) => candidate.name === name)!
+      const parent = router
+        .getRoutes()
+        .find((candidate) => candidate.name === route.meta.breadcrumbParent)
+
+      expect(parent, `${name}: padre inexistente`).toBeDefined()
+      expect(parent?.meta.layout).toBe('app')
+    }
+  })
+})
+
+describe('src/modules/core/shell.ts y src/modules/auth/shell.ts (ADR-053 §1)', () => {
+  it('ningún bloque de panel de 1.8 tiene permissions vacía (ADR-053 §5.1)', () => {
+    for (const block of allDashboardBlocks()) {
+      expect(
+        block.permissions.length,
+        `bloque ${block.id} tiene permissions vacía`,
+      ).toBeGreaterThan(0)
+    }
+  })
+})

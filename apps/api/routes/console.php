@@ -1,0 +1,97 @@
+<?php
+
+use App\Modules\Core\Infrastructure\Jobs\PurgeExpiredIdempotencyKeys;
+use Illuminate\Foundation\Inspiring;
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Schedule;
+
+Artisan::command('inspire', function () {
+    $this->comment(Inspiring::quote());
+})->purpose('Display an inspiring quote');
+
+// REQ-CORE 1.1, operacion.md §4. `core:purge-maintenance` despacha las
+// cuatro purgas por tenant a la cola `core-maintenance`; la purga de
+// claves de idempotencia no es por tenant (ver la clase) y se programa
+// directamente. El *scheduler* corre en su propio contenedor
+// (`ADR-037`), nunca en el de la API.
+Schedule::command('core:purge-maintenance')->daily();
+
+// REQ-FAM-UNIT 1.14b-a, operacion.md §12.3. Barrido diario de fotografías de recogida huérfanas, por centro, a la cola
+// `default`. Depende del planificador (issue #453): mientras no tenga servicio desplegado, comando manual (`RUNBOOK.md`).
+Schedule::command('fam_unit:purge-orphan-photos')->daily();
+Schedule::job(new PurgeExpiredIdempotencyKeys)->daily();
+
+// REQ-AUTH 1.2, operacion.md §4. `auth:close-expired-lockouts` no es
+// diaria como el resto: RN-AUTH-38 la quiere frecuente porque un bloqueo
+// vencido y sin cerrar ocupa el hueco del índice único parcial de
+// RN-AUTH-17 hasta que algo lo cierre (el propio login lo cierra
+// perezosamente, esto es el consolidador para los que nadie vuelva a
+// tocar).
+Schedule::command('auth:purge-maintenance')->daily();
+Schedule::command('auth:close-expired-lockouts')->everyFiveMinutes();
+
+// REQ-AUTH-003 (1.3b), funcional.md §D.4.1.1, operacion.md §D.4.1.1.
+// Horario, no diario: una excepción que caduca a las 9:00 no debería
+// dejar a alguien sin exigencia hasta la madrugada, y un plazo de
+// gracia perdido por MaterializeMfaObligationsForRole tampoco debería
+// esperar 24 horas. `auth:purge-maintenance` ya lleva las tres purgas
+// de MFA (diarias, issue #109) — este comando es solo las dos tareas de
+// obligación/excepción.
+Schedule::command('auth:mfa-obligations')->hourly();
+
+// 1.2b, funcional.md §B.4.7, operacion.md §B.3.1/§B.6: consolidador de
+// user_sessions huérfanas, cada 15 minutos (no cada 5 como los bloqueos:
+// una sesión huérfana no ocupa ningún hueco de índice único, el listado
+// ya la cierra perezosamente en cuanto alguien mira).
+Schedule::command('auth:close-orphaned-sessions')->everyFifteenMinutes();
+
+// REQ-AUTH-004 (1.4b), operacion.md §F.4. Diarias, no horarias: un
+// documento de descubrimiento cambia de *endpoints* una vez cada varios
+// años, y una credencial se avisa con semanas de antelación — diario con
+// ventana de siete días es holgado y no golpea a N emisores externos
+// cada hora.
+Schedule::command('auth:refresh-oidc-discovery')->daily();
+Schedule::command('auth:warn-expiring-client-secrets')->daily();
+
+// REQ-AUTH-004 (1.4c), operacion.md §G.4. Diarias, mismo criterio que las
+// dos de OIDC de arriba. auth:purge-saml-correlation es la primera purga
+// del módulo con artefactos transitorios en base de datos (el `state` de
+// OIDC vive en la sesión y muere con ella; aquí no).
+Schedule::command('auth:refresh-saml-metadata')->daily();
+Schedule::command('auth:warn-expiring-idp-certificates')->daily();
+Schedule::command('auth:purge-saml-correlation')->daily();
+
+// Issue #73: sin esto, un job de correo de REQ-AUTH que agota sus 5
+// reintentos (SendPasswordResetEmail/SendAccountLockedEmail, con un token
+// de un solo uso en el payload) se queda en failed_jobs sin fecha de
+// caducidad. ShouldBeEncrypted ya cifra ese payload; esta purga es la
+// segunda capa (nunca guardar más de lo necesario, ni siquiera cifrado).
+// failed_jobs es tabla de plataforma (config/tenancy.php), no por tenant.
+//
+// REQ-BO-004 (1.6d, RN-BO-98, funcional.md §5.9.7): SUSTITUYE a
+// `Schedule::command('queue:prune-failed', ['--hours' => 24])`, que usa
+// `config('queue.failed.database')` = `plataforma_app`, con `REVOKE
+// DELETE` sobre `failed_jobs` desde `0.7` — esa purga nunca borró una
+// sola fila. `bo:purge-failed-jobs` corre por `pgsql_platform`, el único
+// rol con `DELETE`. Gestionar la cola de fallos es un asunto de
+// plataforma (REQ-BO-004), no de REQ-AUTH: no se dejan las dos
+// programadas, porque una de ellas fallaría a diario en silencio.
+Schedule::command('bo:purge-failed-jobs')->daily();
+
+// REQ-BO (1.6), operacion.md §6.2. Las cinco tareas programadas del
+// chasis de plataforma. Ninguna es por tenant: corren sobre tablas de
+// plataforma, fuera de todo contexto de tenant.
+Schedule::command('bo:expire-dual-authorizations')->everyFifteenMinutes();
+Schedule::command('bo:close-orphaned-sessions')->everyFifteenMinutes();
+Schedule::command('bo:purge-mfa-challenges')->hourly();
+
+// REQ-BO-002 (1.6c), operacion.md §6.2 (issue #221). Diaria, mismo
+// criterio que su homóloga de tenant (`core:purge-maintenance` de arriba).
+Schedule::command('bo:purge-idempotency-keys')->daily();
+
+// REQ-BO-001 (1.6b), operacion.md §6.2, RN-BO-17/RN-BO-60. Diaria: el
+// vencimiento de un periodo de gracia de 90 días no necesita más
+// frecuencia, y `CA-BO-122` exige que ejecutarla varios días seguidos
+// sobre el mismo tenant vencido no repita la marca ni la entrada de
+// auditoría.
+Schedule::command('bo:check-grace-periods')->daily();

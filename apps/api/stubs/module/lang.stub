@@ -1,0 +1,7 @@
+<?php
+
+// Textos del módulo {{ name }} (ADR-056 §3.5, INV-009). Claves a añadir en los
+// cuatro idiomas (es-ES, en, de, fr) a la vez: AR-12 comprueba la paridad.
+
+return [
+];

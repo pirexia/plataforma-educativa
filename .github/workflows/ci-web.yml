@@ -1,0 +1,83 @@
+name: CI · Web
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main]
+
+# Issue #401: el GITHUB_TOKEN solo lee por defecto; los jobs que escriben
+# declaran sus propios permisos.
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: apps/web
+
+jobs:
+  lint:
+    name: Lint (ESLint)
+    runs-on: ubuntu-24.04  # fijada: ubuntu-latest migra a 26.04 hasta el 19-11-2026 (#609, actions/runner-images#14748)
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "26"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - run: npm ci
+      - run: npm run lint
+      # INV-009 (paso 0.9): mismo job que ESLint a propósito, no uno nuevo
+      # — el nombre del job ("Lint (ESLint)") es uno de los ocho checks
+      # obligatorios de branch protection en GitHub; añadir un job nuevo
+      # exigiría también añadirlo allí a mano (ver SYSADMIN.md §4).
+      - run: npm run lint:i18n
+
+  typecheck-build:
+    name: Typecheck y build (vue-tsc + Vite)
+    runs-on: ubuntu-24.04  # fijada: ubuntu-latest migra a 26.04 hasta el 19-11-2026 (#609, actions/runner-images#14748)
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "26"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - run: npm ci
+      - run: npm run build
+
+  test:
+    name: Tests unitarios (Vitest)
+    runs-on: ubuntu-24.04  # fijada: ubuntu-latest migra a 26.04 hasta el 19-11-2026 (#609, actions/runner-images#14748)
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "26"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - run: npm ci
+      - run: npm run test
+
+  e2e:
+    name: Tests e2e (Playwright)
+    runs-on: ubuntu-24.04  # fijada por #609
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "26"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e

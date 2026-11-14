@@ -1,0 +1,196 @@
+<?php
+
+use App\Models\AuditLog;
+use App\Models\ModuleSubscription;
+use App\Models\PermissionRole;
+use App\Models\Person;
+use App\Models\Role;
+use App\Models\User;
+use App\Modules\Acad\Domain\Models\AcademicPeriod;
+use App\Modules\Acad\Domain\Models\Course;
+use App\Modules\Acad\Domain\Models\EducationLevel;
+use App\Modules\Acad\Domain\Models\Facility;
+use App\Modules\Acad\Domain\Models\FacilityBooking;
+use App\Modules\Acad\Domain\Models\GradingScale;
+use App\Modules\Acad\Domain\Models\GradingScaleValue;
+use App\Modules\Acad\Domain\Models\Group;
+use App\Modules\Acad\Domain\Models\GroupSubject;
+use App\Modules\Acad\Domain\Models\GroupTutor;
+use App\Modules\Acad\Domain\Models\Subgroup;
+use App\Modules\Acad\Domain\Models\Subject;
+use App\Modules\Acad\Domain\Models\TeachingAssignment;
+use App\Modules\Acad\Domain\Models\TimeSlot;
+use App\Modules\Acad\Domain\Models\Timetable;
+use App\Modules\Acad\Domain\Models\TimetableFrame;
+use App\Modules\Acad\Domain\Models\TimetableSession;
+use App\Modules\Alum\Domain\Models\Enrollment;
+use App\Modules\Alum\Domain\Models\Student;
+use App\Modules\Auth\Domain\Models\IdentityProvider;
+use App\Modules\Auth\Domain\Models\MfaReset;
+use App\Modules\Auth\Domain\Models\SamlIdentityProviderSettings;
+use App\Modules\Auth\Domain\Models\UserMfaExemption;
+use App\Modules\Auth\Domain\Models\UserMfaObligation;
+use App\Modules\Core\Domain\Models\DataExport;
+use App\Modules\Curso\Domain\Models\AcademicYear;
+use App\Modules\Curso\Domain\Models\AcademicYearReopening;
+use App\Modules\Curso\Domain\Models\YearRollover;
+use App\Modules\Curso\Domain\Models\YearRolloverItem;
+use App\Modules\FamUnit\Domain\Models\FamilyUnitStudent;
+use App\Modules\FamUnit\Domain\Models\Guardian;
+use App\Modules\FamUnit\Domain\Models\TermsVersion;
+use App\Support\Audit\Auditable;
+use App\Support\Audit\AuditValuePolicy;
+use App\Support\Tenancy\Tenant;
+use App\Support\Tenancy\TenantContext;
+use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Support\Facades\DB;
+
+// ADR-034 §3/§6 (0.8.9): modelos y traits sobre las tablas de 0.8.2-0.8.8.
+
+afterEach(function (): void {
+    DB::connection('pgsql_platform')->table('tenants')->delete();
+});
+
+test('todo modelo de tenant núcleo está en el morph map', function (): void {
+    $map = Relation::morphMap();
+
+    foreach ([Person::class, User::class, Role::class, AcademicYear::class, ModuleSubscription::class] as $class) {
+        expect(in_array($class, $map, true))->toBeTrue("{$class} no está en el morph map (ADR-034 §3)");
+    }
+});
+
+// ADR-035 §11 test 6: impide la erosión modelo a modelo. Todo modelo del
+// morph map implementa Auditable, y el conjunto Full es exactamente el
+// vigente tras ADR-036 (que sustituye la fila `Tenant` de ADR-035 §8:
+// Tenant no entra en este morph map, vive en la conexión de plataforma) —
+// añadir un modelo a Full exige tocar este test. DataExport (datos.md
+// §A.4, paso 1.1) se suma en Full: no contiene datos personales.
+// MfaReset/UserMfaObligation/UserMfaExemption (REQ-AUTH-003, 1.3,
+// datos.md §C.5/§C.6/§C.6.1) se suman en Full: sin datos personales más
+// allá de la relación con el usuario (MfaReset.reason es la única
+// excepción y es contenido, no dato personal, mismo criterio que
+// roles.name — ADR-035 §8). IdentityProvider (REQ-AUTH-004, 1.4b,
+// datos.md §F.2) se suma en Full: configuración técnica del emisor de
+// un centro, sin datos personales — IdentityProviderSecret NO entra
+// aquí, es Selective (client_secret secreto a mano).
+// SamlIdentityProviderSettings (REQ-AUTH-004, 1.4c, datos.md §G.3) se
+// suma en Full por el mismo motivo que IdentityProvider: configuración
+// técnica del IdP SAML de un centro, sin datos personales —
+// IdentityProviderCertificate NO entra aquí, es Selective (`certificate`
+// declarado a mano, mismo criterio que IdentityProviderSecret).
+// SamlAuthRequest/SamlConsumedAssertion NO entran: no son Auditable en
+// absoluto (política None, datos.md §G.4.1/§G.4.2).
+// PermissionRole (REQ-PERM/datos.md §5.2, 1.5, issue #165) se suma en
+// Full: un código de permiso, un código de rol, un efecto y un ámbito no
+// son datos personales.
+// Los seis modelos de `acad` (REQ-ACAD/datos.md §4, 1.11-b), AcademicPeriod y
+// GradingScale/GradingScaleValue (1.11d-b) se suman en Full:
+// estructura académica del centro, sin datos personales (RN-ACAD-09).
+// Guardian y FamilyUnitStudent (1.14-a) en Full: solo ids internos y la unidad, sin dato personal (REQ-FAM-UNIT/datos.md §4).
+// Enrollment (1.15-b, REQ-ALUM/datos.md §4) en Full: fechas, estado e ids, sin identificadores personales.
+// TermsVersion (1.14-b, REQ-FAM-UNIT/datos.md §4) en Full: textos legales del centro, sin datos personales; ImageConsentDecision NO entra
+// aquí, es Selective (IP, agente de usuario y claves foráneas a alumno y tutor se redactan como identificadores, ADR-035).
+// FacilityBooking (1.12-b) también en Full: un espacio, una fecha y una hora; `created_by` es un identificador interno (datos.md §9.6).
+// AcademicYearReopening (REQ-CURSO/datos.md §1.5, 1.11c, ADR-059 §5.4) se suma en
+// Full: el motivo de la reapertura es contenido del centro (criterio de
+// `user_mfa_exemptions.reason`, ADR-035 §8).
+// YearRollover y YearRolloverItem (REQ-CURSO/datos.md §1.6/§1.7, 1.12b) también en Full:
+// códigos y cuentas, sin datos personales salvo la autoría (ADR-035 §8).
+test('todo modelo del morph map es Auditable y el conjunto Full coincide con ADR-035 §8', function (): void {
+    $map = Relation::morphMap();
+
+    $fullPolicyModels = [];
+
+    foreach ($map as $class) {
+        expect(is_a($class, Auditable::class, true))
+            ->toBeTrue("{$class} está en el morph map pero no implementa Auditable (ADR-035 §2)");
+
+        if ((new $class)->auditValuePolicy() === AuditValuePolicy::Full) {
+            $fullPolicyModels[] = $class;
+        }
+    }
+
+    expect($fullPolicyModels)->toEqualCanonicalizing([
+        AcademicYear::class, Role::class, ModuleSubscription::class, DataExport::class,
+        MfaReset::class, UserMfaObligation::class, UserMfaExemption::class, IdentityProvider::class,
+        SamlIdentityProviderSettings::class, PermissionRole::class,
+        EducationLevel::class, Course::class, Group::class, Subgroup::class, Subject::class, GroupSubject::class,
+        AcademicPeriod::class, GradingScale::class, GradingScaleValue::class,
+        AcademicYearReopening::class, YearRollover::class, YearRolloverItem::class,
+        Facility::class, Timetable::class, TeachingAssignment::class, GroupTutor::class,
+        TimetableFrame::class, TimeSlot::class, TimetableSession::class, FacilityBooking::class,
+        Guardian::class, FamilyUnitStudent::class, TermsVersion::class, Student::class, Enrollment::class,
+    ]);
+});
+
+test('Person y User se relacionan y HasPublicId rellena public_id', function (): void {
+    $tenant = Tenant::factory()->create();
+    $context = app(TenantContext::class);
+
+    $context->enter($tenant->id);
+    $person = Person::factory()->create();
+    $user = User::factory()->for($person)->create();
+
+    expect($person->public_id)->not->toBeEmpty()
+        ->and($user->public_id)->not->toBeEmpty()
+        ->and($user->person->is($person))->toBeTrue()
+        ->and($person->user->is($user))->toBeTrue();
+
+    $context->leave();
+});
+
+test('delete() en un TenantModel es lógico, no físico', function (): void {
+    $tenant = Tenant::factory()->create();
+    $context = app(TenantContext::class);
+    $context->enter($tenant->id);
+
+    $year = AcademicYear::create([
+        'code' => '2026-2027', 'status' => 'planificacion',
+        'starts_on' => '2026-09-01', 'ends_on' => '2027-06-30',
+    ]);
+
+    $year->delete();
+
+    $stillInDb = DB::table('academic_years')->where('id', $year->id)->whereNotNull('deleted_at')->exists();
+    $goneFromEloquent = AcademicYear::query()->whereKey($year->id)->exists();
+
+    $context->leave();
+
+    expect($stillInDb)->toBeTrue()
+        ->and($goneFromEloquent)->toBeFalse();
+});
+
+test('AuditLog es append-only también a través de Eloquent', function (): void {
+    $tenant = Tenant::factory()->create();
+    $context = app(TenantContext::class);
+    $context->enter($tenant->id);
+
+    $log = AuditLog::create([
+        'occurred_at' => now(),
+        'actor_type' => 'system',
+        'auditable_type' => 'academic_year',
+        'auditable_id' => 1,
+        'event' => 'created',
+    ]);
+
+    expect(fn () => $log->update(['event' => 'updated']))->toThrow(LogicException::class);
+    expect(fn () => $log->delete())->toThrow(LogicException::class);
+
+    $context->leave();
+});
+
+test('created_by/updated_by quedan en null sin usuario autenticado', function (): void {
+    $tenant = Tenant::factory()->create();
+    $context = app(TenantContext::class);
+    $context->enter($tenant->id);
+
+    $year = AcademicYear::create([
+        'code' => '2027-2028', 'status' => 'planificacion',
+        'starts_on' => '2027-09-01', 'ends_on' => '2028-06-30',
+    ]);
+
+    $context->leave();
+
+    expect($year->created_by)->toBeNull()
+        ->and($year->updated_by)->toBeNull();
+});

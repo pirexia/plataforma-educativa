@@ -1,0 +1,246 @@
+# PRIVACY.md
+
+> **Versión 0.3.12** · 2026-11-02
+> Documento vivo: se actualiza en cada fase (`CLAUDE.md` §6). Base del Registro de Actividades de Tratamiento (RAT) exigido por el RGPD — hoy es un **esqueleto**, no un RAT completo: varias secciones dependen de decisiones que todavía no se han tomado (`OPEN-07`, entidad jurídica y contrato de encargado de tratamiento). No se rellenan con suposiciones (`CLAUDE.md` §0/§11).
+
+---
+
+## 1. Estado actual: sin tratamiento real de datos personales
+
+El desarrollo ocurre en un equipo personal bajo WSL2 y, por decisión explícita (`ADR-030`), **nunca aloja datos reales de alumnos, familias o personal**. Todos los datos usados en desarrollo y pruebas son sintéticos, generados por `REQ-SEED` con la convención de `REQ-SEED-005`: dominios `@example.com`, documentos de identidad con dígito de control inválido, centros con nombre explícitamente ficticio, nunca fotografías de personas reales.
+
+Este documento describe el **marco de diseño ya decidido** para cuando exista tratamiento real, no un tratamiento que esté ocurriendo hoy.
+
+## 2. Decisiones de diseño ya tomadas que afectan a la privacidad
+
+| Decisión | Qué significa | Referencia |
+|----------|----------------|------------|
+| Minimización de datos personales | El modelo `Person` (identidad de alumnos, familias y personal) incluye solo el mínimo defendible: nombre, apellidos, fecha de nacimiento, documento, contacto, idioma. Fotografía, sexo, nacionalidad y dirección postal quedan fuera hasta que exista catálogo de bases legales por campo (`OPEN-13`) | `ADR-034` §1 |
+| Borrado en tres niveles | Lógico (recuperable), anonimización (irreversible, conserva estructura estadística) y purga (eliminación física por retención cumplida) | `ADR-004` |
+| Datos de categoría especial separados | Salud, NEAE y convivencia viven en tablas propias, cifradas, con permisos independientes y auditoría de lectura — nunca mezclados con el resto del expediente | `CLAUDE.md` §8 |
+| Auditoría sin copia en claro de datos protegidos | El registro de auditoría (`audit_logs`, implementado en el paso 0.9) nunca guarda el valor de un secreto, de un campo de categoría especial, ni de un identificador personal fuera de la lista de inclusión explícita del modelo — solo qué atributo cambió. Tampoco guarda el nombre del actor desnormalizado, para que la anonimización de una persona no deje un rastro legible en el histórico. Detalle en §5 | `ADR-034` §3, `ADR-035` |
+| Datos de menores | Base legal y consentimiento del tutor registrados para todo dato de un menor, no asumidos | `INV-008` |
+| Datos de prueba nunca reales | Bajo ningún concepto, ni una exportación del centro ni una copia de producción para depurar | `ADR-030` |
+| `platform_admins` es tratamiento propio del proveedor, no un encargo | Datos personales del **personal del proveedor** (no de alumnos, familias ni personal de los centros): correo, nombre, IP y agente de usuario de acceso. Base legal: relación laboral o de servicio. Distinto de los tratamientos de los que la plataforma es encargada — el backoffice **no expone datos personales de los centros** (`RN-BO-33`, restricción funcional, no solo de permiso) | `REQ-BO-007`, paso 1.6 |
+
+### 2.1 Inventario de cookies propias
+
+| Cookie | Módulo / paso | Finalidad | Clasificación |
+|--------|----------------|-----------|----------------|
+| `pge_device` | `REQ-AUTH-005` (1.2b) | Reconocer el navegador de un usuario ya autenticado para avisarle de accesos desde un dispositivo no reconocido (detección de dispositivo nuevo). Opaca, sin dato personal alguno dentro, emitida **solo** tras una autenticación correcta, de solo el titular de la cuenta. | **Cookie técnica de seguridad, exenta de consentimiento** (`funcional.md §B.6.2`, decisión del usuario en `funcional.md §B.14` punto 2, `OPEN-AUTH-14`). No hay perfilado ni cesión a terceros. Vida 365 días (`AUTH_DEVICE_COOKIE_TTL_DAYS`), `httpOnly`, `Secure`, `SameSite=Lax`, *host-only*. |
+| Cookie de sesión (Laravel) | `REQ-AUTH` (1.2) | Mantener autenticado al usuario entre peticiones tras el login (`ADR-025`) — identificador de sesión opaco, sin dato personal dentro; el servidor asocia la sesión al usuario en su propio almacén. | **Cookie técnica estrictamente necesaria, exenta de consentimiento** (`RGPD` art. 6.1.f / excepción de cookies técnicas — no hay finalidad distinta de prestar el servicio solicitado). No hay perfilado ni cesión a terceros. Vida ligada a `SESSION_LIFETIME` (expiración por inactividad configurable), `httpOnly`, `Secure`, `SameSite`, *host-only*. |
+| `XSRF-TOKEN` | `REQ-AUTH` (1.2) | Token anti-CSRF legible por JavaScript, exigido por la SPA en cada petición mutante para probar que la petición se originó en el propio frontend | **Cookie técnica estrictamente necesaria, exenta de consentimiento** — mismo fundamento que la cookie de sesión, es su contrapartida de seguridad, no un tratamiento adicional. No legible entre orígenes distintos (`SameSite`), sin dato personal dentro. |
+| Cookie de sesión de plataforma (`BO_SESSION_COOKIE`) | `REQ-BO` (1.6) | Mantener autenticado a un administrador de plataforma — personal del proveedor, no un usuario de ningún centro. Nombre propio, distinto de la cookie de sesión del producto | **Cookie técnica estrictamente necesaria, exenta de consentimiento**, mismo fundamento que la cookie de sesión del producto. *Host-only* del dominio del backoffice: no viaja al dominio de ningún centro ni al revés. Vida más corta (`BO_SESSION_LIFETIME`), `httpOnly`, `Secure`, `SameSite`. |
+
+### 2.1b Inventario de almacenamiento local del navegador (`localStorage`)
+
+A diferencia de una cookie, una clave de `localStorage` no viaja al servidor y no la fija una cabecera `Set-Cookie`: la escribe el propio código de la SPA. Se catalogan aquí por el mismo motivo que las cookies de 2.1 — para que quede constancia expresa de que ninguna contiene un dato personal, en vez de darlo por hecho.
+
+| Clave | Módulo / paso | Contenido | Clasificación |
+|-------|----------------|-----------|----------------|
+| `plataforma.locale` | i18n transversal (0.9) | Uno de los cuatro códigos de idioma activos del centro (`docs/i18n.md`) | Sin dato personal. Preferencia de interfaz, nunca un token ni credencial (`ADR-025` no se ve afectado). Sustituida por la preferencia de servidor en cuanto existe sesión (1.2) |
+| `plataforma.brand` | *Design system* (1.7, `docs/design-system.md §7.2`) | Exactamente `{"v":1,"primary":"#RRGGBB","primaryForeground":"#RRGGBB"}`: los dos colores públicos y estables de la marca del centro (`GET /tenant/branding`, sin sesión) | Sin dato personal. Nunca una URL (las firmadas caducan), ni el nombre del centro, ni los idiomas activos. Por origen del navegador — el origen ya es el tenant (resolución por *host*), así que no hay mezcla entre centros |
+| `plataforma.color-mode` | *Design system* (1.7, `docs/design-system.md §9.2`) | Una de tres cadenas fijas: `system`, `light`, `dark` | Sin dato personal. No se sincroniza con el servidor ni entre dispositivos (decisión de alcance, `ADR-052 §2`) |
+| `plataforma.table.<tableId>` | Tablas de datos (1.9, `ADR-054 §5.2`; implementado en `apps/web/src/data-table/columnPreferences.ts`, `CA-CORE-173`-`175`/`-195`) | Exactamente `{"v":1,"hidden":["<id>",…]}`: solo ids de columna, nunca datos de fila, filtros ni búsqueda | Sin dato personal. No se borra al cerrar sesión y la comparten los usuarios de un mismo navegador (aceptado: no contiene nada de ninguno); por origen, no se mezcla entre centros |
+| `plataforma.table.core.role_grants` | Concesiones de la ficha de un rol (1.5b, `REQ-PERM funcional.md §20.5`, tabla en modo `local`) | La misma forma cerrada `{"v":1,"hidden":["<id>",…]}`: solo ids de columna | Sin dato personal. Nunca se guardan las concesiones del rol, el estado de la matriz de edición ni lo que se esté editando (`RN-CORE-50`, `§20.13`); la matriz no es una tabla del componente y no guarda nada |
+| `plataforma.table.core.effective_permissions` | Permisos efectivos de un usuario (1.5b, `REQ-PERM funcional.md §20.10`, tabla en modo `local`) | La misma forma cerrada, solo ids de columna | Sin dato personal. El mapa de capacidades de una persona es información de ataque: ni se exporta, ni se imprime, ni se copia al navegador, y no lleva ni siquiera filtros en la URL (`RN-PERM-45`) |
+
+### 2.2 Datos recibidos de un proveedor de identidad externo (Google, `REQ-AUTH-002`, paso 1.4)
+
+El *callback* de OAuth2 recibe de Google, además del `access_token`/`id_token` de la propia negociación, un conjunto de datos personales de la persona que inicia sesión. Qué entra y qué se descarta, decidido en `ADR-042` y `funcional.md §E.0.2`/`§E.4`:
+
+| Dato que envía Google | ¿Se persiste? | Dónde / por qué |
+|------------------------|----------------|------------------|
+| `sub` (identificador estable del proveedor) | **Sí** | `user_identities.subject`. Es la identidad federada real (nunca el correo, `RN-AUTH-86`); permite correlacionar a la persona fuera de este producto, por eso no sale por ninguna API (`permisos.md §E.5`) |
+| `email` | **Sí, solo en la fusión inicial** | `user_identities.email_at_link`, **enmascarado** en toda salida (`DestinationMasker`). No se usa para reconocer al usuario en accesos posteriores (eso es `sub`) |
+| `email_verified` | **No se persiste el valor**, solo su efecto | Decide si la fusión automática procede (`RN-AUTH-87`); normalizado por lista blanca estricta en un único punto (`ADR-042 §4.4`) para que un `(bool) 'false'` no abra una vía de apropiación de cuenta |
+| `given_name` / `family_name` | **No** | `RN-AUTH-88`: Google **nunca** sobrescribe datos del centro, ni al vincular ni en logins posteriores. El nombre que vale es el de la ficha de la persona en el centro. Partir `family_name` en `family_name_1`/`family_name_2` sin criterio no arbitrario es, además, el motivo por el que ni se intenta (`funcional.md §E.0.2` contradicción 2) |
+| `picture` (URL del avatar) | **No, bajo ningún concepto** | Ni se descarga ni se guarda la URL. Servirla filtraría a Google la IP de quien la mire; guardarla sería tratar un dato personal nuevo sin base legal decidida (`REQ-PRIV-006`, `OPEN-13`) |
+| `access_token` / `refresh_token` | **No** | Se usan en la misma petición servidor-a-servidor para leer los *claims* y se descartan de inmediato (`RN-AUTH-95`). Este producto no llama a ninguna API de Google en nombre de nadie; guardar un *refresh token* sería custodiar una llave a la cuenta personal de una persona, con su propia base legal y su propia superficie de fuga |
+
+**Ningún usuario se crea a partir de este flujo** (`RN-AUTH-99`): sin cuenta local ya existente en el centro, no se trata ningún dato de los de arriba — se descartan en el acto. `REQ-AUTH-004`/`1.4b` (§2.3) tampoco crea usuarios: el directorio del propio centro contiene también alumnado, y un aprovisionamiento automático que confiara en la aserción crearía el registro de un menor sin base legal ni consentimiento del tutor (`INV-008`) — decisión del usuario, `ADR-043 §8.1`.
+
+### 2.3 Datos recibidos de un proveedor de identidad institucional (OIDC, `REQ-AUTH-004`, paso 1.4b)
+
+Cada centro cataloga su propio proveedor de identidad (Azure AD/Entra ID, Google Workspace u otro emisor conforme a OIDC). El *callback* recibe del `id_token` un conjunto de *claims* de la persona que inicia sesión. Qué entra y qué se descarta, decidido en `ADR-043` y `funcional.md §F.5`:
+
+| *Claim* que envía el proveedor | ¿Se persiste? | Dónde / por qué |
+|---------------------------------|----------------|------------------|
+| `sub` (identificador estable del emisor) | **Sí** | `user_identities.subject`, junto a `identity_provider_id` — un mismo `sub` solo es único dentro de su emisor (`ADR-043 §3.6`), nunca el correo |
+| `email` (o el *claim* configurado como origen del correo) | **Sí, solo para resolver el emparejamiento** | Se usa para localizar la `Person`/`User` ya existente en el censo con ese correo; no se persiste como dato nuevo del proveedor, es el mismo `contact_email` que ya tenía la persona en el centro |
+| Resto de atributos (`given_name`, `family_name`, teléfono, etc.) | **No, bajo ningún concepto** | `RN-AUTH-88`/`OPEN-AUTH-38`: el mapeo de atributos de este paso resuelve identidad, no escribe sobre `people` — la persona ya tiene sus datos puestos por el centro, y escribir encima sería sobrescribirlos sin su acto. La lista blanca de campos que **podría** rellenar el día que exista esa mitad está documentada, sin materializar, en `funcional.md §F.5.3` |
+| Fecha de nacimiento | **No se lee ni se pide** | Es justo el dato cuya ausencia impide saber si el directorio acaba de entregar la identidad de un menor — motivo central de que este paso no cree cuentas (`ADR-043 §4.1`) |
+| Credencial de cliente del centro (`client_secret` o equivalente) | **Sí, cifrada** | `identity_provider_secrets.client_secret`, cifrada con `APP_KEY` a nivel de aplicación, nunca en claro por ningún endpoint. Es material de configuración del centro, no un dato personal de quien inicia sesión |
+
+**Ningún usuario ni persona nueva se crea a partir de este flujo.** Un acceso sin cuenta ya existente en el centro con ese correo termina sin vincular y sin crear nada, con la misma respuesta genérica e indistinguible que el resto de casos "sin cuenta" (`funcional.md §F.4.5`).
+
+### 2.4 Datos recibidos de un proveedor de identidad institucional (SAML 2.0, `REQ-AUTH-004`, paso 1.4c)
+
+Mismo mecanismo que §2.3, protocolo distinto: cada centro cataloga su propio proveedor SAML (ADFS, Entra ID en modo SAML, Shibboleth u otro emisor conforme). La aserción que llega al ACS trae el `NameID` y, si se configuró, un atributo adicional de correo. Qué entra y qué se descarta, decidido en `ADR-043 §10` y `funcional.md §G.5`:
+
+| Elemento que envía el proveedor | ¿Se persiste? | Dónde / por qué |
+|----------------------------------|----------------|------------------|
+| `NameID` (identificador estable del sujeto) | **Sí** | `user_identities.subject`, junto a `identity_provider_id` — mismo papel que `sub` en OIDC (§2.3). **No es configurable**: es el identificador del sujeto en el estándar, y dejarlo elegible sería ofrecer al administrador del centro identificar por un atributo cualquiera (`ADR-043 §4.4`) |
+| Atributo de correo (`email_attribute`, o el propio `NameID` si su formato es `emailAddress`) | **Sí, solo para resolver el emparejamiento** | Igual que `email` en OIDC: localiza la `Person`/`User` ya existente en el censo; no se persiste como dato nuevo del proveedor |
+| Resto de atributos del directorio (nombre, apellidos, teléfono, etc.) | **No, bajo ningún concepto** | Mismo argumento que §2.3: el mapeo de este paso resuelve identidad, no escribe sobre `people` (`RN-AUTH-109`, `OPEN-AUTH-38` salida A) |
+| Fecha de nacimiento | **No se lee ni se pide** | Mismo motivo que §2.3: es justo el dato cuya ausencia impide saber si el directorio acaba de entregar la identidad de un menor |
+| **La aserción XML completa, o cualquier fragmento suyo** | **No, bajo ningún concepto** | A diferencia de OIDC (donde el `id_token` se descarta tras leer los *claims*), aquí se declara explícitamente porque la aserción viaja por el navegador en un `POST` de un tercero: de ella solo sobreviven su `ID` y su fecha de expiración (`NotOnOrAfter`) en `saml_consumed_assertions`, con el único propósito de impedir su repetición (`RN-AUTH-95` ampliado, `CA-AUTH-363`) — ninguno de los dos identifica a una persona |
+| Certificado de firma del proveedor | **Sí, en claro** | `identity_provider_certificates.certificate` — es una **clave pública** del centro, material de configuración institucional, no un dato personal de quien inicia sesión (`RN-AUTH-127`) |
+| Clave privada de firma de nuestra plataforma (si `sign_authn_requests` está activo) | **No vive en base de datos** | Fichero de plataforma fuera del repositorio y fuera de la copia de la base de datos (`SYSADMIN.md`, `operacion.md §G.2.3`). No es un dato de ninguna persona ni de ningún centro: es un secreto operativo de la plataforma |
+
+**Ningún usuario ni persona nueva se crea a partir de este flujo**, con la misma garantía de esquema que en OIDC (`ADR-043 §10.9`, el `CHECK` de `provisioning_mode` lo impide independientemente del protocolo). Un acceso sin cuenta ya existente en el centro con ese identificador termina sin vincular y sin crear nada, con la misma respuesta genérica e indistinguible que el resto de casos "sin cuenta" (`funcional.md §G.4.5`).
+
+### 2.5 Exportación de usuarios (CSV, `REQ-CORE-003`, paso 1.9b)
+
+`POST /users/exports` (permiso propio `usuario.exportar`, concedido por defecto solo al administrador del centro) genera un CSV con las personas usuarias que cumplen los filtros del listado. Es un tratamiento de **exportación de datos personales fuera del control del sistema**, por eso:
+
+| Aspecto | Decisión |
+|---------|----------|
+| Columnas (esquema cerrado, `funcional.md §14.11.1`) | `public_id`, `status`, `deleted_at`, `created_at`, `email` (correo de acceso), `given_name`, `family_name_1`, `family_name_2`, `contact_email`, `contact_phone`, `locale`, `roles` (códigos) |
+| **Excluido a propósito** | `document_type`, `document_number` y `birth_date` (`OPEN-CORE-32` = B, decisión del usuario 2026-10-01, `INV-008`): un documento de identidad o una fecha de nacimiento exportados en bloque salen del control del sistema, y el listado incluye a alumnado menor de edad con cuenta cuando exista. **Añadirlos exige una decisión expresa del usuario con su base legal**, no solo una petición de un centro |
+| Quién descarga | Solo quien lo solicitó (`data_exports.requested_by`), y solo mientras conserve `usuario.exportar` |
+| Dónde queda el fichero | Objeto privado en el almacenamiento (`tenants/{tenant}/exports/{id}.csv`), URL firmada de caducidad corta; sin copia en la base de datos ni en `audit_logs` (`data_exports.filters` solo lleva códigos y ULID, nunca texto de búsqueda) |
+| Retención | 7 días (`CORE_EXPORT_RETENTION_DAYS`), purgado por `PurgeExpiredExports` (fila y objeto) |
+| Rastro | Cada solicitud se audita (`created` y `exported`) sin el contenido del fichero |
+| Neutralización | Los textos que empiezan por `=`, `+`, `-`, `@` (o espacio en blanco seguido de uno) llevan un apóstrofo inicial (`RN-CORE-48`), para que el fichero no ejecute fórmulas en una hoja de cálculo |
+
+### 2.6 Importación de usuarios (CSV, `REQ-CORE-003`, paso 1.9c)
+
+`POST /user-imports` (permiso `usuario.importar`, concedido por defecto solo al administrador del centro) recibe un CSV con las personas que se van a dar de alta. A diferencia de la exportación de §2.5, **este fichero sí contiene datos identificativos**, porque es la entrada del alta:
+
+| Aspecto | Decisión |
+|---------|----------|
+| Columnas (esquema fijo, `api.md §7`) | `email`, `given_name`, `family_name_1`, `family_name_2`, **`document_type`**, **`document_number`**, **`birth_date`**, `contact_email`, `contact_phone`, `locale`, `roles` |
+| Datos personales que viajan | Nombre y apellidos, correos, teléfono, **tipo y número de documento de identidad y fecha de nacimiento** de todo el personal (y del alumnado con cuenta, si lo hay). Es el único flujo de entrada masiva de esos datos |
+| Dónde queda el fichero fuente | Objeto privado del almacenamiento (`tenants/{tenant}/imports/{id}/source.csv`), sin URL pública; solo lo lee el trabajo de validación y el de ejecución |
+| El informe (`report.csv`, `error_summary`) | Contiene **línea, columna, código y mensaje** de cada incidencia, **nunca el valor del dato** (los mensajes nombran la columna, no su contenido). Se entrega por URL firmada de caducidad corta (15 min) a quien tiene `usuario.importar`; el texto sale en el idioma de quien subió el lote |
+| Retención | **30 días por defecto** (`CORE_IMPORT_RETENTION_DAYS`, `RN-CORE-21`): `PurgeImportArtifacts` borra el fichero fuente y el informe y deja las referencias a `NULL`; la fila del lote (recuentos y fechas) se conserva |
+| Quién actúa | Quien sube el lote (`user_imports.created_by`); `ExecuteUserImport` crea personas y usuarios con esa autoría y con `actor_type = import` |
+| Rastro | Cada `Person` y `User` creados se auditan como cualquier alta (`created`), con los identificadores redactados (`ADR-035`); el fichero no se copia a `audit_logs` |
+| Minimización y exactitud | El documento se guarda **normalizado** (`RN-CORE-92`) y de un catálogo cerrado (`RN-CORE-90`), para que no haya duplicados de la misma persona por escribirse distinto |
+| Base legal y consentimiento de menores (`INV-008`) | **Pendiente de `OPEN-07`** (entidad responsable y base legal); no se rellena con suposiciones |
+
+### 2.7 Vínculo usuario ↔ docencia, tutorías, espacios y reservas (`REQ-ACAD-002`, pasos 1.12-a y 1.12-b)
+
+`acad` registra qué miembro del personal imparte qué asignatura a qué grupo (`teaching_assignments`), quién tutoriza un grupo (`group_tutors`), quién creó una reserva de aula (`facility_bookings.created_by`) y, por derivación, su horario (`timetable_sessions`). Es un tratamiento de **datos personales ordinarios del personal** (no de categoría especial, `INV-008` no aplica: no hay datos de menores en estas tablas).
+
+| Aspecto | Decisión |
+|---------|----------|
+| Dato personal | El **vínculo** entre una persona del personal y su docencia/tutoría/reserva; el nombre no se guarda en estas tablas, se resuelve por `UserDirectory` al leer |
+| Qué ve cada pantalla | `{public_id, name}` del profesor: nombre y primer apellido, **nunca el correo**; sin nombre, el texto neutro `acad.staff.unnamed`. Ninguna respuesta incluye el id interno |
+| Usuario borrado | La referencia se conserva (histórico) pero el nombre **no**: se muestra el marcador neutro traducido `acad.staff.removed` («Usuario eliminado»), decisión #446 B-3 (`REQ-PRIV-006`, `ADR-004`). Un usuario inactivo (no borrado) conserva su nombre |
+| Auditoría | Política `Full`: `changes` registra la clave interna `user_id` (pseudónima), no nombre ni documento. Decisión consciente #446 B-1. Hallazgo abierto: `GET /audit-logs` devuelve esas claves internas ([#455](https://github.com/pirexia/plataforma-educativa/issues/455)) |
+| Base legal y plazo | **Pendiente de `OPEN-07`** y de `REQ-PRIV-006`; mientras el centro exista, las filas viven con el tenant. Orden de restauración en `docs/modulos/REQ-ACAD/datos.md §9.6` |
+| Supresión y anonimización | Hoy: borrado lógico de la asignación/tutoría, y un usuario **borrado** deja de mostrar su nombre (marcador `acad.staff.removed`). **La anonimización de `ADR-004` nivel 2 (identificadores irreversibles) es diseño pendiente de `REQ-PRIV-006` y de `OPEN-07`**: no está implementada y este documento no la da por hecha |
+
+### 2.8 Relación tutor ↔ alumno, representación legal, contacto de emergencia y revocación (`REQ-FAM-UNIT-001`/`-002`, paso 1.14-a)
+
+`fam_unit` registra a qué unidad familiar pertenece la persona de un alumno (menor), qué tutores tiene (`guardians`), y para cada par tutor-alumno el tipo de relación, si ostenta **representación legal** (verificada por el centro, con fecha y usuario), el nivel de acceso, las categorías de información restringidas (hoy `salud`), si es **contacto de emergencia** y su estado `activo` o `revocado` por **resolución judicial** (fecha y usuario). Es un tratamiento de **datos personales de menores** (`INV-008`) cuyo efecto es decidir quién accede a los datos del menor: no contiene datos de salud ni de custodia (el detalle de la resolución, categoría especial, no se guarda: espera un ADR, `OPEN-FAM-UNIT-05`).
+
+| Aspecto | Decisión |
+|---------|----------|
+| Dato personal | El **vínculo** entre dos personas (tutor y alumno) y sus atributos; nombre, correo y teléfono no se guardan aquí, se resuelven por `PersonDirectory` al leer y la API nunca devuelve correo, teléfono ni documento |
+| Revocación | Es un código (`resolucion_judicial`) con fecha y autor, **sin texto libre**. Quien no tiene `revocacion_tutor.leer` no ve los vínculos revocados (ni en listados ni en el detalle) y un tutor con ámbito `unidad_familiar` nunca los ve: el estado revela una resolución judicial (`RN-FAM-UNIT-36`, `-40`) |
+| Auditoría | `GuardianStudentLink` y `FamilyUnit` con política `Selective` (códigos y marcas; el código de unidad, el tutor y el alumno se redactan como identificador); `Guardian` y `FamilyUnitStudent` con `Full` (solo ids internos). La revocación y su levantamiento quedan con autor e instante |
+| Base legal y consentimiento de menores (`INV-008`) | **Cubierto parcialmente**: este módulo aporta quién es representante legal de cada menor, verificado por el centro; la base legal por campo sigue pendiente de `OPEN-07` y `OPEN-13`. No se rellena con suposiciones |
+| Plazo de conservación | Borrado lógico mientras el alumno esté en el centro; el vínculo y su revocación son la prueba ante un incidente con un menor, así que **un vínculo revocado no se da de baja** (`RN-FAM-UNIT-39`). Plazos y anonimización: `REQ-PRIV-006`, sin especificar (`docs/modulos/REQ-FAM-UNIT/datos.md §6`) |
+| Copias de seguridad | Restaurar una copia anterior a una revocación devolvería el acceso a un tutor: se anota para `REQ-BKP` (`1.26`, `OPEN-FAM-UNIT-21`) |
+
+### 2.9 Consentimiento de uso de imagen del alumno (`REQ-FAM-UNIT-004`, paso 1.14-b, `ADR-066`)
+
+`fam_unit` es la **fuente única** del consentimiento de imagen de un menor (ningún otro módulo guarda decisiones, estados ni copias). Cada decisión de un representante legal sobre un alumno y un nivel (`web`, `redes_sociales`) es una fila **inmutable** (tabla de solo anexar, `REVOKE UPDATE, DELETE` en el motor) con la versión del texto al que se refiere, el idioma realmente mostrado, el canal (`portal` o `presencial`), quién la registra, fecha y hora, **IP y agente de usuario**. Es un dato personal de un menor, no de categoría especial.
+
+| Aspecto | Decisión |
+|---------|----------|
+| Quién decide | Los tutores con vínculo vivo y **representación legal** sobre el alumno, también el de acceso `revocado` (revocar quita el acceso, no la patria potestad); un abuelo o apoderado sin representación no decide. Unanimidad para `autorizo`; cualquier `no_autorizo` bloquea. **Pendiente de validación jurídica antes de cargar datos reales** (`OPEN-FAM-UNIT-08`, `OPEN-FAM-UNIT-18` sobre los 14 y 18 años, `OPEN-066-02` sobre si un texto nuevo invalida los `autorizo`) |
+| Fallo en cerrado | `pendiente` (sin decisión que cuente) y `no_autorizo` bloquean la publicación; un alumno sin nadie que decida, inexistente, de otro centro o con el módulo descontratado también (`INV-014`). El estado se **calcula en cada consulta**: alta, baja o cambio de representación de un vínculo lo cambian sin recálculo; solo cuentan las decisiones posteriores a la verificación de la representación legal |
+| Texto informado | `autorizo` exige una versión **publicada** del texto del nivel (`texto_legal`, contenido del centro); el tutor puede leerlo por la API antes de decidir. Negarse no necesita texto |
+| Auditoría | Cada alta en `audit_logs`; la IP, el agente de usuario y las claves a alumno y tutor se **redactan** como identificadores (`ADR-035`); la API no devuelve IP ni agente. Una decisión idéntica a la vigente no se duplica ni se audita, y registrar decisiones y pedir el informe tienen límite por centro y usuario (`RN-FAM-UNIT-76`, `-77`) |
+| Informe de consentimientos (CSV) | `POST /image-consents/exports` (permiso `consentimiento_imagen.exportar`, solo ámbito `todos`, solicitud auditada como `exported`) genera en cola un CSV con, por alumno y nivel, **el nombre del alumno menor**, su `public_id`, el código de la unidad familiar, el estado (`autorizo`/`no_autorizo`/`pendiente`) y la fecha de la última decisión que cuenta: es un **dato personal de un menor**. El fichero se guarda en el almacenamiento de objetos del centro bajo `tenants/<centro>/exports/` y se descarga solo por **enlace firmado de caducidad corta (15 minutos)**, solo por quien lo solicitó y mientras conserve el permiso; la solicitud y el fichero caducan según la retención de `data_exports` de `Core` (`core.export_retention_days`). No contiene IP, agente de usuario ni datos de contacto |
+| Plazo de conservación | Evidencia mientras dure el tratamiento y el plazo que fije `REQ-PRIV-006` (sin especificar); la versión del texto a la que apunta una decisión tampoco se borra (`RESTRICT`) |
+| Copias de seguridad | Restaurar una copia anterior a un `no_autorizo` devolvería la publicabilidad de la imagen: se anota para `REQ-BKP` (`1.26`, `OPEN-FAM-UNIT-21`) |
+
+### 2.10 Aceptación de las condiciones de uso por el tutor (`REQ-FAM-UNIT-003`, paso 1.14-c, `ADR-067`)
+
+`fam_unit` registra en `terms_acceptances` que un usuario (tutor) aceptó una versión concreta de las condiciones de uso del centro: usuario, versión, **idioma realmente mostrado**, fecha y hora, **IP y agente de usuario**. Es una tabla **de solo anexar** (`REVOKE UPDATE, DELETE` en el motor) y un dato personal del tutor, no de categoría especial.
+
+| Aspecto | Decisión |
+|---------|----------|
+| Dato personal | El vínculo usuario-versión, el idioma mostrado, la IP y el agente de usuario como **evidencia** de la aceptación; la API no devuelve IP ni agente |
+| Base legal | Ejecución de la relación con el centro y prueba de la información dada al tutor. **Pendiente de validación jurídica** antes de cargar datos reales, junto con `OPEN-07` y `OPEN-13`; no se rellena con suposiciones |
+| Auditoría | Cada alta en `audit_logs` con política `Selective`: versión, idioma y fecha; usuario, IP y agente se redactan como identificadores (`ADR-035`) |
+| Plazo de conservación | **Es evidencia: no se purga con el usuario** (`datos.md §6`); se conserva mientras dure el tratamiento y el plazo que fije `REQ-PRIV-006` (sin especificar). La versión del texto a la que apunta tampoco se borra (`RESTRICT`) |
+| Copias de seguridad | Sin particularidad respecto a `§2.9`; se anota para `REQ-BKP` (`1.26`) |
+
+### 2.11 Personas autorizadas a recoger a un menor: fotografía, documento y teléfono de terceros (`REQ-FAM-UNIT-005`, paso 1.14b-a, `ADR-068`)
+
+`fam_unit` trata datos de **terceros** (abuelos, personal de apoyo, otras familias) que **aporta el tutor, no el tercero**: nombre y apellidos, tipo y número de documento y teléfono (en `people`, sin cuenta) y una **fotografía** (`pickup_photos`, en un *bucket* privado). Son datos identificativos, no de categoría especial: la verificación visual la hace una persona y el tratamiento automatizado de la imagen (reconocimiento facial, comparación) está **prohibido** (convertiría la foto en dato biométrico, art. 9 RGPD).
+
+| Aspecto | Decisión |
+|---------|----------|
+| Minimización | Sin copia del documento (solo tipo y número), sin fecha de nacimiento, correo ni dirección. La fotografía se **reprocesa** y se guarda sin EXIF (incluida la geolocalización), XMP, IPTC ni perfiles; el original no se conserva. Finalidad única: verificar a quien recoge |
+| Quién ve qué | Personal con `autorizado_recogida.*`: el documento completo solo en la ficha de la persona; en la lista de recogida, **enmascarado** (4 últimos caracteres). La familia (`unidad_familiar`) ve la lista de **sus** alumnos sin el documento de los terceros y sin URL de fotografía (`OPEN-FAM-UNIT-43`, abierta); el teléfono está pendiente de decisión (`OPEN-FAM-UNIT-49`). Un tutor con el acceso revocado a un alumno no figura nunca en su lista |
+| Auditoría | Alta, retirada y cambio de vigencia de cada autorización y alta/sustitución de cada fotografía en `audit_logs` (`Selective`: sin nombre, documento, teléfono, motivo ni clave de objeto); cada **lectura** con fotografía o documento escribe una fila `read` sin valores |
+| Retención | Fotografía de un tercero **sin autorización vigente ni futura**: se da de baja tras **30 días** (`OPEN-FAM-UNIT-37`, recomendación aplicada, **a ratificar en `1.23b`**) y el objeto se borra del *bucket*; la de un tutor se retira al darse de baja su faceta. Autorizaciones, salidas y alertas son **evidencia** ante un incidente con un menor y siguen el catálogo de `REQ-PRIV-006` (sin plazos todavía) |
+| Derechos del tercero | Corregir sus datos: `PATCH /pickup-persons/{person}` (solo personas sin cuenta). **Supresión**: no tiene canal propio en `1.14b`; depende de la retención de `1.23b` (retira la autorización y la foto y anonimiza `people` cuando venza la obligación de conservar los registros que la referencian) |
+| Base legal e información (art. 6 y 14) | **Sin resolver**: quién informa al tercero, con qué texto y si hace falta su consentimiento para la fotografía es una cuestión jurídica (`OPEN-FAM-UNIT-36`). El texto `autorizacion_recogida` recoge la declaración del tutor. **Condición previa a cargar datos reales** (no a la implementación con datos de `REQ-SEED`) |
+| Copias de seguridad | Restaurar a un punto anterior a una retirada o a una revocación devolvería a alguien a la lista de un menor (`OPEN-FAM-UNIT-21`, para `1.26`) |
+
+### 2.12 Herramienta de desarrollo con tercero: Codex (OpenAI) recibe código, nunca datos personales (`ADR-049`, `ADR-050`, `ADR-069`)
+
+La revisión de código se apoya en Codex, servicio de **OpenAI**, que recibe el código del proyecto (y puede leer el árbol de trabajo). Es un tercero que actúa en el entorno de desarrollo, **no** un encargado de tratamiento de datos de alumnos, familias o personal, porque en desarrollo no hay datos reales (`ADR-030`, `REQ-SEED-005`: `@example.com`, documentos con dígito de control inválido, sin fotografías de personas reales). Si apareciera un dato personal real en la máquina o el repositorio, Codex se retira en el acto (`ADR-050 §5.3` punto 2). Condiciones previas: **`OPEN-069-01` confirmada por el usuario el 2026-11-02** (entrenamiento con los datos de la cuenta desactivado; declaración del usuario) y, antes de H0, decisión propia sobre su continuidad (`OPEN-069-06`). Si en el futuro se tratara como encargado, entraría en el RAT de la sección 3 y en el contrato de encargo (`OPEN-07`).
+
+### 2.13 Puerta y entrega de menores: movimientos y alertas (`REQ-PRL-004`, paso 1.14b-b)
+
+`prl` guarda **hechos** sobre menores y sobre las personas que los recogen: `student_movements` (entrada o salida de un alumno, quién lo recogió, con qué base figuraba —tutor, tercero o puntual—, cómo se verificó su identidad —foto, documento—, quién entregó y quién registró, y el instante) y `pickup_alerts` (incidente cuando se presenta alguien que no figura: descripción de quien se presenta, nombre y documento declarados, llamada al tutor principal y resolución). No guardan copia de la lista de autorizados, de teléfonos ni de documentos: solo referencias de evidencia.
+
+| Aspecto | Decisión |
+|---------|----------|
+| Datos | **De menores** (el alumno) y **de terceros** (la persona que recoge; el presentado en una alerta, en texto libre de hasta 500 caracteres que puede contener un documento). No son de categoría especial |
+| Finalidad | Trazabilidad ante un incidente con un menor (`REQ-PRL-004`); no se usa para ningún otro fin ni se exporta (no hay exportación) |
+| Auditoría | Alta y resolución con política `Selective` (sin nombres, notas ni descripciones). Las **lecturas** con datos de personas dejan una fila `read` sin valores (`puerta`, `puerta_alerta`, `puerta_historial`) y están limitadas a 300 por hora y usuario |
+| Retención | **Evidencia: no se borran** (`student_movements` y `pickup_alerts` no tienen *endpoint* de borrado, el rol de la aplicación no puede actualizar ni borrar los movimientos y sus `down()` se niegan con filas). El plazo lo fijará el catálogo de `1.23b` (`OPEN-FAM-UNIT-37`) |
+| Tensión con la supresión | Un tercero que ejerza el derecho de supresión pide borrar datos que aquí son evidencia inmutable: hay que razonarlo en `1.23b` (conservar bloqueado mientras dure la obligación de conservar los registros y **anonimizar** la identidad en `people` al vencer; `ADR-004`). Hoy no hay canal propio |
+| Base legal e información al tercero (art. 6 y 14) | **Sin resolver** (`OPEN-FAM-UNIT-36`): condición previa a datos reales. Con datos de `REQ-SEED` no bloquea |
+| Copias de seguridad | Restaurar a un punto anterior a una retirada o revocación devolvería a alguien a la lista de un menor (`OPEN-FAM-UNIT-21`, `1.26`) |
+
+### 2.14 Fotografía del alumno (`REQ-ALUM-001`, paso 1.15-c, `OPEN-ALUM-08` = A)
+
+`alum` guarda **una fotografía viva por alumno** (`student_photos`, en un *bucket* privado). Es un dato identificativo de un **menor**, no de categoría especial; el tratamiento automatizado de la imagen (reconocimiento facial, comparación) no existe ni se admite. Mismo patrón que `pickup_photos` (§2.11).
+
+| Aspecto | Decisión |
+|---------|----------|
+| Minimización | Imagen **reprocesada** en el servidor: solo JPEG y PNG (tipo real por contenido), sin EXIF (incluida la geolocalización), XMP, IPTC ni perfiles; el original no se conserva |
+| Acceso | *Bucket* privado bajo el prefijo del centro; se sirve solo por **URL firmada de 5 minutos** a quien tiene `alumno.leer` con alcance sobre ese alumno; la API no expone la clave del objeto |
+| Auditoría | Alta, sustitución y baja en `audit_logs` (`Selective`: sin clave de objeto); cada **lectura** escribe una fila `read` sin nombre ni clave, con límite de **300 lecturas por hora** por centro y usuario |
+| Retención | Sustituir o dar de baja la foto borra su objeto del *bucket* al confirmar la transacción (la fila histórica soft-deleted permanece sin objeto; su purga física se decide en `1.23b`); dar de baja al alumno **purga** la fotografía viva (fila y objeto). Un fallo de borrado deja un objeto huérfano hasta el barrido #606 |
+| Base legal | Por definir con el catálogo de base legal (`OPEN-13`). **Condición previa a datos reales: visto bueno del DPO** (`REQ-ALUM/funcional.md`, `OPEN-ALUM-08`); hasta entonces solo datos de `REQ-SEED` |
+| Solicitudes de cambio de grupo (#607) | Los campos de texto libre `reason` y `decision_note` de las solicitudes de cambio de grupo **no deben contener datos de salud ni de convivencia** (categoría especial): no tienen el tratamiento de esos datos. Advertencia pendiente de control técnico (#607) |
+| Copias de seguridad | Sin particularidad respecto a §2.9; se anota para `REQ-BKP` (`1.26`) |
+
+## 3. Registro de Actividades de Tratamiento (RAT) — plantilla
+
+Se completa cuando exista entidad jurídica responsable del tratamiento (`OPEN-07`). Estructura prevista:
+
+| Actividad de tratamiento | Finalidad | Base legal | Categorías de datos | Categorías de interesados | Destinatarios | Transferencias internacionales | Plazo de conservación | Medidas de seguridad |
+|---|---|---|---|---|---|---|---|---|
+| *Pendiente de `OPEN-07`* | | | | | | | | |
+
+## 4. Procedimiento de derechos de las personas interesadas
+
+Acceso, rectificación, supresión, portabilidad y oposición. **Pendiente de `OPEN-07`**: sin entidad jurídica ni Delegado de Protección de Datos (DPO) designado, no hay a quién dirigir ni quién resuelve una solicitud de ejercicio de derechos. Se documentará aquí el canal de contacto, el plazo de respuesta y el procedimiento interno en cuanto se resuelva.
+
+## 5. Retención
+
+Mínimo legal por tipo de dato y catálogo completo: responsabilidad de `REQ-PRIV-006` (no implementado todavía). Casos ya conocidos que necesitarán tratamiento específico:
+
+- **Auditoría** (`audit_logs`): retención mínima de 2 años (`REQ-CORE-005`), append-only e inmutable por diseño. El conflicto con el derecho de supresión sobre identificadores personales queda resuelto por `ADR-035`: no se escribe su valor en `changes` (se redacta desde el origen, por política de modelo), así que no hay nada que suprimir dentro de la fila; la supresión se completa por vencimiento del plazo de retención. La purga automática en sí es responsabilidad de `REQ-PRIV-006`, todavía sin implementar. Detalle completo en `docs/adr/ADR-035-datos-personales-en-el-registro-de-auditoria.md`.
+- **RCDS** (Registro Central de Delincuentes Sexuales, verificación obligatoria de personal en contacto con menores): plazo y base legal específicos de la normativa vigente, catalogar en `REQ-PRIV-006`.
+- **Trabajos fallidos de cola** (`failed_jobs`): retención de 24 horas decidida en el issue [#73](https://github.com/pirexia/plataforma-educativa/issues/73) (2026-08-25) para no conservar los tokens de un solo uso de `SendPasswordResetEmail`/`SendAccountLockedEmail` más de lo imprescindible, ni siquiera cifrados (`ShouldBeEncrypted`). **Incidencia, con sus fechas, no un simple "ya arreglado"**: entre la `0.7` (2026-08-17, cuando la tabla quedó con `REVOKE DELETE` para `plataforma_app`) y el `1.6d` (2026-09-21), el comando programado que debía aplicar esa retención (`queue:prune-failed`) usaba precisamente esa conexión sin privilegio de borrado — **no borró una sola fila en ese periodo**, y los *payloads* cifrados con token se conservaron indefinidamente. Cerrado por `bo:purge-failed-jobs` (`REQ-BO-004`, `pgsql_platform`), verificado con test de regresión (`CA-BO-166`). Arreglarlo hacia delante no borra lo que se conservó de más durante esos dos meses.
+
+## 6. Preguntas abiertas
+
+- **`OPEN-12`** — **cerrada por `ADR-035`**: el derecho de supresión no se ejerce dentro de `audit_logs`; se evita que entre en la fila cualquier valor identificativo (ver sección 5) y la supresión se completa por retención. Queda pendiente de `REQ-PRIV-006` la ejecución real de la purga por vencimiento de plazo, exigible antes del primer dato real.
+- **`OPEN-13`**: lista definitiva de columnas de `Person` y su base legal por campo, responsabilidad de `REQ-PRIV-006`.
+- **`OPEN-057-04`** (`ADR-057 §7`, `REQ-CURSO`): suprimir o anonimizar datos personales en tablas de un curso cerrado choca con el bloqueo de escritura del motor; lo decide `REQ-PRIV-006` (tarea del propietario o excepción declarada de `ADR-057 §5.7`) y debe resolverse antes de admitir datos reales.
+- **`OPEN-07`**: entidad jurídica, encargado de tratamiento y DPO — bloquea las secciones 3 y 4 de este documento y la entrada de cualquier dato real.

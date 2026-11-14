@@ -1,0 +1,646 @@
+<?php
+
+namespace App\Modules\Core\Application;
+
+use App\Models\PermissionRole;
+use App\Models\Person;
+use App\Models\Role;
+use App\Models\User;
+use App\Modules\Core\Domain\Events\UserCreated;
+use App\Modules\Core\Domain\Models\TenantSetting;
+use App\Modules\Core\Domain\TenantAdministrator;
+use App\Modules\Core\Domain\TenantInitialSettings;
+use App\Modules\Core\Domain\TenantProvisioner;
+use App\Modules\Core\Domain\TenantProvisioningOutcome;
+use App\Support\Audit\AuditActor;
+use App\Support\Tenancy\Tenant;
+use App\Support\Tenancy\TenantContext;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use RuntimeException;
+
+/**
+ * funcional.md §4.7. Sin este flujo, 1.1 no tiene ni un solo usuario con
+ * el que probarse. Idempotente (CA-CORE-074): si el tenant ya tiene
+ * `tenant_settings`, la segunda ejecución no toca nada.
+ *
+ * Los 16 roles (no 17: "Super Administrador" no es una fila de `roles`,
+ * permisos.md §4.5 — issue #48, contradicción de funcional.md §4.7/
+ * CA-CORE-040 con la cifra "17") y sus atributos de `permisos.md` §4.2/
+ * §4.3, y la matriz de concesión de `permisos.md` §4.1 (RN-CORE-22: todo
+ * `scope = 'todos'`).
+ *
+ * ADR-048 §4.4: implementa `TenantProvisioner`, la superficie pública que
+ * `REQ-BO` (1.6b) consume sin importar código interno de este módulo
+ * (INV-007). **No se mueve ni se renombra** a `Infrastructure\Eloquent*`:
+ * no es un adaptador de persistencia, es un servicio de aplicación que
+ * orquesta una transacción, un contexto de tenant y un actor de
+ * auditoría — la asimetría con sus cinco hermanas es deliberada.
+ */
+final class ProvisionTenantDefaults implements TenantProvisioner
+{
+    /** @var array<string, array{mfa_required: bool, special_data_access: bool}> */
+    private const ROLE_ATTRIBUTES = [
+        'administrador_centro' => ['mfa_required' => true, 'special_data_access' => false],
+        'direccion' => ['mfa_required' => false, 'special_data_access' => false],
+        'secretaria' => ['mfa_required' => false, 'special_data_access' => false],
+        'administrativo' => ['mfa_required' => false, 'special_data_access' => false],
+        'docente' => ['mfa_required' => false, 'special_data_access' => false],
+        'tutor_grupo' => ['mfa_required' => false, 'special_data_access' => false],
+        'orientador' => ['mfa_required' => false, 'special_data_access' => true],
+        'coordinador_bienestar' => ['mfa_required' => false, 'special_data_access' => true],
+        'estudiante' => ['mfa_required' => false, 'special_data_access' => false],
+        'tutor_legal' => ['mfa_required' => false, 'special_data_access' => false],
+        'responsable_economico' => ['mfa_required' => false, 'special_data_access' => false],
+        'bibliotecario' => ['mfa_required' => false, 'special_data_access' => false],
+        'monitor_extraescolares' => ['mfa_required' => false, 'special_data_access' => false],
+        'personal_sanitario' => ['mfa_required' => false, 'special_data_access' => true],
+        'conserjeria_pas' => ['mfa_required' => false, 'special_data_access' => false],
+        'soporte_plataforma' => ['mfa_required' => true, 'special_data_access' => false],
+    ];
+
+    /**
+     * REQ-PERM/permisos.md §5, operacion.md §4.3 (1.5, OPEN-PERM-07): los
+     * cuatro permisos nuevos de este paso, a `administrador_centro` y a
+     * nadie más. Constante propia (no inline en `ADMIN_CENTRO_PERMISSIONS`)
+     * para que `GrantRoleAdministrationCommand` (operacion.md §4.3, el
+     * comando de migración de datos para tenants ya existentes) conceda
+     * exactamente la misma lista, en un solo sitio, por los dos caminos.
+     *
+     * `rol_datos_especiales.actualizar` incluido: es la decisión que evita
+     * el bloqueo sin salida (conceder un permiso exige poseerlo,
+     * RPERM-013), aunque `administrador_centro` no pueda ejercerlo por sí
+     * mismo (le falta `special_data_access`, a propósito — §5.5).
+     */
+    public const ROLE_ADMINISTRATION_PERMISSIONS = [
+        'rol.crear', 'rol.eliminar', 'rol_datos_especiales.actualizar', 'permiso_efectivo.leer',
+    ];
+
+    /**
+     * `public` (1.5b, `RN-PERM-47`, `funcional.md §20.2.1`) solo para que
+     * `AdministrationCapacityGuard` lea la **misma** lista que aprovisiona,
+     * sin duplicarla. No cambia lo que se aprovisiona.
+     *
+     * @var list<string>
+     */
+    public const ADMIN_CENTRO_PERMISSIONS = [
+        'usuario.leer', 'usuario.crear', 'usuario.actualizar', 'usuario.eliminar', 'usuario.importar', 'usuario.exportar',
+        'invitacion.leer', 'invitacion.crear', 'invitacion.eliminar',
+        'asignacion_rol.leer', 'asignacion_rol.crear', 'asignacion_rol.eliminar',
+        // REQ-AUTH/funcional.md §C.2.2, §C.16 (1.3): 'rol.actualizar' es
+        // el permiso de PATCH /roles/{public_id} acotado a mfa_required.
+        'rol.leer', 'rol.actualizar',
+        ...self::ROLE_ADMINISTRATION_PERMISSIONS,
+        'permiso.leer',
+        'configuracion.leer', 'configuracion.actualizar',
+        'modulo.leer', 'modulo.actualizar',
+        'auditoria.leer', 'auditoria.exportar',
+        // REQ-AUTH/permisos.md §5: solo administrador_centro (§5.1).
+        'bloqueo_cuenta.leer', 'bloqueo_cuenta.eliminar',
+        // REQ-AUTH/funcional.md §C.4.10, §C.1.1 punto 9 (1.3).
+        'mfa.leer', 'mfa.eliminar',
+        // REQ-AUTH/permisos.md §D.6 (1.3b). Solo administrador_centro,
+        // por el mismo argumento reforzado de §D.6.1: conceder una
+        // excepción deja a alguien sin segundo factor y sin obligación
+        // hasta 90 días.
+        'exencion_mfa.crear', 'exencion_mfa.leer', 'exencion_mfa.eliminar',
+        // REQ-AUTH/permisos.md §F.7 (1.4b). Solo administrador_centro:
+        // quien configura el proveedor de identidad decide de quién se
+        // fía el sistema para dejar entrar — la concesión de acceso más
+        // amplia que un rol de centro puede hacer.
+        'proveedor_identidad.leer', 'proveedor_identidad.crear',
+        'proveedor_identidad.actualizar', 'proveedor_identidad.eliminar',
+    ];
+
+    /** @var array<string, list<string>> */
+    private const CORE_PERMISSION_GRANTS = [
+        'direccion' => ['usuario.leer', 'rol.leer', 'asignacion_rol.leer', 'configuracion.leer', 'modulo.leer'],
+        'secretaria' => ['usuario.leer', 'invitacion.leer'],
+        'administrativo' => ['usuario.leer'],
+    ];
+
+    /**
+     * REQ-CURSO/permisos.md §4 (1.10, `OPEN-CURSO-14`): la siembra de los
+     * cinco permisos de `curso`. `administrador_centro` los cinco;
+     * `direccion` y `secretaria` solo lectura de cursos y de histórico; el
+     * resto, nada (`RPERM-011`). Constante propia (no dentro de
+     * `ADMIN_CENTRO_PERMISSIONS`, que define la «capacidad de
+     * administración» de `RN-PERM-47`): la lee también
+     * `GrantAcademicYearPermissionsCommand` (comando de migración de datos
+     * para los centros ya existentes), una sola lista por los dos caminos.
+     * Ninguna regla de código compara estos códigos de rol (`RN-PERM-46`).
+     *
+     * @var array<string, list<string>>
+     */
+    public const ACADEMIC_YEAR_PERMISSION_GRANTS = [
+        'administrador_centro' => [
+            'curso_academico.leer', 'curso_academico.crear', 'curso_academico.actualizar',
+            'estado_curso_academico.actualizar', 'curso_historico.leer',
+        ],
+        'direccion' => ['curso_academico.leer', 'curso_historico.leer'],
+        'secretaria' => ['curso_academico.leer', 'curso_historico.leer'],
+    ];
+
+    /**
+     * REQ-CURSO/permisos.md §4 (1.11c, `ADR-059 §5.2`, `OPEN-059-02` a): el permiso
+     * de reapertura, solo en `administrador_centro`. **Lista aparte** de
+     * `ACADEMIC_YEAR_PERMISSION_GRANTS` a propósito (`OPEN-CURSO-24` = b): la
+     * siembra de los centros existentes (`curso:grant-reopen-permission`) concede
+     * **solo** este permiso y no re-concede los cinco de 1.10, que un centro pudo
+     * retirar a propósito. Los centros nuevos la reciben por aquí.
+     *
+     * @var array<string, list<string>>
+     */
+    public const ACADEMIC_YEAR_REOPEN_PERMISSION_GRANTS = [
+        'administrador_centro' => ['reapertura_curso_academico.actualizar'],
+    ];
+
+    /**
+     * REQ-CURSO/permisos.md §4 (1.12b, `OPEN-CURSO-32` = A): los tres permisos del
+     * recurso `apertura_curso_academico` (la copia del curso a otro en planificación),
+     * **solo** `administrador_centro`. Constante aparte, como la de reapertura: la
+     * siembra de los centros existentes (`curso:grant-rollover-permissions`) concede
+     * **solo** estos tres y no re-concede los de 1.10 ni el de reapertura, que un centro
+     * pudo retirar a propósito. Los centros nuevos la reciben por aquí.
+     *
+     * @var array<string, list<string>>
+     */
+    public const ACADEMIC_YEAR_ROLLOVER_PERMISSION_GRANTS = [
+        'administrador_centro' => [
+            'apertura_curso_academico.leer',
+            'apertura_curso_academico.crear',
+            'apertura_curso_academico.eliminar',
+        ],
+    ];
+
+    /**
+     * REQ-ACAD/permisos.md §4, §4.1 y §10.3 (1.11-b, 1.11d-a y 1.12-a,
+     * `OPEN-ACAD-09` = X, `OPEN-ACAD-28` = X + 1, `OPEN-ACAD-42` = X): la siembra
+     * de los veintitrés permisos de `acad` (`estructura_academica`,
+     * `configuracion_academica`, `asignacion_docente`, `espacios` y `horarios`,
+     * cuatro acciones cada uno, y `reservas`, tres). `administrador_centro` los
+     * veintitrés; `direccion` escribe `asignacion_docente`, `horarios` y `reservas`
+     * y lee el resto; `secretaria`, `docente`, `tutor_grupo` y `orientador` solo
+     * `leer` de cada recurso (más las reservas de `docente` y `tutor_grupo`, abajo);
+     * el resto, nada (`RPERM-011`). Todos de ámbito `todos`: estructura, períodos,
+     * escalas, espacios y horarios no contienen datos de alumnado
+     * (`RN-ACAD-09`, `RN-ACAD-50`, `ADR-063 §5.4`). Los de `reservas` (`1.12-b`,
+     * `OPEN-ACAD-42` = X, `permisos.md §10.3`): `administrador_centro` y `direccion`
+     * los tres con `todos`; `secretaria` y `orientador` solo `leer`; `docente` y
+     * `tutor_grupo` `leer` y `crear` con `todos` y `eliminar` con `propios` (lista
+     * aparte, `STRUCTURE_PERMISSION_PROPIOS_GRANTS`). Una sola lista por los dos
+     * caminos: la lee también `GrantStructurePermissionsCommand` (centros ya
+     * existentes).
+     * Ninguna regla de código compara estos códigos de rol (`RN-PERM-46`).
+     *
+     * @var array<string, list<string>>
+     */
+    public const STRUCTURE_PERMISSION_GRANTS = [
+        'administrador_centro' => [
+            'estructura_academica.leer', 'estructura_academica.crear',
+            'estructura_academica.actualizar', 'estructura_academica.eliminar',
+            'configuracion_academica.leer', 'configuracion_academica.crear',
+            'configuracion_academica.actualizar', 'configuracion_academica.eliminar',
+            'asignacion_docente.leer', 'asignacion_docente.crear',
+            'asignacion_docente.actualizar', 'asignacion_docente.eliminar',
+            'espacios.leer', 'espacios.crear', 'espacios.actualizar', 'espacios.eliminar',
+            'horarios.leer', 'horarios.crear', 'horarios.actualizar', 'horarios.eliminar',
+            'reservas.leer', 'reservas.crear', 'reservas.eliminar',
+        ],
+        // OPEN-ACAD-42 = X: `direccion` escribe horarios y asignación docente (`§11.1`:
+        // «Dirección / Jefatura de Estudios: … horarios»), pero solo lee espacios.
+        'direccion' => [
+            'estructura_academica.leer', 'configuracion_academica.leer',
+            'asignacion_docente.leer', 'asignacion_docente.crear',
+            'asignacion_docente.actualizar', 'asignacion_docente.eliminar',
+            'espacios.leer',
+            'horarios.leer', 'horarios.crear', 'horarios.actualizar', 'horarios.eliminar',
+            'reservas.leer', 'reservas.crear', 'reservas.eliminar',
+        ],
+        'secretaria' => ['estructura_academica.leer', 'configuracion_academica.leer', 'asignacion_docente.leer', 'espacios.leer', 'horarios.leer', 'reservas.leer'],
+        'docente' => ['estructura_academica.leer', 'configuracion_academica.leer', 'asignacion_docente.leer', 'espacios.leer', 'horarios.leer', 'reservas.leer', 'reservas.crear'],
+        'tutor_grupo' => ['estructura_academica.leer', 'configuracion_academica.leer', 'asignacion_docente.leer', 'espacios.leer', 'horarios.leer', 'reservas.leer', 'reservas.crear'],
+        'orientador' => ['estructura_academica.leer', 'configuracion_academica.leer', 'asignacion_docente.leer', 'espacios.leer', 'horarios.leer', 'reservas.leer'],
+    ];
+
+    /**
+     * REQ-ACAD/permisos.md §10.3 (1.12-b, `OPEN-ACAD-42` = X): las concesiones de
+     * `acad` de ámbito `propios` —`reservas.eliminar` para `docente` y
+     * `tutor_grupo`: cancelan solo las reservas que crearon—. Lista aparte de
+     * `STRUCTURE_PERMISSION_GRANTS` (todas de ámbito `todos`); la lee también
+     * `GrantStructurePermissionsCommand`.
+     *
+     * @var array<string, list<string>>
+     */
+    public const STRUCTURE_PERMISSION_PROPIOS_GRANTS = [
+        'docente' => ['reservas.eliminar'],
+        'tutor_grupo' => ['reservas.eliminar'],
+    ];
+
+    /**
+     * REQ-FAM-UNIT/permisos.md §4 (1.14-a, `OPEN-FAM-UNIT-10`): la siembra de los permisos de unidades familiares,
+     * tutores, alumnado, vínculos y revocación (`familia`, `vinculo_tutor` y `revocacion_tutor`). Todos de ámbito
+     * `todos`: `administrador_centro` todos; `secretaria` la gestión diaria (`familia.*`, `vinculo_tutor.*`) y solo
+     * leer revocaciones; `direccion` solo lectura; `administrativo` lee familias y vínculos; el resto, nada
+     * (`RPERM-011`). **Revocar y levantar** (`revocacion_tutor.crear`/`.eliminar`) solo `administrador_centro`: es la
+     * acción con consecuencias legales del módulo. Constante propia, como `ACADEMIC_YEAR_ROLLOVER_PERMISSION_GRANTS`:
+     * la lee también `GrantFamUnitPermissionsCommand` (centros ya existentes), una sola lista por los dos caminos.
+     * Con `1.14-b` (`OPEN-FAM-UNIT-22`) se suman `consentimiento_imagen` (leer, actualizar y exportar al administrador y a
+     * secretaría; leer a dirección) y `texto_legal` (todo al administrador, que es el único que redacta y publica
+     * textos legales; **solo `leer`** a secretaría, para listar la versión `retirada` que firmó una familia, `RN-FAM-UNIT-69`).
+     * Los de `aceptacion_condiciones` entran con `1.14-c`. Con `1.14b-a` (`ADR-068 §6` `L9`, `permisos.md §8.4`) entra
+     * `autorizado_recogida`: los cuatro al administrador y a secretaría, `leer` a dirección. **Conserjería no recibe
+     * `autorizado_recogida.crear`** (una recogida no prevista pasa por secretaría o dirección, `OPEN-FAM-UNIT-35`); los
+     * de la puerta (`entrega_menor.*`, `alerta_entrega.*`, módulo `prl`) llegan con `1.14b-b` (`REQ-PRL/permisos.md §8.4`):
+     * administrador todos, secretaría y dirección sus lecturas y dirección las alertas completas, y **conserjería** su
+     * consulta, registro de salidas y alertas (`conserjeria_pas`, rol predefinido). Ninguna regla de código compara estos códigos de
+     * rol (`RN-PERM-46`).
+     *
+     * @var array<string, list<string>>
+     */
+    public const FAMILY_PERMISSION_GRANTS = [
+        'administrador_centro' => [
+            'familia.leer', 'familia.crear', 'familia.actualizar', 'familia.eliminar',
+            'vinculo_tutor.leer', 'vinculo_tutor.crear', 'vinculo_tutor.actualizar', 'vinculo_tutor.eliminar',
+            'revocacion_tutor.leer', 'revocacion_tutor.crear', 'revocacion_tutor.eliminar',
+            'consentimiento_imagen.leer', 'consentimiento_imagen.actualizar', 'consentimiento_imagen.exportar',
+            'texto_legal.leer', 'texto_legal.crear', 'texto_legal.actualizar', 'texto_legal.eliminar', 'texto_legal.publicar',
+            'aceptacion_condiciones.leer',
+            'autorizado_recogida.leer', 'autorizado_recogida.crear', 'autorizado_recogida.actualizar', 'autorizado_recogida.eliminar',
+            'entrega_menor.leer', 'entrega_menor.crear',
+            'alerta_entrega.leer', 'alerta_entrega.crear', 'alerta_entrega.actualizar',
+        ],
+        'secretaria' => [
+            'familia.leer', 'familia.crear', 'familia.actualizar', 'familia.eliminar',
+            'vinculo_tutor.leer', 'vinculo_tutor.crear', 'vinculo_tutor.actualizar', 'vinculo_tutor.eliminar',
+            'revocacion_tutor.leer',
+            'consentimiento_imagen.leer', 'consentimiento_imagen.actualizar', 'consentimiento_imagen.exportar',
+            'texto_legal.leer',
+            'aceptacion_condiciones.leer',
+            'autorizado_recogida.leer', 'autorizado_recogida.crear', 'autorizado_recogida.actualizar', 'autorizado_recogida.eliminar',
+            'entrega_menor.leer', 'alerta_entrega.leer',
+        ],
+        'direccion' => [
+            'familia.leer', 'vinculo_tutor.leer', 'revocacion_tutor.leer', 'consentimiento_imagen.leer', 'autorizado_recogida.leer',
+            'entrega_menor.leer', 'alerta_entrega.leer', 'alerta_entrega.crear', 'alerta_entrega.actualizar',
+        ],
+        'administrativo' => ['familia.leer', 'vinculo_tutor.leer'],
+        // `1.14b-b` (`REQ-PRL/permisos.md §8.4`): conserjería consulta la lista en la puerta, registra salidas y abre alertas, y
+        // lee las alertas; **sin** `autorizado_recogida.*` (no da de alta autorizados) ni `alerta_entrega.actualizar` (cerrar una
+        // alerta es de dirección).
+        'conserjeria_pas' => ['entrega_menor.leer', 'entrega_menor.crear', 'alerta_entrega.leer', 'alerta_entrega.crear'],
+    ];
+
+    /**
+     * REQ-FAM-UNIT/permisos.md §4, §8.4 (1.14-a, 1.14-b, 1.14b-a): las concesiones de ámbito `unidad_familiar` —`tutor_legal` lee su
+     * familia y los vínculos de sus alumnos y, con `1.14-b`, lee y decide el consentimiento de imagen de sus alumnos y, con
+     * `1.14b-a`, lee la lista de recogida de sus alumnos (`autorizado_recogida.leer`)—. Lista aparte de `FAMILY_PERMISSION_GRANTS` (ámbito `todos`); la lee también
+     * `GrantFamUnitPermissionsCommand`. El resolutor del ámbito lo registra `fam_unit` (`ADR-044 §3.4`).
+     *
+     * @var array<string, list<string>>
+     */
+    public const FAMILY_PERMISSION_UNIDAD_FAMILIAR_GRANTS = [
+        'tutor_legal' => ['familia.leer', 'vinculo_tutor.leer', 'consentimiento_imagen.leer', 'consentimiento_imagen.actualizar', 'autorizado_recogida.leer'],
+    ];
+
+    /**
+     * REQ-ALUM/permisos.md §4 (1.15-a `CA-ALUM-014a`, 1.15-b `CA-ALUM-014b`): concesiones de `alumno.*` y `matricula.*` con
+     * ámbito `todos` a los roles predefinidos de gestión. `docente` y `tutor_grupo` no reciben `todos` (`RN-ALUM-65`,
+     * `ADR-063 §5.4`): su ámbito es `grupo` (`ALUM_PERMISSION_GRUPO_GRANTS`). `secretaria` no recibe `matricula.aprobar`
+     * (solicita, no aprueba). Ninguna regla de código compara estos códigos de rol (`RN-PERM-46`); la lee también
+     * `GrantAlumPermissionsCommand`.
+     *
+     * @var array<string, list<string>>
+     */
+    public const ALUM_PERMISSION_GRANTS = [
+        'administrador_centro' => [
+            'alumno.leer', 'alumno.crear', 'alumno.actualizar', 'alumno.eliminar',
+            'matricula.leer', 'matricula.crear', 'matricula.actualizar', 'matricula.eliminar', 'matricula.aprobar', 'matricula.exportar',
+        ],
+        'secretaria' => [
+            'alumno.leer', 'alumno.crear', 'alumno.actualizar', 'alumno.eliminar',
+            'matricula.leer', 'matricula.crear', 'matricula.actualizar', 'matricula.eliminar', 'matricula.exportar',
+        ],
+        'direccion' => ['alumno.leer', 'matricula.leer', 'matricula.aprobar', 'matricula.exportar'],
+        'administrativo' => ['alumno.leer', 'matricula.leer'],
+    ];
+
+    /**
+     * REQ-ALUM/permisos.md §4 (1.15-a, 1.15-b, `CA-ALUM-014a`): `tutor_legal` lee a sus alumnos y sus matrículas
+     * (`alumno.leer`, `matricula.leer`, ámbito `unidad_familiar`). El ámbito lo resuelven los resolutores de `alum`. La lee
+     * también `GrantAlumPermissionsCommand`.
+     *
+     * @var array<string, list<string>>
+     */
+    public const ALUM_PERMISSION_UNIDAD_FAMILIAR_GRANTS = [
+        'tutor_legal' => ['alumno.leer', 'matricula.leer'],
+    ];
+
+    /**
+     * REQ-ALUM/permisos.md §4 (1.15-b, `CA-ALUM-014b`): `docente` y `tutor_grupo` leen a los alumnos y las matrículas de sus
+     * grupos (ámbito `grupo`; la tutoría entra en `grupo`, `RN-ACAD-98`). Nunca `todos`. La lee también
+     * `GrantAlumPermissionsCommand`.
+     *
+     * @var array<string, list<string>>
+     */
+    public const ALUM_PERMISSION_GRUPO_GRANTS = [
+        'docente' => ['alumno.leer', 'matricula.leer'],
+        'tutor_grupo' => ['alumno.leer', 'matricula.leer'],
+    ];
+
+    /**
+     * ADR-048 §4.5: columnas "operativas" de `tenant_settings` que
+     * `provisionFromTemplate()` copia del origen. Nunca identidad fiscal
+     * ni marca (funcional.md §5.6.2): esta lista vive aquí porque
+     * `REQ-CORE` es quien conoce esas columnas.
+     */
+    private const OPERATIONAL_SETTINGS_ATTRIBUTES = [
+        'default_locale', 'active_locales', 'timezone', 'currency', 'autonomous_community',
+        'session_timeout_minutes', 'mfa_allowed_methods', 'mfa_grace_period_days',
+    ];
+
+    public function __construct(
+        private readonly IssueUserInvitation $invitations,
+        private readonly TenantContext $tenantContext,
+    ) {}
+
+    public function provision(Tenant $tenant, TenantInitialSettings $settings, TenantAdministrator $administrator): TenantProvisioningOutcome
+    {
+        return $this->tenantContext->runFor($tenant->id, function () use ($tenant, $settings, $administrator): TenantProvisioningOutcome {
+            // `where('tenant_id', ...)` a mano (issue #196): `TenantScope`
+            // no filtra en modo plataforma (docblock de la clase), así que
+            // sin esto la comprobación de idempotencia mira si CUALQUIER
+            // tenant tiene ya `tenant_settings` — con datos acumulados de
+            // otros aprovisionamientos ya resueltos (`pgsql_platform` no
+            // se limpia entre tests, y en producción hay siempre algún
+            // tenant provisionado), esto cortocircuita el alta de un
+            // tenant nuevo dándolo por aprovisionado sin haber escrito
+            // ni una fila suya.
+            if (TenantSetting::query()->where('tenant_id', $tenant->id)->exists()) {
+                return TenantProvisioningOutcome::AlreadyProvisioned;
+            }
+
+            AuditActor::actingAs('console', function () use ($tenant, $settings, $administrator): void {
+                DB::transaction(function () use ($tenant, $settings, $administrator): void {
+                    // ADR-048 §5.1: tenant_settings se escribe ANTES que la
+                    // Person y ANTES que la invitación — al revés,
+                    // IssueUserInvitation lee el locale por defecto que
+                    // acaba de dejar de existir y el correo sale en
+                    // español sin que nada falle visiblemente.
+                    //
+                    // `tenant_id` a mano en los cinco `forceCreate()` de
+                    // este método (issue #196): `provision()` puede
+                    // ejecutarse con `runAsPlatform()` todavía activo en la
+                    // pila (fase 2 síncrona en tests, o cualquier reintento
+                    // manual desde el backoffice) — `TenantContext::runFor()`
+                    // no limpia `platformMode`, así que `BelongsToTenant`
+                    // no rellena `tenant_id` solo (docblock de
+                    // `TenantContext::runAsPlatform()`, ADR-046 §6.4).
+                    // `forceCreate()`, no `create()`: `tenant_id` no está en
+                    // `$fillable` a propósito (nadie más debe poder fijarlo
+                    // por asignación masiva).
+                    TenantSetting::forceCreate([
+                        'tenant_id' => $tenant->id,
+                        'default_locale' => $settings->defaultLocale,
+                        'active_locales' => $settings->activeLocales,
+                        'timezone' => $settings->timezone,
+                        'currency' => $settings->currency,
+                        'autonomous_community' => $settings->autonomousCommunity,
+                    ]);
+
+                    $roleIds = $this->seedRoles($tenant->id);
+                    $this->seedPermissionGrants($tenant->id, $roleIds);
+
+                    $user = $this->createAdministrator($tenant->id, $administrator, $settings->defaultLocale);
+                    // `attach()` hace un INSERT de query builder puro sobre
+                    // la tabla pivote: no pasa por BelongsToTenant ni por
+                    // el DEFAULT app.current_tenant_id() (que lee el GUC de
+                    // la conexión pgsql, nunca fijado en pgsql_platform) —
+                    // tenant_id explícito como atributo del pivote (#196).
+                    $user->roles()->attach($roleIds['administrador_centro'], ['tenant_id' => $tenant->id]);
+
+                    event(new UserCreated($tenant->id, $user->public_id));
+
+                    $this->invitations->issue($user, $tenant->slug, $tenant->name);
+                });
+            });
+
+            return TenantProvisioningOutcome::Provisioned;
+        });
+    }
+
+    /**
+     * ADR-048 §4.5, §5.3, funcional.md §5.6.2, §5.6.4. La lectura del
+     * origen ocurre dentro de la misma transacción que la escritura del
+     * destino, en un único punto en el tiempo: se entra en el contexto del
+     * origen solo para leer (`runFor`, RLS normal — nunca `runAsPlatform`,
+     * que exigiría un administrador de plataforma autenticado que un
+     * trabajo en cola no tiene, y haría que `AuditRecorder` lanzara bajo
+     * el propósito `Mantenimiento`), y se escribe enteramente dentro del
+     * contexto del destino, donde `tenant_id` se rellena solo y la
+     * auditoría de tenant se comporta con normalidad.
+     */
+    public function provisionFromTemplate(Tenant $source, Tenant $target, TenantAdministrator $administrator): TenantProvisioningOutcome
+    {
+        return DB::transaction(function () use ($source, $target, $administrator): TenantProvisioningOutcome {
+            // `where('tenant_id', ...)` a mano en las cuatro consultas de
+            // este método (issue #196), mismo motivo que en provision():
+            // `TenantScope` no filtra en modo plataforma.
+            $alreadyProvisioned = $this->tenantContext->runFor(
+                $target->id,
+                fn (): bool => TenantSetting::query()->where('tenant_id', $target->id)->exists(),
+            );
+
+            if ($alreadyProvisioned) {
+                return TenantProvisioningOutcome::AlreadyProvisioned;
+            }
+
+            /** @var array{settings: TenantSetting, roles: Collection<int, Role>, grants: Collection<int, PermissionRole>} $template */
+            $template = $this->tenantContext->runFor($source->id, function () use ($source): array {
+                $settings = TenantSetting::query()->where('tenant_id', $source->id)->first();
+
+                if ($settings === null) {
+                    throw new RuntimeException(
+                        "El tenant origen (id={$source->id}) no tiene tenant_settings: no se puede clonar."
+                    );
+                }
+
+                return [
+                    'settings' => $settings,
+                    'roles' => Role::query()->where('tenant_id', $source->id)->get(),
+                    'grants' => PermissionRole::query()->where('tenant_id', $source->id)->get(),
+                ];
+            });
+
+            $this->tenantContext->runFor($target->id, function () use ($template, $administrator, $target): void {
+                AuditActor::actingAs('console', function () use ($template, $administrator, $target): void {
+                    $sourceSettings = $template['settings'];
+
+                    // `tenant_id` a mano en los `::create()` de este bloque
+                    // (issue #196), por la misma razón que en provision():
+                    // defensa en profundidad. La premisa del docblock de
+                    // cabecera ("nunca runAsPlatform") es correcta hoy —
+                    // `TenantLifecycleService::clone()` despacha
+                    // `CloneTenant` DESPUÉS de que `runAsPlatform()`
+                    // retorne, no dentro—, pero `BelongsToTenant` solo
+                    // rellena `tenant_id` cuando NO está en modo
+                    // plataforma: fijarlo a mano no depende de esa
+                    // garantía externa para seguir siendo correcto si
+                    // algún llamador futuro rompiera la premisa.
+                    TenantSetting::forceCreate(array_merge(
+                        array_intersect_key(
+                            $sourceSettings->only(self::OPERATIONAL_SETTINGS_ATTRIBUTES),
+                            array_flip(self::OPERATIONAL_SETTINGS_ATTRIBUTES),
+                        ),
+                        ['tenant_id' => $target->id],
+                    ));
+
+                    $roleIdByCode = [];
+                    $roleCodeById = [];
+
+                    foreach ($template['roles'] as $sourceRole) {
+                        $newRole = Role::forceCreate([
+                            'tenant_id' => $target->id,
+                            'code' => $sourceRole->code,
+                            'name_key' => $sourceRole->name_key,
+                            'name' => $sourceRole->name,
+                            'is_system' => $sourceRole->is_system,
+                            'mfa_required' => $sourceRole->mfa_required,
+                            'special_data_access' => $sourceRole->special_data_access,
+                        ]);
+
+                        $roleIdByCode[$sourceRole->code] = $newRole->id;
+                        $roleCodeById[$sourceRole->id] = $sourceRole->code;
+                    }
+
+                    foreach ($template['grants'] as $grant) {
+                        $code = $roleCodeById[$grant->role_id] ?? null;
+
+                        if ($code === null) {
+                            continue;
+                        }
+
+                        PermissionRole::forceCreate([
+                            'tenant_id' => $target->id,
+                            'role_id' => $roleIdByCode[$code],
+                            'permission_code' => $grant->permission_code,
+                            'effect' => $grant->effect,
+                            'scope' => $grant->scope,
+                        ]);
+                    }
+
+                    $administratorRoleId = $roleIdByCode['administrador_centro'] ?? throw new RuntimeException(
+                        'El tenant origen no tiene el rol administrador_centro: no se puede clonar.'
+                    );
+
+                    $user = $this->createAdministrator($target->id, $administrator, $sourceSettings->default_locale);
+                    $user->roles()->attach($administratorRoleId, ['tenant_id' => $target->id]);
+
+                    event(new UserCreated($target->id, $user->public_id));
+
+                    $this->invitations->issue($user, $target->slug, $target->name);
+                });
+            });
+
+            return TenantProvisioningOutcome::Provisioned;
+        });
+    }
+
+    /**
+     * @return array<string, int>
+     */
+    private function seedRoles(int $tenantId): array
+    {
+        $roleIds = [];
+
+        foreach (self::ROLE_ATTRIBUTES as $code => $attributes) {
+            $role = Role::forceCreate([
+                'tenant_id' => $tenantId,
+                'code' => $code,
+                'name_key' => "roles.{$code}",
+                'name' => null,
+                'is_system' => true,
+                'mfa_required' => $attributes['mfa_required'],
+                'special_data_access' => $attributes['special_data_access'],
+            ]);
+
+            $roleIds[$code] = $role->id;
+        }
+
+        return $roleIds;
+    }
+
+    /**
+     * @param  array<string, int>  $roleIds
+     */
+    private function seedPermissionGrants(int $tenantId, array $roleIds): void
+    {
+        // REQ-CURSO (1.10, 1.11c) y REQ-ACAD (1.11-b): las concesiones de `curso` y de
+        // `estructura_academica` se suman a las de cada rol.
+        $grants = array_merge_recursive(
+            [...self::CORE_PERMISSION_GRANTS, 'administrador_centro' => self::ADMIN_CENTRO_PERMISSIONS],
+            self::ACADEMIC_YEAR_PERMISSION_GRANTS,
+            self::ACADEMIC_YEAR_REOPEN_PERMISSION_GRANTS,
+            self::ACADEMIC_YEAR_ROLLOVER_PERMISSION_GRANTS,
+            self::STRUCTURE_PERMISSION_GRANTS,
+            self::FAMILY_PERMISSION_GRANTS,
+            self::ALUM_PERMISSION_GRANTS,
+        );
+
+        foreach ($grants as $roleCode => $permissionCodes) {
+            foreach ($permissionCodes as $permissionCode) {
+                PermissionRole::forceCreate([
+                    'tenant_id' => $tenantId,
+                    'role_id' => $roleIds[$roleCode],
+                    'permission_code' => $permissionCode,
+                    'effect' => 'allow',
+                    'scope' => 'todos',
+                ]);
+            }
+        }
+
+        foreach (['propios' => self::STRUCTURE_PERMISSION_PROPIOS_GRANTS, 'unidad_familiar' => array_merge_recursive(self::FAMILY_PERMISSION_UNIDAD_FAMILIAR_GRANTS, self::ALUM_PERMISSION_UNIDAD_FAMILIAR_GRANTS), 'grupo' => self::ALUM_PERMISSION_GRUPO_GRANTS] as $scope => $scopedGrants) {
+            foreach ($scopedGrants as $roleCode => $permissionCodes) {
+                foreach ($permissionCodes as $permissionCode) {
+                    PermissionRole::forceCreate([
+                        'tenant_id' => $tenantId,
+                        'role_id' => $roleIds[$roleCode],
+                        'permission_code' => $permissionCode,
+                        'effect' => 'allow',
+                        'scope' => $scope,
+                    ]);
+                }
+            }
+        }
+    }
+
+    /**
+     * ADR-048 §5.1: el idioma del primer administrador deja de ser
+     * `es-ES` literal — pasa a ser el del centro. `IssueUserInvitation`
+     * solo consulta `defaultLocale()` cuando `person.locale` es nulo, así
+     * que sin este cambio la invitación de un centro alemán seguiría
+     * saliendo siempre en español.
+     */
+    private function createAdministrator(int $tenantId, TenantAdministrator $administrator, string $locale): User
+    {
+        $person = Person::forceCreate([
+            'tenant_id' => $tenantId,
+            'given_name' => $administrator->givenName,
+            'family_name_1' => $administrator->familyName,
+            'contact_email' => $administrator->email,
+            'locale' => $locale,
+        ]);
+
+        return User::forceCreate([
+            'tenant_id' => $tenantId,
+            'person_id' => $person->id,
+            'email' => $administrator->email,
+            // No utilizable (RN-CORE-04/funcional.md §1.4): nadie puede
+            // iniciar sesión con esta contraseña. El cast 'hashed' de User
+            // la hashea antes de guardar.
+            'password' => Str::password(48),
+            'status' => 'pendiente',
+        ]);
+    }
+}

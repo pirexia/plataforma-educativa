@@ -1,0 +1,50 @@
+<?php
+
+namespace App\Providers;
+
+use App\Models\ModuleSubscription;
+use App\Models\Person;
+use App\Models\Role;
+use App\Models\User;
+use App\Support\Files\GdImageSanitizer;
+use App\Support\Files\ImageSanitizer;
+use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\ServiceProvider;
+
+class AppServiceProvider extends ServiceProvider
+{
+    /**
+     * Register any application services.
+     */
+    public function register(): void
+    {
+        // ADR-068 §5.3 (1.14b-a): la implementación de `ImageSanitizer` (hoy `gd` y `exif`) queda tras su interfaz
+        // (`RNF-MANT-007`); cualquier módulo la resuelve por el contenedor, sin importar la clase concreta.
+        $this->app->bind(ImageSanitizer::class, GdImageSanitizer::class);
+    }
+
+    /**
+     * Bootstrap any application services.
+     */
+    public function boot(): void
+    {
+        // ADR-038 §3.1: el recurso individual va desnudo, la colección
+        // envuelta en {data, meta} (JsonResource::collection() lo sigue
+        // envolviendo aparte). Una vez para todo el proyecto, no a
+        // criterio de cada módulo.
+        JsonResource::withoutWrapping();
+
+        // ADR-034 §3: alias estable en audit_logs.auditable_type, nunca el
+        // FQCN de PHP — un módulo renombrado (ADR-002) no debe dejar
+        // huérfano el histórico de auditoría. enforceMorphMap() (no
+        // morphMap()) para que usar un modelo fuera de esta lista en una
+        // relación polimórfica falle alto y claro, no en silencio.
+        Relation::enforceMorphMap([
+            'person' => Person::class,
+            'user' => User::class,
+            'role' => Role::class,
+            'module_subscription' => ModuleSubscription::class,
+        ]);
+    }
+}

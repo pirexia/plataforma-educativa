@@ -1,0 +1,222 @@
+{
+  "layout": {
+    "title": "Plattform für Bildungsmanagement"
+  },
+  "shell": {
+    "skipToContent": "Zum Inhalt springen",
+    "openMenu": "Menü öffnen",
+    "closeMenu": "Menü schließen",
+    "sheetClose": "Schließen",
+    "nav": {
+      "ariaLabel": "Hauptnavigation",
+      "section": {
+        "inicio": "Start",
+        "cuenta": "Mein Konto",
+        "administracion": "Verwaltung"
+      }
+    },
+    "breadcrumb": {
+      "ariaLabel": "Brotkrumen-Navigation"
+    },
+    "userMenu": {
+      "trigger": "Benutzermenü",
+      "account": "Mein Konto",
+      "logout": "Abmelden",
+      "language": {
+        "label": "Sprache",
+        "names": {
+          "esES": "Español",
+          "en": "English",
+          "de": "Deutsch",
+          "fr": "Français"
+        }
+      },
+      "colorMode": {
+        "label": "Farbmodus",
+        "system": "System",
+        "light": "Hell",
+        "dark": "Dunkel"
+      }
+    },
+    "states": {
+      "loading": "Wird geladen…",
+      "empty": {
+        "shortcuts": {
+          "title": "Keine Verknüpfungen",
+          "text": "Du hast noch keine verfügbare Verknüpfung."
+        }
+      },
+      "error": {
+        "retry": "Erneut versuchen",
+        "requestId": "Referenz: {requestId}",
+        "offline": {
+          "title": "Keine Verbindung",
+          "text": "Der Server konnte nicht erreicht werden. Prüfe deine Verbindung und versuche es erneut."
+        },
+        "forbidden": {
+          "title": "Kein Zugriff",
+          "text": "Du hast keine Berechtigung, diesen Inhalt zu sehen."
+        },
+        "moduleDisabled": {
+          "title": "Modul nicht verfügbar"
+        },
+        "notFound": {
+          "title": "Seite nicht gefunden",
+          "text": "Die gesuchte Seite existiert nicht mehr oder wurde verschoben."
+        },
+        "tooManyRequests": {
+          "title": "Zu viele Anfragen",
+          "text": "Versuche es in {seconds} Sekunden erneut.",
+          "textUnknown": "Versuche es in Kürze erneut."
+        },
+        "unexpected": {
+          "title": "Unerwarteter Fehler",
+          "text": "Es ist ein unerwarteter Fehler aufgetreten. Bitte versuche es erneut."
+        }
+      }
+    },
+    "tenantNotFound": {
+      "title": "Schule nicht gefunden",
+      "text": "Unter dieser Adresse wurde keine Schule gefunden. Prüfe den Link oder wende dich an deine Schule."
+    },
+    "documentTitleFormat": "{view} · {tenant}",
+    "localeChangeError": "Die Schule hat diese Sprache entfernt. Die aktuelle Sprache bleibt erhalten.",
+    "confirm": {
+      "cancel": "Abbrechen"
+    }
+  },
+  "home": {
+    "greeting": "Hallo, {name}",
+    "mfa": {
+      "title": "Zweiter Faktor ausstehend",
+      "text": "Dir bleibt noch ein Tag, um den zweiten Anmeldefaktor einzurichten. | Dir bleiben noch {days} Tage, um den zweiten Anmeldefaktor einzurichten.",
+      "link": "Zur Kontosicherheit"
+    },
+    "shortcuts": {
+      "title": "Verknüpfungen"
+    }
+  },
+  "dataTable": {
+    "emptyMark": "—",
+    "emptyValue": "Kein Wert",
+    "scrollRegion": "Tabelle „{name}“: mit den Pfeiltasten horizontal scrollen",
+    "search": {
+      "label": "Suchen",
+      "placeholder": "Suchen…"
+    },
+    "filters": {
+      "clear": "Filter zurücksetzen",
+      "all": "Alle",
+      "yes": "Ja",
+      "no": "Nein",
+      "from": "Von",
+      "to": "Bis",
+      "rangeInvalid": "Das Datum „von“ liegt nach dem Datum „bis“.",
+      "notApplied": "Der Filter wurde nicht angewendet: Die Liste zeigt weiterhin die vorherigen Ergebnisse.",
+      "triggerWithCount": "{label} ({count})",
+      "booleanTrigger": "{label}: {value}",
+      "entitySearch": "Suchen: {label}",
+      "entityPlaceholder": "Zum Suchen eingeben",
+      "entityActive": "Gefiltert nach: {name}",
+      "entityRemove": "Filter „{label}“ entfernen",
+      "entityLoading": "Wird geladen …",
+      "entityUnknown": "Eintrag nicht verfügbar",
+      "entityResults": "Keine Ergebnisse | Ein Ergebnis | {count} Ergebnisse",
+      "entityError": "Die Suche konnte nicht durchgeführt werden. Bitte versuchen Sie es erneut."
+    },
+    "columns": {
+      "menu": "Spalten",
+      "label": "Sichtbare Spalten",
+      "reset": "Spalten zurücksetzen"
+    },
+    "sort": {
+      "ascending": "{column}, aufsteigend sortieren",
+      "descending": "{column}, absteigend sortieren",
+      "remove": "{column}, Sortierung entfernen",
+      "cardsTrigger": "Sortieren",
+      "cardsColumn": "Sortieren nach",
+      "cardsDirection": "Richtung",
+      "none": "Nicht sortiert",
+      "directionAscending": "Aufsteigend",
+      "directionDescending": "Absteigend"
+    },
+    "pagination": {
+      "ariaLabel": "Seitennavigation",
+      "first": "Erste Seite",
+      "previous": "Vorherige Seite",
+      "next": "Nächste Seite",
+      "last": "Letzte Seite",
+      "pageOf": "Seite {page} von {lastPage}",
+      "total": "Keine Ergebnisse | {count} Ergebnis | {count} Ergebnisse",
+      "perPage": "{count} pro Seite",
+      "perPageLabel": "Zeilen pro Seite"
+    },
+    "empty": {
+      "filteredTitle": "Keine Ergebnisse",
+      "filteredText": "Keine Ergebnisse für diese Filter."
+    },
+    "loadMore": {
+      "button": "Mehr laden",
+      "loading": "Wird geladen…",
+      "end": "Es gibt keine weiteren Zeilen.",
+      "cap": "Sie haben die maximale Anzahl von {max} Zeilen geladen; grenzen Sie die Filter ein oder exportieren Sie."
+    },
+    "announce": {
+      "results": "Keine Ergebnisse | {count} Ergebnis | {count} Ergebnisse",
+      "loaded": "Keine Ergebnisse | {count} Zeile geladen | {count} Zeilen geladen",
+      "more": "Keine weiteren Zeilen geladen | {count} weitere Zeile geladen | {count} weitere Zeilen geladen",
+      "local": "{count} von {total} Ergebnissen | {count} von {total} Ergebnis | {count} von {total} Ergebnissen"
+    },
+    "export": {
+      "button": "Exportieren",
+      "searchActive": "Löschen Sie die Suche, um zu exportieren; die übrigen Filter werden angewendet.",
+      "preparing": "Export wird vorbereitet…",
+      "leaveWarning": "Der Export wird weiter vorbereitet, aber wenn Sie diese Ansicht verlassen, können Sie ihn von hier aus nicht mehr herunterladen.",
+      "download": "Export herunterladen",
+      "expiresAt": "Läuft ab am {date}",
+      "timedOut": "Der Export dauert länger als erwartet.",
+      "checkAgain": "Erneut prüfen",
+      "failed": "Der Export konnte nicht erstellt werden.",
+      "errors": {
+        "core": {
+          "export": {
+            "generation_failed": "Der Export konnte nicht erstellt werden. Bitte versuchen Sie es erneut."
+          }
+        }
+      },
+      "expired": "Der Export ist abgelaufen; fordern Sie ihn erneut an.",
+      "requestAgain": "Erneut anfordern",
+      "requestError": "Der Export konnte nicht angefordert werden.",
+      "statusError": "Der Status des Exports konnte nicht geprüft werden."
+    }
+  },
+  "academicYear": {
+    "status": {
+      "planificacion": "In Planung",
+      "activo": "Aktiv",
+      "cerrado": "Abgeschlossen",
+      "archivado": "Archiviert"
+    },
+    "selector": {
+      "label": "Schuljahr",
+      "placeholder": "Schuljahr auswählen",
+      "option": "{code} · {status}",
+      "optionReadOnly": "{code} · {status} (schreibgeschützt)",
+      "changed": "Schuljahr geändert auf {code}",
+      "loadError": "Die Schuljahre konnten nicht geladen werden."
+    }
+  },
+  "translatable": {
+    "required": "erforderlich",
+    "defaultLocale": "Standardsprache der Schule",
+    "entryLabel": "{label} ({language})",
+    "hint": "Geben Sie den Text in jeder aktiven Sprache der Schule ein. Die Standardsprache ist erforderlich.",
+    "groupLabel": "{label}: ein Eintrag pro Sprache",
+    "locales": {
+      "es-ES": "Spanisch",
+      "en": "Englisch",
+      "de": "Deutsch",
+      "fr": "Französisch"
+    }
+  }
+}

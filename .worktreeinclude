@@ -1,0 +1,6 @@
+# Ficheros ignorados por git que deben copiarse a cada worktree de subagente.
+# Sin ellos, un `implementer` o `test-writer` aislado no puede arrancar la API
+# ni ejecutar la suite. Ver `CLAUDE.md` §2 y la doc de worktrees.
+.env
+apps/api/.env
+apps/web/.env

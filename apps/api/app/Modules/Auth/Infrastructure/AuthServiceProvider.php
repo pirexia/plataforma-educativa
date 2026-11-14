@@ -1,0 +1,312 @@
+<?php
+
+namespace App\Modules\Auth\Infrastructure;
+
+use App\Modules\Auth\Domain\AccountLockService;
+use App\Modules\Auth\Domain\ClientDescriber;
+use App\Modules\Auth\Domain\DiscoveryDocumentValidator;
+use App\Modules\Auth\Domain\ExternalIdentityProvider;
+use App\Modules\Auth\Domain\ExternalIdentityProviderRegistry;
+use App\Modules\Auth\Domain\IdentityProviderDirectory;
+use App\Modules\Auth\Domain\IpGeolocator;
+use App\Modules\Auth\Domain\LinkedIdentityDirectory;
+use App\Modules\Auth\Domain\MfaComplianceDirectory;
+use App\Modules\Auth\Domain\MfaPolicy;
+use App\Modules\Auth\Domain\MfaVerifier;
+use App\Modules\Auth\Domain\Models\AccountLockout;
+use App\Modules\Auth\Domain\Models\IdentityProvider;
+use App\Modules\Auth\Domain\Models\IdentityProviderCertificate;
+use App\Modules\Auth\Domain\Models\IdentityProviderSecret;
+use App\Modules\Auth\Domain\Models\MfaFactor;
+use App\Modules\Auth\Domain\Models\MfaRecoveryCode;
+use App\Modules\Auth\Domain\Models\MfaReset as MfaResetModel;
+use App\Modules\Auth\Domain\Models\SamlIdentityProviderSettings;
+use App\Modules\Auth\Domain\Models\UserIdentity;
+use App\Modules\Auth\Domain\Models\UserKnownDevice;
+use App\Modules\Auth\Domain\Models\UserMfaExemption;
+use App\Modules\Auth\Domain\Models\UserMfaObligation;
+use App\Modules\Auth\Domain\Models\UserSession;
+use App\Modules\Auth\Domain\PasswordPolicy;
+use App\Modules\Auth\Domain\PasswordResetTokenRepository;
+use App\Modules\Auth\Domain\SamlIdentityProviderRegistry;
+use App\Modules\Auth\Domain\SamlMetadataValidator;
+use App\Modules\Auth\Domain\SessionRevoker;
+use App\Modules\Auth\Domain\TotpProvisioner;
+use App\Modules\Auth\Domain\UserSessionDirectory;
+use App\Modules\Auth\Infrastructure\Console\CloseExpiredLockoutsCommand;
+use App\Modules\Auth\Infrastructure\Console\CloseOrphanedUserSessionsCommand;
+use App\Modules\Auth\Infrastructure\Console\GrantLockoutPermissionsCommand;
+use App\Modules\Auth\Infrastructure\Console\MfaObligationsMaintenanceCommand;
+use App\Modules\Auth\Infrastructure\Console\PurgeAuthMaintenanceCommand;
+use App\Modules\Auth\Infrastructure\Console\PurgeSamlCorrelationCommand;
+use App\Modules\Auth\Infrastructure\Console\RefreshOidcDiscoveryCommand;
+use App\Modules\Auth\Infrastructure\Console\RefreshSamlMetadataCommand;
+use App\Modules\Auth\Infrastructure\Console\WarnExpiringClientSecretsCommand;
+use App\Modules\Auth\Infrastructure\Console\WarnExpiringIdpCertificatesCommand;
+use App\Modules\Auth\Infrastructure\Listeners\MaterializeMfaObligationsForRole;
+use App\Modules\Auth\Infrastructure\Listeners\ReconcileMfaAllowedMethodsChange;
+use App\Modules\Auth\Infrastructure\Listeners\RevokeSessionsOnUserDeactivated;
+use App\Modules\Core\Domain\Events\RoleMfaRequirementChanged;
+use App\Modules\Core\Domain\Events\TenantSettingsUpdated;
+use App\Modules\Core\Domain\Events\UserDeactivated;
+use App\Support\Modules\DeclaresModuleRegistry;
+use App\Support\Sessions\ActiveSessionCloser;
+use App\Support\Sessions\SessionWallRegistry;
+use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\ServiceProvider;
+use RuntimeException;
+
+/**
+ * ADR-034 §2, §5, §7: descubierto por ModuleServiceProviderDiscovery, sin
+ * registro a mano en bootstrap/providers.php. Declara el catálogo de
+ * permisos de permisos.md §3 para que `platform:sync-registry` los
+ * materialice.
+ */
+class AuthServiceProvider extends ServiceProvider implements DeclaresModuleRegistry
+{
+    public function register(): void
+    {
+        $this->app->bind(PasswordResetTokenRepository::class, DatabasePasswordResetTokenRepository::class);
+        $this->app->bind(PasswordPolicy::class, ConfigPasswordPolicy::class);
+        $this->app->bind(SessionRevoker::class, DatabaseSessionRevoker::class);
+        $this->app->bind(AccountLockService::class, EloquentAccountLockService::class);
+        // OPEN-AUTH-17 aprobada: análisis propio con regex, sin dependencia externa.
+        $this->app->bind(ClientDescriber::class, RegexClientDescriber::class);
+        // OPEN-AUTH-13 sin resolver: siempre "desconocida" (funcional.md §B.7).
+        $this->app->bind(IpGeolocator::class, NullIpGeolocator::class);
+        $this->app->bind(UserSessionDirectory::class, EloquentUserSessionDirectory::class);
+        // INV-007, ADR-056 AR-02: cierre de sesión para los middleware del núcleo.
+        $this->app->bind(ActiveSessionCloser::class, EloquentActiveSessionCloser::class);
+
+        // `ADR-041`. Google2FaTotpVerifier es el único adaptador de las
+        // dos interfaces — mismo patrón que IpGeolocator/NullIpGeolocator.
+        $this->app->bind(MfaVerifier::class, Google2FaTotpVerifier::class);
+        $this->app->bind(TotpProvisioner::class, Google2FaTotpVerifier::class);
+
+        // funcional.md §C.4.7 último párrafo, RN-AUTH-62: memoiza por
+        // instancia, nunca entre peticiones. scoped() por sí solo NO lo
+        // garantiza: fuera de Octane, Laravel no vacía sus instancias
+        // scoped en ningún punto del ciclo de vida — en PHP-FPM/FrankenPHP
+        // "modo clásico" (ADR-037) da igual, cada petición es un proceso
+        // nuevo, pero en un worker de larga vida (Octane, si se adoptara
+        // algún día) o dentro de una suite de tests (varias peticiones
+        // HTTP simuladas en el mismo proceso, `Kernel::terminate()` de por
+        // medio) la memoización sobreviviría entre peticiones y violaría
+        // la invariante escrita — hallazgo propio, `CA-AUTH-130/131`.
+        // `terminating()` es el mismo enganche que Octane usa para esto.
+        $this->app->scoped(MfaPolicy::class, EloquentMfaPolicy::class);
+        $this->app->terminating(fn () => $this->app->forgetScopedInstances());
+
+        $this->app->bind(MfaComplianceDirectory::class, EloquentMfaComplianceDirectory::class);
+
+        // ADR-042 §4.2, operacion.md §E.2.1, issue #140: la única decisión
+        // de qué implementación de ExternalIdentityProvider se sirve.
+        // 'none' es el valor por defecto (config('auth-local.oauth.driver'))
+        // — resuelve NullIdentityProvider, que falla si se invoca (defensa
+        // en profundidad: ningún endpoint debería necesitarlo con 'none').
+        // 'fake' solo llega aquí en local/testing: OAuthEnvironmentGuard::
+        // verify() aborta el arranque si ocurre fuera de esos entornos.
+        // Sin `default` implícito cayendo en Fake: sería exactamente el
+        // fallo que motivó el issue #140 trasladado a este binding.
+        $this->app->bind(ExternalIdentityProvider::class, function ($app) {
+            return match ((string) config('auth-local.oauth.driver')) {
+                'google' => $app->make(SocialiteGoogleIdentityProvider::class),
+                'fake' => $app->make(FakeIdentityProvider::class),
+                default => $app->make(NullIdentityProvider::class),
+            };
+        });
+
+        $this->app->bind(LinkedIdentityDirectory::class, EloquentLinkedIdentityDirectory::class);
+
+        // REQ-AUTH-004 (1.4b). `funcional.md §F.3.4`/`§F.7.2`: el
+        // catálogo por tenant no depende de una variable de entorno como
+        // el driver de Google — es una sola implementación Eloquent.
+        $this->app->bind(DiscoveryDocumentValidator::class, CurlDiscoveryDocumentValidator::class);
+        $this->app->bind(ExternalIdentityProviderRegistry::class, EloquentExternalIdentityProviderRegistry::class);
+        $this->app->bind(IdentityProviderDirectory::class, EloquentIdentityProviderDirectory::class);
+
+        // REQ-AUTH-004 (1.4c). `funcional.md §G.7.2`: hermanas exactas de
+        // las dos de arriba.
+        $this->app->bind(SamlMetadataValidator::class, CurlSamlMetadataValidator::class);
+        $this->app->bind(SamlIdentityProviderRegistry::class, EloquentSamlIdentityProviderRegistry::class);
+    }
+
+    public function boot(): void
+    {
+        $this->loadMigrationsFrom(app_path('Modules/Auth/Database/migrations'));
+        $this->loadViewsFrom(app_path('Modules/Auth/Infrastructure/resources/views'), 'auth');
+
+        // merge=true: se suma al morph map de AppServiceProvider (INV-007).
+        Relation::enforceMorphMap([
+            'account_lockout' => AccountLockout::class,
+            'user_session' => UserSession::class,
+            'user_known_device' => UserKnownDevice::class,
+            // REQ-AUTH-003 (1.3), datos.md §C.2-§C.6. Hallazgo propio: sin
+            // esto, cualquier escritura sobre uno de estos cinco modelos
+            // Auditable lanzaba RuntimeException en AuditRecorder — "no
+            // está en el morph map" — es decir, dar de alta/confirmar/
+            // borrar un factor, generar/consumir códigos de respaldo,
+            // restablecer MFA o conceder/revocar una excepción estaban
+            // rotos en cuanto el observer intentaba auditar el evento.
+            'mfa_factor' => MfaFactor::class,
+            'mfa_recovery_code' => MfaRecoveryCode::class,
+            'mfa_reset' => MfaResetModel::class,
+            'user_mfa_obligation' => UserMfaObligation::class,
+            'user_mfa_exemption' => UserMfaExemption::class,
+            // REQ-AUTH-002 (1.4), datos.md §E.2.
+            'user_identity' => UserIdentity::class,
+            // REQ-AUTH-004 (1.4b), datos.md §F.2-§F.3.
+            'identity_provider' => IdentityProvider::class,
+            'identity_provider_secret' => IdentityProviderSecret::class,
+            // REQ-AUTH-004 (1.4c), datos.md §G.3, §G.5. saml_auth_requests
+            // y saml_consumed_assertions NO entran: política de auditoría
+            // `None` (datos.md §G.4), no implementan Auditable.
+            'saml_identity_provider_settings' => SamlIdentityProviderSettings::class,
+            'identity_provider_certificate' => IdentityProviderCertificate::class,
+        ]);
+
+        // ADR-067 §5.2, §5.6: el muro de alta de MFA, primero en el orden cerrado L6. Se registra la clase: el
+        // middleware la resuelve en cada petición (MfaPolicy es scoped).
+        $this->app->make(SessionWallRegistry::class)->register(MfaEnrollmentWall::class);
+
+        // funcional.md §6.2, issue #8: guarda en todos los entornos, no
+        // solo producción — CA-AUTH-001.
+        app(SessionEnvironmentGuard::class)->verify();
+
+        // operacion.md §E.2.1, §E.10.3: las tres guardas de arranque de
+        // 1.4, en todos los entornos. La más importante evita que un
+        // proveedor de identidad simulado llegue a producción
+        // (CA-AUTH-230).
+        app(OAuthEnvironmentGuard::class)->verify();
+
+        // operacion.md §F.2.1, REQ-AUTH-004 (1.4b): la guarda más
+        // importante de este paso.
+        app(SsoEnvironmentGuard::class)->verify();
+
+        // operacion.md §G.2.2, REQ-AUTH-004 (1.4c): las dos primeras de
+        // las tres guardas del paso. La tercera (ruta del IdP SAML
+        // simulado) vive en routes/api.php.
+        app(SamlEnvironmentGuard::class)->verify();
+
+        // operacion.md §2.1, RN-AUTH-01/RN-AUTH-03: la documentación ya
+        // prometía esta guarda ("rechaza cualquier valor por debajo de
+        // 12"); no existía en código — hallazgo al escribir la suite de
+        // tests de 1.2.
+        app(PasswordPolicyEnvironmentGuard::class)->verify();
+
+        // funcional.md §B.2.1 punto 1, §8.2 (1.2b): consumidor de
+        // UserDeactivated (REQ-CORE). No existía como listener hasta
+        // 1.2b — ver el comentario de la propia clase.
+        Event::listen(UserDeactivated::class, RevokeSessionsOnUserDeactivated::class);
+
+        // REQ-AUTH-003 (1.3), funcional.md §C.4.8, §C.4.12 punto 5:
+        // consumidores de eventos de REQ-CORE, sin importar nada interno
+        // suyo (INV-007).
+        Event::listen(RoleMfaRequirementChanged::class, MaterializeMfaObligationsForRole::class);
+        Event::listen(TenantSettingsUpdated::class, ReconcileMfaAllowedMethodsChange::class);
+
+        // operacion.md §C.2.1: un totp_window por encima de 2 amplía la
+        // ventana de validez de un código TOTP a más de dos minutos y
+        // medio (RN-AUTH-58 exige ±1 paso). Guarda de arranque, en todos
+        // los entornos — mismo criterio que SessionEnvironmentGuard.
+        $this->guardTotpWindow();
+
+        if ($this->app->runningInConsole()) {
+            $this->commands([
+                PurgeAuthMaintenanceCommand::class,
+                CloseExpiredLockoutsCommand::class,
+                CloseOrphanedUserSessionsCommand::class,
+                GrantLockoutPermissionsCommand::class,
+                MfaObligationsMaintenanceCommand::class,
+                RefreshOidcDiscoveryCommand::class,
+                WarnExpiringClientSecretsCommand::class,
+                RefreshSamlMetadataCommand::class,
+                WarnExpiringIdpCertificatesCommand::class,
+                PurgeSamlCorrelationCommand::class,
+            ]);
+        }
+    }
+
+    /**
+     * `RN-AUTH-58`: la verificación TOTP admite ±1 paso de 30 segundos.
+     * `AUTH_MFA_TOTP_WINDOW` por encima de 2 deja de ser "tolerancia de
+     * reloj" y pasa a ser una ventana de validez amplia — falla rápido en
+     * vez de servir códigos válidos durante minutos.
+     */
+    private function guardTotpWindow(): void
+    {
+        $window = (int) config('auth-local.mfa.totp_window');
+
+        if ($window < 0 || $window > 2) {
+            throw new RuntimeException(
+                "AUTH_MFA_TOTP_WINDOW={$window} fuera de rango (0-2, RN-AUTH-58). ".
+                'Un valor mayor amplía la ventana de validez de un código TOTP más allá de lo tolerable.'
+            );
+        }
+    }
+
+    public function moduleDescriptor(): array
+    {
+        // RN-BO-63, CA-BO-036 (1.6c): `essential: true` sustituye a la
+        // entrada de `auth` en `ALWAYS_ENABLED` de
+        // `EloquentModuleAvailability`, que desaparece con este cambio.
+        return [
+            'code' => 'auth',
+            'name_key' => 'modules.auth',
+            'phase' => '1',
+            'depends_on' => [],
+            'essential' => true,
+        ];
+    }
+
+    /**
+     * permisos.md §3. Un solo recurso (`bloqueo_cuenta`), dos acciones —
+     * no se declara `crear` (el sistema crea los bloqueos, nunca una
+     * persona) ni `actualizar` (un bloqueo no se edita: se crea o se
+     * levanta).
+     *
+     * REQ-PERM/permisos.md §3.2 (1.5): los once permisos pasan a
+     * `applicable_scopes: ['todos']`, explícito y sin excepción. No cambia
+     * el comportamiento (la omisión ya equivale a `['todos']`,
+     * `CA-PERM-007`), pero deja escrita la revisión completa del catálogo
+     * que `ADR-044` exige — incluida la comprobación, ya hecha y
+     * descartada, de `propios` para `bloqueo_cuenta.leer`
+     * (`permisos.md §3.2`: un usuario bloqueado nunca llega a un endpoint
+     * con sesión). `applicable_scopes` de este módulo lo declara
+     * `AuthServiceProvider`, no `REQ-CORE` (`INV-007`).
+     */
+    public function declaredPermissions(): array
+    {
+        return [
+            ['code' => 'bloqueo_cuenta.leer', 'resource' => 'bloqueo_cuenta', 'action' => 'leer', 'is_special_category' => false, 'applicable_scopes' => ['todos'], 'resource_label_key' => 'auth.permissions.resources.bloqueo_cuenta'],
+            ['code' => 'bloqueo_cuenta.eliminar', 'resource' => 'bloqueo_cuenta', 'action' => 'eliminar', 'is_special_category' => false, 'applicable_scopes' => ['todos'], 'resource_label_key' => 'auth.permissions.resources.bloqueo_cuenta'],
+            // REQ-AUTH-003 (1.3), funcional.md §C.4.10, §C.1.1 punto 9.
+            // 'leer': GET /mfa-compliance (vista previa y cumplimiento).
+            // 'eliminar': POST /mfa-resets (restablecimiento).
+            ['code' => 'mfa.leer', 'resource' => 'mfa', 'action' => 'leer', 'is_special_category' => false, 'applicable_scopes' => ['todos'], 'resource_label_key' => 'auth.permissions.resources.mfa'],
+            ['code' => 'mfa.eliminar', 'resource' => 'mfa', 'action' => 'eliminar', 'is_special_category' => false, 'applicable_scopes' => ['todos'], 'resource_label_key' => 'auth.permissions.resources.mfa'],
+            // REQ-AUTH-003 (1.3b), permisos.md §D.2-§D.5. Recurso propio
+            // (no una acción más de `mfa`): la excepción es una entidad
+            // con ciclo de vida propio (motivo, caducidad, autor, traza de
+            // revocación), no un atributo del usuario. `eliminar` para la
+            // revocación por el mismo criterio que `bloqueo_cuenta.eliminar`
+            // y `mfa.eliminar`: describe lo que el actor hace desde fuera
+            // (retirar algo vigente), no la operación SQL (`RN-AUTH-83`:
+            // revocar no borra, deja `revoked_at`/`revoked_by`).
+            ['code' => 'exencion_mfa.crear', 'resource' => 'exencion_mfa', 'action' => 'crear', 'is_special_category' => false, 'applicable_scopes' => ['todos'], 'resource_label_key' => 'auth.permissions.resources.exencion_mfa'],
+            ['code' => 'exencion_mfa.leer', 'resource' => 'exencion_mfa', 'action' => 'leer', 'is_special_category' => false, 'applicable_scopes' => ['todos'], 'resource_label_key' => 'auth.permissions.resources.exencion_mfa'],
+            ['code' => 'exencion_mfa.eliminar', 'resource' => 'exencion_mfa', 'action' => 'eliminar', 'is_special_category' => false, 'applicable_scopes' => ['todos'], 'resource_label_key' => 'auth.permissions.resources.exencion_mfa'],
+            // REQ-AUTH-004 (1.4b), permisos.md §F.2-§F.3. Recurso propio:
+            // un proveedor de identidad es una entidad con ciclo de vida
+            // completo (se crea, se consulta, se modifica, se retira),
+            // no una acción más de `configuracion` (REQ-CORE). Las
+            // credenciales no tienen permiso propio (permisos.md §F.4):
+            // cargar/retirar una viaja con `proveedor_identidad.actualizar`.
+            ['code' => 'proveedor_identidad.leer', 'resource' => 'proveedor_identidad', 'action' => 'leer', 'is_special_category' => false, 'applicable_scopes' => ['todos'], 'resource_label_key' => 'auth.permissions.resources.proveedor_identidad'],
+            ['code' => 'proveedor_identidad.crear', 'resource' => 'proveedor_identidad', 'action' => 'crear', 'is_special_category' => false, 'applicable_scopes' => ['todos'], 'resource_label_key' => 'auth.permissions.resources.proveedor_identidad'],
+            ['code' => 'proveedor_identidad.actualizar', 'resource' => 'proveedor_identidad', 'action' => 'actualizar', 'is_special_category' => false, 'applicable_scopes' => ['todos'], 'resource_label_key' => 'auth.permissions.resources.proveedor_identidad'],
+            ['code' => 'proveedor_identidad.eliminar', 'resource' => 'proveedor_identidad', 'action' => 'eliminar', 'is_special_category' => false, 'applicable_scopes' => ['todos'], 'resource_label_key' => 'auth.permissions.resources.proveedor_identidad'],
+        ];
+    }
+}

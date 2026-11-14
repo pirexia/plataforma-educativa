@@ -1,0 +1,38 @@
+# Manual de profesorado
+
+> Estructura académica (`REQ-ACAD-001`, pasos `1.11-b`, `1.11d-a` y `1.11d-b`) y alumnado de tus grupos (`REQ-ALUM`, paso `1.15-d`). El resto de funciones de este perfil se documentan con cada módulo.
+
+## Estructura académica del centro
+
+**Qué ves.** En **Estructura académica** (`/academico/estructura`, en el menú lateral) consultas cómo se organiza el centro en cada curso académico: **etapas**, **cursos de etapa**, **grupos**, **subgrupos** y **asignaturas**, y qué asignaturas cursa cada grupo. Por defecto, el profesorado (y las tutorías y la orientación) tiene el permiso de leer la estructura: ver los grupos y asignaturas del centro no expone a ningún alumno. Es solo consulta: ver la estructura no es ver alumnado; los datos de alumnos tendrán su propio permiso y pantallas.
+
+**Cómo navegar.** La tabla de **etapas** (filtrable por tipo de etapa y por régimen) lleva a la ficha de cada una; la etapa muestra sus cursos, el curso sus grupos y asignaturas, y el grupo sus subgrupos y las asignaturas que cursa. Las migas de pan y los enlaces «Volver a…» te devuelven al nivel anterior.
+
+**El selector de curso académico.** En la barra superior, **«Curso académico»** muestra el curso que estás viendo (por defecto, el activo). Al elegir otro, la dirección de la página incluye `?academic_year=…`, que puedes guardar o compartir. Los cursos **cerrados** solo se pueden consultar si tienes el permiso de leer el histórico de cursos cerrados (por defecto el profesorado no lo tiene); sin él no aparecen en el selector y, aunque tengas el enlace, la aplicación responde como si no existieran. Un curso cerrado muestra un aviso permanente de solo lectura.
+
+**Nombres en tu idioma.** Los nombres de etapas, cursos y asignaturas se muestran en el idioma de tu perfil; si el centro no los ha traducido a ese idioma, ves el del idioma por defecto del centro.
+
+**Períodos lectivos de una etapa.** En la ficha de una etapa, la sección **«Períodos lectivos»** lista, de solo lectura, los trimestres, cuatrimestres o semestres de esa etapa en el curso que estás viendo (nombre en tu idioma, tipo, inicio, fin y posición). Por defecto, el profesorado (y las tutorías y la orientación) tiene el permiso de leer la configuración académica, que es el que muestra esta sección. No hay «Nuevo período», «Editar» ni «Borrar»: los períodos los gestiona la administración del centro. Si ves la estructura pero no esta sección, te falta el permiso de leer la configuración académica; díselo a quien administra el centro. En un curso cerrado, la sección sigue siendo de consulta.
+
+**Escalas de calificación.** En **Escalas de calificación** (`/academico/escalas`, en el menú lateral) consultas, de solo lectura, las escalas con las que se califica en el curso que estás viendo en el selector: código, nombre en tu idioma, tipo (numérica, cualitativa o mixta), rango y aprobado (en la numérica y la mixta, «Desde 5»; en la cualitativa, los códigos de los valores aprobados). La ficha de cada escala muestra sus valores o tramos en orden, con «Aprobado» o «Suspenso» escrito. Por defecto, el profesorado (y las tutorías y la orientación) tiene el permiso de leer la configuración académica, que es el que muestra esta entrada del menú. No hay «Nueva escala», «Editar» ni «Borrar»: las escalas las gestiona la administración del centro. Si no ves la entrada, te falta el permiso de leer la configuración académica; díselo a quien administra el centro. En un curso cerrado, las escalas siguen siendo de consulta (y solo se ven con el permiso de leer el histórico de cursos cerrados).
+
+**Qué no puedes hacer.** Crear, editar o borrar elementos de la estructura (no hay botones) ni asignar asignaturas a un grupo: lo hace la administración del centro. Si crees que te falta algún permiso, díselo a quien administra el centro.
+
+**Tus propios grupos y clases.** Esta pantalla muestra la estructura **de todo el centro**. Las pantallas que muestren solo *tus* grupos o clases dependerán de la asignación de profesorado, que llegará con los horarios.
+
+## Consultar el horario
+
+En **Administración → Horarios** (`/academico/horarios`) consultas la rejilla semanal. Elige **«Ver por» Profesor** y tu nombre para ver tu horario, o **Grupo**, **Aula** o **Asignatura** para ver el de otros. Cada sesión muestra como texto la asignatura, el grupo (y el subgrupo si es un desdoble), el profesor y el aula; en pantallas estrechas la rejilla pasa a una lista por día. En la ficha de cada grupo, **«Profesorado»** dice quiénes son sus tutores y quién imparte cada asignatura. Por defecto el profesorado solo puede **consultar**: no hay botones para cambiar el horario. Ser tutor o profesor de un grupo no cambia tus permisos. Para buscar a otra persona por nombre necesitas el permiso de ver usuarios; si no lo tienes, elige la vista por grupo, aula o asignatura. Si el centro tiene una **jornada especial** (jornada intensiva), sus sesiones llevan en texto el nombre de la jornada y sus fechas, y en esos días sustituyen al horario ordinario de la etapa.
+
+## Reservar un aula o un recurso
+
+En **Administración → Reservas** (`/academico/reservas`) ves las reservas del curso por fecha y hora, con quién hizo cada una, y puedes filtrarlas por espacio o por fechas. **«Nueva reserva»** pide el espacio (un aula o un recurso, como un carro de portátiles o un proyector; necesitas poder ver los espacios), el día, la hora de inicio y la de fin. La hora de fin no se incluye: una reserva hasta las 11:00 y otra desde las 11:00 no chocan. Una reserva no puede coincidir con otra del mismo espacio ni, si es un aula, con una sesión del horario de ese día; si choca, el aviso, junto a los botones, dice con qué y no se guarda. Por defecto el profesorado **solo puede cancelar sus propias reservas**: **«Cancelar»** en la de otra persona responde que no existe. Las reservas no se editan: cancela y reserva de nuevo. Un curso cerrado no admite reservas nuevas ni cancelaciones. Si una persona del profesorado ya no existe en el centro (se ha dado de baja), en las asignaciones, tutorías, sesiones y reservas aparece como **«Usuario eliminado»**: el historial se conserva, pero su nombre ya no se muestra.
+
+## Alumnado de tus grupos
+
+**Qué ves.** En **Alumnado** (`/alumnado`) y **Listas de clase** (`/alumnado/listas`) ves **solo a los alumnos matriculados en los grupos en los que tienes asignación docente o tutoría en el curso elegido**; el resto no aparece, y abrir directamente la dirección de la ficha de otro alumno responde como si no existiera. Si no hay curso resuelto (ni `?academic_year=` ni curso activo), la lista de clase y los cambios de grupo avisan de que falta un curso académico: elige uno en el selector. Si no tienes asignación en ese curso, las pantallas salen vacías: pídele a Dirección que te asigne en **Profesorado** del grupo. El curso académico es el del selector de la barra superior.
+
+**La ficha** muestra los datos personales (el documento **enmascarado**: solo los cuatro últimos caracteres), la fotografía (**«Mostrar fotografía»** la pide en ese momento) y las matrículas del alumno en tus grupos. Es de consulta: por defecto el profesorado no puede dar de alta, corregir ni dar de baja alumnos, ni matricular, ni exportar. Los vínculos con tutores y los consentimientos de imagen aparecen solo si tu rol puede leerlos y se piden con un botón porque **su consulta queda registrada en la auditoría**.
+
+**Cambios de grupo.** En **Cambios de grupo** (`/alumnado/cambios-de-grupo`) ves las solicitudes de los alumnos de tus grupos, de solo lectura: solicitar, aprobar, rechazar y cancelar no están en tu perfil por defecto.
+

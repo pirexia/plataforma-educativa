@@ -1,0 +1,123 @@
+<?php
+
+// Voir lang/es/core.php pour le commentaire faisant autorité.
+
+return [
+    'mail' => [
+        'invitation' => [
+            'subject' => 'Activez votre compte sur :tenant',
+            'greeting' => 'Bonjour :name.',
+            'body' => 'Vous avez été invité(e) à rejoindre :tenant sur la plateforme de gestion scolaire.',
+            'cta' => 'Activer mon compte',
+            'expires' => 'Ce lien expire dans :days jours. Si vous ne vous attendiez pas à ce message, vous pouvez l\'ignorer.',
+        ],
+    ],
+
+    'validation' => [
+        'locale_not_active' => 'La langue « :locale » n\'est pas active pour cet établissement.',
+        'default_locale_not_active' => 'La langue par défaut doit faire partie des langues actives.',
+        'active_locales_empty' => 'Il doit y avoir au moins une langue active.',
+        'mfa_allowed_methods_requires_totp' => 'La méthode TOTP ne peut pas être désactivée : c\'est la seule qui ne dépend pas d\'un fournisseur externe.',
+        'mfa_allowed_methods_sms_unavailable' => 'La méthode SMS n\'est pas encore disponible : aucun fournisseur n\'est configuré.',
+        'role_patch_field_not_allowed' => 'Ce point de terminaison n\'accepte que le champ « mfa_required ».',
+        'contrast_insufficient' => 'Le contraste de la palette (:ratio:1) n\'atteint pas le minimum requis (:required:1, WCAG 2.2 AA).',
+        'document_number_invalid' => 'Le numéro de document n\'est pas valide pour le type indiqué.',
+        'document_duplicate' => 'Une personne active avec le même type et numéro de document existe déjà dans cet établissement.',
+        'document_type_invalid' => 'Le type de document indiqué n\'est pas pris en charge.',
+        'document_incomplete' => 'Indiquez à la fois le type et le numéro de document, ou aucun des deux.',
+        'email_duplicate' => 'Un utilisateur actif avec cet e-mail de connexion existe déjà dans cet établissement.',
+        'role_not_found' => 'Un des rôles indiqués n\'existe pas dans cet établissement.',
+        'role_permission_exceeds_own' => 'Vous ne pouvez pas attribuer un rôle qui accorde des permissions que vous ne possédez pas vous-même.',
+        'file_type_mismatch' => 'Le type réel du fichier ne correspond pas au type déclaré.',
+        'svg_unrepairable' => 'Le SVG ne peut pas être nettoyé de manière sûre.',
+        'empty_string_not_allowed' => 'Pour vider ce champ, envoyez null plutôt qu\'une chaîne vide.',
+        'query_boolean_invalid' => 'La valeur doit être « true » ou « false ».',
+        'cannot_modify_self' => 'Vous ne pouvez pas effectuer cette action sur votre propre compte.',
+        'last_school_administrator' => 'Il doit toujours exister au moins un administrateur d\'établissement actif.',
+        'invitation_requires_pending_user' => 'Seul un utilisateur au statut « en attente » peut être invité.',
+        'invitation_already_accepted' => 'Cette invitation a déjà été acceptée et ne peut pas être révoquée.',
+        'enabled_not_editable' => 'L\'état d\'activation du module ne peut pas être modifié par cette voie.',
+        'import_unknown_header' => 'L\'en-tête du fichier ne correspond pas au format attendu.',
+        'cursor_invalid' => 'Le curseur de pagination n\'est pas valide pour cette requête.',
+        'export_range_too_large' => 'La plage demandée dépasse la limite de lignes autorisée ; réduisez-la et réessayez.',
+        'pdf_export_not_available' => 'L\'export PDF n\'est pas encore disponible ; utilisez CSV.',
+        'filter_value_invalid' => 'La valeur « :value » n\'est pas valide pour ce filtre.',
+        'export_search_not_supported' => 'L\'export des utilisateurs ne prend pas en charge la recherche libre (« q ») ; utilisez les filtres structurés.',
+        'export_not_ready' => 'L\'export est encore en cours de génération ; réessayez dans quelques minutes.',
+        'export_failed' => 'La génération de cet export a échoué.',
+        'import_not_validated' => 'Le lot doit être validé avant de pouvoir être exécuté.',
+        'import_already_executed' => 'Ce lot a déjà été exécuté ou est en cours d\'exécution et ne peut pas être écarté.',
+
+        'role_code_taken' => 'Il existe déjà un rôle actif dans cet établissement avec ce code.',
+        'role_code_immutable' => 'Le code d\'un rôle ne peut pas être modifié : c\'est sa référence stable.',
+        'role_name_system' => 'Un rôle prédéfini n\'accepte pas de nom littéral : utilisez sa traduction.',
+        'clone_source_not_found' => 'Le rôle d\'origine indiqué n\'existe pas dans cet établissement.',
+        'clone_requires_special_data_access' => 'Vous ne pouvez pas cloner ce rôle : il accorde l\'accès à des données de catégorie spéciale que vous ne pouvez pas activer.',
+        'clone_and_permissions_exclusive' => 'Vous ne pouvez pas indiquer « clone_from » et « permissions » en même temps.',
+        'scope_not_applicable' => 'Le périmètre « :scope » ne peut pas être accordé pour cette permission.',
+        'scope_resolver_missing' => 'Le périmètre « :scope » ne peut pas encore être accordé : son résolveur n\'est pas enregistré.',
+        'permission_not_found' => 'Le code de permission « :code » n\'existe pas dans le catalogue.',
+        'permission_retired' => 'Le code de permission « :code » n\'est plus disponible.',
+        // Issue #359: mensajes genéricos de POST /roles con clone_from (sin código ni ámbito del origen).
+        'clone_source_permission_retired' => 'Le rôle d\'origine contient une permission qui n\'est plus disponible ; il ne peut pas être cloné.',
+        'clone_source_permission_not_found' => 'Le rôle d\'origine contient une permission qui n\'existe pas dans le catalogue ; il ne peut pas être cloné.',
+        'clone_source_scope_not_applicable' => 'Le rôle d\'origine contient une concession avec un périmètre qui ne peut pas être accordé ; il ne peut pas être cloné.',
+        'clone_source_scope_resolver_missing' => 'Le rôle d\'origine contient une concession avec un périmètre qui ne peut pas encore être accordé ; il ne peut pas être cloné.',
+        'clone_source_not_clonable' => 'Vous ne pouvez pas cloner ce rôle : il accorde quelque chose que vous ne pouvez pas activer.',
+        'permission_duplicated' => 'Le code de permission « :code » apparaît plus d\'une fois.',
+        'role_is_system' => 'Un rôle du provisionnement de l\'établissement ne peut pas être supprimé.',
+        'role_has_assignments' => 'Ce rôle a :users_count utilisateur(s) assigné(s) et ne peut pas être supprimé.',
+        // REQ-PERM/funcional.md §20.2.1 (1.5b, RN-PERM-47).
+        'administration_capacity_lost' => 'Cette opération laisserait l\'établissement sans aucun utilisateur actif possédant toutes les permissions d\'administration. Permissions concernées : :codes. Accordez d\'abord ces permissions à une autre personne active de l\'établissement.',
+    ],
+
+    'authorization' => [
+        'cannot_grant_unheld_permission' => 'Vous ne pouvez pas accorder la permission « :code » avec le périmètre « :scope » : vous ne la possédez pas vous-même.',
+        'cannot_grant_unheld_role_permission' => 'Vous ne pouvez pas attribuer ce rôle : il accorde une permission que vous ne possédez pas vous-même.',
+        'special_data_access_not_held' => 'Vous ne pouvez pas activer l\'accès aux données de catégorie spéciale : vous ne le possédez pas vous-même.',
+    ],
+
+    'inert_reasons' => [
+        'inerte_permiso_retirado' => 'Cette permission n\'est plus déclarée par aucun module.',
+        'inerte_modulo' => 'Le module de cette permission n\'est pas activé pour cet établissement.',
+        'inerte_datos_especiales' => 'L\'attribution provient d\'un rôle sans accès aux données de catégorie spéciale.',
+        'inerte_sin_resolutor' => 'Le périmètre de cette attribution n\'a pas encore de résolveur.',
+    ],
+
+    // REQ-PERM/api.md §14.3 (1.5b, S-PERM-2) : nom de chaque ressource des
+    // permissions déclarées par ce module (`resource_label_key`).
+    'permissions' => [
+        'resources' => [
+            'usuario' => 'Utilisateurs',
+            'invitacion' => 'Invitations',
+            'asignacion_rol' => 'Attributions de rôle',
+            'rol' => 'Rôles',
+            'permiso' => 'Permissions',
+            'configuracion' => 'Configuration',
+            'modulo' => 'Modules',
+            'auditoria' => 'Audit',
+            'rol_datos_especiales' => 'Données de catégorie spéciale d\'un rôle',
+            'permiso_efectivo' => 'Permissions effectives',
+        ],
+    ],
+
+    'idempotency' => [
+        'missing' => 'L\'en-tête Idempotency-Key est absent et obligatoire pour cette opération.',
+        'malformed' => 'L\'en-tête Idempotency-Key doit être un ULID.',
+        'body_mismatch' => 'La même clé d\'idempotence a été utilisée avec un contenu différent.',
+        'in_progress' => 'La même clé d\'idempotence est encore en cours de traitement.',
+    ],
+
+    'import' => [
+        'campo_obligatorio_vacio' => 'La colonne « :column » est obligatoire et vide.',
+        'formato_invalido' => 'La valeur de la colonne « :column » n\'a pas un format valide.',
+        'duplicado_en_fichero' => 'La valeur de la colonne « :column » apparaît plus d\'une fois dans le fichier.',
+        'duplicado_en_base_de_datos' => 'La valeur de la colonne « :column » appartient déjà à une autre personne ou un autre utilisateur de l\'établissement.',
+        'idioma_no_activo' => 'La langue indiquée n\'est pas active pour cet établissement.',
+        'rol_no_encontrado' => 'Un des rôles indiqués n\'existe pas dans cet établissement.',
+        'rol_no_concedible' => 'La colonne « :column » contient un rôle que vous ne pouvez pas attribuer : vous ne détenez pas toutes ses permissions.',
+        'limite_filas_superado' => 'Le fichier dépasse le maximum de :max lignes de données. Scindez-le en plusieurs fichiers.',
+        'tipo_documento_no_valido' => 'Le type de document indiqué n\'est pas pris en charge.',
+        'documento_incompleto' => 'Indiquez à la fois le type et le numéro de document, ou aucun des deux.',
+    ],
+];

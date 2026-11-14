@@ -1,0 +1,111 @@
+name: CI · Landing
+
+# ADR-072 §4.5: workflow propio con filtro `paths`. NO es un required check
+# (un check filtrado por rutas queda en `pending` en los PR que no lo tocan).
+on:
+  pull_request:
+    branches: [develop, main]
+    paths: ['apps/landing/**', '.github/workflows/ci-landing.yml']
+  push:
+    branches: [develop, main]
+    paths: ['apps/landing/**', '.github/workflows/ci-landing.yml']
+
+# Issue #401: el GITHUB_TOKEN solo lee por defecto; los jobs que escriben
+# declaran sus propios permisos.
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: apps/landing
+
+jobs:
+  build:
+    name: Build (landing)
+    runs-on: ubuntu-24.04  # fijada: ubuntu-latest migra a 26.04 hasta el 19-11-2026 (#609, actions/runner-images#14748)
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "26"
+          cache: npm
+          cache-dependency-path: apps/landing/package-lock.json
+
+      - run: npm ci
+      - run: npm run build
+
+  check:
+    name: Comprobaciones y tests (landing)
+    runs-on: ubuntu-24.04  # fijada: ubuntu-latest migra a 26.04 hasta el 19-11-2026 (#609, actions/runner-images#14748)
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "26"
+          cache: npm
+          cache-dependency-path: apps/landing/package-lock.json
+
+      - run: npm ci
+      # check.mjs inspecciona dist/: se construye antes.
+      - run: npm run build
+      - run: npm run check
+      - run: npm test
+
+  lighthouse:
+    name: Lighthouse (landing)
+    runs-on: ubuntu-24.04  # fijada: ubuntu-latest migra a 26.04 hasta el 19-11-2026 (#609, actions/runner-images#14748)
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "26"
+          cache: npm
+          cache-dependency-path: apps/landing/package-lock.json
+
+      - run: npm ci
+      - run: npm run build
+      # ubuntu-24.04 trae Google Chrome; lhci lo localiza solo.
+      - run: npm run lighthouse
+
+  deploy:
+    name: Despliegue (landing)
+    # Solo en push a main, tras los tres anteriores, y solo con el interruptor
+    # LANDING_DEPLOY_ENABLED=true (variable de repositorio). ADR-072 prohíbe publicar
+    # hasta cumplir la puerta legal (titular, aviso legal revisado, búsqueda de marca):
+    # el interruptor evita un despliegue accidental al hacer la release a main.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.LANDING_DEPLOY_ENABLED == 'true'
+    needs: [build, check, lighthouse]
+    runs-on: ubuntu-24.04  # fijada: ubuntu-latest migra a 26.04 hasta el 19-11-2026 (#609, actions/runner-images#14748)
+    environment: landing-production
+    timeout-minutes: 15
+    concurrency:
+      group: landing-deploy
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "26"
+          cache: npm
+          cache-dependency-path: apps/landing/package-lock.json
+
+      - run: npm ci
+      # Único punto que conoce al proveedor (ADR-072 §4.6): build, check:publish,
+      # despliegue del CLI y smoke test de cabeceras. Sin integración Git del proveedor.
+      - run: scripts/deploy.sh
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

@@ -1,0 +1,486 @@
+{
+  "acad": {
+    "nav": {
+      "structure": "Estructura académica",
+      "backToStructure": "Volver a la estructura académica",
+      "backToLevel": "Volver a la etapa {code}",
+      "backToLevelGeneric": "Volver a la etapa",
+      "backToCourse": "Volver al curso {code}",
+      "backToCourseGeneric": "Volver al curso",
+      "gradingScales": "Escalas de calificación",
+      "backToScales": "Volver a las escalas de calificación",
+      "facilities": "Espacios",
+      "timetable": "Horarios",
+      "bookings": "Reservas"
+    },
+    "readOnly": "Este curso académico es de solo lectura: no se puede crear, modificar ni borrar su estructura.",
+    "fields": {
+      "code": "Código",
+      "name": "Nombre",
+      "stage": "Tipo de etapa",
+      "regime": "Régimen",
+      "position": "Posición",
+      "actions": "Acciones",
+      "periodType": "Tipo de período",
+      "startsOn": "Inicio",
+      "endsOn": "Fin",
+      "scaleType": "Tipo de escala",
+      "minValue": "Mínimo",
+      "maxValue": "Máximo",
+      "decimals": "Decimales",
+      "passingMinValue": "Nota mínima de aprobado",
+      "label": "Etiqueta",
+      "isPassing": "Es aprobado",
+      "rangeMin": "Desde",
+      "rangeMax": "Hasta",
+      "range": "Rango",
+      "facilityType": "Tipo de espacio",
+      "frameType": "Tipo de marco horario",
+      "validFrom": "Vigencia desde",
+      "validTo": "Vigencia hasta"
+    },
+    "stage": {
+      "infantil": "Educación Infantil",
+      "primaria": "Educación Primaria",
+      "eso": "Educación Secundaria Obligatoria",
+      "bachillerato": "Bachillerato",
+      "fp": "Formación Profesional",
+      "universidad": "Universidad"
+    },
+    "regime": {
+      "publico": "Público",
+      "privado": "Privado",
+      "concertado": "Concertado"
+    },
+    "dependents": {
+      "courses": "Cursos de etapa",
+      "groups": "Grupos",
+      "subjects": "Asignaturas",
+      "subgroups": "Subgrupos",
+      "group_subjects": "Asignaturas asignadas a grupos",
+      "academic_periods": "Períodos lectivos",
+      "group_tutors": "Tutores de grupo",
+      "teaching_assignments": "Asignaciones docentes",
+      "timetable_frames": "Marcos horarios",
+      "timetable_sessions": "Sesiones de horario",
+      "facility_bookings": "Reservas de espacios"
+    },
+    "structure": {
+      "title": "Estructura académica",
+      "intro": "Etapas, cursos, grupos, subgrupos y asignaturas del curso académico seleccionado.",
+      "caption": "Etapas del curso académico",
+      "new": "Nueva etapa",
+      "filters": {
+        "stage": "Tipo de etapa",
+        "regime": "Régimen"
+      },
+      "empty": {
+        "title": "Este curso académico no tiene etapas",
+        "text": "Crea la primera etapa para empezar a definir la estructura."
+      },
+      "noActive": {
+        "title": "No hay un curso académico activo",
+        "text": "Elige un curso académico en el selector de la barra superior para consultar su estructura."
+      }
+    },
+    "level": {
+      "title": "Etapa",
+      "courses": "Cursos de la etapa",
+      "coursesCaption": "Cursos de la etapa",
+      "newCourse": "Nuevo curso",
+      "noCourses": "Esta etapa no tiene cursos"
+    },
+    "course": {
+      "title": "Curso",
+      "groups": "Grupos",
+      "groupsCaption": "Grupos del curso",
+      "newGroup": "Nuevo grupo",
+      "noGroups": "Este curso no tiene grupos",
+      "subjects": "Asignaturas",
+      "subjectsCaption": "Asignaturas del curso",
+      "newSubject": "Nueva asignatura",
+      "noSubjects": "Este curso no tiene asignaturas"
+    },
+    "group": {
+      "title": "Grupo",
+      "subjects": "Asignaturas que cursa",
+      "editSubjects": "Editar asignaturas",
+      "chooseSubjects": "Asignaturas del curso que cursa este grupo",
+      "noAvailable": "El curso no tiene asignaturas que asignar.",
+      "noSubjects": "Este grupo no cursa ninguna asignatura.",
+      "subgroups": "Subgrupos",
+      "subgroupsCaption": "Subgrupos del grupo",
+      "newSubgroup": "Nuevo subgrupo",
+      "noSubgroups": "Este grupo no tiene subgrupos"
+    },
+    "subject": {
+      "title": "Asignatura",
+      "groups": "Grupos que la cursan",
+      "noGroups": "Ningún grupo cursa esta asignatura."
+    },
+    "detail": {
+      "actions": "Acciones",
+      "data": "Datos",
+      "edit": "Editar",
+      "delete": "Borrar"
+    },
+    "form": {
+      "close": "Cerrar",
+      "cancel": "Cancelar",
+      "create": "Crear",
+      "save": "Guardar",
+      "choose": "Elige una opción",
+      "description": "Los campos obligatorios están marcados. El curso académico y el elemento superior no se pueden cambiar después.",
+      "positionHint": "Opcional. Si se deja vacío, queda al final.",
+      "title": {
+        "create": {
+          "level": "Nueva etapa",
+          "course": "Nuevo curso",
+          "subject": "Nueva asignatura",
+          "group": "Nuevo grupo",
+          "subgroup": "Nuevo subgrupo",
+          "period": "Nuevo período",
+          "scale": "Nueva escala"
+        },
+        "edit": {
+          "level": "Editar etapa",
+          "course": "Editar curso",
+          "subject": "Editar asignatura",
+          "group": "Editar grupo",
+          "subgroup": "Editar subgrupo",
+          "period": "Editar período",
+          "scale": "Editar escala"
+        }
+      },
+      "errors": {
+        "defaultLocaleRequired": "Falta el nombre en el idioma por defecto del centro."
+      }
+    },
+    "confirm": {
+      "delete": {
+        "confirm": "Borrar {code}",
+        "level": {
+          "title": "Borrar la etapa {code}",
+          "description": "La etapa se borra del curso académico. No se puede borrar si tiene cursos."
+        },
+        "course": {
+          "title": "Borrar el curso {code}",
+          "description": "El curso se borra del curso académico. No se puede borrar si tiene grupos o asignaturas."
+        },
+        "group": {
+          "title": "Borrar el grupo {code}",
+          "description": "El grupo se borra. No se puede borrar si tiene subgrupos o asignaturas asignadas."
+        },
+        "subgroup": {
+          "title": "Borrar el subgrupo {code}",
+          "description": "El subgrupo se borra del grupo."
+        },
+        "subject": {
+          "title": "Borrar la asignatura {code}",
+          "description": "La asignatura se borra. No se puede borrar si está asignada a algún grupo."
+        },
+        "period": {
+          "title": "Borrar el período {name}",
+          "description": "El período se borra de la etapa."
+        },
+        "scale": {
+          "title": "Borrar la escala {code}",
+          "description": "La escala y todos sus valores se borran."
+        },
+        "facility": {
+          "title": "Borrar el espacio {code}",
+          "description": "El espacio se borra del centro. No se puede borrar si lo usan sesiones de un curso en planificación o activo."
+        },
+        "frame": {
+          "title": "Borrar el marco horario {name}",
+          "description": "El marco y todas sus franjas se borran. No se puede borrar si alguna franja tiene sesiones."
+        }
+      }
+    },
+    "flash": {
+      "levelCreated": "Etapa creada.",
+      "levelUpdated": "Etapa actualizada.",
+      "levelDeleted": "Etapa borrada.",
+      "courseCreated": "Curso creado.",
+      "courseUpdated": "Curso actualizado.",
+      "courseDeleted": "Curso borrado.",
+      "groupCreated": "Grupo creado.",
+      "groupUpdated": "Grupo actualizado.",
+      "groupDeleted": "Grupo borrado.",
+      "subgroupCreated": "Subgrupo creado.",
+      "subgroupUpdated": "Subgrupo actualizado.",
+      "subgroupDeleted": "Subgrupo borrado.",
+      "subjectCreated": "Asignatura creada.",
+      "subjectUpdated": "Asignatura actualizada.",
+      "subjectDeleted": "Asignatura borrada.",
+      "subjectsAssigned": "Asignaturas del grupo actualizadas.",
+      "periodCreated": "Período creado.",
+      "periodUpdated": "Período actualizado.",
+      "periodDeleted": "Período borrado.",
+      "scaleCreated": "Escala creada.",
+      "scaleUpdated": "Escala actualizada.",
+      "scaleDeleted": "Escala borrada.",
+      "facilityCreated": "Espacio creado.",
+      "facilityUpdated": "Espacio actualizado.",
+      "facilityDeleted": "Espacio borrado.",
+      "frameUpdated": "Marco horario actualizado.",
+      "frameDeleted": "Marco horario borrado.",
+      "assignmentCreated": "Profesorado asignado.",
+      "assignmentDeleted": "Asignación docente quitada.",
+      "tutorsUpdated": "Tutores del grupo actualizados.",
+      "sessionCreated": "Sesión creada.",
+      "sessionUpdated": "Sesión actualizada.",
+      "sessionDeleted": "Sesión borrada.",
+      "bookingCreated": "Reserva creada.",
+      "bookingCancelled": "Reserva cancelada."
+    },
+    "errors": {
+      "unexpected": "No se pudo completar la acción. Inténtalo de nuevo.",
+      "dependentsTitle": "Elementos que lo impiden:"
+    },
+    "periodType": {
+      "trimestre": "Trimestre",
+      "cuatrimestre": "Cuatrimestre",
+      "semestre": "Semestre"
+    },
+    "periods": {
+      "title": "Períodos lectivos",
+      "caption": "Períodos lectivos de la etapa",
+      "new": "Nuevo período",
+      "empty": "Esta etapa no tiene períodos lectivos",
+      "yearRange": "Entre el {start} y el {end}",
+      "overlapWith": "El período se solapa con «{name}», de la misma etapa.",
+      "editFor": "Editar el período {name}",
+      "deleteFor": "Borrar el período {name}",
+      "typePlaceholder": "Elige un tipo de período"
+    },
+    "readOnlyConfig": "Este curso académico es de solo lectura: no se pueden crear, modificar ni borrar sus períodos ni sus escalas.",
+    "scaleType": {
+      "numerica": "Numérica",
+      "cualitativa": "Cualitativa",
+      "mixta": "Mixta"
+    },
+    "scales": {
+      "title": "Escalas de calificación",
+      "intro": "Escalas con las que se califica en el curso académico seleccionado.",
+      "caption": "Escalas del curso académico",
+      "new": "Nueva escala",
+      "empty": "Este curso académico no tiene escalas",
+      "values": "Valores",
+      "bands": "Tramos",
+      "addValue": "Añadir valor",
+      "addBand": "Añadir tramo",
+      "remove": "Quitar",
+      "moveUp": "Subir",
+      "moveDown": "Bajar",
+      "itemLegend": "Valor {n}",
+      "moved": "{label} ahora en la posición {n}",
+      "passing": "Aprobado",
+      "failing": "Suspenso",
+      "typeLocked": "El tipo no se puede cambiar: para otro tipo, crea una escala nueva.",
+      "detailTitle": "Escala",
+      "rangeValue": "De {min} a {max}",
+      "valuesCount": "Sin valores | {count} valor | {count} valores",
+      "passingFrom": "Desde {value}"
+    },
+    "facilityType": {
+      "aula": "Aula",
+      "recurso": "Recurso"
+    },
+    "frameType": {
+      "ordinaria": "Ordinario",
+      "especial": "Especial"
+    },
+    "weekday": {
+      "1": "Lunes",
+      "2": "Martes",
+      "3": "Miércoles",
+      "4": "Jueves",
+      "5": "Viernes",
+      "6": "Sábado",
+      "7": "Domingo"
+    },
+    "readOnlyTimetable": "Este curso académico es de solo lectura: no se pueden crear, modificar ni borrar sus marcos horarios, asignaciones ni sesiones.",
+    "facilities": {
+      "title": "Espacios",
+      "intro": "Aulas y recursos del centro. No dependen del curso académico.",
+      "new": "Nuevo espacio",
+      "caption": "Espacios del centro",
+      "empty": "El centro no tiene espacios",
+      "editFor": "Editar el espacio {code}",
+      "deleteFor": "Borrar el espacio {code}",
+      "form": {
+        "title": {
+          "create": "Nuevo espacio",
+          "edit": "Editar espacio"
+        },
+        "typeImmutable": "El tipo de un espacio no se puede cambiar después del alta."
+      }
+    },
+    "timetable": {
+      "frames": {
+        "title": "Marcos horarios",
+        "new": "Nuevo marco horario",
+        "caption": "Marcos horarios de la etapa",
+        "empty": "Esta etapa no tiene marco horario",
+        "form": {
+          "title": "Nuevo marco horario",
+          "description": "Un marco ordinario vale todo el curso; uno especial (jornada intensiva) solo entre dos fechas. Las franjas se añaden después, en su ficha.",
+          "validityHint": "Las fechas son inclusivas, deben estar dentro del curso académico y no pueden solaparse con otra jornada especial de la etapa."
+        },
+        "validity": "Vigencia",
+        "validityRange": "Del {from} al {to}",
+        "allYear": "Todo el curso"
+      },
+      "frame": {
+        "title": "Marco horario",
+        "slotsCount": "Franjas"
+      },
+      "slots": {
+        "title": "Franjas",
+        "hint": "Cada franja es un día de la semana y un intervalo de horas del centro. La hora de fin no se incluye: una franja que acaba a las 09:25 y otra que empieza a las 09:25 no se solapan.",
+        "empty": "Este marco no tiene franjas.",
+        "rowLegend": "Franja {number}",
+        "weekday": "Día",
+        "startsAt": "Inicio",
+        "endsAt": "Fin",
+        "remove": "Quitar",
+        "removeFor": "Quitar la franja {number}",
+        "add": "Añadir franja",
+        "caption": "Franjas del marco horario"
+      },
+      "title": "Horarios",
+      "description": "Rejilla semanal de sesiones por grupo, profesor, aula o asignatura.",
+      "selection": "Selección de la vista",
+      "viewLabel": "Ver por",
+      "views": {
+        "group": "Grupo",
+        "teacher": "Profesor",
+        "facility": "Aula",
+        "subject": "Asignatura"
+      },
+      "entity": {
+        "group": "Grupo",
+        "teacher": "Profesor",
+        "facility": "Aula",
+        "subject": "Asignatura"
+      },
+      "chooseEntity": "Elige una opción para ver su horario.",
+      "noFrame": "La etapa de este grupo no tiene marco horario. Crea el marco y sus franjas en la ficha de la etapa.",
+      "grid": {
+        "caption": "Horario semanal por {view}",
+        "noSlots": "No hay franjas ni sesiones que mostrar.",
+        "time": "Hora",
+        "range": "{start}–{end}",
+        "edit": "Editar",
+        "add": "Añadir sesión",
+        "free": "Libre",
+        "noSlot": "Sin franja",
+        "facilityDeleted": "aula dada de baja"
+      },
+      "form": {
+        "title": {
+          "create": "Nueva sesión",
+          "edit": "Editar sesión"
+        },
+        "assignment": "Asignación docente",
+        "slot": "Franja",
+        "facility": "Aula",
+        "noFacility": "Sin aula",
+        "noAssignments": "El grupo no tiene profesorado asignado. Asígnalo en la ficha del grupo.",
+        "assignmentRequired": "Elige una asignación docente.",
+        "remove": "Quitar sesión"
+      },
+      "conflict": {
+        "title": "La sesión choca con otra:",
+        "kind": {
+          "teacher": "Profesor",
+          "facility": "Aula",
+          "group": "Grupo"
+        },
+        "with": "{kind}: {subject} · {group} · {teacher} · {slot}",
+        "withUnknown": "{kind}: sesión {session}"
+      },
+      "confirmDelete": {
+        "title": "¿Quitar la sesión de {subject}?",
+        "description": "Se borra la sesión de la rejilla; la asignación docente no cambia.",
+        "confirm": "Quitar sesión"
+      },
+      "frameLabel": "Marco horario"
+    },
+    "staff": {
+      "search": "Buscar usuario por nombre o correo",
+      "loading": "Cargando usuarios…",
+      "empty": "No hay usuarios activos que coincidan.",
+      "loadError": "No se pudieron cargar los usuarios."
+    },
+    "teaching": {
+      "title": "Profesorado",
+      "tutors": "Tutores",
+      "editTutors": "Editar tutores",
+      "chooseTutors": "Elige los tutores del grupo",
+      "noTutors": "Este grupo no tiene tutores.",
+      "assignments": "Docencia por asignatura",
+      "assign": "Asignar profesorado",
+      "caption": "Asignaciones docentes del grupo",
+      "empty": "Este grupo no tiene profesorado asignado.",
+      "remove": "Quitar",
+      "subject": "Asignatura",
+      "subgroup": "Subgrupo",
+      "teacher": "Profesor",
+      "wholeGroup": "Todo el grupo",
+      "unknownTeacher": "Usuario no disponible",
+      "confirmDelete": {
+        "title": "¿Quitar a {teacher} de {subject}?",
+        "description": "Se quita la asignación docente. Si tiene sesiones en el horario, primero hay que borrarlas.",
+        "confirm": "Quitar asignación"
+      },
+      "form": {
+        "title": "Asignar profesorado",
+        "description": "Elige la asignatura del grupo, el subgrupo si es un desdoble y el profesor. Asignar docencia no concede permisos.",
+        "submit": "Asignar"
+      },
+      "errors": {
+        "subjectRequired": "Elige una asignatura.",
+        "teacherRequired": "Elige un profesor."
+      }
+    },
+    "readOnlyBookings": "Este curso académico es de solo lectura: no se pueden crear ni cancelar reservas.",
+    "bookings": {
+      "title": "Reservas",
+      "intro": "Reservas de aulas y recursos del curso académico, por fecha y hora. No se editan: se cancelan y se vuelven a hacer.",
+      "new": "Nueva reserva",
+      "caption": "Reservas de espacios",
+      "empty": "No hay reservas",
+      "cancel": "Cancelar",
+      "cancelFor": "Cancelar la reserva de {facility} del {date} a las {start}",
+      "fields": {
+        "facility": "Espacio",
+        "date": "Fecha",
+        "startsAt": "Inicio",
+        "endsAt": "Fin",
+        "interval": "Horario",
+        "bookedBy": "Reservada por"
+      },
+      "form": {
+        "title": "Nueva reserva",
+        "description": "Elige el espacio, la fecha y la hora. La reserva no puede coincidir con otra reserva ni, en un aula, con una sesión del horario.",
+        "intervalHint": "La hora de fin no se incluye: una reserva que acaba a las 11:00 y otra que empieza a las 11:00 no se solapan.",
+        "noFacilities": "No hay espacios que reservar, o no tienes permiso para verlos.",
+        "submit": "Reservar"
+      },
+      "conflict": {
+        "title": "La reserva choca con:",
+        "booking": "Reserva de {facility} el {date}, {start}–{end}, de {by}",
+        "session": "Sesión del horario: {subject} · {group} · {teacher} · {slot}",
+        "bookingUnknown": "Otra reserva del mismo espacio a esa hora",
+        "sessionUnknown": "Una sesión del horario en ese aula a esa hora"
+      },
+      "confirmCancel": {
+        "title": "¿Cancelar la reserva de {facility}?",
+        "description": "Se cancela la reserva del {when}. El hueco queda libre.",
+        "confirm": "Cancelar reserva"
+      }
+    }
+  }
+}

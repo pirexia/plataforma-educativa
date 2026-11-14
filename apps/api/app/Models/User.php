@@ -1,0 +1,103 @@
+<?php
+
+namespace App\Models;
+
+use App\Support\Audit\Auditable;
+use App\Support\Audit\AuditValuePolicy;
+use App\Support\Audit\HasAuditableAttributes;
+use App\Support\Audit\RecordsAuditTrail;
+use App\Support\Database\HasPublicId;
+use App\Support\Tenancy\TenantModel;
+use Database\Factories\UserFactory;
+use Illuminate\Auth\Authenticatable;
+use Illuminate\Contracts\Auth\Authenticatable as AuthenticatableContract;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Notifications\Notifiable;
+
+/**
+ * ADR-034 §1: la credencial, no la identidad — esa es Person.
+ *
+ * Implementa Authenticatable (paso 1.1, `REQ-CORE`, api.md §1: "en 1.1 los
+ * tests autentican con actingAs()") — el contrato mínimo que exige el
+ * guard `web` de config/auth.php y el propio helper de test de Laravel.
+ * Esto NO adelanta REQ-AUTH (1.2): no hay ninguna ruta de login, ningún
+ * flujo de credenciales, ni política de contraseñas aquí. Es la pieza de
+ * infraestructura que hace que `actingAs()` funcione en los tests de este
+ * módulo, tal como la especificación ya asumía que sería posible.
+ *
+ * ADR-035 §8: Selective. `email` se redacta como `identifier` (se asume la
+ * pérdida de diff — 1.2 la cubre como evento de seguridad, ver ADR-035
+ * §8); `password`/`remember_token` los redacta la regla 1 (patrón global
+ * de secretos), sin necesidad de declararlos aquí.
+ *
+ * @mixin IdeHelperUser
+ */
+#[Fillable(['person_id', 'email', 'password', 'status'])]
+#[Hidden(['password', 'remember_token'])]
+class User extends TenantModel implements Auditable, AuthenticatableContract
+{
+    use Authenticatable;
+    use HasAuditableAttributes;
+
+    /** @use HasFactory<UserFactory> */
+    use HasFactory;
+
+    use HasPublicId;
+    use Notifiable;
+    use RecordsAuditTrail;
+
+    /**
+     * REQ-PERM/datos.md §5.3.1 (1.5): `roles` se añade para que el registro
+     * explícito de `PUT /users/{id}/roles` (`funcional.md §12.2`, un código
+     * de rol no es un dato personal) no quede redactado como `identifier`
+     * — `AuditChangeBuilder` redacta como tal todo lo que no esté en esta
+     * lista de inclusión, con política `Selective` (fallo en cerrado,
+     * `ADR-035 §2`). Es una lista de inclusión: añadir `roles` no abre
+     * ningún otro atributo.
+     *
+     * @var array<int, string>
+     */
+    protected array $auditRecordedAttributes = [
+        'status', 'email_verified_at', 'deleted_at', 'created_by', 'updated_by', 'roles',
+    ];
+
+    /** @var array<int, string> */
+    protected array $auditSecretAttributes = [];
+
+    public function auditValuePolicy(): AuditValuePolicy
+    {
+        return AuditValuePolicy::Selective;
+    }
+
+    protected function casts(): array
+    {
+        return [
+            'email_verified_at' => 'datetime',
+            'password' => 'hashed',
+            'status' => UserStatus::class,
+        ];
+    }
+
+    /**
+     * @return BelongsTo<Person, $this>
+     */
+    public function person(): BelongsTo
+    {
+        return $this->belongsTo(Person::class);
+    }
+
+    /**
+     * ADR-034 §2. Los permisos describen lo que una sesión autenticada
+     * puede hacer, así que el rol se asigna a la cuenta, no a la persona.
+     *
+     * @return BelongsToMany<Role, $this>
+     */
+    public function roles(): BelongsToMany
+    {
+        return $this->belongsToMany(Role::class, 'role_user');
+    }
+}

@@ -1,0 +1,377 @@
+/**
+ * REQ-CORE (paso 1.1). Tipos de los recursos del módulo, en la forma
+ * exacta en que la API los entrega (ADR-038 §3: snake_case, sin mapeo a
+ * camelCase — un mapeo más que mantener y una fuente de fallos
+ * silenciosos al añadir un campo). Coherentes con
+ * apps/api/openapi/{components,paths/core}.yaml, que es la fuente de
+ * verdad (INV-006: el contrato existe en OpenAPI antes que aquí).
+ *
+ * funcional.md §1.11: 1.1 es solo API. Este módulo no tiene `views/` ni
+ * `components/` todavía — estos tipos los consumirá el paso 1.8.
+ */
+
+/** ADR-029: ULID. Nunca la clave interna `bigint`. */
+export type PublicId = string
+
+/** ADR-021. */
+export type Locale = 'es-ES' | 'en' | 'de' | 'fr'
+
+/**
+ * ADR-038 §6. `errors` ya trae `message` traducido por el servidor: la
+ * SPA no mantiene un catálogo propio de mensajes de validación (§6.3).
+ */
+export interface ApiProblemBody {
+  type: string
+  title: string
+  status: number
+  detail?: string
+  instance?: string
+  request_id?: string
+  errors?: Record<string, ProblemErrorEntry[]>
+}
+
+export interface ProblemErrorEntry {
+  code: string
+  message: string
+  params?: Record<string, unknown>
+}
+
+/** ADR-038 §4.3. Catálogos de entidades. */
+export interface PageMeta {
+  current_page: number
+  per_page: number
+  total: number
+  last_page: number
+}
+
+/** ADR-038 §4.4. Flujos de eventos append-only (p. ej. auditoría). */
+export interface CursorMeta {
+  next_cursor: string | null
+  has_more: boolean
+}
+
+export interface Paginated<T> {
+  data: T[]
+  meta: PageMeta
+}
+
+export interface CursorPaginated<T> {
+  data: T[]
+  meta: CursorMeta
+}
+
+export interface Person {
+  public_id: PublicId
+  given_name: string
+  family_name_1: string
+  family_name_2: string | null
+  contact_email: string | null
+  contact_phone: string | null
+  document_type: string | null
+  document_number: string | null
+  birth_date: string | null
+  locale: Locale
+}
+
+/**
+ * ADR-038 §7.3: todo enumerado de respuesta es extensible. Un valor
+ * nuevo no debe romper un `switch` — trátese siempre con rama por
+ * defecto, mostrando el código en crudo antes que fallar.
+ */
+export type UserStatus = 'pendiente' | 'activo' | 'inactivo'
+
+export interface RoleSummary {
+  public_id: PublicId
+  code: string
+  name: string
+}
+
+/**
+ * `docs/modulos/REQ-AUTH/api.md §C.4`/`§C.6`; duplicado tal cual en
+ * `src/modules/auth/types/index.ts` (`MfaBlock`) — `INV-007`: un módulo no
+ * importa el interno de otro, así que este alias de valor sin lógica se
+ * declara en los dos sitios en vez de importarse.
+ */
+export interface MfaBlock {
+  enrolled: boolean
+  obligated: boolean
+  enforced: boolean
+  grace_deadline_at: string | null
+  days_remaining: number | null
+}
+
+export interface User {
+  public_id: PublicId
+  email: string
+  status: UserStatus
+  person: Person
+  roles: RoleSummary[]
+  /**
+   * `docs/modulos/REQ-CORE/api.md §12.2`: lista de códigos efectivamente
+   * permitidos para el sujeto (`deny` aplicado, sin los inertes). Carga
+   * estructural desde 1.8 — el *shell* decide toda visibilidad con este
+   * campo (`RN-CORE-23`), nunca con `roles[].code`.
+   */
+  permissions: string[]
+  /** api.md §12.2: bloque «Estado de la cuenta» del panel (`REQ-AUTH-003`). */
+  mfa?: MfaBlock
+  /**
+   * `docs/adr/ADR-067-registro-de-muros-de-sesion.md §5.10`: códigos de los muros de sesión activos y bloqueantes
+   * (`mfa-enrollment`, `terms-acceptance`), en el orden del registro; vacío si no hay ninguno. Ampliación aditiva de
+   * `GET /me`: ausente en una respuesta anterior a `1.14-c`.
+   */
+  session_walls?: string[]
+  email_verified_at: string | null
+  created_at: string
+  updated_at: string
+  deleted_at: string | null
+}
+
+export interface CreatedUser extends User {
+  invitation?: { public_id: PublicId; expires_at: string } | null
+}
+
+export type InvitationStatus = 'vigente' | 'caducada' | 'revocada' | 'aceptada'
+
+export interface Invitation {
+  public_id: PublicId
+  user: { public_id: PublicId; email: string }
+  status: InvitationStatus
+  expires_at: string
+  created_at: string
+  accepted_at: string | null
+  revoked_at: string | null
+}
+
+export interface RolePermission {
+  code: string
+  resource: string
+  action: string
+  effect: 'allow' | 'deny'
+  scope: string
+  /**
+   * S-PERM-2 (`REQ-PERM/api.md §14.3`): etiqueta del recurso traducida por el
+   * módulo dueño. Opcional por `ADR-038 §7.3` (despliegue escalonado): sin ella,
+   * el código del recurso en crudo (`RN-PERM-28`).
+   */
+  resource_label?: string
+}
+
+export interface Role {
+  public_id: PublicId
+  code: string
+  name: string
+  is_system: boolean
+  mfa_required: boolean
+  special_data_access: boolean
+  users_count?: number
+  permissions?: RolePermission[]
+}
+
+export interface Permission {
+  code: string
+  resource: string
+  action: string
+  module_code: string
+  is_special_category: boolean
+  /** `REQ-PERM/api.md §2.1`: ámbitos que el permiso admite (el vocabulario cerrado de seis, `RN-PERM-01`). */
+  applicable_scopes: string[]
+  /** Los de `applicable_scopes` con resolutor registrado: los que se pueden conceder hoy. */
+  grantable_scopes: string[]
+  /** S-PERM-2: etiqueta del recurso traducida por el servidor; opcional (`RN-PERM-28`). */
+  resource_label?: string
+  retired_at: string | null
+}
+
+/** `REQ-PERM/api.md §7.1`: una fuente (concesión de un rol) de la decisión sobre un código. */
+export interface EffectivePermissionSource {
+  role: RoleSummary
+  effect: 'allow' | 'deny'
+  scope: string
+  inert: boolean
+  /** Enumerado extensible (`api.md §7.2`, `ADR-038 §7.3`): rama por defecto en el cliente. */
+  inert_reason: string | null
+}
+
+/** `REQ-PERM/api.md §7.1`: una fila por cada código no retirado del catálogo, concedido o no. */
+export interface EffectivePermission {
+  code: string
+  resource: string
+  action: string
+  module_code: string
+  is_special_category: boolean
+  resource_label?: string
+  decision: 'permitido' | 'denegado'
+  scopes: string[]
+  unrestricted: boolean
+  sources: EffectivePermissionSource[]
+}
+
+export interface EffectivePermissionsResponse {
+  data: EffectivePermission[]
+  meta: {
+    subject: { public_id: PublicId; display_name: string }
+    roles: RoleSummary[]
+    computed_at: string
+  }
+}
+
+export interface ModuleSubscription {
+  public_id: PublicId | null
+  module_code: string
+  name: string
+  phase: string
+  enabled: boolean
+  enabled_at: string | null
+  disabled_at: string | null
+  settings: Record<string, unknown>
+}
+
+export interface TenantSettings {
+  public_id: PublicId
+  regional: {
+    default_locale: Locale
+    active_locales: Locale[]
+    timezone: string
+    currency: string
+    autonomous_community: string | null
+  }
+  fiscal: {
+    legal_name: string | null
+    tax_id: string | null
+    address: string | null
+    postal_code: string | null
+    city: string | null
+    province: string | null
+    country_code: string | null
+  }
+  branding: {
+    color_primary: string | null
+    color_secondary: string | null
+    logo_url: string | null
+    favicon_url: string | null
+    login_background_url: string | null
+  }
+  /**
+   * `REQ-AUTH/api.md §6` (grupo `security`, `OPEN-CORE-37` = B). Opcional por
+   * `ADR-038 §7.3`: la pantalla de configuración (`RN-CORE-79`) tolera su ausencia.
+   */
+  security?: {
+    session_timeout_minutes: number
+    mfa_allowed_methods: string[]
+    mfa_grace_period_days: number
+  }
+  updated_at: string
+}
+
+/** funcional.md §4.8. Único endpoint sin sesión del módulo — no devuelve nada más que esto. */
+export interface TenantBranding {
+  name: string
+  color_primary: string | null
+  color_secondary: string | null
+  logo_url: string | null
+  favicon_url: string | null
+  login_background_url: string | null
+  default_locale: Locale
+  active_locales: Locale[]
+}
+
+export interface Tenant {
+  public_id: PublicId
+  slug: string
+  name: string
+  status: string
+}
+
+/** ADR-039 §4.1: seis valores (`anonymous` desde `OPEN-AUTH-12`). Extensible (ADR-038 §7.3). */
+export type AuditActorType = 'user' | 'system' | 'console' | 'import' | 'platform' | 'anonymous'
+/** ADR-039 / `datos.md` Parte 0.9: nueve valores. Extensible (ADR-038 §7.3). */
+export type AuditEvent =
+  | 'created'
+  | 'updated'
+  | 'deleted'
+  | 'restored'
+  | 'read'
+  | 'exported'
+  | 'login'
+  | 'logout'
+  | 'password_reset_requested'
+
+export interface AuditLog {
+  public_id: PublicId
+  occurred_at: string
+  actor: { public_id: PublicId; display_name: string } | null
+  actor_type: AuditActorType
+  auditable_type: string
+  auditable_public_id: PublicId
+  event: AuditEvent
+  changes: Record<string, unknown> | null
+  ip_address: string | null
+  user_agent: string | null
+  request_id: string | null
+}
+
+/**
+ * `GET /audit-logs/facets` (S10 de 1.9d, `api.md §14.4`): valores filtrables
+ * del registro, sin traducir (`ADR-038 §3.2`).
+ */
+export interface AuditFacets {
+  modules: string[]
+  auditable_types: { alias: string; module: string }[]
+  events: string[]
+  actor_types: string[]
+}
+
+/**
+ * `changes` de una entrada de auditoría tal como llega (`ADR-035`, `CA-CORE-052`):
+ * por atributo, o bien `{from, to}`, o bien un objeto redactado con el motivo.
+ */
+export interface AuditChangeEntry {
+  from?: unknown
+  to?: unknown
+  redacted?: string
+  from_empty?: boolean
+  to_empty?: boolean
+}
+
+export type DataExportStatus = 'pendiente' | 'generando' | 'completada' | 'fallida'
+
+export interface DataExport {
+  public_id: PublicId
+  kind: string
+  status: DataExportStatus
+  row_count: number | null
+  download_url: string | null
+  expires_at: string
+  /** Solo con `status: 'fallida'` (S4 de 1.9b): clave estable, sin traducir. */
+  error_code?: string | null
+}
+
+export type UserImportStatus =
+  'subido' | 'validando' | 'validado' | 'fallido' | 'ejecutando' | 'completado'
+
+export interface UserImportErrorEntry {
+  line: number
+  column: string
+  code: string
+  message: string
+}
+
+export interface UserImport {
+  public_id: PublicId
+  original_filename: string
+  status: UserImportStatus
+  /** Elegido al subir el fichero; la confirmación de ejecutar lo usa (`RN-CORE-73`). */
+  send_invitations: boolean
+  row_count: number | null
+  error_count: number | null
+  created_count: number | null
+  error_summary: UserImportErrorEntry[] | null
+  report_url: string | null
+  /** ISO 8601 UTC (S8, `CA-CORE-238`). */
+  created_at: string
+  validated_at: string | null
+  executed_at: string | null
+}
+
+export type BrandingAssetKind = 'logo' | 'favicon' | 'login-background'

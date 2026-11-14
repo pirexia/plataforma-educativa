@@ -1,0 +1,133 @@
+<?php
+
+// REQ-CORE, paso 1.1. Literales propios del módulo (INV-009): correo de
+// invitación (funcional.md §4.3, capa 2 de REQ-CORE-006) y mensajes de
+// validación de negocio que no expresa una regla de Laravel (§6.3 de
+// ADR-038: ValidationErrorBag).
+
+return [
+    'mail' => [
+        'invitation' => [
+            'subject' => 'Activa tu cuenta en :tenant',
+            'greeting' => 'Hola, :name.',
+            'body' => 'Te han invitado a unirte a :tenant en la plataforma de gestión educativa.',
+            'cta' => 'Activar mi cuenta',
+            'expires' => 'Este enlace caduca en :days días. Si no lo esperabas, puedes ignorar este mensaje.',
+        ],
+    ],
+
+    'validation' => [
+        'locale_not_active' => 'El idioma «:locale» no está activo en este centro.',
+        'default_locale_not_active' => 'El idioma por defecto debe estar entre los idiomas activos.',
+        'active_locales_empty' => 'Debe haber al menos un idioma activo.',
+        'mfa_allowed_methods_requires_totp' => 'El método TOTP no se puede desactivar: es el único que no depende de un proveedor externo.',
+        'mfa_allowed_methods_sms_unavailable' => 'El método SMS todavía no está disponible: no hay proveedor configurado.',
+        'role_patch_field_not_allowed' => 'Este endpoint solo admite el campo «mfa_required».',
+        'contrast_insufficient' => 'El contraste de la paleta (:ratio:1) no alcanza el mínimo exigido (:required:1, WCAG 2.2 AA).',
+        'document_number_invalid' => 'El número de documento no es válido para el tipo indicado.',
+        'document_duplicate' => 'Ya existe una persona viva en este centro con el mismo tipo y número de documento.',
+        'document_type_invalid' => 'El tipo de documento indicado no está admitido.',
+        'document_incomplete' => 'Indica a la vez el tipo y el número de documento, o ninguno de los dos.',
+        'email_duplicate' => 'Ya existe un usuario vivo en este centro con este correo de acceso.',
+        'role_not_found' => 'Uno de los roles indicados no existe en este centro.',
+        'role_permission_exceeds_own' => 'No puedes asignar un rol que concede permisos que tú no tienes.',
+        'file_type_mismatch' => 'El tipo real del archivo no coincide con el declarado.',
+        'svg_unrepairable' => 'El SVG no se puede sanear de forma segura.',
+        'empty_string_not_allowed' => 'Para vaciar este campo, envía null en vez de una cadena vacía.',
+        'query_boolean_invalid' => 'El valor debe ser «true» o «false».',
+        'cannot_modify_self' => 'No puedes realizar esta acción sobre tu propia cuenta.',
+        'last_school_administrator' => 'Debe existir al menos un Administrador de Centro activo en todo momento.',
+        'invitation_requires_pending_user' => 'Solo se puede invitar a un usuario en estado pendiente.',
+        'invitation_already_accepted' => 'Esta invitación ya ha sido aceptada y no se puede revocar.',
+        'enabled_not_editable' => 'El estado de activación del módulo no se puede modificar por esta vía.',
+        'import_unknown_header' => 'La cabecera del fichero no coincide con el formato esperado.',
+        'cursor_invalid' => 'El cursor de paginación no es válido para esta consulta.',
+        'export_range_too_large' => 'El rango solicitado supera el límite de filas permitido; acótalo e inténtalo de nuevo.',
+        'pdf_export_not_available' => 'La exportación a PDF todavía no está disponible; usa CSV.',
+        'filter_value_invalid' => 'El valor «:value» no es válido para este filtro.',
+        'export_search_not_supported' => 'La exportación de usuarios no admite búsqueda libre («q»); usa los filtros estructurados.',
+        'export_not_ready' => 'La exportación todavía se está generando; inténtalo de nuevo en unos minutos.',
+        'export_failed' => 'La generación de esta exportación ha fallado.',
+        'import_not_validated' => 'El lote debe estar validado antes de ejecutarse.',
+        'import_already_executed' => 'Este lote ya se ha ejecutado o se está ejecutando y no se puede descartar.',
+
+        // REQ-PERM/api.md §9.1 (1.5): códigos nuevos de la matriz de
+        // permisos, roles personalizados y concesión/revocación.
+        'role_code_taken' => 'Ya existe un rol vivo en este centro con este código.',
+        'role_code_immutable' => 'El código de un rol no se puede modificar: es su referencia estable.',
+        'role_name_system' => 'Un rol predefinido no admite un nombre literal: usa su traducción.',
+        'clone_source_not_found' => 'El rol de origen indicado no existe en este centro.',
+        'clone_requires_special_data_access' => 'No puedes clonar este rol: concede acceso a datos de categoría especial y no puedes activarlo.',
+        'clone_and_permissions_exclusive' => 'No puedes indicar «clone_from» y «permissions» a la vez.',
+        'scope_not_applicable' => 'El ámbito «:scope» no se puede conceder para este permiso.',
+        'scope_resolver_missing' => 'El ámbito «:scope» no puede concederse todavía: su resolutor no está registrado.',
+        'permission_not_found' => 'El código de permiso «:code» no existe en el catálogo.',
+        'permission_retired' => 'El código de permiso «:code» ya no está disponible.',
+        // Issue #359: mensajes genéricos de POST /roles con clone_from (sin código ni ámbito del origen).
+        'clone_source_permission_retired' => 'El rol de origen contiene un permiso que ya no está disponible; no se puede clonar.',
+        'clone_source_permission_not_found' => 'El rol de origen contiene un permiso que no existe en el catálogo; no se puede clonar.',
+        'clone_source_scope_not_applicable' => 'El rol de origen contiene una concesión con un ámbito que no se puede conceder; no se puede clonar.',
+        'clone_source_scope_resolver_missing' => 'El rol de origen contiene una concesión con un ámbito que todavía no puede concederse; no se puede clonar.',
+        'clone_source_not_clonable' => 'No puedes clonar este rol: concede algo que no puedes activar.',
+        'permission_duplicated' => 'El código de permiso «:code» aparece más de una vez.',
+        'role_is_system' => 'Un rol del aprovisionamiento del centro no se puede eliminar.',
+        'role_has_assignments' => 'Este rol tiene :users_count usuario(s) asignado(s) y no se puede eliminar.',
+        // REQ-PERM/funcional.md §20.2.1 (1.5b, RN-PERM-47).
+        'administration_capacity_lost' => 'Esta operación dejaría al centro sin ningún usuario activo con todos los permisos de administración. Permisos afectados: :codes. Concede antes esos permisos a otra persona activa del centro.',
+    ],
+
+    // REQ-PERM/api.md §9.2 (1.5): motivo de un 403 de autorización, para
+    // que el administrador pueda corregir algo con la respuesta.
+    'authorization' => [
+        'cannot_grant_unheld_permission' => 'No puedes conceder el permiso «:code» con ámbito «:scope»: tú mismo no lo tienes.',
+        'cannot_grant_unheld_role_permission' => 'No puedes asignar este rol: concede algún permiso que tú mismo no tienes.',
+        'special_data_access_not_held' => 'No puedes activar el acceso a datos de categoría especial: tú mismo no lo tienes.',
+    ],
+
+    // REQ-PERM/api.md §7.2, permisos.md §10 (1.5): etiquetas de los cuatro
+    // motivos de inercia de `GET /users/{id}/effective-permissions`. 1.5
+    // las crea aunque ninguna pantalla las pinte todavía (1.5b).
+    'inert_reasons' => [
+        'inerte_permiso_retirado' => 'El permiso ya no lo declara ningún módulo.',
+        'inerte_modulo' => 'El módulo de este permiso no está activo en este centro.',
+        'inerte_datos_especiales' => 'La concesión viene de un rol sin acceso a datos de categoría especial.',
+        'inerte_sin_resolutor' => 'El ámbito de esta concesión todavía no tiene resolutor.',
+    ],
+
+    // REQ-PERM/api.md §14.3 (1.5b, S-PERM-2): nombre de cada recurso de los
+    // permisos que declara este módulo (`resource_label_key`).
+    'permissions' => [
+        'resources' => [
+            'usuario' => 'Usuarios',
+            'invitacion' => 'Invitaciones',
+            'asignacion_rol' => 'Asignaciones de rol',
+            'rol' => 'Roles',
+            'permiso' => 'Permisos',
+            'configuracion' => 'Configuración',
+            'modulo' => 'Módulos',
+            'auditoria' => 'Auditoría',
+            'rol_datos_especiales' => 'Datos de categoría especial de un rol',
+            'permiso_efectivo' => 'Permisos efectivos',
+        ],
+    ],
+
+    'idempotency' => [
+        'missing' => 'Falta la cabecera Idempotency-Key, obligatoria para esta operación.',
+        'malformed' => 'La cabecera Idempotency-Key debe ser un ULID.',
+        'body_mismatch' => 'La misma clave de idempotencia se ha usado con un cuerpo distinto.',
+        'in_progress' => 'La misma clave de idempotencia está siendo procesada todavía.',
+    ],
+
+    'import' => [
+        'campo_obligatorio_vacio' => 'La columna «:column» es obligatoria y está vacía.',
+        'formato_invalido' => 'El valor de la columna «:column» no tiene un formato válido.',
+        'duplicado_en_fichero' => 'El valor de la columna «:column» aparece más de una vez en el fichero.',
+        'duplicado_en_base_de_datos' => 'El valor de la columna «:column» ya pertenece a otra persona o usuario del centro.',
+        'idioma_no_activo' => 'El idioma indicado no está activo en este centro.',
+        'rol_no_encontrado' => 'Uno de los roles indicados no existe en este centro.',
+        'rol_no_concedible' => 'La columna «:column» incluye un rol que no puedes conceder: tú mismo no tienes todos sus permisos.',
+        'limite_filas_superado' => 'El fichero supera el máximo de :max filas de datos. Divídelo en varios ficheros.',
+        'tipo_documento_no_valido' => 'El tipo de documento indicado no está admitido.',
+        'documento_incompleto' => 'Indica a la vez el tipo y el número de documento, o ninguno de los dos.',
+    ],
+];

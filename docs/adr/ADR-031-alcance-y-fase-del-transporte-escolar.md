@@ -1,6 +1,6 @@
 # ADR-031 · Alcance y fase del módulo de transporte escolar
 
-**Estado**: PROPUESTA
+**Estado**: ACEPTADA (2026-08-11 — decisión de alcance para `REQ-TRAN`, módulo todavía sin construir)
 **Fecha**: 2026-08-11
 **Afecta a**: `REQ-TRAN`, `REQ-FIN`, `REQ-FAM-UNIT`, `REQ-PRIV`
 

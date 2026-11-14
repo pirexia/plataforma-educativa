@@ -1,0 +1,77 @@
+<?php
+
+// REQ-BO/api.md §5 (1.6). Siehe lang/es/bo.php für den maßgeblichen Kommentar.
+
+return [
+    'mfa' => [
+        'invalid_code' => 'Der eingegebene Code ist ungültig.',
+    ],
+    'admin' => [
+        'self_modification' => 'Du kannst diesen Vorgang nicht für dein eigenes Konto ausführen.',
+        'last_superadministrator' => 'Es muss immer mindestens ein aktiver Superadministrator vorhanden sein.',
+    ],
+    'validation' => [
+        'cursor_invalid' => 'Der Paginierungs-Cursor ist ungültig.',
+    ],
+    'tenant' => [
+        'slug_taken' => 'Es existiert bereits eine Schule mit dieser Kennung.',
+        'slug_reserved' => 'Diese Kennung ist von der Plattform reserviert.',
+        'invalid_transition' => 'Dieser Statuswechsel ist nicht zulässig.',
+        'name_mismatch' => 'Der eingegebene Name stimmt nicht genau mit dem Namen der Schule überein.',
+        'clone_source_invalid' => 'Eine Schule in diesem Status kann nicht geklont werden.',
+    ],
+    'dual_auth' => [
+        'same_actor' => 'Wer eine Anfrage genehmigt, kann nicht dieselbe Person sein, die sie gestellt hat.',
+        'expired' => 'Diese Doppelautorisierungsanfrage ist abgelaufen.',
+        'already_resolved' => 'Diese Doppelautorisierungsanfrage wurde bereits entschieden.',
+        'payload_mismatch' => 'Dieser Vorgang kann nicht mehr ausgeführt werden: Die Bedingungen haben sich seit der Anfrage geändert.',
+    ],
+    'tenant_lifecycle' => [
+        'reason' => [
+            'provisioned' => 'Erstbereitstellung der Schule abgeschlossen.',
+        ],
+    ],
+    'module_subscription' => [
+        'reason' => [
+            'cloned' => 'Beim Klonen der Ursprungsschule kopiert.',
+        ],
+    ],
+    // REQ-BO-002 (1.6c): Fehlerkatalog für die Modulvertragsverwaltung.
+    'module' => [
+        'essential' => 'Das Modul „:module_code“ ist wesentlich: Es kann weder beauftragt noch gekündigt werden.',
+        'retired' => 'Das Modul „:module_code“ existiert nicht mehr im Katalog: Es kann nicht beauftragt werden.',
+        'reason_required' => 'Der Grund ist erforderlich und darf nicht leer sein.',
+        'tenant_state_invalid' => 'Die Schule befindet sich in einem Status, der keine Modulschreibvorgänge zulässt.',
+        'missing_dependencies' => 'Es fehlen noch zu beauftragende Abhängigkeiten: :modules. Bestätige die Übernahme, um fortzufahren.',
+        'dependent_modules' => 'Andere Module hängen von diesem ab: :modules. Bestätige die Übernahme, um fortzufahren.',
+    ],
+    // REQ-BO-004 (1.6d): Fehlerkatalog für Zustand und Neuversuch von Jobs.
+    'job' => [
+        'reason_required' => 'Der Grund ist erforderlich und darf nicht leer sein.',
+        'tenant_state_invalid' => 'Die Schule befindet sich in einem Status, der keinen Job-Neuversuch zulässt.',
+        'reason' => [
+            'retried_via_console' => 'Über bo:retry-provisioning neu eingereiht.',
+        ],
+    ],
+    // REQ-BO-006 (1.6d): Fehlerkatalog für Plattformkennzahlen.
+    'metrics' => [
+        'invalid_period' => 'Der Beginn des Zeitraums darf nicht nach seinem Ende liegen.',
+    ],
+    // REQ-BO-005 Punkte 1-2 (1.6e): Fehlerkatalog der Feature-Flag-Engine.
+    'flag' => [
+        'retired' => 'Dieses Flag wurde zurückgezogen und akzeptiert keine Schreibvorgänge mehr.',
+        'invalid_rule' => 'Die Regel ist nicht kohärent: Prüfe, ob sie das zu ihrer Achse passende Feld trägt und, falls sie eine Schule benennt, dass diese existiert.',
+        'duplicate_rule' => 'Für dasselbe Ziel existiert in der gesendeten Menge bereits eine Regel dieses Typs.',
+        'tenant_state_invalid' => 'Die Schule befindet sich in einem Zustand, der diesen Vorgang nicht zulässt.',
+    ],
+    // Issue #173. Einladungs-E-Mail für einen Plattform-Administrator.
+    'mail' => [
+        'invitation' => [
+            'subject' => 'Aktiviere dein Konto als Plattform-Administrator',
+            'greeting' => 'Hallo, :name.',
+            'body' => 'Du wurdest als Administrator des Backoffice der Bildungsverwaltungsplattform eingeladen.',
+            'cta' => 'Mein Konto aktivieren',
+            'expires' => 'Dieser Link läuft in :days Tagen ab. Falls du dies nicht erwartet hast, kannst du die Nachricht ignorieren.',
+        ],
+    ],
+];

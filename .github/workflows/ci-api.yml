@@ -1,0 +1,503 @@
+name: CI · API
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main]
+
+# Issue #401: el GITHUB_TOKEN solo lee por defecto; los jobs que escriben
+# declaran sus propios permisos.
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: apps/api
+
+jobs:
+  test:
+    name: Tests (Pest)
+    runs-on: ubuntu-24.04  # fijada: ubuntu-latest (suite «resolute») falla resolviendo security.ubuntu.com en apt (#609)
+    # ADR-033 §10: PostgreSQL real, no SQLite. RLS es la barrera primaria y
+    # SQLite no la tiene: un test de aislamiento sobre SQLite daría verde
+    # con las políticas ausentes.
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: plataforma_test
+          POSTGRES_USER: plataforma
+          POSTGRES_PASSWORD: ci-postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U plataforma"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+      redis:
+        image: redis:8-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_USERNAME: plataforma_app
+      DB_PASSWORD: ci-tenancy-app
+      DB_OWNER_USERNAME: plataforma_owner
+      DB_OWNER_PASSWORD: ci-tenancy-owner
+      DB_PLATFORM_USERNAME: plataforma_platform
+      DB_PLATFORM_PASSWORD: ci-tenancy-platform
+      REDIS_HOST: 127.0.0.1
+      # .env.example trae el valor de partida del starter kit (120), inferior
+      # al mínimo que exige RN-AUTH-30 (issue #62, pendiente en el propio
+      # .env.example de desarrollo). SessionEnvironmentGuard aborta el
+      # arranque sin esto (issue #132).
+      SESSION_LIFETIME: "480"
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: pdo_pgsql, pgsql, zip, intl, mbstring, redis, gd, exif
+          coverage: none
+
+      - uses: actions/cache@v6
+        with:
+          path: apps/api/vendor
+          key: composer-${{ runner.os }}-${{ hashFiles('apps/api/composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-
+
+      # .env antes de composer install: el hook postAutoloadDump de Composer
+      # arranca Laravel (artisan package:discover), y sin .env el entorno
+      # cae al valor por defecto de Laravel (production) — SessionEnvironmentGuard
+      # aborta el arranque entero (issue #132).
+      - run: cp .env.example .env
+      - run: composer install --no-interaction --prefer-dist --no-progress
+
+      - run: php artisan key:generate
+
+      # El servicio postgres arranca antes del checkout, así que no puede
+      # montar infra/containers/postgres/init como docker-entrypoint-initdb.d
+      # (ver SYSADMIN.md §2b): se aplica el mismo script a mano, ya con el
+      # repositorio disponible. Contraseñas fijas de CI, sin relación con
+      # ningún secreto: la base es efímera y se destruye al terminar el job.
+      - name: Provisionar esquema y roles de tenancy (ADR-033)
+        # El fichero está en infra/, relativo a la raíz del repo, no a
+        # apps/api (defaults.run.working-directory de este workflow) — issue #135.
+        working-directory: .
+        env:
+          PGPASSWORD: ci-postgres
+        run: |
+          sudo apt-get -o Acquire::Retries=5 update -qq && sudo apt-get -o Acquire::Retries=5 install -y -qq postgresql-client
+          psql -h 127.0.0.1 -U plataforma -d plataforma_test \
+            -v owner_password=ci-tenancy-owner \
+            -v app_password=ci-tenancy-app \
+            -v platform_password=ci-tenancy-platform \
+            -v dbname=plataforma_test \
+            -f infra/containers/postgres/init/01-tenancy.sql.tpl
+
+      # ADR-060 §4.1: una base por proceso de Pest (plataforma_test_1..N),
+      # clon de plataforma_test. Va ANTES de arrancar `artisan serve` (paso
+      # siguiente): CREATE DATABASE ... TEMPLATE falla si la plantilla tiene
+      # conexiones abiertas, y `serve` deja una contra plataforma_test. El
+      # número de bases es el de procesos de `composer test` (PEST_PROCESOS).
+      - name: Crear las bases de la suite en paralelo (ADR-060)
+        working-directory: .
+        env:
+          PGHOST: 127.0.0.1
+          PGUSER: plataforma
+          PGPASSWORD: ci-postgres
+        run: sh infra/containers/postgres/bases-test-paralelo.sh 4
+
+      # REQ-AUTH-004 (1.4b), operacion.md §F.10: el emisor OIDC simulado
+      # se sirve por la propia API en local/testing, y la suite Pest lo
+      # alcanza por HTTP real (no en proceso) para probar de verdad las
+      # cinco guardas SSRF de CurlDiscoveryDocumentValidator. En
+      # desarrollo eso lo da el contenedor `api`, que ya sirve en el
+      # puerto 8000 de forma continua (SYSADMIN.md); este job no arrancaba
+      # ningún servidor, así que la petición saliente del validador no
+      # tenía nada que atender y toda la suite de 1.4b fallaba en CI con
+      # auth.sso.discovery.sin_respuesta pese a pasar en local. `pest`
+      # corre como proceso CLI aparte de este servidor, así que no aplica
+      # el interbloqueo de un solo hilo del issue #146 (ahí el conflicto
+      # es con una petición *entrante* del navegador, no con el propio
+      # proceso de test).
+      #
+      # El servidor necesita el esquema ya migrado: tests/TestCase.php
+      # migra de forma perezosa (una sola vez, guardada en una bandera
+      # estática) dentro del propio proceso de Pest, en el primer setUp()
+      # — un proceso de artisan serve aparte nunca pasa por ahí, así que
+      # sin este paso toda petición que tocara sesión (SESSION_DRIVER=
+      # database) fallaba contra un esquema inexistente. Primer intento
+      # de este arreglo, sin migrar antes: /api/health respondía rápido
+      # pero con error, y el bucle de espera nunca veía un 200.
+      - name: Arrancar servidor de desarrollo (emisor OIDC simulado)
+        # DB_DATABASE: .env.example trae "plataforma" (valor de desarrollo);
+        # el servicio postgres de este job crea "plataforma_test"
+        # (POSTGRES_DB de arriba). phpunit.xml fuerza DB_DATABASE=
+        # plataforma_test dentro del propio proceso de Pest, pero este paso
+        # invoca artisan directamente, fuera de ese mecanismo — sin esto,
+        # migra (y el servidor sirve) contra una base que no existe.
+        env:
+          DB_DATABASE: plataforma_test
+        run: |
+          php artisan migrate --database=pgsql_owner --force
+          php artisan serve --host=127.0.0.1 --port=8000 > /tmp/artisan-serve.log 2>&1 &
+          for i in $(seq 1 30); do
+            curl -sf -o /dev/null http://127.0.0.1:8000/api/health && exit 0
+            sleep 1
+          done
+          echo "::error::php artisan serve no respondió a tiempo en el puerto 8000"
+          cat /tmp/artisan-serve.log
+          exit 1
+
+      # ADR-060 §4.1: Unit + Feature en paralelo (4 procesos, los del runner)
+      # y Concurrency en serie después.
+      - name: Suite de tests (composer test)
+        env:
+          PEST_PROCESOS: "4"
+        run: composer test
+
+  lint:
+    name: Lint (Pint)
+    runs-on: ubuntu-24.04  # fijada: ubuntu-latest migra a 26.04 hasta el 19-11-2026 (#609, actions/runner-images#14748)
+    # Mismos servicios que "test": el arranque del framework durante
+    # composer install (artisan package:discover) puede intentar resolver
+    # una conexión de base de datos/caché real, no solo leer config
+    # (issue #132) — sin ellos el job se cuelga en vez de fallar rápido.
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: plataforma_test
+          POSTGRES_USER: plataforma
+          POSTGRES_PASSWORD: ci-postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U plataforma"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+      redis:
+        image: redis:8-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_USERNAME: plataforma_app
+      DB_PASSWORD: ci-tenancy-app
+      REDIS_HOST: 127.0.0.1
+      SESSION_LIFETIME: "480"
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          coverage: none
+
+      - uses: actions/cache@v6
+        with:
+          path: apps/api/vendor
+          key: composer-${{ runner.os }}-${{ hashFiles('apps/api/composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-
+
+      # Ver comentario del job "test": .env antes de composer install (issue #132).
+      - run: cp .env.example .env
+      - run: composer install --no-interaction --prefer-dist --no-progress
+
+      - run: composer lint
+
+  static-analysis:
+    name: Análisis estático (Larastan)
+    runs-on: ubuntu-24.04  # fijada: ubuntu-latest migra a 26.04 hasta el 19-11-2026 (#609, actions/runner-images#14748)
+    # Ver comentario del job "lint" sobre los servicios.
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: plataforma_test
+          POSTGRES_USER: plataforma
+          POSTGRES_PASSWORD: ci-postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U plataforma"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+      redis:
+        image: redis:8-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_USERNAME: plataforma_app
+      DB_PASSWORD: ci-tenancy-app
+      REDIS_HOST: 127.0.0.1
+      SESSION_LIFETIME: "480"
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          coverage: none
+
+      - uses: actions/cache@v6
+        with:
+          path: apps/api/vendor
+          key: composer-${{ runner.os }}-${{ hashFiles('apps/api/composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-
+
+      # Ver comentario del job "test": .env antes de composer install (issue #132).
+      - run: cp .env.example .env
+      - run: composer install --no-interaction --prefer-dist --no-progress
+
+      - run: composer analyse
+
+  # ADR-076 §5: conformidad del almacén contra un S3 real (Garage). Corre en todo
+  # PR y en push a develop (sin filtro `paths:`, decisión del usuario). No entra
+  # en `composer test`. Garage no puede ser un `services:` porque necesita
+  # garage.toml montado y el servicio arranca antes del checkout: se lanza con
+  # `docker run` y se inicializa con infra/garage/init.sh (CONTAINER_CLI=docker).
+  # Los secretos se generan en este job, se enmascaran y mueren con el runner.
+  storage-conformance:
+    name: Conformidad del almacén (Garage)
+    runs-on: ubuntu-24.04  # fijada por #609
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: plataforma_test
+          POSTGRES_USER: plataforma
+          POSTGRES_PASSWORD: ci-postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U plataforma"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+      redis:
+        image: redis:8-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_USERNAME: plataforma_app
+      DB_PASSWORD: ci-tenancy-app
+      DB_OWNER_USERNAME: plataforma_owner
+      DB_OWNER_PASSWORD: ci-tenancy-owner
+      DB_PLATFORM_USERNAME: plataforma_platform
+      DB_PLATFORM_PASSWORD: ci-tenancy-platform
+      REDIS_HOST: 127.0.0.1
+      SESSION_LIFETIME: "480"  # ver job "test" (issue #132)
+      # Misma versión y digest que compose.yaml (lista de manifiestos). Renovate
+      # los sube juntos: ver el gestor personalizado de renovate.json.
+      # renovate: datasource=docker depName=docker.io/dxflrs/garage
+      GARAGE_IMAGE: docker.io/dxflrs/garage:v2.5.0@sha256:677e5b758e4425a325b811c425c026bf35a4bf42f7ddbaa773de3f4fd779a5a5
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: pdo_pgsql, pgsql, zip, intl, mbstring, redis, gd, exif
+          coverage: none
+
+      - uses: actions/cache@v6
+        with:
+          path: apps/api/vendor
+          key: composer-${{ runner.os }}-${{ hashFiles('apps/api/composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-
+
+      # Ver comentario del job "test": .env antes de composer install (issue #132).
+      - run: cp .env.example .env
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: php artisan key:generate
+
+      - name: Provisionar esquema y roles de tenancy (ADR-033)
+        working-directory: .
+        env:
+          PGPASSWORD: ci-postgres
+        run: |
+          sudo apt-get -o Acquire::Retries=5 update -qq && sudo apt-get -o Acquire::Retries=5 install -y -qq postgresql-client
+          psql -h 127.0.0.1 -U plataforma -d plataforma_test \
+            -v owner_password=ci-tenancy-owner \
+            -v app_password=ci-tenancy-app \
+            -v platform_password=ci-tenancy-platform \
+            -v dbname=plataforma_test \
+            -f infra/containers/postgres/init/01-tenancy.sql.tpl
+
+      - name: Generar secretos efímeros de Garage
+        working-directory: .
+        run: |
+          rpc="$(openssl rand -hex 32)"
+          admin="$(openssl rand -hex 32)"
+          key_id="GK$(openssl rand -hex 12)"
+          secret="$(openssl rand -hex 32)"
+          for v in "$rpc" "$admin" "$key_id" "$secret"; do echo "::add-mask::$v"; done
+          {
+            echo "GARAGE_RPC_SECRET=$rpc"
+            echo "GARAGE_ADMIN_TOKEN=$admin"
+            echo "GARAGE_ACCESS_KEY_ID=$key_id"
+            echo "GARAGE_SECRET_ACCESS_KEY=$secret"
+            echo "GARAGE_BUCKET=plataforma-ci"
+          } >> "$GITHUB_ENV"
+
+      - name: Arrancar e inicializar Garage
+        working-directory: .
+        env:
+          CONTAINER_CLI: docker
+        run: |
+          docker run -d --name plataforma-garage \
+            -e GARAGE_RPC_SECRET -e GARAGE_ADMIN_TOKEN \
+            -v "$GITHUB_WORKSPACE/infra/garage/garage.toml:/etc/garage.toml:ro" \
+            -p 127.0.0.1:3900:3900 \
+            "$GARAGE_IMAGE"
+          bash infra/garage/init.sh
+
+      # AWS_URL_SIGNING_ENDPOINT distinto de AWS_ENDPOINT (127.0.0.1 frente a
+      # localhost, ambos alcanzan el mismo Garage) para ejercitar el punto 6 de §5.
+      - name: Test de conformidad (composer test:conformance)
+        env:
+          STORAGE_CONFORMANCE_ENABLED: "1"
+          AWS_ACCESS_KEY_ID: ${{ env.GARAGE_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ env.GARAGE_SECRET_ACCESS_KEY }}
+          AWS_BUCKET: ${{ env.GARAGE_BUCKET }}
+          AWS_DEFAULT_REGION: garage
+          AWS_ENDPOINT: http://127.0.0.1:3900
+          AWS_URL_SIGNING_ENDPOINT: http://localhost:3900
+          AWS_URL: ""
+          AWS_USE_PATH_STYLE_ENDPOINT: "true"
+        run: composer test:conformance
+
+      - name: Registro de Garage si falla
+        if: failure()
+        run: docker logs plataforma-garage 2>&1 | tail -50
+
+  # ADR-056 §3.5, CA-056-34 y CA-056-35: prueba de extremo a extremo del
+  # generador `php artisan make:module`. Genera un módulo de prueba con y sin
+  # `--entity`, ejecuta `php -l` sobre lo generado, migra y revierte, corre el
+  # grupo `arch`, los tests generados y Larastan, y descarta lo generado
+  # (scripts/verify-make-module.sh, que descarta aunque falle). Es la única
+  # prueba de que lo generado cumple las reglas: el comando solo tiene tests de
+  # comportamiento, no de texto de plantilla.
+  make-module:
+    name: Generador de módulos (make:module)
+    runs-on: ubuntu-24.04  # fijada por #609
+    # Mismos servicios que "test": hay que migrar y correr tests de tenant.
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: plataforma_test
+          POSTGRES_USER: plataforma
+          POSTGRES_PASSWORD: ci-postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U plataforma"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+      redis:
+        image: redis:8-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_DATABASE: plataforma_test
+      DB_USERNAME: plataforma_app
+      DB_PASSWORD: ci-tenancy-app
+      DB_OWNER_USERNAME: plataforma_owner
+      DB_OWNER_PASSWORD: ci-tenancy-owner
+      DB_PLATFORM_USERNAME: plataforma_platform
+      DB_PLATFORM_PASSWORD: ci-tenancy-platform
+      REDIS_HOST: 127.0.0.1
+      SESSION_LIFETIME: "480"
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: pdo_pgsql, pgsql, zip, intl, mbstring, redis, gd, exif
+          coverage: none
+
+      - uses: actions/cache@v6
+        with:
+          path: apps/api/vendor
+          key: composer-${{ runner.os }}-${{ hashFiles('apps/api/composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-
+
+      # Ver comentario del job "test": .env antes de composer install (issue #132).
+      - run: cp .env.example .env
+      - run: composer install --no-interaction --prefer-dist --no-progress
+
+      - run: php artisan key:generate
+
+      # Mismo aprovisionamiento de roles y esquema que el job "test" (ADR-033).
+      - name: Provisionar esquema y roles de tenancy (ADR-033)
+        working-directory: .
+        env:
+          PGPASSWORD: ci-postgres
+        run: |
+          sudo apt-get -o Acquire::Retries=5 update -qq && sudo apt-get -o Acquire::Retries=5 install -y -qq postgresql-client
+          psql -h 127.0.0.1 -U plataforma -d plataforma_test \
+            -v owner_password=ci-tenancy-owner \
+            -v app_password=ci-tenancy-app \
+            -v platform_password=ci-tenancy-platform \
+            -v dbname=plataforma_test \
+            -f infra/containers/postgres/init/01-tenancy.sql.tpl
+
+      - name: Genera, comprueba y descarta un módulo sin --entity
+        run: sh scripts/verify-make-module.sh minimal
+
+      - name: Genera, comprueba y descarta un módulo con --entity
+        run: sh scripts/verify-make-module.sh entity
+
+      # Defensa extra: el script descarta con `trap`, pero si algo quedara en el
+      # árbol de trabajo el job falla en vez de dar verde con residuos.
+      - name: Comprueba que no queda nada generado
+        working-directory: .
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            git status --porcelain
+            echo "::error::make:module dejó ficheros sin descartar"
+            exit 1
+          fi

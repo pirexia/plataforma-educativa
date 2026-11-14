@@ -1,6 +1,6 @@
 # ADR-029 · Identificadores públicos y convenciones de tipos en PostgreSQL
 
-**Estado**: PROPUESTA
+**Estado**: ACEPTADA (2026-08-18, implementada desde el paso 0.8 — modelo de datos núcleo)
 **Fecha**: 2026-08-11
 **Afecta a**: `RDB-008`, `RDB-009`, `RSEC-OWASP-011`, sección 16 del documento de requisitos
 

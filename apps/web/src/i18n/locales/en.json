@@ -1,0 +1,222 @@
+{
+  "layout": {
+    "title": "Educational Management Platform"
+  },
+  "shell": {
+    "skipToContent": "Skip to content",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu",
+    "sheetClose": "Close",
+    "nav": {
+      "ariaLabel": "Main navigation",
+      "section": {
+        "inicio": "Home",
+        "cuenta": "My account",
+        "administracion": "Administration"
+      }
+    },
+    "breadcrumb": {
+      "ariaLabel": "Breadcrumb"
+    },
+    "userMenu": {
+      "trigger": "User menu",
+      "account": "My account",
+      "logout": "Sign out",
+      "language": {
+        "label": "Language",
+        "names": {
+          "esES": "Español",
+          "en": "English",
+          "de": "Deutsch",
+          "fr": "Français"
+        }
+      },
+      "colorMode": {
+        "label": "Colour mode",
+        "system": "System",
+        "light": "Light",
+        "dark": "Dark"
+      }
+    },
+    "states": {
+      "loading": "Loading…",
+      "empty": {
+        "shortcuts": {
+          "title": "No shortcuts",
+          "text": "You don’t have any shortcut available yet."
+        }
+      },
+      "error": {
+        "retry": "Retry",
+        "requestId": "Reference: {requestId}",
+        "offline": {
+          "title": "No connection",
+          "text": "We could not reach the server. Check your connection and try again."
+        },
+        "forbidden": {
+          "title": "No access",
+          "text": "You do not have permission to see this content."
+        },
+        "moduleDisabled": {
+          "title": "Module not available"
+        },
+        "notFound": {
+          "title": "Page not found",
+          "text": "The page you are looking for does not exist or has moved."
+        },
+        "tooManyRequests": {
+          "title": "Too many requests",
+          "text": "Try again in {seconds} seconds.",
+          "textUnknown": "Try again in a moment."
+        },
+        "unexpected": {
+          "title": "Unexpected error",
+          "text": "An unexpected error occurred. Please try again."
+        }
+      }
+    },
+    "tenantNotFound": {
+      "title": "School not found",
+      "text": "We could not find a school at this address. Check the link or contact your school."
+    },
+    "documentTitleFormat": "{view} · {tenant}",
+    "localeChangeError": "The school has removed this language. The current language is kept.",
+    "confirm": {
+      "cancel": "Cancel"
+    }
+  },
+  "home": {
+    "greeting": "Hello, {name}",
+    "mfa": {
+      "title": "Second factor pending",
+      "text": "You have one day left to set up your second sign-in factor. | You have {days} days left to set up your second sign-in factor.",
+      "link": "Go to account security"
+    },
+    "shortcuts": {
+      "title": "Shortcuts"
+    }
+  },
+  "dataTable": {
+    "emptyMark": "—",
+    "emptyValue": "No value",
+    "scrollRegion": "Table \"{name}\": scroll horizontally with the arrow keys",
+    "search": {
+      "label": "Search",
+      "placeholder": "Search…"
+    },
+    "filters": {
+      "clear": "Clear filters",
+      "all": "All",
+      "yes": "Yes",
+      "no": "No",
+      "from": "From",
+      "to": "To",
+      "rangeInvalid": "The \"from\" date is later than the \"to\" date.",
+      "notApplied": "The filter was not applied: the list still shows the previous results.",
+      "triggerWithCount": "{label} ({count})",
+      "booleanTrigger": "{label}: {value}",
+      "entitySearch": "Search: {label}",
+      "entityPlaceholder": "Type to search",
+      "entityActive": "Filtered by: {name}",
+      "entityRemove": "Remove the \"{label}\" filter",
+      "entityLoading": "Loading…",
+      "entityUnknown": "Item not available",
+      "entityResults": "No results | One result | {count} results",
+      "entityError": "The search could not be completed. Please try again."
+    },
+    "columns": {
+      "menu": "Columns",
+      "label": "Visible columns",
+      "reset": "Reset columns"
+    },
+    "sort": {
+      "ascending": "{column}, sort ascending",
+      "descending": "{column}, sort descending",
+      "remove": "{column}, remove sorting",
+      "cardsTrigger": "Sort",
+      "cardsColumn": "Sort by",
+      "cardsDirection": "Direction",
+      "none": "Not sorted",
+      "directionAscending": "Ascending",
+      "directionDescending": "Descending"
+    },
+    "pagination": {
+      "ariaLabel": "Pagination",
+      "first": "First page",
+      "previous": "Previous page",
+      "next": "Next page",
+      "last": "Last page",
+      "pageOf": "Page {page} of {lastPage}",
+      "total": "No results | {count} result | {count} results",
+      "perPage": "{count} per page",
+      "perPageLabel": "Rows per page"
+    },
+    "empty": {
+      "filteredTitle": "No results",
+      "filteredText": "No results match these filters."
+    },
+    "loadMore": {
+      "button": "Load more",
+      "loading": "Loading…",
+      "end": "There are no more rows.",
+      "cap": "You have loaded the maximum of {max} rows; narrow the filters or export."
+    },
+    "announce": {
+      "results": "No results | {count} result | {count} results",
+      "loaded": "No results | {count} row loaded | {count} rows loaded",
+      "more": "No more rows were loaded | {count} more row loaded | {count} more rows loaded",
+      "local": "{count} of {total} results | {count} of {total} result | {count} of {total} results"
+    },
+    "export": {
+      "button": "Export",
+      "searchActive": "Clear the search to export; the other filters are applied.",
+      "preparing": "Preparing export…",
+      "leaveWarning": "The export will keep being prepared, but if you leave this view you will not be able to download it from here.",
+      "download": "Download export",
+      "expiresAt": "Expires on {date}",
+      "timedOut": "The export is taking longer than expected.",
+      "checkAgain": "Check again",
+      "failed": "The export could not be generated.",
+      "errors": {
+        "core": {
+          "export": {
+            "generation_failed": "The export could not be generated. Please try again."
+          }
+        }
+      },
+      "expired": "The export has expired; request it again.",
+      "requestAgain": "Request again",
+      "requestError": "The export could not be requested.",
+      "statusError": "The export status could not be checked."
+    }
+  },
+  "academicYear": {
+    "status": {
+      "planificacion": "Planning",
+      "activo": "Active",
+      "cerrado": "Closed",
+      "archivado": "Archived"
+    },
+    "selector": {
+      "label": "Academic year",
+      "placeholder": "Choose an academic year",
+      "option": "{code} · {status}",
+      "optionReadOnly": "{code} · {status} (read-only)",
+      "changed": "Academic year changed to {code}",
+      "loadError": "The academic years could not be loaded."
+    }
+  },
+  "translatable": {
+    "required": "required",
+    "defaultLocale": "school default language",
+    "entryLabel": "{label} ({language})",
+    "hint": "Enter the text in each of the school's active languages. The default language is required.",
+    "groupLabel": "{label}: one entry per language",
+    "locales": {
+      "es-ES": "Spanish",
+      "en": "English",
+      "de": "German",
+      "fr": "French"
+    }
+  }
+}

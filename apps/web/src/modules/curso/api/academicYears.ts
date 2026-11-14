@@ -1,0 +1,114 @@
+/**
+ * REQ-CURSO/api.md §2 (paso 1.10): los seis endpoints de cursos y, desde 1.11c,
+ * el de reapertura (`ADR-059`). Sin `DELETE` ni transición a `archivado`.
+ *
+ * `#385`: todo identificador que entra en una ruta se codifica con
+ * `encodeURIComponent`. Un `public_id` es un ULID (alfabeto cerrado), pero el
+ * cliente no debe depender de eso: un valor con `/`, `?` o `#` no puede alterar
+ * la ruta que se pide.
+ */
+import { apiFetch } from '@/api/client'
+import type { AcademicYear, AcademicYearStatus, Paginated, PublicId } from '../types'
+
+export interface ListAcademicYearsParams {
+  /** `ADR-038 §5.2`: varios estados separados por comas. */
+  status?: string[]
+  /** Lista blanca: `starts_on`, `-starts_on`, `code`, `-code` (por defecto `-starts_on`). */
+  sort?: string
+  page?: number
+  per_page?: number
+}
+
+export function listAcademicYears(
+  params: ListAcademicYearsParams = {},
+): Promise<Paginated<AcademicYear>> {
+  const search = new URLSearchParams()
+
+  if (params.status && params.status.length > 0) {
+    search.set('status', params.status.join(','))
+  }
+
+  for (const key of ['sort', 'page', 'per_page'] as const) {
+    const value = params[key]
+
+    if (value !== undefined && value !== '') {
+      search.set(key, String(value))
+    }
+  }
+
+  const query = search.toString()
+
+  return apiFetch<Paginated<AcademicYear>>(`/academic-years${query ? `?${query}` : ''}`)
+}
+
+export function getAcademicYear(publicId: PublicId): Promise<AcademicYear> {
+  return apiFetch<AcademicYear>(`/academic-years/${encodeURIComponent(publicId)}`)
+}
+
+/**
+ * `OPEN-CURSO-15`: autoservicio, sin permiso. Sin curso activo responde `404`
+ * con `errors.academic_year[0].code = curso.no_active_year`, un estado legítimo
+ * (`funcional.md §4.4` paso 5) que el llamador trata por su `code`.
+ */
+export function getCurrentAcademicYear(): Promise<AcademicYear> {
+  return apiFetch<AcademicYear>('/academic-years/current')
+}
+
+/**
+ * `OPEN-ACAD-11`, #409, `CA-ACAD-043`: autoservicio, sin permiso, sin paginar.
+ * Devuelve los cursos `activo` y `planificacion` del centro y, con
+ * `curso_historico.leer`, también `cerrado`/`archivado` (orden `-starts_on`).
+ * Es la fuente del selector de curso académico (`RN-ACAD-41`).
+ */
+export function listSelectableAcademicYears(): Promise<{ data: AcademicYear[] }> {
+  return apiFetch<{ data: AcademicYear[] }>('/academic-years/selectable')
+}
+
+export interface AcademicYearPayload {
+  code: string
+  starts_on: string
+  ends_on: string
+}
+
+/** `RN-CURSO-03`: se crea siempre en `planificacion`; `status` no es campo de entrada. */
+export function createAcademicYear(payload: AcademicYearPayload): Promise<AcademicYear> {
+  return apiFetch<AcademicYear>('/academic-years', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+/** `ADR-038 §9.2`: solo las claves modificadas. Solo en `planificacion` (`RN-CURSO-06`). */
+export function updateAcademicYear(
+  publicId: PublicId,
+  payload: Partial<AcademicYearPayload>,
+): Promise<AcademicYear> {
+  return apiFetch<AcademicYear>(`/academic-years/${encodeURIComponent(publicId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  })
+}
+
+/** `planificacion → activo` y `activo → cerrado` (`RN-CURSO-10`/`-12`). */
+export function transitionAcademicYear(
+  publicId: PublicId,
+  status: Extract<AcademicYearStatus, 'activo' | 'cerrado'>,
+): Promise<AcademicYear> {
+  return apiFetch<AcademicYear>(`/academic-years/${encodeURIComponent(publicId)}/status`, {
+    method: 'POST',
+    body: JSON.stringify({ status }),
+  })
+}
+
+/**
+ * `cerrado → activo` (`ADR-059`, `RN-CURSO-40` a `-48`). Endpoint propio con
+ * permiso propio (`reapertura_curso_academico.actualizar`); `reason` es
+ * obligatorio y el servidor lo recorta (`RN-CURSO-43`). La elegibilidad (ventana
+ * T1) la decide el servidor: un `409` trae su motivo.
+ */
+export function reopenAcademicYear(publicId: PublicId, reason: string): Promise<AcademicYear> {
+  return apiFetch<AcademicYear>(`/academic-years/${encodeURIComponent(publicId)}/reopen`, {
+    method: 'POST',
+    body: JSON.stringify({ reason }),
+  })
+}

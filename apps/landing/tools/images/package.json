@@ -1,0 +1,16 @@
+{
+  "name": "@plataforma/landing-images",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Herramienta aislada que genera las variantes AVIF/WebP de la landing (ADR-074 §4.3). No se instala en CI.",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "optimize": "node images.mjs"
+  },
+  "dependencies": {
+    "sharp": "0.35.5"
+  }
+}

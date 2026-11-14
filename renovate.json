@@ -1,6 +1,45 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": [
-    "config:recommended"
+  "extends": ["config:recommended"],
+  "timezone": "Europe/Madrid",
+  "schedule": ["before 6am on monday"],
+  "semanticCommits": "enabled",
+  "semanticCommitType": "chore",
+  "semanticCommitScope": "deps",
+  "labels": ["dependencies"],
+  "automerge": false,
+  "vulnerabilityAlerts": {
+    "schedule": ["at any time"],
+    "labels": ["dependencies", "security"]
+  },
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 6am on monday"]
+  },
+  "customManagers": [
+    {
+      "description": "ADR-076 §2.2: imagen de Garage fijada por digest en ci-api.yml (compose.yaml la cubre el gestor docker-compose)",
+      "customType": "regex",
+      "managerFilePatterns": ["/^\\.github/workflows/ci-api\\.ya?ml$/"],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>[a-z-]+) depName=(?<depName>\\S+)\\n\\s+GARAGE_IMAGE: \\S+?:(?<currentValue>v[0-9][^@\\s]*)@(?<currentDigest>sha256:[a-f0-9]+)"
+      ]
+    }
+  ],
+  "packageRules": [
+    {
+      "matchFileNames": ["apps/api/**"],
+      "groupName": "api dependencies (composer)",
+      "commitMessageSuffix": "[apps/api]"
+    },
+    {
+      "matchFileNames": ["apps/web/**"],
+      "groupName": "web dependencies (npm)",
+      "commitMessageSuffix": "[apps/web]"
+    },
+    {
+      "matchDepNames": ["docker.io/dxflrs/garage", "dxflrs/garage"],
+      "groupName": "garage (compose y CI, ADR-076)"
+    }
   ]
 }

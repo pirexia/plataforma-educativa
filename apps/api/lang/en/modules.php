@@ -1,0 +1,11 @@
+<?php
+
+return [
+    'core' => 'Platform core',
+    'auth' => 'Authentication and sessions',
+    'curso' => 'Academic year',
+    'acad' => 'Academic management',
+    'fam_unit' => 'Family unit',
+    'prl' => 'Door and release of minors',
+    'alum' => 'Students and enrollment',
+];
