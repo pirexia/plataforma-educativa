@@ -119,7 +119,8 @@ function onChallengeLost(message: string) {
 <template>
   <PublicAuthShell>
     <template v-if="step === 'credentials'">
-      <h1 class="mb-4 text-lg font-semibold">{{ t('auth.login.title') }}</h1>
+      <h1 class="mb-1 text-lg font-semibold">{{ t('auth.login.title') }}</h1>
+      <p class="text-muted-foreground mb-4 text-sm">{{ t('auth.login.lead') }}</p>
 
       <p v-if="banner" class="border-border bg-muted mb-4 rounded-lg border px-3 py-2 text-sm">
         {{ banner }}

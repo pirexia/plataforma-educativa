@@ -627,11 +627,6 @@ const FLOATING_SHADOW_ALLOWED = new Set([
   'components/ui/sheet/SheetContent.vue',
 ])
 
-// Excepción TRANSITORIA de T1: `PublicAuthShell.vue` aún lleva su tarjeta con
-// `shadow-sm`; T2 la sustituye por `shadow-auth-panel` y esta entrada se
-// elimina (`RN-UI-08`, `RN-UI-17`).
-const SHADOW_PENDING_T2 = new Set(['modules/auth/components/PublicAuthShell.vue'])
-
 describe('RN-UI-05 — CA-UI-003: casos fijos (§10.6)', () => {
   it.each([
     'rounded-[6px]',
@@ -716,22 +711,31 @@ describe('RN-DS-28 / RN-UI-08 / RN-UI-17 — CA-UI-006: barrido de src/', () => 
     expect(offenders.map((f) => f.path)).toEqual([])
   })
 
+  it('PublicAuthShell.vue usa solo md:shadow-auth-panel (sin sombra por debajo de md, RN-UI-08)', () => {
+    const file = CLASS_BEARING_FILES.find(
+      (f) => f.path === 'modules/auth/components/PublicAuthShell.vue',
+    )
+
+    expect(file).toBeDefined()
+    expect(findShadowUtilities(file!.cleaned)).toEqual(['md:shadow-auth-panel'])
+  })
+
   it('ninguna otra utilidad shadow-* fuera de la lista cerrada de capas flotantes', () => {
     const offenders = CLASS_BEARING_FILES.filter(
       (f) =>
         !FLOATING_SHADOW_ALLOWED.has(f.path) &&
-        !SHADOW_PENDING_T2.has(f.path) &&
+        f.path !== 'modules/auth/components/PublicAuthShell.vue' &&
         findShadowUtilities(f.cleaned).length > 0,
     )
 
     expect(offenders.map((f) => f.path)).toEqual([])
   })
 
-  it('Input.vue, Textarea.vue y src/modules/** no llevan sombra (salvo la excepción transitoria de T2)', () => {
+  it('Input.vue, Textarea.vue y src/modules/** no llevan sombra (salvo shadow-auth-panel en PublicAuthShell.vue)', () => {
     const files = CLASS_BEARING_FILES.filter(
       (f) =>
         ['components/ui/input/Input.vue', 'components/ui/textarea/Textarea.vue'].includes(f.path) ||
-        (f.path.startsWith('modules/') && !SHADOW_PENDING_T2.has(f.path)),
+        (f.path.startsWith('modules/') && f.path !== 'modules/auth/components/PublicAuthShell.vue'),
     )
 
     expect(files.length).toBeGreaterThan(2)
