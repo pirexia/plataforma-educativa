@@ -6,6 +6,11 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-14 · `docs(landing)`: U6 revisada, programa de startups de Anthropic (issue #579)
+
+- `ADR-072 §11` U6: anotado el estado del programa (cohorte llena, sin requisitos publicados, créditos solo en la API de primera parte, vía VC). Sin cambios en la landing ni en ninguna decisión.
+
+
 ## 2026-11-14 · `fix(landing)`: primer despliegue real de la landing (issues #663 y #666; PR #660, #664 y este)
 
 - **Primer despliegue real hecho el 2026-11-14**: `adagiox.com` sirve la landing (en inglés en `/` y en `/es/`, `/de/`, `/fr/`) con las cabeceras de `ADR-072 §4.4`, y `www`, `.es`, `.eu` y `.org` redirigen con 301 por reglas de zona. El primer intento falló por reglas de nombre de host en `_redirects` (#663, corregido en #664); el segundo se completó pero su smoke test dio un 404 transitorio (#666).
