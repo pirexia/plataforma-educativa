@@ -26,7 +26,7 @@ import {
   escapeHtml,
   langNameKey,
 } from './lib.mjs'
-import { SECURITY_HEADERS, REDIRECT_HOSTS } from './headers.mjs'
+import { SECURITY_HEADERS } from './headers.mjs'
 import { readManifest, pictureHtml } from './picture.mjs'
 
 // {{t:clave}} texto de idioma · {{v:variable}} variable de página · {{img:id}} / {{img:id:lcp}}
@@ -144,16 +144,15 @@ function headersFile() {
   return `/*\n${lines.join('\n')}\n`
 }
 
+// Workers static assets solo admite reglas de ruta relativas en `_redirects` (nada de nombre de host
+// ni del sufijo `!`): una regla de host hace fallar `wrangler deploy` (#663). Las redirecciones de
+// `www` y de los dominios secundarios al canónico son reglas de redirección de zona de Cloudflare
+// (ADR-072 §4.3, ADR-086 §2.3; README, «Desplegar y revertir»). El fichero solo lleva comentarios.
 function redirectsFile() {
-  const lines = [
-    '# ADR-072 §4.3: todo nombre que no sea https://adagiox.com -> 301 a la misma ruta.',
-    '# Los dominios .es/.eu/.net también se redirigen por regla de zona en el proveedor (T2 lo verifica).',
-  ]
-  for (const host of REDIRECT_HOSTS) {
-    lines.push(`https://${host}/* ${ORIGIN}/:splat 301!`)
-    lines.push(`http://${host}/* ${ORIGIN}/:splat 301!`)
-  }
-  return lines.join('\n') + '\n'
+  return [
+    '# ADR-072 §4.3, ADR-086: sin reglas aquí. www y los dominios secundarios se redirigen',
+    '# con 301 al canónico por reglas de redirección de zona de Cloudflare, no por este fichero.',
+  ].join('\n') + '\n'
 }
 
 export function build({ root, langs = LANGS }) {
