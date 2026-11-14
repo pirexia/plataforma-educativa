@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |-------|-------|
-| **Versión** | 3.2.32 |
+| **Versión** | 3.2.33 |
 | **Fecha** | 2026-11-14 |
 | **Estado** | Borrador consolidado — pendiente de aprobación |
 | **Autor** | Product Owner |
@@ -3383,6 +3383,7 @@ Se mantendrá una matriz de trazabilidad (generada automáticamente desde las re
 
 | Versión | Fecha | Autor | Descripción |
 |---------|-------|-------|-------------|
+| 3.2.33 | 2026-11-14 | Product Owner | Ronda de decisiones de la ola 1: `ADR-078`, `ADR-079`, `ADR-080`, `ADR-082` y `ADR-083` pasan a `ACEPTADA` en el índice de `§18`; `§5.5` y `§5.50`, dependencias corregidas (`OPEN-CALIF-01`, `OPEN-INF-02`). Quedan frases residuales «en `PROPUESTA`» en el cuerpo de los ADR y en `§18` y `OPEN-08`/`-09`/`-10` por corregir (lista en el PR #678). |
 | 3.2.32 | 2026-11-14 | Product Owner | Solo el índice de `§18`: alta de `ADR-086` (landing: se mantiene Cloudflare pese a los bloqueos de LaLiga, cuarto dominio `.org`) y nota de sustitución parcial en la fila de `ADR-072`. El cuerpo de requisitos no se toca. |
 | 3.2.31 | 2026-11-13 | Product Owner | Ola 1 de arquitectura y especificación, solo documentación: `ADR-077` a `ADR-083` en `PROPUESTA` e índice de `§18` con ellos (`ADR-084` y `ADR-085` reservados, sin redactar); `OPEN-09` reformulada por `ADR-079`; `OPEN-08`, `OPEN-10` y `OPEN-11` anotadas; especificaciones de `S-2`, `1.13`, `1.15a`, `1.15b`, `1.16`-`1.17`, `1.18` y `1.19` en `PROPUESTO`; expediente de cumplimiento `docs/cumplimiento/` (`OPEN-STO-01` a `-12`). Ninguna decisión aceptada ni requisito modificado. |
 | 3.2.30 | 2026-11-11 | Product Owner | `ADR-076` (almacenamiento de objetos: API S3 como contrato único, Garage en desarrollo, CI y E2E) aceptado y referenciado en `§18`; concreta `ADR-013` y `ADR-068 §5.3`; sustituye en parte a `ADR-030`, `ADR-037` y `ADR-033 §9` (solo el mecanismo `TenantStorage`; la regla del prefijo se mantiene). |
