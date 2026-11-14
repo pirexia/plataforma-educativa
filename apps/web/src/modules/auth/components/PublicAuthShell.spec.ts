@@ -51,7 +51,7 @@ function mountShell() {
   })
 }
 
-describe('PublicAuthShell — CA-UI-021', () => {
+describe('PublicAuthShell — CA-UI-021 (reescribe CA-DS-045; reescritura de CA-UI-022)', () => {
   it('no declara la prop "branding"', () => {
     const declaredProps = Object.keys(
       (PublicAuthShell as { props?: Record<string, unknown> }).props ?? {},
@@ -85,7 +85,7 @@ describe('PublicAuthShell — CA-UI-021', () => {
   })
 })
 
-describe('PublicAuthShell — CA-UI-010: estructura', () => {
+describe('PublicAuthShell — CA-UI-010: estructura (RN-DS-26, RN-DS-27)', () => {
   it('aside con nombre antes que el panel con main; logo y nombre, slot y pie, en ese orden', () => {
     const wrapper = mountShell()
     const root = wrapper.element as HTMLElement

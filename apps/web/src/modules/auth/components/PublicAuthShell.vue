@@ -17,7 +17,7 @@
  * otros) usan `text-primary-on-background` (`RUX-BRAND-006`).
  *
  * El selector de idioma del pie es público (sin sesión): no reutiliza
- * `AppUserMenu`, que exige sesión. Cambia el idioma con `setLocale()`, que
+ * `AppUserMenu`, que exige sesión. Cambia el idioma con `setLocale()` (elección explícita), que
  * guarda `plataforma.locale`; la precedencia de las pantallas siguientes la
  * resuelve `usePublicAuthScreen` (`RN-UI-15`).
  */

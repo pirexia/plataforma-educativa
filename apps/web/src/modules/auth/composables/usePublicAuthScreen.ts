@@ -1,8 +1,8 @@
 import { computed, onMounted, watch } from 'vue'
 import {
+  applyLocale,
   getStoredLocale,
   localeFromDomain,
-  setLocale,
   type DomainLocale,
   type SupportedLocale,
 } from '@/i18n'
@@ -39,12 +39,13 @@ import { getCsrfCookie } from '../api'
 export function usePublicAuthScreen() {
   const { branding, status } = useTenantBranding()
 
-  function applyLocale(): void {
+  function applyTenantLocale(): void {
     if (!branding.value) {
       return
     }
 
-    setLocale(resolveTenantLocale(branding.value.default_locale, branding.value.active_locales))
+    // Sin persistir: no es una elección del usuario (issue #674).
+    applyLocale(resolveTenantLocale(branding.value.default_locale, branding.value.active_locales))
   }
 
   onMounted(() => {
@@ -56,7 +57,7 @@ export function usePublicAuthScreen() {
 
     if (status.value !== 'loading') {
       if (status.value === 'ready') {
-        applyLocale()
+        applyTenantLocale()
       }
       return
     }
@@ -69,7 +70,7 @@ export function usePublicAuthScreen() {
       stopWatching()
 
       if (value === 'ready') {
-        applyLocale()
+        applyTenantLocale()
       }
     })
   })

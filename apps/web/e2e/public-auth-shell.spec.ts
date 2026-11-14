@@ -95,7 +95,7 @@ function over(top: number[], bottom: number[]): number[] {
 
 const panelOf = (page: Page) => page.locator('main').locator('xpath=..')
 
-test.describe('CA-UI-009: disposición «Panel» en las rutas públicas', () => {
+test.describe('CA-UI-009 (RN-DS-26): disposición «Panel» en las rutas públicas', () => {
   for (const route of PUBLIC_ROUTES) {
     test(`${route}: dos columnas en escritorio, una columna sin sombra en móvil`, async ({
       page,

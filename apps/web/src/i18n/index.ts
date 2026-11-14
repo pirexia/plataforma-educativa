@@ -126,10 +126,20 @@ export const i18n = createI18n({
   },
 })
 
-export function setLocale(locale: SupportedLocale): void {
+/**
+ * Aplica el idioma sin guardarlo: la resolución automática de las pantallas
+ * públicas no es una elección del usuario y no debe escribir
+ * `plataforma.locale` (issue #674, `RN-UI-15`).
+ */
+export function applyLocale(locale: SupportedLocale): void {
   i18n.global.locale.value = locale
-  persistLocale(locale)
   document.documentElement.lang = locale
+}
+
+/** Elección explícita: aplica y guarda `plataforma.locale`. */
+export function setLocale(locale: SupportedLocale): void {
+  applyLocale(locale)
+  persistLocale(locale)
 }
 
 /**
