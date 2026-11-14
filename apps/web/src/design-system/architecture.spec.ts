@@ -577,3 +577,191 @@ describe('RN-DS-23 — CA-DS-043: focus-visible:border-ring', () => {
     expect(file!.cleaned).toContain('focus-visible:border-ring')
   })
 })
+
+// =========================================================================
+// 1.15a-a (`docs/modulos/REQ-CORE/capa-visual.md`): radio de 2 px y sombra
+// =========================================================================
+
+/** Tokens de clase de un fichero (separados por espacios y comillas). */
+function classTokens(source: string): string[] {
+  return source.split(/[\s'"`]+/).filter(Boolean)
+}
+
+/** La utilidad es la parte posterior al último `:` de variante fuera de corchetes; aquí basta `(^|:)` porque los valores arbitrarios que se buscan no llevan `:`. */
+const FORBIDDEN_ROUNDED_RE =
+  /(?:^|:)rounded(?:-(?:[trblse]|tl|tr|bl|br|ss|se|es|ee))?-(?:\[\S*\]|none|4xl)$/
+const ROUNDED_FULL_RE = /(?:^|:)rounded(?:-(?:[trblse]|tl|tr|bl|br|ss|se|es|ee))?-full$/
+const SHADOW_RE = /(?:^|:)shadow(?:-\S+)?$/
+
+function findForbiddenRounded(source: string): string[] {
+  return classTokens(source).filter((token) => FORBIDDEN_ROUNDED_RE.test(token))
+}
+
+function findRoundedFull(source: string): string[] {
+  return classTokens(source).filter((token) => ROUNDED_FULL_RE.test(token))
+}
+
+/** Utilidades `shadow-*` salvo `shadow-none` (la sombra de texto o de `drop-shadow-*` no entra: llevan prefijo propio). */
+function findShadowUtilities(source: string): string[] {
+  return classTokens(source).filter(
+    (token) => SHADOW_RE.test(token) && !/(?:^|:)shadow-none$/.test(token),
+  )
+}
+
+const CLASS_BEARING_FILES = ALL_FILES.filter((f) => /\.(vue|ts)$/.test(f.path))
+
+// `rounded-full` solo en elementos que son círculos por significado o forma
+// (`RN-UI-05`). Cada entrada se justifica aquí.
+const ROUNDED_FULL_ALLOWED = new Map<string, string>([
+  [
+    'components/ui/radio-group/RadioGroupItem.vue',
+    'indicador de radio: un botón de opción cuadrado se confunde con una casilla',
+  ],
+])
+
+// Capas flotantes vendorizadas con sombra (`RN-UI-17`, lista cerrada).
+const FLOATING_SHADOW_ALLOWED = new Set([
+  'components/ui/select/SelectContent.vue',
+  'components/ui/dropdown-menu/DropdownMenuContent.vue',
+  'components/ui/dropdown-menu/DropdownMenuSubContent.vue',
+  'components/ui/sheet/SheetContent.vue',
+])
+
+// Excepción TRANSITORIA de T1: `PublicAuthShell.vue` aún lleva su tarjeta con
+// `shadow-sm`; T2 la sustituye por `shadow-auth-panel` y esta entrada se
+// elimina (`RN-UI-08`, `RN-UI-17`).
+const SHADOW_PENDING_T2 = new Set(['modules/auth/components/PublicAuthShell.vue'])
+
+describe('RN-UI-05 — CA-UI-003: casos fijos (§10.6)', () => {
+  it.each([
+    'rounded-[6px]',
+    'rounded-[min(var(--radius-md),10px)]',
+    'data-[size=sm]:rounded-[4px]',
+    'rounded-none',
+    'rounded-4xl',
+    'rounded-t-[3px]',
+  ])('detecta %s', (fixture) => {
+    expect(findForbiddenRounded(`class="${fixture} p-2"`)).toHaveLength(1)
+  })
+
+  it('detecta rounded-full con variante (md:rounded-full)', () => {
+    expect(findRoundedFull('class="md:rounded-full"')).toEqual(['md:rounded-full'])
+  })
+
+  it.each(['rounded-md', 'in-data-[slot=button-group]:rounded-lg', 'rounded-sm', 'rounded-xl'])(
+    'NO detecta %s',
+    (fixture) => {
+      expect(findForbiddenRounded(`class="${fixture}"`)).toEqual([])
+      expect(findRoundedFull(`class="${fixture}"`)).toEqual([])
+    },
+  )
+})
+
+describe('RN-UI-05 / RN-UI-16 — CA-UI-003: barrido de src/ (incluido components/ui)', () => {
+  it('no hay rounded-[…], rounded-none ni rounded-4xl en ningún fichero', () => {
+    const offenders = CLASS_BEARING_FILES.flatMap((f) =>
+      findForbiddenRounded(f.cleaned).map((token) => `${f.path}: ${token}`),
+    )
+
+    expect(offenders).toEqual([])
+  })
+
+  it('rounded-full solo aparece en los ficheros de la lista cerrada', () => {
+    const offenders = CLASS_BEARING_FILES.filter(
+      (f) => !ROUNDED_FULL_ALLOWED.has(f.path) && findRoundedFull(f.cleaned).length > 0,
+    )
+
+    expect(offenders.map((f) => f.path)).toEqual([])
+  })
+
+  it('cada entrada de la lista cerrada de rounded-full sigue usándola', () => {
+    for (const path of ROUNDED_FULL_ALLOWED.keys()) {
+      const file = CLASS_BEARING_FILES.find((f) => f.path === path)
+
+      expect(file, path).toBeDefined()
+      expect(findRoundedFull(file!.cleaned).length, path).toBeGreaterThan(0)
+    }
+  })
+})
+
+describe('RN-DS-28 / RN-UI-08 / RN-UI-17 — CA-UI-006: casos fijos (§10.6)', () => {
+  it.each([
+    'shadow-md',
+    'shadow-xs',
+    'shadow-sm',
+    'shadow',
+    'lg:shadow-auth-panel',
+    'hover:shadow-lg',
+    'shadow-[0_0_4px_red]',
+  ])('detecta %s', (fixture) => {
+    expect(findShadowUtilities(`class="p-2 ${fixture}"`)).toHaveLength(1)
+  })
+
+  it.each(['shadow-none', 'md:shadow-none', 'drop-shadow-md', 'text-shadow-sm', 'inset-shadow-sm'])(
+    'NO detecta %s',
+    (fixture) => {
+      expect(findShadowUtilities(`class="${fixture}"`)).toEqual([])
+    },
+  )
+})
+
+describe('RN-DS-28 / RN-UI-08 / RN-UI-17 — CA-UI-006: barrido de src/', () => {
+  it('shadow-auth-panel solo aparece en PublicAuthShell.vue (si aparece)', () => {
+    const offenders = CLASS_BEARING_FILES.filter(
+      (f) =>
+        f.path !== 'modules/auth/components/PublicAuthShell.vue' &&
+        findShadowUtilities(f.cleaned).some((token) => /shadow-auth-panel$/.test(token)),
+    )
+
+    expect(offenders.map((f) => f.path)).toEqual([])
+  })
+
+  it('ninguna otra utilidad shadow-* fuera de la lista cerrada de capas flotantes', () => {
+    const offenders = CLASS_BEARING_FILES.filter(
+      (f) =>
+        !FLOATING_SHADOW_ALLOWED.has(f.path) &&
+        !SHADOW_PENDING_T2.has(f.path) &&
+        findShadowUtilities(f.cleaned).length > 0,
+    )
+
+    expect(offenders.map((f) => f.path)).toEqual([])
+  })
+
+  it('Input.vue, Textarea.vue y src/modules/** no llevan sombra (salvo la excepción transitoria de T2)', () => {
+    const files = CLASS_BEARING_FILES.filter(
+      (f) =>
+        ['components/ui/input/Input.vue', 'components/ui/textarea/Textarea.vue'].includes(f.path) ||
+        (f.path.startsWith('modules/') && !SHADOW_PENDING_T2.has(f.path)),
+    )
+
+    expect(files.length).toBeGreaterThan(2)
+    expect(
+      files.flatMap((f) => findShadowUtilities(f.cleaned).map((t) => `${f.path}: ${t}`)),
+    ).toEqual([])
+  })
+
+  it('las capas flotantes de la lista cerrada conservan su sombra', () => {
+    for (const path of FLOATING_SHADOW_ALLOWED) {
+      const file = CLASS_BEARING_FILES.find((f) => f.path === path)
+
+      expect(file, path).toBeDefined()
+      expect(findShadowUtilities(file!.cleaned).length, path).toBeGreaterThan(0)
+    }
+  })
+})
+
+describe('CLAUDE.md §1 / RN-UI-01 — CA-UI-023: design system único', () => {
+  const FORBIDDEN_UI_LIBS =
+    /from\s+['"](?:vuetify|primevue|element-plus|naive-ui|quasar|ant-design-vue|bootstrap-vue|@headlessui\/vue|@radix-ui\/[\w-]+)(?:\/[^'"]*)?['"]/
+
+  it('detecta un import de una librería de componentes ajena (caso fijo)', () => {
+    expect(FORBIDDEN_UI_LIBS.test("import { VBtn } from 'vuetify/components'")).toBe(true)
+    expect(FORBIDDEN_UI_LIBS.test("import { Button } from 'reka-ui'")).toBe(false)
+  })
+
+  it('src/ no importa ninguna librería de componentes distinta de shadcn-vue/Reka UI', () => {
+    expect(
+      CLASS_BEARING_FILES.filter((f) => FORBIDDEN_UI_LIBS.test(f.cleaned)).map((f) => f.path),
+    ).toEqual([])
+  })
+})

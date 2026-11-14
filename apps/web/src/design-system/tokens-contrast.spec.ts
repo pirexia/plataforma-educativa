@@ -470,3 +470,135 @@ describe('tokens.css — CA-DS-006: formato no admitido hace fallar el análisis
     )
   })
 })
+
+// --- capa visual 1.15a-a (`docs/modulos/REQ-CORE/capa-visual.md §5.1`) ---
+
+/**
+ * `RN-UI-03`: los `--shadow-*` no son un color sino una composición; se
+ * ignoran por nombre (lista nominal, no por «formato raro»), de modo que
+ * `resolveValue` sigue lanzando ante cualquier semántico de color mal
+ * formado (`CA-DS-006` no se debilita).
+ */
+const IGNORED_NON_COLOR_TOKENS = ['--shadow-auth-panel']
+
+describe('tokens.css — CA-UI-001: radio de 2 px', () => {
+  it(':root declara --radius: 2px y .dark no lo redefine', () => {
+    const [light, dark] = buildModes(realTokensCss)
+
+    expect(light.declarations.get('--radius')).toBe('2px')
+    expect(dark.declarations.has('--radius')).toBe(false)
+  })
+})
+
+describe('tokens.css — CA-UI-005: --shadow-auth-panel', () => {
+  const [light, dark] = buildModes(realTokensCss)
+
+  it('está definido en :root y no se redefine en .dark (mismo valor en ambos modos)', () => {
+    const value = light.declarations.get('--shadow-auth-panel') ?? ''
+
+    expect(value).toMatch(/-2px 0 6px oklch\(0 0 0 \/ 28%\)/)
+    expect(value).toMatch(/-12px 0 40px oklch\(0 0 0 \/ 42%\)/)
+    expect(dark.declarations.has('--shadow-auth-panel')).toBe(false)
+  })
+
+  it('está mapeado a la utilidad shadow-auth-panel en style.css', () => {
+    expect(stripComments(realStyleCss)).toMatch(
+      /@utility shadow-auth-panel\s*\{\s*box-shadow:\s*var\(--shadow-auth-panel\);/,
+    )
+  })
+
+  it('el análisis de color lo ignora por nombre y sigue fallando ante un semántico de color no admitido', () => {
+    for (const mode of [light, dark]) {
+      const colorTokens = [...mode.declarations].filter(
+        ([name]) => !IGNORED_NON_COLOR_TOKENS.includes(name),
+      )
+
+      expect(colorTokens.some(([name]) => name.startsWith('--shadow-'))).toBe(false)
+    }
+
+    // Sin la lista nominal, el resolutor lo rechazaría: el ignorado es explícito.
+    expect(() =>
+      resolveValue(light.declarations.get('--shadow-auth-panel')!, light.declarations, new Set()),
+    ).toThrow(/Formato de token no admitido/)
+    // CA-DS-006 intacto.
+    expect(() =>
+      resolveSemantic('destructive', new Map([['--destructive', 'hsl(0 0% 50%)']])),
+    ).toThrow(/Formato de token no admitido/)
+  })
+})
+
+describe('tokens.css — CA-UI-007: --on-scrim sobre --scrim-auth (RN-DS-29, RNF-UX-002)', () => {
+  const WHITE: Oklch = { L: 1, C: 0, h: 0 }
+  const BLACK: Oklch = { L: 0, C: 0, h: 0 }
+
+  function worstContrast(css: string): number {
+    const [light, dark] = buildModes(css)
+    // `.dark` no los redefine: hereda de `:root` por la cascada.
+    const modes = [light.declarations, new Map([...light.declarations, ...dark.declarations])]
+    const ratios: number[] = []
+
+    for (const declarations of modes) {
+      const scrim = resolveSemantic('scrim-auth', declarations)
+      const onScrim = resolveSemantic('on-scrim', declarations)
+
+      expect(onScrim.alpha).toBe(1)
+
+      for (const surface of [WHITE, BLACK]) {
+        const composited = compositeOverSurface(scrim.oklch, scrim.alpha, surface)
+
+        ratios.push(contrast(luminanceOf(onScrim), relativeLuminanceOfSrgb(composited)))
+      }
+    }
+
+    return Math.min(...ratios)
+  }
+
+  it('el velo al 64 % con texto blanco da ≥ 4,5:1 sobre blanco y sobre negro, en ambos modos', () => {
+    const [light, dark] = buildModes(realTokensCss)
+
+    expect(light.declarations.get('--scrim-auth')).toBe('oklch(0 0 0 / 64%)')
+    expect(light.declarations.get('--on-scrim')).toBe('oklch(1 0 0)')
+    expect(dark.declarations.has('--scrim-auth')).toBe(false)
+    expect(dark.declarations.has('--on-scrim')).toBe(false)
+
+    expect(worstContrast(realTokensCss)).toBeGreaterThanOrEqual(4.5)
+  })
+
+  it('un velo al 40 % en una copia en memoria incumple', () => {
+    const broken = realTokensCss.replace(
+      '--scrim-auth: oklch(0 0 0 / 64%);',
+      '--scrim-auth: oklch(0 0 0 / 40%);',
+    )
+
+    expect(broken).not.toBe(realTokensCss)
+    expect(worstContrast(broken)).toBeLessThan(4.5)
+  })
+})
+
+describe('style.css — CA-UI-002: escala de radios en @theme inline', () => {
+  const RADII = ['xs', 'sm', 'md', 'lg', 'xl', '2xl', '3xl', '4xl']
+
+  /** Radios declarados en `style.css`, ya sin comentarios. */
+  function declaredRadii(css: string): Map<string, string> {
+    return new Map(
+      [...stripComments(css).matchAll(/(--radius-[\w]+):\s*([^;]+);/g)].map((m) => [
+        m[1],
+        m[2].trim(),
+      ]),
+    )
+  }
+
+  it.each(RADII)('--radius-%s existe y vale exactamente var(--radius)', (name) => {
+    expect(declaredRadii(realStyleCss).get(`--radius-${name}`)).toBe('var(--radius)')
+  })
+
+  it('el caso fijo calc(var(--radius) - 4px) se señala', () => {
+    const broken = realStyleCss.replace(
+      '--radius-sm: var(--radius);',
+      '--radius-sm: calc(var(--radius) - 4px);',
+    )
+
+    expect(broken).not.toBe(realStyleCss)
+    expect(declaredRadii(broken).get('--radius-sm')).not.toBe('var(--radius)')
+  })
+})
