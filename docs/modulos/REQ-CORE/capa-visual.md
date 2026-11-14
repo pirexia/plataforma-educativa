@@ -8,7 +8,7 @@
 | Fase | 1 |
 | Depende de | `core` (1.1, `GET /tenant/branding`), design system (1.7), *shell* (1.8), pantalla de marca (1.9e), contenido traducible (`ADR-062`, 1.11). Todo implementado |
 | Esencial | `core` ya es `essential: true`; no cambia |
-| Estado | **`1.15a-a` APROBADO** (2026-11-14; el usuario decide `OPEN-UI-06` = A y `OPEN-UI-12` = A, con `OPEN-UI-05` ya decidida). **`1.15a-b` sigue PROPUESTO**, con `OPEN-UI-03` y `-04` abiertas (§16) |
+| Estado | **`1.15a-a` APROBADO e IMPLEMENTADO** (2026-11-14, T1 y T2, rama `feature/REQ-CORE-capa-visual-1-15a-a`; pendiente de revisores, E2E real y mezcla; el usuario decide `OPEN-UI-06` = A y `OPEN-UI-12` = A, con `OPEN-UI-05` ya decidida). **`1.15a-b` sigue PROPUESTO**, con `OPEN-UI-03` y `-04` abiertas (§16) |
 | Decisión de arquitectura | `ADR-064` (ACEPTADA 2026-10-16). Este documento la **desarrolla** y decide solo lo que su `§6` delega |
 | **Clasificación del paso** | **`1.15a-a`: ordinario · `1.15a-b`: crítico** (`ADR-069 §4.2`; motivo y condiciones en §4) |
 
