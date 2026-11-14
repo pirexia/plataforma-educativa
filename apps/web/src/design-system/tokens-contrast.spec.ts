@@ -481,7 +481,7 @@ describe('tokens.css — CA-DS-006: formato no admitido hace fallar el análisis
  */
 const IGNORED_NON_COLOR_TOKENS = ['--shadow-auth-panel']
 
-describe('tokens.css — CA-UI-001: radio de 2 px', () => {
+describe('tokens.css — CA-UI-001: radio de 2 px (RN-DS-25)', () => {
   it(':root declara --radius: 2px y .dark no lo redefine', () => {
     const [light, dark] = buildModes(realTokensCss)
 
@@ -575,7 +575,7 @@ describe('tokens.css — CA-UI-007: --on-scrim sobre --scrim-auth (RN-DS-29, RNF
   })
 })
 
-describe('style.css — CA-UI-002: escala de radios en @theme inline', () => {
+describe('style.css — CA-UI-002: escala de radios en @theme inline (RN-DS-25, RN-UI-04)', () => {
   const RADII = ['xs', 'sm', 'md', 'lg', 'xl', '2xl', '3xl', '4xl']
 
   /** Radios declarados en `style.css`, ya sin comentarios. */

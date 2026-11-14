@@ -627,7 +627,7 @@ const FLOATING_SHADOW_ALLOWED = new Set([
   'components/ui/sheet/SheetContent.vue',
 ])
 
-describe('RN-UI-05 — CA-UI-003: casos fijos (§10.6)', () => {
+describe('RN-UI-05 / RN-DS-25 — CA-UI-003: casos fijos (§10.6)', () => {
   it.each([
     'rounded-[6px]',
     'rounded-[min(var(--radius-md),10px)]',
@@ -652,7 +652,7 @@ describe('RN-UI-05 — CA-UI-003: casos fijos (§10.6)', () => {
   )
 })
 
-describe('RN-UI-05 / RN-UI-16 — CA-UI-003: barrido de src/ (incluido components/ui)', () => {
+describe('RN-UI-05 / RN-UI-16 / RN-DS-25 — CA-UI-003: barrido de src/ (incluido components/ui)', () => {
   it('no hay rounded-[…], rounded-none ni rounded-4xl en ningún fichero', () => {
     const offenders = CLASS_BEARING_FILES.flatMap((f) =>
       findForbiddenRounded(f.cleaned).map((token) => `${f.path}: ${token}`),
@@ -751,6 +751,23 @@ describe('RN-DS-28 / RN-UI-08 / RN-UI-17 — CA-UI-006: barrido de src/', () => 
       expect(file, path).toBeDefined()
       expect(findShadowUtilities(file!.cleaned).length, path).toBeGreaterThan(0)
     }
+  })
+})
+
+describe('CA-UI-008 (CA-DS-037 a -043): sin excepciones nuevas en las listas de §10', () => {
+  // Las listas nominales de excepción son las de antes de `1.15a-a`: el paso
+  // no añade ninguna. Las propias de `1.15a-a` (`rounded-full` y capas
+  // flotantes con sombra) las fija `CA-UI-003` y `CA-UI-006`.
+  it('la lista de colores literales de RN-DS-19 sigue siendo la de 1.7', () => {
+    expect([...LITERAL_COLOR_EXCEPTIONS].sort()).toEqual([
+      'design-system/color/surfaces.ts',
+      'design-system/tokens.css',
+    ])
+  })
+
+  it('las demás reglas de §10 (CA-DS-037 a -043) corren en este fichero y pasan sin ellas', () => {
+    expect(FORBIDDEN_BARE_PACKAGES.size).toBe(2)
+    expect(FRONTIER_DIRS).toEqual(['design-system', 'components/ui'])
   })
 })
 
