@@ -6,7 +6,7 @@
 | Paso | `S-2` de `ADR-076 §8` |
 | Prioridad | MUST (cierra el issue #612 y es condición de `ADR-077 §5.3`, `OPEN-PURGA-05`) |
 | Depende de | `S-1a` y `S-1b` (mezcladas: PR #628 y #629), `ADR-076` (ACEPTADA), `ADR-068 §5.3`, `ADR-033 §9` |
-| Coordina con | `ADR-077` (PROPUESTA, purga física de tenant), `ADR-083` (PROPUESTA, proveedor S3; PR #642) |
+| Coordina con | `ADR-077` (PROPUESTA, purga física de tenant), `ADR-083` (ACEPTADA el 2026-11-14, proveedor S3) |
 | Estado | **APROBADO** (2026-11-14, el usuario, con la opción A en `OPEN-CORE-73` a `-76`). Las preguntas de §16.1 estaban decididas desde el 2026-11-12. Pendiente de ejecutar al implementar: la comprobación de `OPEN-CORE-76` (manual, una vez por entorno) |
 | **Clasificación del paso** | **crítico** (`ADR-069 §4.2`; motivo en §15) |
 

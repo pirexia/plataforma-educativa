@@ -64,9 +64,9 @@ Ninguno es una contradicción irresoluble entre requisitos; cada uno queda con s
 | `Core\Domain`: `PersonDirectory::localesByPersonIds()` | **No existe**: `PersonDirectory` no expone `people.locale` (comprobado en `apps/api/app/Modules/Core/Domain/PersonDirectory.php`; la columna sí está en `App\Models\Person`) | Cambio aditivo propuesto (§7.3, `OPEN-CALIF-06`); se construye en `1.17-a` con la emisión (`RN-CALIF-52`) |
 | `Alum\Domain`: `EnrollmentRoster`, operación «matrículas por persona» y registro único de vetos de `alum` | Los **construye `1.13`** (`1.13-a` y `1.13-b`, tabla de dueños en `docs/modulos/REQ-ACAD/asistencia.md §8.2.1`, que es la fuente; criterio único de la revisión de coherencia H5, 2026-11-13). Un solo registro de vetos en `alum` para todos los casos (anulación de matrícula, alta, cambio de grupo) | `1.16-a` **solo los consume** y registra su veto en ese registro; no construye nada en `alum`. Sin `1.13-b` mezclada, `1.16-a` queda bloqueada |
 | `REQ-SEED` (bloque `calificaciones`) | Sin implementar | El bloque de siembra de este módulo va **en el propio paso `1.16`** (criterio de `REQ-SEED §14`, revisión de coherencia H4); `1.15b` no se amplía |
-| Servicio `pdf` y contrato `PdfRenderer` (`ADR-078`) | No existen; ADR en `PROPUESTA` (el usuario aceptó WeasyPrint: `OPEN-PDF-01`, `-02`) | **Bloquea `1.17-a`** (`OPEN-CALIF-20`). Esta especificación **no decide el motor**: solo consume `PdfRenderer` |
-| Motor de notificaciones en `Core` (`ADR-079`) y `REQ-COM` (`1.19`) | No existen; ADR en `PROPUESTA` | Bloquea el aviso a familias de `1.17-b` |
-| Firma N1 y reautenticación (`ADR-082`, `REQ-DOC`) | No existen; ADR en `PROPUESTA` | Bloquea la validación del tutor de grupo de `1.17-b` |
+| Servicio `pdf` y contrato `PdfRenderer` (`ADR-078`) | No existen; `ADR-078` `ACEPTADA` el 2026-11-14 (el usuario aceptó WeasyPrint: `OPEN-PDF-01`, `-02`) | **Bloquea `1.17-a`** (`OPEN-CALIF-20`). Esta especificación **no decide el motor**: solo consume `PdfRenderer` |
+| Motor de notificaciones en `Core` (`ADR-079`) y `REQ-COM` (`1.19`) | No existen; `ADR-079` `ACEPTADA` el 2026-11-14 | Bloquea el aviso a familias de `1.17-b` |
+| Firma N1 y reautenticación (`ADR-082`, `REQ-DOC`) | No existen; `ADR-082` `ACEPTADA` el 2026-11-14 | Bloquea la validación del tutor de grupo de `1.17-b` |
 | `REQ-SEED` (`1.15b`) | Sin implementar | La medición de volumen (`ADR-078 §5.4`) y el E2E usan sus datos; `REQ-SEED-004` pide «calificaciones de una evaluación completa», que aporta el bloque de `REQ-SEED` de `1.16` (fila anterior) |
 
 ---

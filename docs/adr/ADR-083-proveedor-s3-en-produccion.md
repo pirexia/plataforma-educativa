@@ -117,8 +117,8 @@ Las respuestas son evidencias: se archivan **fuera de Git** y se anotan en el [�
 | P-12 | Precio vigente con y sin IVA, tramos y precio de la réplica externa | No | `EV-19` |
 | P-13 | Si admite políticas de acceso por prefijo y varias claves por *bucket* | No (alimenta `OPEN-STO-03`) | `EV-20` |
 | P-14 | Regiones 3-AZ disponibles además de París | No | `EV-19` |
-| P-15 | En un *bucket* con versionado: listado y borrado de **todas las versiones y marcadores de borrado** bajo un prefijo, y listado y **aborto de subidas multiparte incompletas** por prefijo. Lo exige la purga de un centro (`ADR-077 §5.6`) | **Sí** (propuesta, `C1-07`; confirma el usuario) | `EV-13` |
-| P-16 | Que la retención de Object Lock sea **configurable por *bucket* con un plazo inferior** al tope de retención de copias con datos personales de `ADR-077 §5.10` (`OPEN-PURGA-03`), y en qué modos (gobierno o cumplimiento) | **Sí** (propuesta, `C1-07`; confirma el usuario) | `EV-13` |
+| P-15 | En un *bucket* con versionado: listado y borrado de **todas las versiones y marcadores de borrado** bajo un prefijo, y listado y **aborto de subidas multiparte incompletas** por prefijo. Lo exige la purga de un centro (`ADR-077 §5.6`) | **No** (decisión del usuario, 2026-11-14: se pide como información) | `EV-13` |
+| P-16 | Que la retención de Object Lock sea **configurable por *bucket* con un plazo inferior** al tope de retención de copias con datos personales de `ADR-077 §5.10` (`OPEN-PURGA-03`), y en qué modos (gobierno o cumplimiento) | **No** (decisión del usuario, 2026-11-14: se pide como información) | `EV-13` |
 
 A Scaleway, como alternativa: las mismas P-01 (¿está Object Storage en el alcance ISO y se ha renovado el certificado que caduca el 05/12/2026?), P-04, P-05 y el precio del tráfico de salida.
 
@@ -180,6 +180,6 @@ Las de cumplimiento están en [`preguntas-abiertas.md`](../cumplimiento/pregunta
 
 | ID | Pregunta | Recomendada | Bloquea |
 |---|---|---|---|
-| `OPEN-STO-01` | ¿Se acepta OVHcloud 3-AZ condicionado a `§6`? | **Decidida (2026-11-12)**: sí, condicionada a P-01 a P-14 (P-15 y P-16, propuestas el 2026-11-13, pendientes de confirmar como condición) | Staging, hasta tener las respuestas |
+| `OPEN-STO-01` | ¿Se acepta OVHcloud 3-AZ condicionado a `§6`? | **Decidida (2026-11-12)**: sí, condicionada a P-01 a P-14 (P-15 y P-16 **no entran como condición**: decisión del usuario del 2026-11-14, contra la recomendación; si P-15 no se cumple, la purga completa de un centro puede no ser posible en el proveedor, `ADR-077 §5.6`) | Staging, hasta tener las respuestas |
 | `OPEN-083-01` | ¿Quién envía las peticiones de `§6` y con qué identidad, si `OPEN-07` sigue abierta? | **El usuario, como consulta precontractual**: no exige entidad constituida y adelanta semanas. Alternativas: esperar a `OPEN-07`; o abrir una cuenta de prueba personal sin datos reales solo para el test de conformidad | No (pero retrasa `§4.2`) |
 | `OPEN-083-02` | ¿Se abre ya una cuenta de prueba, **solo con datos sintéticos**, para ejecutar el test de conformidad de `ADR-076 §5` contra el proveedor? | **DECIDIDA (usuario, 2026-11-14): no se abre cuenta ahora, para no gastar; se prueba en local (Garage) y eso basta por el momento.** La conformidad contra el proveedor real **queda sin probar** hasta contratar o abrir una cuenta de prueba, y así debe constar en cualquier informe. Opción descartada por ahora: **Sí**, tras aceptar este ADR y dentro de `ADR-080`: es la única forma de convertir en hecho lo que `§9` deja como expectativa. Alternativas: esperar a tener staging completo; o no probar hasta producción (descartable) | Staging |

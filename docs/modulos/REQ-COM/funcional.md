@@ -16,7 +16,7 @@
 
 - `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md §5.12` (`REQ-COM-001` a `-004`, l. 973-1000) y `REQ-CORE-007` (notificaciones del sistema).
 - `ADR-079` (notificaciones y comunicaciones salientes), **PROPUESTA**, leído entero en la rama del agente A3. Decisiones ya tomadas por el usuario el 2026-11-12: `OPEN-079-01` (Scaleway, Brevo de reserva), `OPEN-079-03` (enlace, nunca adjunto), `OPEN-079-04` (motor en `core`; el aviso de recogida lo dispara un *listener* de `prl`, no `com`) y `OPEN-079-07` (apertura medida por lectura y acuse, sin píxel).
-- `ADR-082` (firma por niveles), **PROPUESTA**, leído en lo que afecta: `§4.1` (N1), `§4.5` (evidencias), `§4.7` (tutores legales; política `uno` para acuses).
+- `ADR-082` (firma por niveles), **ACEPTADA el 2026-11-14**, leído en lo que afecta: `§4.1` (N1), `§4.5` (evidencias), `§4.7` (tutores legales; política `uno` para acuses).
 - `PLAN-IMPLEMENTACION.md` (`1.19`, «obligación heredada de `1.14b-d3`/`-d4`»), `REQ-PRL/funcional.md` y `REQ-FAM-UNIT` (`OPEN-FAM-UNIT-32`, `-33`).
 - Código en `develop` (búsqueda del MCP de GitHub y lectura local; **no tuve `Grep` ni `Bash`**): `FamUnit\Domain\GuardianRecipients` y `FamilyMembership`, `Acad\Domain\TeachingMembership` (solo `groupIdsFor`), `Core\Domain\UserDirectory`. `Alum\Domain` no expone ninguna interfaz (solo `Models/`).
 
