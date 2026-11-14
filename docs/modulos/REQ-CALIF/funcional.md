@@ -5,9 +5,9 @@
 | Código | `REQ-CALIF` (sección 5.5 del documento de requisitos: `REQ-CALIF-001` calificaciones, `-002` boletines, `-003` historial, `-004` informes) |
 | Prioridad | MUST |
 | Fase | 1 · pasos **1.16** (calificaciones) y **1.17** (boletines en PDF) del plan, bloque E |
-| Depende de | Documento (3.2.30): `ACAD`. Real: `CURSO` (toda tabla lleva `academic_year_id`), `ACAD` (períodos lectivos, escalas, asignaturas, asignación docente) y `ALUM` (la matrícula es el eje, `§16.3` regla 4). **Propuesta** (`OPEN-CALIF-01`): `depends_on: ['curso', 'acad', 'alum']` |
-| Esencial | Propuesta: `essential: false` (un esencial no puede depender de `acad` ni de `alum`, `ADR-045`) |
-| Estado | **PROPUESTO** (2026-11-12, agente B5 de la ola 1). Nada se implementa hasta que el usuario apruebe y resuelva las preguntas bloqueantes de §12 |
+| Depende de | Documento (3.2.30): `ACAD`. Real: `CURSO` (toda tabla lleva `academic_year_id`), `ACAD` (períodos lectivos, escalas, asignaturas, asignación docente) y `ALUM` (la matrícula es el eje, `§16.3` regla 4). **Decidido** (`OPEN-CALIF-01` = A, 2026-11-14): `depends_on: ['curso', 'acad', 'alum']` |
+| Esencial | Decidido: `essential: false` (un esencial no puede depender de `acad` ni de `alum`, `ADR-045`) |
+| Estado | **APROBADO** (2026-11-14, el usuario): `OPEN-CALIF-01` a `-09`, `-12`, `-20` a `-24` y `-26` decididas con la opción A, y las no bloqueantes con su recomendación. **No se implementa** hasta que existan sus dependencias: `1.16-a` necesita `1.13` (asistencia) y `1.17` necesita el servicio `pdf` (paso `P`). `OPEN-CALIF-27` (base legal de las calificaciones) queda como condición antes de datos reales |
 | Clasificación del paso: crítico | Todas las entregas (`1.16-a` a `-d`, `1.17-a`, `-b`). Ver §2 |
 | Decisiones vinculantes de partida | `ADR-004`, `ADR-012`, `ADR-013`, `ADR-016`, `ADR-020`, `ADR-021`, `ADR-029`, `ADR-033`, `ADR-034`, `ADR-035`, `ADR-038`, `ADR-044` (enmendado por `ADR-063`), `ADR-045`, `ADR-048`, `ADR-053`, `ADR-056`, `ADR-057`/`ADR-058`, `ADR-059`, `ADR-062`, `ADR-063 §5.2`-`§5.4`, `ADR-069 §4.2`, `ADR-071`, `ADR-076`; contratos aprobados de `REQ-ACAD/funcional.md §4.8`, `§4.9`, `§7.2`, `§18.7` (`RN-ACAD-63`, `-77`, `-98`), `REQ-ALUM/funcional.md §7.2` y `REQ-CURSO/funcional.md §1.2` (`RN-CURSO-30`). **En propuesta, no vinculantes todavía**: `ADR-078` (motor de PDF), `ADR-079` (notificaciones), `ADR-082` (firma) |
 

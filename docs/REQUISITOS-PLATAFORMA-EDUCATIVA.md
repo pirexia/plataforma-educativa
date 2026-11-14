@@ -686,7 +686,7 @@ El Administrador de Centro puede:
 
 ### 5.5 MÓDULO CALIFICACIONES Y EVALUACIÓN (`REQ-CALIF`)
 
-> **Prioridad**: MUST · **Fase**: 1 · **Depende de**: ACAD 
+> **Prioridad**: MUST · **Fase**: 1 · **Depende de**: CURSO, ACAD, ALUM 
 > **Entidades principales**: `Grade`, `EvaluationPeriod`, `Competency`, `ReportCard`, `AcademicRecord`
 
 #### REQ-CALIF-001: Introducción de calificaciones
