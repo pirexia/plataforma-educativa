@@ -1,6 +1,6 @@
 # ADR-079 · Notificaciones y comunicaciones salientes
 
-**Estado**: PROPUESTA
+**Estado**: **ACEPTADA** (2026-11-14, el usuario; decididas `OPEN-079-02` (diseño), `-05`, `-06` (regla provisional) y `-09`). **Sigue abierta `OPEN-079-15`** (subencargados en el contrato, depende de `OPEN-07`): bloquea solo datos reales. `0.10c` sigue esperando `OPEN-08` (dominio).
 **Fecha**: 2026-11-12
 **Autor**: `architect` (agente A3 de la ola 1, `docs/proceso/ola1-arquitectura-2026-11.md`)
 **Afecta a**: `REQ-CORE-007`, `REQ-COM-001..004`, `REQ-AUTH-001/003`, `REQ-PRL-001/004`, `REQ-FAM-UNIT`, `REQ-AUT-001`, `REQ-SAAS-004`, `REQ-SUP-004`, `RNF-LIM-003`, `RARQ-ARC-005`, `RDB-001`, `RSEC-GDPR-001/008/009`, `INV-001`, `INV-003`, `INV-007`, `INV-008`, `INV-009`, `INV-011`, `INV-012`.
