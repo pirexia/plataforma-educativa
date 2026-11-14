@@ -103,6 +103,8 @@ El paso se parte en **dos entregas** (`CLAUDE.md §2.7`), porque mezcla un cambi
 
 Actores: cualquier visitante de una pantalla pública del centro (sin sesión) y, por el radio, todo usuario de la aplicación. Sin eventos de dominio, sin interacción con otros módulos. Design system único: **shadcn-vue** vendorizado en `src/components/ui/` (`ADR-023`, `CLAUDE.md §1`); **no se añade ninguna librería de componentes ni ninguna dependencia** (`RN-UI-01`).
 
+**`RN-UI-01`** · Design system único: **shadcn-vue** vendorizado en `src/components/ui/` (`ADR-023`, `CLAUDE.md §1`). `1.15a-a` y `1.15a-b` no añaden ninguna librería de componentes ni ninguna dependencia a `apps/web/package.json`; se edita lo vendorizado, no se sustituye (`CA-UI-023`). Definición explícita de una regla que esta especificación ya citaba en `§5` y en `CA-UI-023`.
+
 ### 5.1 Tokens nuevos y modificados (`ADR-064 §6.3`)
 
 Todos en `apps/web/src/design-system/tokens.css` (única hoja de tokens, `CA-DS-001`); el mapeo a utilidades, en `@theme inline` de `style.css`. Los valores de color en `oklch()`, como el resto de la hoja.
