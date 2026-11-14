@@ -159,7 +159,7 @@ Requisitos que debe cumplir cualquier candidato: SMTP estándar (el contrato que
 
 **Un motor de notificaciones único en `Core`, propio y delgado, con cuatro canales (aviso en la aplicación, correo, Web Push y SMS reservado sin implementar), tres prioridades, categorías con base legal declarada y una fila de traza por cada entrega. El correo sale por SMTP a un proveedor de la UE desde subdominios propios con SPF, DKIM y DMARC. Ningún mensaje que salga de la plataforma lleva datos de categoría especial.**
 
-Todo lo que sigue es propuesta hasta que el usuario la acepte. Los nombres de clases, tablas y colas son orientativos para la especificación, salvo donde se diga «obligatorio».
+El ADR fue aceptado el 2026-11-14 (cabecera); lo que sigue es la decisión, con las preguntas aún abiertas de `§9`. Los nombres de clases, tablas y colas son orientativos para la especificación, salvo donde se diga «obligatorio».
 
 ### 4.1 Motor en `Core` y contrato (D1, D2)
 
@@ -451,7 +451,7 @@ Un SMS cuesta lo que unos 200 correos. Por eso el tope por centro y la medición
 |---|---|---|---|---|---|
 | `OPEN-079-01` | Proveedor de correo (sustituye a `OPEN-09`) | Scaleway Transactional Email, pago por uso, tras verificar contrato de encargado y región, eventos de rebote y queja **que devuelvan una cabecera o metadato propio del mensaje original** (`§4.9` punto 4), límites de cuenta nueva y DKIM con dominio propio. Si falla alguno, Brevo | Sin proveedor no sale ningún correo real | `0.10c` y la operación en producción. **No** la implementación (contrato SMTP) | Usuario |
 | `OPEN-079-02` | Dominio y subdominios de envío | **DECIDIDO el diseño (usuario, 2026-11-14)**: dos subdominios del dominio de la plataforma (individual y masivo), nunca el ápice; el nombre exacto se fija con `OPEN-08` y `0.10c` | Depende de `OPEN-08` | `0.10c` | Usuario |
-| `OPEN-079-04` | Motor en `Core` y avisos de `prl` sin depender de `com` (matiza la recomendación aprobada de `OPEN-FAM-UNIT-33`) | Sí: el *listener* es de `prl` y llama al contrato de `Core` | Si se mantiene «consumido por `COM`», hay que declarar `com` esencial o aceptar que un centro sin `com` no recibe avisos de recogida | `1.19` y `1.14b-d3` | Usuario |
+| `OPEN-079-04` (DECIDIDA 2026-11-12) | Motor en `Core` y avisos de `prl` sin depender de `com` (matiza la recomendación aprobada de `OPEN-FAM-UNIT-33`) | Sí: el *listener* es de `prl` y llama al contrato de `Core` | Si se mantiene «consumido por `COM`», hay que declarar `com` esencial o aceptar que un centro sin `com` no recibe avisos de recogida | `1.19` y `1.14b-d3` | Usuario |
 | `OPEN-079-07` | «Estadísticas de apertura» sin píxel de seguimiento | Medir lectura en la aplicación y acuse; sin píxel ni reescritura de enlaces | Con píxel: consentimiento propio y peor entregabilidad | Estadísticas de `1.19` | Usuario, con criterio legal |
 | `OPEN-079-09` | Retención de avisos y de traza de entrega | **DECIDIDA (usuario, 2026-11-14): 12 meses, purga por lotes**; mensajes y circulares con el plazo del centro y un mínimo legal que valida un jurista (misma pregunta que `REQ-COM §10.1`) | Tamaño de tablas y deber de minimización | `datos.md` de `1.19` | Usuario, con criterio legal |
 | `OPEN-079-05` | Objetivo de demora del aviso urgente | **DECIDIDA (usuario, 2026-11-14)**: del hecho a la entrega al proveedor, percentil 95 por debajo de 60 s; colas por prioridad ahora y `worker-urgent` si no se cumple o al llegar `REQ-PRL-001` | Un objetivo más estricto obliga ya al proceso dedicado | Criterios de aceptación de `1.14b-d3` | Usuario |

@@ -8,7 +8,7 @@
 **Sustituye en parte a**:
 - `CLAUDE.md §4` como norma de proceso (no es un ADR, pero es donde vive la decisión): «Ramas permanentes: `main` y `develop`» y «`main` solo recibe merges desde `develop`» pasan a leerse con `staging` en medio (`§4`).
 - `ADR-037 §5.2`, columna «Para qué» de la fila «`push` a `develop`»: la imagen `sha-<7>` construida en `develop` sigue siendo la que se despliega en staging, pero **solo la del commit al que apunta la rama `staging`**; la etiqueta móvil `develop` deja de usarse para desplegar (`§4.5`).
-**No cierra**: `OPEN-08` (dominio y DNS de la plataforma), `OPEN-09`, `OPEN-10`, `OPEN-11` (alojamiento del piloto), `OPEN-STO-*` (`ADR-083`, en `PROPUESTA`).
+**No cierra**: `OPEN-08` (dominio y DNS de la plataforma), `OPEN-09`, `OPEN-10`, `OPEN-11` (alojamiento del piloto), `OPEN-STO-*` (`ADR-083`, `ACEPTADA` el 2026-11-14).
 **Se apoya en**: `RARQ-CLOUD-001`, `RARQ-CLOUD-005`, `RARQ-CLOUD-006`, `RARQ-DEP-001`, `-006`, `-008`, `-012`, `-013`, `RARQ-INF-002`, `RNF-MANT-007`, `CLAUDE.md §8` y `§9`.
 
 Convención de este documento: **V** = verificado en fuente primaria el 2026-11-12 (`§12`); **SV** = sin verificar. Ningún precio, versión ni disponibilidad se da de memoria.

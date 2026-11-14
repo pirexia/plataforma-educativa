@@ -7,7 +7,7 @@
 **Concreta sin sustituir**: `ADR-007` (stack: «servicio contenerizado de generación de PDF») y la fila «PDF» de `CLAUDE.md §1`.
 **No sustituye ningún ADR.** Si el usuario eligiera la opción C (Typst), habría que enmendar la fila «PDF» de `CLAUDE.md §1` (dice «HTML→PDF»): ver `OPEN-PDF-01`.
 **Se apoya en**: `INV-001`, `INV-003`, `INV-007`, `INV-009`, `INV-012`, `RNF-MANT-007`, `RNF-COMP-004` (PDF/A para documentos con valor archivístico), `RNF-UX-002` (WCAG 2.2 AA y EN 301 549), `ADR-012` (firma por prestador cualificado, sin criptografía propia), `ADR-021` (idiomas), `ADR-028` (red), `ADR-030` (perfil reducido), `ADR-076` (almacén de objetos), `CLAUDE.md §8` y `§9`.
-**Depende de**: `ADR-082` (firma digital), en `PROPUESTA` en su rama `chore/adr-082-firma-digital-y-apoderado` (PR #641). `§8` fija solo la frontera entre ambos; `ADR-082 §4.6.1` responde a las tres peticiones de este ADR (releído el 2026-11-13) y lo que queda va en `OPEN-PDF-05`.
+**Depende de**: `ADR-082` (firma digital), **`ACEPTADA` el 2026-11-14** (antes en `PROPUESTA` en su rama `chore/adr-082-firma-digital-y-apoderado`, PR #641). `§8` fija solo la frontera entre ambos; `ADR-082 §4.6.1` responde a las tres peticiones de este ADR (releído el 2026-11-13) y lo que queda va en `OPEN-PDF-05`.
 
 ---
 
@@ -39,7 +39,7 @@
 
 1. **Una sola persona mantiene esto.** Cada pieza nueva es una pieza que parchear durante tres años.
 2. **El contenido son datos personales de menores**, y parte de la plantilla la configura el centro. El motor procesa entrada que no es del todo de confianza.
-3. **Desarrollo en WSL2 con 10-11 GB** (`ADR-030`) y un *staging* que se quiere barato (`ADR-080`, en `PROPUESTA`): el consumo en reposo del servicio importa.
+3. **Desarrollo en WSL2 con 10-11 GB** (`ADR-030`) y un *staging* que se quiere barato (`ADR-080`, `ACEPTADA` el 2026-11-14): el consumo en reposo del servicio importa.
 4. **Reversibilidad**: el motor debe poder cambiarse sin reescribir las plantillas de todos los módulos.
 
 ---
@@ -322,7 +322,7 @@ La pila del sistema de la SPA no existe dentro del contenedor, y PDF/A obliga a 
 
 ## 8 · Firma (PAdES) y relación con `ADR-082`
 
-`ADR-082` está en `PROPUESTA` (PR #641) y responde a lo que este apartado le pide en su `§4.6.1` (releído el 2026-11-13): firma invisible por defecto y zona en blanco solo si el prestador exige apariencia visible (sin campo creado por el motor), y compatibilidad PAdES con PDF/A exigida al prestador y probada antes de contratar (`OPEN-FIRMA-03`). Este ADR fija solo lo que es del motor y deja lo demás allí.
+`ADR-082` está `ACEPTADA` (2026-11-14; antes PR #641) y responde a lo que este apartado le pide en su `§4.6.1` (releído el 2026-11-13): firma invisible por defecto y zona en blanco solo si el prestador exige apariencia visible (sin campo creado por el motor), y compatibilidad PAdES con PDF/A exigida al prestador y probada antes de contratar (`OPEN-FIRMA-03`). Este ADR fija solo lo que es del motor y deja lo demás allí.
 
 **Lo que este ADR decide:**
 
@@ -404,8 +404,8 @@ Convención: **R** es la recomendación de este ADR. «Bloquea» se refiere a la
 
 | ID | Pregunta | Opciones | Recomendación e impacto | Decide |
 |---|---|---|---|---|
-| `OPEN-PDF-01` | ¿Qué motor? | **R: B** WeasyPrint · A Gotenberg con Chromium · C Typst | B (`§3.1`). Con A: menos código propio, más superficie y más parches. Con C: hay que enmendar `CLAUDE.md §1` y aceptar una reversión cara | Usuario |
-| `OPEN-PDF-02` | ¿Se acepta mantener un servicio propio mínimo en Python (un *endpoint*, un fichero, `infra/containers/pdf/`)? | **R: Sí** · No | Si es no, `OPEN-PDF-01` pasa a A: B no tiene empaquetado oficial y las otras formas de empaquetarlo se descartan por seguridad (`§3.2`) | Usuario |
+| `OPEN-PDF-01` (DECIDIDA 2026-11-12) | ¿Qué motor? | **R: B** WeasyPrint · A Gotenberg con Chromium · C Typst | B (`§3.1`). Con A: menos código propio, más superficie y más parches. Con C: hay que enmendar `CLAUDE.md §1` y aceptar una reversión cara | Usuario |
+| `OPEN-PDF-02` (DECIDIDA 2026-11-12) | ¿Se acepta mantener un servicio propio mínimo en Python (un *endpoint*, un fichero, `infra/containers/pdf/`)? | **R: Sí** · No | Si es no, `OPEN-PDF-01` pasa a A: B no tiene empaquetado oficial y las otras formas de empaquetarlo se descartan por seguridad (`§3.2`) | Usuario |
 | `OPEN-PDF-04` | ¿Qué umbrales hacen aceptable el motor en la prueba de `§5.4`? | **R:** 1.200 boletines en ≤ 30 min con un `worker`, ningún documento > 60 s, servicio ≤ 512 MB · otros valores · sin umbral | Sin umbral, la prueba no decide nada y el riesgo de velocidad se descubre con las plantillas ya escritas | Usuario, con negocio (¿cuánto puede esperar un centro la noche de publicación?) |
 | `OPEN-PDF-03` | ¿Qué documentos son `archival` (PDF/A) y a cuáles se les exige PDF/UA-1? | **DECIDIDA: P1 (usuario, 2026-11-14)** de `§7.2`: `archival` para documentos emitidos, `accessible` para listados; todos etiquetados · P2 todo PDF/A · P3 a demanda | Bloquea la plantilla del boletín (`1.17`), no la construcción del motor. Con P3 se incumple `RNF-COMP-004` | Negocio y legal; el nivel exacto, técnico tras `§5.4` |
 
