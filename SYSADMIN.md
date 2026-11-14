@@ -463,7 +463,7 @@ Tres workflows en `.github/workflows/`, disparados por `push`/`pull_request` sob
 
 ## 4b. Landing pública: despliegue en Cloudflare (`ADR-072`, #579)
 
-`.github/workflows/ci-landing.yml` (`paths: apps/landing/**`; **no** es *required check*, `ADR-072 §4.5`) construye, comprueba, pasa Lighthouse y, solo en `push` a `main`, despliega con `apps/landing/scripts/deploy.sh` (Cloudflare **Workers static assets**, no Pages; `wrangler` 4.159.0 fijado). **Hoy no despliega nada**: el *job* `deploy` exige la variable de repositorio `LANDING_DEPLOY_ENABLED = true`, que no existe.
+`.github/workflows/ci-landing.yml` (`paths: apps/landing/**`; **no** es *required check*, `ADR-072 §4.5`) construye, comprueba, pasa Lighthouse y, solo en `push` a `main`, despliega con `apps/landing/scripts/deploy.sh` (Cloudflare **Workers static assets**, no Pages; `wrangler` 4.159.0 fijado). **Desplegada por primera vez el 2026-11-14** (`LANDING_DEPLOY_ENABLED = true` ya existe; cada despliegue pide la aprobación del revisor del *environment* `landing-production`). El job solo corre si el push a `main` toca `apps/landing/**` o el propio workflow: una release que solo cambia la plataforma no redespliega la landing.
 
 Puerta de publicación: los datos legales están resueltos por `ADR-073` (titular persona física sin NIF ni domicilio publicados; publicación sin asesor; `check:publish` en verde). **Búsqueda de marca cerrada y bloqueos de LaLiga aceptados con Cloudflare (`ADR-086`, 2026-11-14)**; el buzón `founders@adagiox.com` funciona y el copy está validado. Alta, en este orden:
 
@@ -474,7 +474,7 @@ Puerta de publicación: los datos legales están resueltos por `ADR-073` (titula
 4. **Observabilidad desactivada**: `apps/landing/wrangler.jsonc` lleva `observability.enabled: false` (sin Workers Logs, `ADR-073 §2.5`). No activarla sin una decisión nueva que actualice el ADR.
 5. **Dominio**: `apps/landing/wrangler.jsonc` lleva `routes` con `custom_domain` para `adagiox.com` (ápice; `www` y los dominios secundarios redirigen con 301 por reglas de zona de Cloudflare, no por el repositorio). Las cuatro zonas están en Cloudflare (`johnny.ns.cloudflare.com` y `keyla.ns.cloudflare.com`). **DNSSEC**: activo en la zona de `adagiox.com` y `pending` hasta que Arsys ponga el DS (key tag `2371`, algoritmo `13`, digest SHA-256, el que da `GET /zones/<id>/dnssec`); no bloquea el despliegue.
 
-Reversión: `apps/landing/README.md`, «Desplegar y revertir». **La reversión real contra Cloudflare no está probada todavía.**
+Reversión: `apps/landing/README.md`, «Desplegar y revertir». Probada a nivel de API de Cloudflare el 2026-11-14 (vuelta a una versión anterior del Worker); falta probar `npx wrangler rollback` con una versión de contenido distinto.
 
 ## 5. Pendiente de documentar aquí
 
