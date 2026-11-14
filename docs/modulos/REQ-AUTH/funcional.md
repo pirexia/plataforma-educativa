@@ -116,7 +116,7 @@ Las tres rutas con `:token` son exactamente las que fija el enlace de cada corre
 Reglas que sí son obligatorias desde ya, sin excepción por ser austeras (`CLAUDE.md §10`):
 
 - **Branding por tenant** en las cinco públicas: nombre, colores, logo y fondo desde `GET /tenant/branding`, que es el consumidor para el que 1.1 lo construyó (`RUX-BRAND-002`, `RUX-BRAND-004`).
-- **Cuatro idiomas** (`INV-009`), con el idioma resuelto por `Accept-Language` ∩ idiomas activos del centro, porque en cinco de las seis todavía no hay usuario del que leer la preferencia.
+- **Cuatro idiomas** (`INV-009`), con el idioma resuelto, porque en cinco de las seis todavía no hay usuario del que leer la preferencia, por esta precedencia (ampliación de `CA-AUTH-063` decidida por el usuario el 2026-11-14, `RN-UI-15` de `docs/modulos/REQ-CORE/capa-visual.md`): elección explícita guardada (`plataforma.locale`), si está entre los idiomas activos del centro → `Accept-Language` ∩ idiomas activos → idioma por defecto del centro. Sin elección explícita, el resultado es el de siempre. Las pantallas públicas llevan un selector de idioma en el pie (`1.15a-a`).
 - **WCAG 2.2 AA** (`RNF-UX-002`): son las primeras pantallas del producto y la única puerta de entrada; una barrera de accesibilidad aquí deja fuera del sistema, no de una funcionalidad.
 - **La validación de la política de contraseñas que muestran es solo ayuda visual** (`RN-AUTH-37`). La que decide es la del servidor (`INV-010`).
 - **Ninguna escribe credencial ni token en `localStorage`/`sessionStorage`** (`ADR-025`, `RN-AUTH-28`, `CA-AUTH-006`).
@@ -564,7 +564,7 @@ Verificables, cada uno con test que referencia su ID (`INV-015`).
 - **`CA-AUTH-060`** · *Dado* las seis rutas de la SPA de §1.6, *cuando* se recorren en un navegador real, *entonces* cada una completa su flujo contra la API sin error de consola y sin ninguna llamada a un host externo (CSP estricta, `RSEC-OWASP-005`).
 - **`CA-AUTH-061`** · *Dado* las cinco pantallas **sin sesión**, *cuando* se cargan sobre el host de un centro con branding configurado, *entonces* muestran su nombre, colores, logo y fondo tomados de `GET /tenant/branding`, y **nada más** de ese endpoint (`RUX-BRAND-002`, `CA-CORE-007`).
 - **`CA-AUTH-062`** · *Dado* cualquiera de las seis, *cuando* se audita con la herramienta de accesibilidad, *entonces* no hay incumplimientos de WCAG 2.2 AA, y el formulario es completable **solo con teclado** (`RNF-UX-002`).
-- **`CA-AUTH-063`** · *Dado* un navegador con `Accept-Language: de`, *cuando* se carga la pantalla de login de un centro con `de` entre sus idiomas activos, *entonces* se pinta en alemán; con un idioma no activo, se degrada al idioma por defecto del centro y **no** es un error (`ADR-038 §11`, `INV-009`).
+- **`CA-AUTH-063`** · *Dado* un navegador con `Accept-Language: de`, *cuando* se carga la pantalla de login de un centro con `de` entre sus idiomas activos, *entonces* se pinta en alemán; con un idioma no activo, se degrada al idioma por defecto del centro y **no** es un error (`ADR-038 §11`, `INV-009`). **Ampliación (`RN-UI-15`, `CA-UI-014`)**: con una elección guardada en `plataforma.locale` que es un idioma activo, esa elección prevalece sobre `Accept-Language` y se mantiene al pasar de una pantalla pública a otra; si no es activo, rige la regla anterior.
 
 ### Transversales
 
