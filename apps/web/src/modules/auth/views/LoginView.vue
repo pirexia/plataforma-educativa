@@ -158,7 +158,10 @@ function onChallengeLost(message: string) {
       <IdentityProviderLoginList />
 
       <div class="mt-4 flex flex-col gap-1 text-center text-sm">
-        <RouterLink to="/recuperar" class="text-primary-on-background hover:underline">
+        <RouterLink
+          to="/recuperar"
+          class="text-primary-on-background outline-ring rounded-md hover:underline focus-visible:outline-2"
+        >
           {{ t('auth.login.forgotPassword') }}
         </RouterLink>
         <p class="text-muted-foreground">{{ t('auth.login.pendingHint') }}</p>

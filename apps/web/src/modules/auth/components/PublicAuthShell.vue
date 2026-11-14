@@ -59,7 +59,7 @@ const languages = computed(() => {
 
     return {
       domain,
-      code,
+      locale: code,
       label: code.toUpperCase(),
       nameKey: domain === 'es-ES' ? 'esES' : domain,
     }
@@ -153,12 +153,12 @@ function onLogoError(): void {
                 <li v-for="language in languages" :key="language.domain">
                   <button
                     type="button"
-                    :lang="language.code"
+                    :lang="language.locale"
                     :aria-label="t(`shell.userMenu.language.names.${language.nameKey}`)"
-                    :aria-current="activeCode === language.code ? 'true' : undefined"
+                    :aria-current="activeCode === language.locale ? 'true' : undefined"
                     :class="[
                       'focus-visible:border-ring focus-visible:ring-ring/50 inline-flex outline-none min-h-6 min-w-6 items-center justify-center rounded-md border border-transparent px-2 text-sm focus-visible:ring-3 pointer-coarse:min-h-11 pointer-coarse:min-w-11',
-                      activeCode === language.code
+                      activeCode === language.locale
                         ? 'font-semibold underline underline-offset-4'
                         : 'text-muted-foreground',
                     ]"
