@@ -6,6 +6,13 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-14 · `fix(landing)`: primer despliegue real de la landing (issues #663 y #666; PR #660, #664 y este)
+
+- **Primer despliegue real hecho el 2026-11-14**: `adagiox.com` sirve la landing (en inglés en `/` y en `/es/`, `/de/`, `/fr/`) con las cabeceras de `ADR-072 §4.4`, y `www`, `.es`, `.eu` y `.org` redirigen con 301 por reglas de zona. El primer intento falló por reglas de nombre de host en `_redirects` (#663, corregido en #664); el segundo se completó pero su smoke test dio un 404 transitorio (#666).
+- `deploy.sh`: la primera petición del smoke test se reintenta (10 intentos, 6 s). `wrangler.jsonc`: `preview_urls: false`.
+- Fuera del repositorio: *Always Use HTTPS* activado en la zona `adagiox.com`.
+- **Sin probar**: `wrangler rollback`. Sin hacer: el DS de DNSSEC en Arsys y la etiqueta `v0.1.0`.
+
 ## 2026-11-14 · `docs(landing)`: DNS en Cloudflare, dominio del ápice y `ADR-086` (issue #579; PR #660 y este)
 
 - `ADR-086` (`ACEPTADA`): se mantiene Cloudflare pese a los bloqueos de LaLiga (riesgo aceptado, salida a Netlify documentada), cuarto dominio `adagiox.org` en lugar de `.net`, estado del DNS y permisos del token. Sustituye en parte a `ADR-072 §4.7`/`OPEN-072-02` y a `§1.1`/`§4.3` (`.net`).

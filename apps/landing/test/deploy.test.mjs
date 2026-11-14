@@ -66,6 +66,7 @@ test('wrangler.jsonc: Worker de solo activos, solo el ápice como dominio person
   assert.equal(w.main, undefined)
   assert.equal(w.assets.directory, './dist')
   assert.equal(w.workers_dev, true)
+  assert.equal(w.preview_urls, false)
   // ADR-072 §4.3: canónico = ápice sin `www`; el resto se redirige por reglas de zona, no aquí.
   assert.deepEqual(w.routes, [{ pattern: 'adagiox.com', custom_domain: true }])
   assert.equal(w.route, undefined)
@@ -264,9 +265,60 @@ test('deploy.sh: el smoke test falla si /js/carousel.js falta, no es 200, o su M
   }
 })
 
+test('deploy.sh: reintenta el smoke test si la URL responde 404 al principio y acaba bien (#666)', async () => {
+  const { root } = fakeProject()
+  let n = 0
+  const srv = await new Promise((resolve) => {
+    const s = createServer((req, res) => {
+      if (req.url === '/js/carousel.js') {
+        res.writeHead(200, { 'content-type': 'text/javascript', 'x-content-type-options': 'nosniff' })
+        res.end('//')
+        return
+      }
+      n += 1
+      if (n <= 2) {
+        res.writeHead(404)
+        res.end('aún no')
+        return
+      }
+      res.writeHead(200, SECURITY_HEADERS)
+      res.end('ok')
+    })
+    s.listen(0, '127.0.0.1', () => resolve(s))
+  })
+  try {
+    const env = { ...ENV_OK, DEPLOY_SMOKE_ATTEMPTS: '5', DEPLOY_SMOKE_DELAY: '0' }
+    const r = await runDeploy(root, ['--url', `http://127.0.0.1:${srv.address().port}`], env)
+    assert.equal(r.code, 0, r.out)
+    assert.match(r.out, /intento 1\/5/)
+    assert.match(r.out, /deploy: correcto/)
+  } finally {
+    srv.close()
+  }
+})
+
+test('deploy.sh: el smoke test falla si la URL no responde bien tras todos los intentos (#666)', async () => {
+  const { root } = fakeProject()
+  const srv = await new Promise((resolve) => {
+    const s = createServer((req, res) => {
+      res.writeHead(404)
+      res.end()
+    })
+    s.listen(0, '127.0.0.1', () => resolve(s))
+  })
+  try {
+    const env = { ...ENV_OK, DEPLOY_SMOKE_ATTEMPTS: '2', DEPLOY_SMOKE_DELAY: '0' }
+    const r = await runDeploy(root, ['--url', `http://127.0.0.1:${srv.address().port}`], env)
+    assert.notEqual(r.code, 0)
+    assert.match(r.out, /no respondió correctamente tras 2 intentos/)
+  } finally {
+    srv.close()
+  }
+})
+
 test('deploy.sh: toma la URL de la salida de wrangler si no se pasa --url', async () => {
   const { root } = fakeProject()
-  const r = await runDeploy(root)
+  const r = await runDeploy(root, [], { ...ENV_OK, DEPLOY_SMOKE_ATTEMPTS: '2', DEPLOY_SMOKE_DELAY: '0' })
   // La URL falsa no resuelve: el fallo debe venir de curl contra esa URL, no de no encontrarla.
   assert.notEqual(r.code, 0)
   assert.doesNotMatch(r.out, /no se pudo determinar la URL/)

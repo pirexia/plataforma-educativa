@@ -7,6 +7,8 @@
   "name": "adagiox-landing",
   "compatibility_date": "2026-11-09",
   "workers_dev": true,
+  // Sin URL de vista previa por versión: la landing solo se sirve en adagiox.com y en workers.dev (smoke test).
+  "preview_urls": false,
   "routes": [{ "pattern": "adagiox.com", "custom_domain": true }],
   // Sin Workers Logs: la landing no registra peticiones propias (privacidad, ADR-073).
   "observability": { "enabled": false },
