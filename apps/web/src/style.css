@@ -68,10 +68,33 @@
   --color-google-green: var(--google-green);
   --color-google-yellow: var(--google-yellow);
   --color-google-red: var(--google-red);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
+  --color-scrim-auth: var(--scrim-auth);
+  --color-on-scrim: var(--on-scrim);
+
+  /* `capa-visual.md §5.1`: geometría de la pantalla de acceso, en `rem`
+     para que escale con la letra del usuario (WCAG 1.4.4). */
+  --auth-panel-width: clamp(22.5rem, 30vw, 28.75rem);
+  --auth-visual-min-height: 11.25rem;
+
+  /* `capa-visual.md §5.2`, `RN-UI-04`, `ADR-064 §4`: toda la escala vale
+     `var(--radius)` (2 px), sin `calc()`: con esa base las fórmulas
+     dan `-2px` y `0px`. */
+  --radius-xs: var(--radius);
+  --radius-sm: var(--radius);
+  --radius-md: var(--radius);
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  --radius-xl: var(--radius);
+  --radius-2xl: var(--radius);
+  --radius-3xl: var(--radius);
+  --radius-4xl: var(--radius);
+}
+
+/* `capa-visual.md §5.3`, `RN-DS-28`: única sombra nueva, solo para el panel
+   de acceso (`RN-UI-08`). Es una utilidad y no `--shadow-*` de `@theme`
+   porque el token se llama igual que la utilidad y se referenciaría a sí
+   mismo; así admite variantes (`md:shadow-auth-panel`). */
+@utility shadow-auth-panel {
+  box-shadow: var(--shadow-auth-panel);
 }
 
 @layer base {

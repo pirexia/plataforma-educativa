@@ -24,7 +24,8 @@
       "pendingHint": "Haven't activated your account yet? Check the invitation email you received.",
       "forgotPassword": "Forgot your password?",
       "activatedBanner": "Your account has been activated. You can now sign in.",
-      "resetBanner": "Your password has been reset. Sign in with the new password."
+      "resetBanner": "Your password has been reset. Sign in with the new password.",
+      "lead": "Sign in with the account your school has given you."
     },
     "activation": {
       "title": "Activate your account",
@@ -542,6 +543,14 @@
       "passwordChange": "Password",
       "sessions": "Open sessions",
       "ssoAdministration": "Institutional sign-in (SSO)"
+    },
+    "shell": {
+      "platformName": "Plataforma de Gestión Educativa",
+      "welcomeTitle": "Welcome",
+      "welcomeText": "Sign in with your account to see your school’s information.",
+      "visualLabel": "Welcome",
+      "poweredBy": "Powered by {platform}",
+      "languageNav": "Language"
     }
   }
 }

@@ -24,7 +24,8 @@
       "pendingHint": "Hast du dein Konto noch nicht aktiviert? Sieh in der Einladungs-E-Mail nach, die du erhalten hast.",
       "forgotPassword": "Passwort vergessen?",
       "activatedBanner": "Dein Konto wurde aktiviert. Du kannst dich jetzt anmelden.",
-      "resetBanner": "Dein Passwort wurde zurückgesetzt. Melde dich mit dem neuen Passwort an."
+      "resetBanner": "Dein Passwort wurde zurückgesetzt. Melde dich mit dem neuen Passwort an.",
+      "lead": "Melden Sie sich mit dem Konto an, das Ihnen Ihre Einrichtung zur Verfügung gestellt hat."
     },
     "activation": {
       "title": "Konto aktivieren",
@@ -542,6 +543,14 @@
       "passwordChange": "Passwort",
       "sessions": "Offene Sitzungen",
       "ssoAdministration": "Institutioneller Anmeldedienst (SSO)"
+    },
+    "shell": {
+      "platformName": "Plataforma de Gestión Educativa",
+      "welcomeTitle": "Willkommen",
+      "welcomeText": "Melden Sie sich mit Ihrem Konto an, um die Informationen Ihrer Einrichtung einzusehen.",
+      "visualLabel": "Willkommen",
+      "poweredBy": "Mit Technologie von {platform}",
+      "languageNav": "Sprache"
     }
   }
 }

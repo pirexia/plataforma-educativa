@@ -119,7 +119,8 @@ function onChallengeLost(message: string) {
 <template>
   <PublicAuthShell>
     <template v-if="step === 'credentials'">
-      <h1 class="mb-4 text-lg font-semibold">{{ t('auth.login.title') }}</h1>
+      <h1 class="mb-1 text-lg font-semibold">{{ t('auth.login.title') }}</h1>
+      <p class="text-muted-foreground mb-4 text-sm">{{ t('auth.login.lead') }}</p>
 
       <p v-if="banner" class="border-border bg-muted mb-4 rounded-lg border px-3 py-2 text-sm">
         {{ banner }}
@@ -157,7 +158,10 @@ function onChallengeLost(message: string) {
       <IdentityProviderLoginList />
 
       <div class="mt-4 flex flex-col gap-1 text-center text-sm">
-        <RouterLink to="/recuperar" class="text-primary-on-background hover:underline">
+        <RouterLink
+          to="/recuperar"
+          class="text-primary-on-background outline-ring rounded-md hover:underline focus-visible:outline-2"
+        >
           {{ t('auth.login.forgotPassword') }}
         </RouterLink>
         <p class="text-muted-foreground">{{ t('auth.login.pendingHint') }}</p>

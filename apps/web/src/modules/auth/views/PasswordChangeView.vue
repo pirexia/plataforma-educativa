@@ -75,7 +75,7 @@ async function submit() {
 
 <template>
   <div class="flex flex-col items-center justify-center px-4 py-10">
-    <div class="border-border bg-background w-full max-w-sm rounded-xl border p-6 shadow-sm">
+    <div class="border-border bg-background w-full max-w-sm rounded-xl border p-6">
       <h1 class="mb-1 text-lg font-semibold">{{ t('auth.passwordChange.title') }}</h1>
       <p class="text-muted-foreground mb-4 text-sm">{{ t('auth.passwordChange.intro') }}</p>
 
