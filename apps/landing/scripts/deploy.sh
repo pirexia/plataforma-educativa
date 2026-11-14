@@ -6,6 +6,7 @@
 #   --dry-run  Construye, comprueba y simula el despliegue (`wrangler deploy --dry-run`); no sube nada
 #              ni hace smoke test (no hay URL desplegada).
 #   --url      URL a comprobar en el smoke test. Por defecto, la que imprime `wrangler deploy`.
+#   DEPLOY_SMOKE_ATTEMPTS / DEPLOY_SMOKE_DELAY  Reintentos (10) y segundos entre ellos (6) de la primera petición del smoke test.
 # Entorno: CLOUDFLARE_API_TOKEN y CLOUDFLARE_ACCOUNT_ID (obligatorios, también en --dry-run).
 #
 # Puerta de publicación (#582): `npm run check:publish` falla mientras haya marcadores del titular,
@@ -60,7 +61,24 @@ fi
 
 # Smoke test de cabeceras (#583) contra la URL real, con el valor exacto de dist/_headers.
 echo "deploy: smoke test de cabeceras en $URL"
-HEADERS="$(curl --fail --silent --show-error --location --max-time 30 --dump-header - --output /dev/null "$URL/")"
+# Justo tras `wrangler deploy` la URL puede responder 404 unos segundos (propagación, #666): se reintenta.
+ATTEMPTS="${DEPLOY_SMOKE_ATTEMPTS:-10}"
+DELAY="${DEPLOY_SMOKE_DELAY:-6}"
+HEADERS=""
+for n in $(seq 1 "$ATTEMPTS"); do
+  if HEADERS="$(curl --fail --silent --show-error --location --max-time 30 --dump-header - --output /dev/null "$URL/")"; then
+    break
+  fi
+  HEADERS=""
+  if [ "$n" -lt "$ATTEMPTS" ]; then
+    echo "deploy: smoke test: intento $n/$ATTEMPTS sin respuesta correcta de $URL; reintento en ${DELAY}s" >&2
+    sleep "$DELAY"
+  fi
+done
+if [ -z "$HEADERS" ]; then
+  echo "deploy: smoke test FALLA, $URL no respondió correctamente tras $ATTEMPTS intentos; el despliegue ya está publicado, revertir si procede: npx wrangler rollback (README, «Desplegar y revertir»)" >&2
+  exit 1
+fi
 # Nombres en minúsculas (HTTP/2 los normaliza); los valores se comparan exactos.
 HEADERS="$(printf '%s' "$HEADERS" | tr -d '\r' | sed -E 's/^([^:]+):/\L\1:/')"
 STATUS=0
