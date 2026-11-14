@@ -5,7 +5,7 @@
 | Código | `REQ-ACAD-003` (`docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md §5.4`), con `RMOB-COM-001` (`§14.3`) en lo que toca al paso de lista sin conexión |
 | Prioridad | MUST |
 | Fase | 1 · paso **`1.13`** del plan, partido en **`1.13-a`** (a su vez **`1.13-a1`** y **`1.13-a2`**), **`1.13-b`** y **`1.13-c`** (§12) |
-| Estado | **PROPUESTO** (2026-11-12). Sin aprobar. Tiene preguntas **bloqueantes** (§14.1): no se implementa hasta decidirlas |
+| Estado | **APROBADO `1.13-a` y `1.13-b`** (2026-11-14, el usuario); **`1.13-c` PARADO** hasta escribir y aceptar `ADR-084` (aplazado). `OPEN-ACAD-45`, `-46`, `-47` y `-52` decididas; `OPEN-ACAD-56` = A **sujeta a la revisión de `architect` y `security-reviewer` antes de `1.13-a`**; no bloqueantes con su recomendación. **Condición antes de datos reales**: validación jurídica de `OPEN-ACAD-47` y `-57` (retención) |
 | Clasificación del paso | **crítico** en las tres entregas (§11) |
 
 | Depende de | Documento: `CORE` (`§5.4`). Real: `curso`, `acad`, `alum` y, en `1.13-b`, `fam_unit` (§8.1). **El módulo que la aloja está sin decidir** (`OPEN-ACAD-45`, bloqueante) |

@@ -2269,7 +2269,7 @@ El Administrador de Centro gestiona una **web pública** accesible sin login, co
 
 ### 5.50 MÓDULO PRIMER CICLO DE EDUCACIÓN INFANTIL 0-3 (`REQ-INF`)
 
-> **Prioridad**: MUST · **Fase**: 1 · **Depende de**: ACAD, CALIF, ALUM, FIN, SALUD 
+> **Prioridad**: MUST · **Fase**: 1 · **Depende de**: CURSO, ACAD, ALUM, FAM-UNIT (`OPEN-INF-02` = A, 2026-11-14; la parte de CALIF, FIN y SALUD se difiere a `-f` y `-g`) 
 > **Entidades principales**: `InfantGroup`, `DevelopmentReport`, `DailyLog`, `AdaptationPeriod`, `InfantRatio`, `CareSession`
 
 > 🔑 **En esta etapa la plataforma es el sistema oficial de registro** (`ADR-016`, `ADR-020`). Al tratarse de un ciclo privado con plazas no sostenidas con fondos públicos, no se consigna en Raíces: la evaluación, los informes y su publicación a las familias son responsabilidad íntegra de la plataforma. Es el único bloque del producto donde no hay sistema oficial que nos respalde, y por tanto donde el rigor documental debe ser mayor.

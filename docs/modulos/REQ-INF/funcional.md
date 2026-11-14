@@ -7,7 +7,7 @@
 | Fase | 1 · paso **1.18** del plan (bloque E, Evaluación) |
 | Depende de | Documento (3.2.30): `ACAD, CALIF, ALUM, FIN, SALUD`. **Propuesta** (`OPEN-INF-02`): `depends_on: ['curso', 'acad', 'alum', 'fam_unit']`. `CALIF` (pasos `1.16`/`1.17`), `FIN` y `SALUD` (fase 2) **no están implementados**: ver §0.2 C1 |
 | Esencial | `essential: false` (depende de módulos no esenciales, `ADR-045`) |
-| Estado | **PROPUESTO** (2026-11-12, ola 1, agente B6). Sin aprobar. Tiene preguntas abiertas bloqueantes (§14.1) |
+| Estado | **APROBADO** (2026-11-14, el usuario): `1.18` acotado a `§1.1` (`OPEN-INF-01` = A), con `OPEN-INF-01` a `-11` y `-22` decididas. **No se implementa** hasta que existan `1.13` (asistencia), `1.16-a` (calificaciones) y el veto de ratio en el registro único de `alum`. Siguen abiertas `OPEN-INF-12` (solo bloquea `-f`) y `ADR-085` (sin escribir; solo bloquea `-h`). **Condición antes de datos reales**: validación jurídica de `OPEN-INF-04`, `-11` y `-16` |
 | Clasificación del paso: crítico | Todas las entregas. Ver §2 |
 | Decisiones vinculantes de partida | `ADR-004`, `ADR-013`, `ADR-015`, `ADR-016` (excepción del 0-3 privado), `ADR-020`, `ADR-021`, `ADR-029`, `ADR-032`, `ADR-033`, `ADR-034`, `ADR-035`, `ADR-038`, `ADR-044` (enmendado por `ADR-063`), `ADR-045`, `ADR-048`, `ADR-053`, `ADR-054`, `ADR-056`, `ADR-057`, `ADR-062`, `ADR-063 §5.4`, `ADR-066`, `ADR-068`, `ADR-069 §4.2`, `ADR-076`. En estado **PROPUESTA**, no vinculantes todavía: `ADR-078` (PDF), `ADR-079` (notificaciones), `ADR-082` (firma) |
 
