@@ -1,6 +1,6 @@
 # RUNBOOK.md
 
-> **Versión 0.3.24** · 2026-11-16
+> **Versión 0.3.25** · 2026-11-16
 > Documento vivo: se actualiza en cada fase (`CLAUDE.md` §6). Cubre el entorno de **desarrollo** en WSL2 (`ADR-030`) y, desde `§3b.9`, el de **staging** en un VPS (con datos sintéticos) — no hay producción, piloto ni usuarios reales todavía. Los procedimientos de guardia, alertas y recuperación ante desastre de un entorno real se documentarán aquí cuando `OPEN-11` (alojamiento del piloto) se resuelva.
 
 ---
@@ -136,11 +136,11 @@ podman stop plataforma-pg17-reversion
 
 **Producción (Quadlet)**: hoy no aplica (sin producción ni datos reales, `§4`); la primera instalación nacerá en 18 con `postgres-cluster` vacío. Para un host con un clúster 17 con datos, **condición previa**: ensayar entero, reversión incluida, en `compose.prodlike.yaml` con datos sintéticos (`ADR-030`) y anotar el resultado en `SYSADMIN.md`.
 
-1. Ventana de mantenimiento: `systemctl stop api@1.service web.service worker.service`.
+1. Ventana de mantenimiento: `systemctl stop api@1.service web.service traefik.service worker.service worker-long.service`.
 2. Inventario y volcados con el cliente de 18, como en los pasos 0 y 2 de arriba. El volcado contiene datos personales reales: se trata como copia de seguridad (cifrado, fuera del host de aplicación cuando `REQ-BKP`/`OPEN-10` lo permitan, borrado al cerrar la ventana de reversión) y nunca se lleva a desarrollo (`ADR-030`).
 3. `systemctl stop postgres.service`; `./infra/install.sh <tag con 18>`; `systemctl daemon-reload`; `systemctl start postgres.service` (inicialización sobre `postgres-cluster` con los *scripts* de `/opt/plataforma/postgres-init`).
 4. `dropdb` + `pg_restore --create --exit-on-error` + inventario + `diff` + comprobaciones, como en los pasos 5 y 6.
-5. Decidir continuar o volver **antes** de reabrir el tráfico. Continuar: `systemctl start api@1.service web.service worker.service` y prueba de humo. Volver: `systemctl stop postgres.service`, `./infra/install.sh <tag anterior>`, `systemctl daemon-reload`, `systemctl start postgres.service` (17 sobre el volumen antiguo, intacto), `systemctl start api@1.service web.service worker.service`. **Después de reabrir el tráfico**, volver a 17 pierde lo escrito en 18.
+5. Decidir continuar o volver **antes** de reabrir el tráfico. Continuar: `systemctl start api@1.service web.service traefik.service worker.service worker-long.service` y prueba de humo. Volver: `systemctl stop postgres.service`, `./infra/install.sh <tag anterior>`, `systemctl daemon-reload`, `systemctl start postgres.service` (17 sobre el volumen antiguo, intacto), `systemctl start api@1.service web.service traefik.service worker.service worker-long.service`. **Después de reabrir el tráfico**, volver a 17 pierde lo escrito en 18.
 
 ---
 
@@ -176,7 +176,7 @@ Escrito, y probado **en parte** en WSL2 — ver `SYSADMIN.md §6` para el detall
 | Ficheros de entorno (`plataforma.env`, `plataforma-postgres.env`, `plataforma-worker.env`, `plataforma-worker-long.env`, `traefik-cloudflare.env`) | `/etc/plataforma` | `~/.config/plataforma` |
 | Scripts de inicialización de PostgreSQL | `/opt/plataforma/postgres-init` | `~/.local/share/plataforma/postgres-init` |
 
-El directorio de inicialización de PostgreSQL lo deja preparado `install.sh` en cada ejecución, copiando `infra/containers/postgres/init/` (ejecutable `01-tenancy.sh` y `02-tenancy-test-db.sh`, más `01-tenancy.sql.tpl`). **No contiene secretos**: las contraseñas llegan al contenedor por las variables `TENANCY_*_PASSWORD` de `plataforma-postgres.env`. Esos scripts solo se ejecutan al inicializar un volumen nuevo. El nombre real de la unidad de red generada por Quadlet es `plataforma-network.service` (no `plataforma.network`): `systemctl [--user] enable --now plataforma-network.service`. Lo comprobado: la validación en seco de ambos generadores y la prueba de shell `infra/test-install-env.sh`; el arranque real de las unidades en modo usuario se prueba en el servidor de staging.
+El directorio de inicialización de PostgreSQL lo deja preparado `install.sh` en cada ejecución, copiando `infra/containers/postgres/init/` (ejecutable `01-tenancy.sh` y `02-tenancy-test-db.sh`, más `01-tenancy.sql.tpl`). **No contiene secretos**: las contraseñas llegan al contenedor por las variables `TENANCY_*_PASSWORD` de `plataforma-postgres.env`. Esos scripts solo se ejecutan al inicializar un volumen nuevo. El nombre real de la unidad de red generada por Quadlet es `plataforma-network.service` (no `plataforma.network`): `systemctl [--user] start plataforma-network.service` (`enable` falla con unidades generadas, #695). Lo comprobado: la validación en seco de ambos generadores y la prueba de shell `infra/test-install-env.sh`; el arranque real de las unidades en modo usuario se prueba en el servidor de staging.
 
 **Prerrequisitos del modo `--user`.** Traefik monta el socket de Podman del usuario (`%t/podman/podman.sock`), que **no existe** hasta activarlo: `systemctl --user enable --now podman.socket`. Sin él `traefik.service` falla con código 125 (**comprobado a mano en el VPS de staging, 2026-11-16**; el instalador no lo activa ni hay prueba automatizada). Además, `loginctl enable-linger <usuario>` para que las unidades de usuario sigan vivas sin sesión (`ADR-080 §3.4`); **tampoco lo aplica `install.sh`**: es un paso manual del preparado del *host*.
 
@@ -237,7 +237,7 @@ No hay salida por la aplicación: es intervención directa sobre la base de dato
 ./infra/install.sh <tag> --user       # WSL2, systemd de usuario
 ```
 
-`<tag>` es siempre una versión exacta (`X.Y.Z` en producción, `sha-<7>` en *staging*; la etiqueta móvil `develop` deja de usarse para desplegar en *staging*, `ADR-080 §4.5`) — nunca `latest` (`ADR-037 §5.2`). El script sustituye el *tag* en las unidades y recarga systemd; no arranca nada por sí solo.
+`<tag>` es siempre una versión exacta (`X.Y.Z` en producción, `sha-<7>` en *staging*; la etiqueta móvil `develop` deja de usarse para desplegar en *staging*, `ADR-080 §4.5`) — nunca `latest` (`ADR-037 §5.2`). El script sustituye el *tag* en las unidades y recarga systemd; no arranca nada por sí solo. Después: `systemctl --user daemon-reload`; `systemctl --user restart plataforma-migrate.service` y comprobar `systemctl --user show plataforma-migrate.service -p Result --value` = `success` antes de reiniciar API y *workers*; el resto de unidades generadas, con `start` (no `enable --now`, #695). Es `restart` y no `start` porque `plataforma-migrate` es `oneshot` con `RemainAfterExit`: ya activa, `start` no ejecuta el contenedor y las migraciones del tag nuevo no correrían (#698). En sistema, sin `--user`.
 
 **Escrito, no ejecutado de extremo a extremo en este host** (`SYSADMIN.md §6.2`): `install.sh --user` requiere escribir en `~/.config/containers/systemd/`, bloqueado por el propietario incorrecto del directorio. La lógica que sí se ha ejercido — sustitución de `__TAG__`, generación de unidades systemd válidas a partir de estos ficheros — está verificada por separado (`SYSADMIN.md §6.1`); lo que falta es la instalación automática en este directorio concreto, no el contenido de las unidades.
 
@@ -249,21 +249,22 @@ Mismo mecanismo que el despliegue: bajar el *tag* a la versión anterior y reini
 
 ```bash
 ./infra/install.sh <tag-anterior> --user
-systemctl --user restart api@1.service web.service worker.service
+systemctl --user daemon-reload
+systemctl --user restart api@1.service web.service traefik.service worker.service worker-long.service
 ```
 
 **Módulo `acad` (`1.11-b`)**: se revierte con la imagen anterior; sus migraciones **no** se revierten (aditivas; la versión anterior no usa las tablas y su `down()` borraría datos de estructura). El siguiente `platform:sync-registry` de la versión anterior marca `acad` y sus permisos con `retired_at` (concesiones inertes). Detalle en `SYSADMIN.md §2g` y `docs/modulos/REQ-ACAD/operacion.md §9`.
 
 **Períodos lectivos y validación del cambio de fechas (`1.11d-a`, `acad` + `curso`)**: la reversión es **conjunta** (un solo cambio de imagen) y también es «imagen anterior, migraciones sin revertir» (`REQ-ACAD/operacion.md §11.6`, `REQ-CURSO/operacion.md §9.2`):
 
-1. `./infra/install.sh <tag-anterior> --user` y reiniciar `api@1.service web.service worker.service`, como en el resto de pasos.
+1. `./infra/install.sh <tag-anterior> --user` y reiniciar `api@1.service web.service traefik.service worker.service worker-long.service`, como en el resto de pasos.
 2. **No se ejecuta `migrate:rollback`**: la tabla `academic_periods` es aditiva y la versión anterior no la usa; su `down()` (`DROP TABLE`) borraría períodos configurados por los centros.
 3. Efectos de volver atrás: el `PATCH` de fechas de un curso deja de validar los períodos (los cambios hechos así pueden dejar períodos fuera de las fechas del curso, hay que revisarlos al volver a la versión nueva), `acad` deja de exigir `configuracion_academica` y `sync-registry` de la versión anterior marca sus cuatro códigos con `retired_at` (concesiones inertes); `acad:grant-structure-permissions` vuelve a sembrar solo los cuatro de `estructura_academica`. Una etapa con períodos podría borrarse (lógicamente) sin la regla `RN-ACAD-61`: sin daño de integridad, los períodos quedan huérfanos y la versión nueva los lee igualmente (la relación con la etapa usa `withTrashed()`).
 4. Al **volver a la versión nueva**: ejecutar `php artisan migrate --database=pgsql_owner --force` (las migraciones de este proyecto se aplican con la conexión propietaria; sin ella `TenantMigration` aborta con «debe ejecutarse dentro de una transacción de pgsql_owner» y la tabla puede quedar a medias: en ese caso, si está vacía, `DROP TABLE academic_periods` y repetir) y `php artisan acad:grant-structure-permissions` para recuperar las ocho concesiones.
 
 **Horarios y asignación docente (`1.12-a`, `acad`)**: también «imagen anterior, migraciones sin revertir» (`REQ-ACAD/operacion.md §12.5`).
 
-1. `./infra/install.sh <tag-anterior> --user` y reiniciar `api@1.service web.service worker.service`.
+1. `./infra/install.sh <tag-anterior> --user` y reiniciar `api@1.service web.service traefik.service worker.service worker-long.service`.
 2. **No se ejecuta `migrate:rollback`**: las siete tablas nuevas (`facilities`, `timetables`, `teaching_assignments`, `group_tutors`, `timetable_frames`, `time_slots`, `timetable_sessions`) y los dos únicos de `group_subjects` y `subgroups` son aditivos; la versión anterior no los usa y su `down()` borraría el horario de los centros.
 3. Efectos de volver atrás: `sync-registry` de la versión anterior marca los permisos de `asignacion_docente`, `espacios` y `horarios` con `retired_at` (concesiones inertes); `RN-ACAD-96` deja de aplicarse, así que se podría borrar (lógicamente) un grupo, un subgrupo, una asignatura o una etapa con tutores, asignaciones o marcos vivos: huérfanos lógicos sin daño de integridad (FK `NO ACTION`, borrado lógico), que la versión nueva lee igualmente (las relaciones usan `withTrashed()`).
 4. Al **volver a la versión nueva**: `php artisan migrate --database=pgsql_owner --force`, `php artisan platform:sync-registry` y `php artisan acad:grant-structure-permissions` para recuperar las concesiones.
@@ -303,7 +304,7 @@ Es una operación de segundos porque cada versión es una imagen inmutable en GH
 - **`worker-long.container`** (`1.12b`): una sola instancia del *worker* de la cola `long` (`queue:work database_long`, copia y reversión del rollover), mismo entorno y endurecimiento que `worker.container`; `StopTimeout=620` deja acabar la copia en curso. Al cambiar de versión se cambia su *tag* junto con el de `worker` y `api@N`. Antes de **revertir** la entrega de `1.12b`, esperar a que no haya copias ni reversiones en vuelo (`pendiente`, `en_curso`, `revirtiendo`): un *worker* de la versión anterior no conoce sus trabajos y los mandaría a `failed_jobs` (`REQ-CURSO/operacion.md §9.3`).
 - **`worker.container`** (issue #128): una sola instancia del *worker* de colas, misma imagen que la API, con su propio fichero de entorno `plataforma-worker.env` (plantilla `infra/quadlet/plataforma-worker.env.example`) y `NoNewPrivileges`/`DropCapability=ALL`. `systemctl --user restart worker.service` para reiniciarlo; al pararlo espera hasta 130 s a que acabe el trabajo en curso (`StopTimeout`). Al cambiar de versión (despliegue o reversión) se cambia el *tag* de `worker` junto con el de `api@N`. Diagnóstico: §2.8.
 - **Nunca `systemctl stop plataforma.network`** salvo desmantelamiento completo: es la misma regla que `podman compose down` en desarrollo (`ADR-028 §2`), aplicada a la unidad de red de Quadlet.
-- La segunda réplica de la API (`api@2`) existe como plantilla ya escrita pero **no se activa** hasta que haya tráfico real (`ADR-037 §6.4`): `systemctl --user enable --now api@2.service` cuando corresponda, sin cambios de fichero.
+- La segunda réplica de la API (`api@2`) existe como plantilla ya escrita pero **no se activa** hasta que haya tráfico real (`ADR-037 §6.4`): `systemctl --user start api@2.service` cuando corresponda (`enable` falla con unidades generadas, #695), sin cambios de fichero.
 - El proxy de socket delante de Traefik (`ADR-037 §6.3`) es una tarea de `0.10e`, no de hoy: mientras tanto el socket de Podman está montado de solo lectura y el entorno no tiene datos reales.
 
 ### 3b.5 SSO institucional SAML 2.0 (`REQ-AUTH-004`, 1.4c): seguimiento de la dependencia y rotación de la clave del SP
@@ -354,16 +355,22 @@ Despacha un trabajo por centro activo a la cola `default` (necesita el *worker*,
 
 Staging se instala sin privilegios con `./infra/install.sh <tag> --user` (`SYSADMIN.md §4c`). **Probado a mano el 2026-11-16** (no con una prueba automatizada), con la imagen `sha-a1f27d2`: los siete contenedores en `healthy`; las 130 migraciones con `--database=pgsql_owner`; el almacenamiento S3 real del proveedor (bucket de staging); la lista blanca del *backoffice* (200 con una IP permitida, 403 con otra); `CS-01` verificado por el usuario desde su terminal (el *push* forzado y el borrado de `staging` se rechazan con `GH013`). El corte medido del conjunto API + web + Traefik al redesplegar fue de unos 26 s. Los certificados son de **pruebas** (ACME de staging de la autoridad), por lo que un navegador los marcará como no fiables.
 
-**No ejecutado todavía (a 2026-11-16)**: `CS-02` completo (`main` sigue por detrás de `staging`), `CS-08` (reversión medida), `CS-17` (E2E real contra staging) y `CS-19` (relay SMTP real); `CS-05`, `CS-06`, `CS-07` y `CS-09` sin evidencia registrada. Hay 0 centros y 0 usuarios, y `demo:seed` no existe (llega con `1.15b`). Hallazgo abierto #693: la lista blanca solo cubre el *backoffice*, no los routers de los centros.
+**No ejecutado todavía (a 2026-11-16)**: `CS-02` completo (`main` sigue por detrás de `staging`), `CS-17` (E2E real contra staging) y `CS-19` (relay SMTP real); `CS-05`, `CS-06`, `CS-07` y `CS-09` sin evidencia registrada. Hay 0 centros y 0 usuarios, y `demo:seed` no existe (llega con `1.15b`). Hallazgo abierto #693: la lista blanca solo cubre el *backoffice*, no los routers de los centros.
 
-**Procedimiento de reversión (previsto, NO medido: `CS-08` pendiente).** Es el mismo de `§3b.3`: reinstalar con el *tag* anterior y reiniciar las unidades.
+**Procedimiento de reversión (`CS-08` medido en parte, ver abajo).** Es el mismo de `§3b.3`: reinstalar con el *tag* anterior y reiniciar las unidades, **sin migrar** (las migraciones no se revierten). Al avanzar de nuevo, `restart plataforma-migrate.service` y comprobar `Result=success` (#698).
 
 ```bash
 ./infra/install.sh <tag-anterior> --user
-systemctl --user restart api@1.service web.service worker.service worker-long.service
+systemctl --user daemon-reload
+systemctl --user restart api@1.service web.service traefik.service worker.service worker-long.service   # la reversión NO migra: las migraciones no se revierten
 ```
 
-Sin `migrate:rollback` (las migraciones son aditivas, `CLAUDE.md §9`). Antes de dar la reversión por válida hay que medirla (volver al *tag* anterior y adelante otra vez, con un trabajo encolado por la versión anterior que el *worker* nuevo procese) y registrar el tiempo de corte y el resultado aquí.
+Sin `migrate:rollback` (las migraciones son aditivas, `CLAUDE.md §9`).
+
+**`CS-08`, 2.ª ejecución (2026-11-16/17, VPS de staging; hechos verificados a mano, sin prueba automatizada).** Reversión `sha-5072b79` → `sha-ba00db4` en 23,2 s (`install.sh` 0,6 s; API + web + Traefik 16,5 s; `worker` 0,7 s; `worker-long` 1,2 s) y avance de vuelta a `sha-5072b79` en 27,2 s. Corte medido en los *backends* de unos 2,9 s (reversión) y 2,8 s (avance); a través de Traefik, unos 6,1 s en la reversión (22 sondeos fallidos, 000/5xx) y 3,1 s en el avance (12). Un trabajo encolado por `sha-ba00db4` (un *closure* en la cola `cs08`, que ningún *worker* consume) lo procesó `sha-5072b79` con `queue:work --once`: `jobs=0`, `failed_jobs=0` y el correo llegó a Mailpit. Parada de los *workers* con `pcntl` (#696, ya desplegado): `worker` 0,6 s y `worker-long` 0,9 s (antes 130,9 s y 620,8 s sin `pcntl`).
+
+**Salvedades que acompañan a ese resultado, tal cual**: (1) el trabajo es un *closure*, no una clase de negocio, y no lo consumió el *worker* de systemd sino `queue:work --once` de la imagen nueva; (2) ambas versiones comparten esquema y casi todo el código; (3) `plataforma-migrate` no tenía migraciones pendientes (1,0 s): **no se probó una migración real**; (4) al avanzar, los *workers* del destino de la reversión (`sha-ba00db4`, sin `pcntl`) se pararon con `SIGKILL` a mano porque tardan 130 s y 620 s; con una reversión a una imagen sin `pcntl` la parada vuelve a ser lenta; (5) el sondeo es desde el propio VPS (un 403 de la lista blanca cuenta como «arriba»). **Sigue sin ejecutarse** `CS-17`, `CS-19` y `CS-02` completo, y #693 sigue abierto.
+
 
 ## 3c. Ramas: promoción y arreglo urgente (`ADR-080 §4`, paso `0.10e-a`)
 

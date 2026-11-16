@@ -1,6 +1,6 @@
 # SYSADMIN.md
 
-> **Versión 0.9.0** · 2026-11-16
+> **Versión 0.9.1** · 2026-11-16
 > Documento vivo: se actualiza en cada fase (`CLAUDE.md` sección 6), no solo al final. Cubre el entorno de **desarrollo** en WSL2 (`ADR-030`) y, desde `§4c`, el de **staging** en un VPS; el alojamiento del piloto y de producción se documentará aquí cuando `OPEN-11` se resuelva.
 
 ---
@@ -483,6 +483,7 @@ Reversión: `apps/landing/README.md`, «Desplegar y revertir». Probada a nivel 
 Estado a **2026-11-16**. Staging es un entorno **de pruebas**, no producción: sin datos reales (solo sintéticos de `REQ-SEED`, `ADR-030`), destruible, con certificados de pruebas y sin garantías de disponibilidad ni de copia de seguridad. Hoy tiene 0 centros y 0 usuarios.
 
 - **Instalación sin privilegios**: `./infra/install.sh <tag> --user` (unidades de usuario de systemd/Quadlet). Prerrequisitos del modo `--user`, rutas y variables: `RUNBOOK.md §3b.2`. No se usa `compose` en el servidor (`ADR-028`).
+- **Arranque tras instalar** (#695, #698): `systemctl --user daemon-reload`; las migraciones con `systemctl --user restart plataforma-migrate.service` y, antes de seguir, `systemctl --user show plataforma-migrate.service -p Result --value` debe dar `success`; el resto de unidades generadas se arrancan con `systemctl --user start <unidad>` (no `enable --now`: Quadlet las genera y `enable` falla; se activan por su `[Install]`, que solo las arranca en el siguiente inicio de sesión, no al instalar: por eso el `start`). **`CS-08` no está cerrado: cumplido con salvedades** (`RUNBOOK.md §3b.9`). Es `restart` y no `start` porque `plataforma-migrate` es `oneshot` con `RemainAfterExit` y, ya activa, `start` no ejecuta el contenedor: las migraciones del tag nuevo no correrían.
 - **Dominios** (`ADR-088 §4`, `RN-BO-49`): centros en `*.centros.adagiox.eu` y *backoffice* en `panel.adagiox.eu` (`TENANCY_BASE_DOMAIN` y `BACKOFFICE_HOST`). Producción: por decidir (`OPEN-08`).
 - **Certificados**: comodín `*.centros.adagiox.eu` y uno aparte para `panel.adagiox.eu`, por DNS-01 con el entorno de **pruebas** de la autoridad ACME: el navegador los rechaza. Pasar a producción de ACME lo decide el usuario (pendiente).
 - **Lista blanca**: `BACKOFFICE_ALLOWED_IPS` limita el *backoffice* en Traefik (probado a mano: 200 con IP permitida, 403 con otra). **No** cubre los routers de los centros (hallazgo abierto #693).
@@ -490,7 +491,7 @@ Estado a **2026-11-16**. Staging es un entorno **de pruebas**, no producción: s
 - **Interfaz de Mailpit**: solo en `127.0.0.1:8025` del VPS, sin router en Traefik; se consulta por túnel SSH (`ssh -L 8025:127.0.0.1:8025 <usuario>@<vps>` y abrir `http://127.0.0.1:8025` en local). Mailpit **no cierra `CS-19`**.
 - **Primer administrador**: `bo:create-admin` envía una invitación por correo, así que necesita un SMTP que la capture (p. ej. Mailpit).
 - **No probado (2026-11-16)**: la unidad de Mailpit no se ha arrancado con Quadlet real; ni el envío desde la API ni la interfaz por túnel SSH se han ejercitado. Los pasos anteriores son el diseño de `ADR-087`, no un procedimiento verificado.
-- **Qué NO es producción**: certificados de pruebas, sin copia de seguridad ni PITR, `plataforma_test` presente (`RUNBOOK.md §3b.2`), Traefik en red `host` con supuestos de host mono-usuario (`ADR-088 §5`, `PROPUESTA`) y reversión sin medir (`RUNBOOK.md §3b.9`).
+- **Qué NO es producción**: certificados de pruebas, sin copia de seguridad ni PITR, `plataforma_test` presente (`RUNBOOK.md §3b.2`), Traefik en red `host` con supuestos de host mono-usuario (`ADR-088 §5`, `PROPUESTA`) y reversión medida solo en parte (`CS-08`, 2.ª ejecución del 2026-11-16, con salvedades: `RUNBOOK.md §3b.9`).
 
 ## 5. Pendiente de documentar aquí
 

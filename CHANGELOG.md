@@ -6,6 +6,15 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-16 · `infra`/`docs`: ayuda de `install.sh` con `restart` de migrate y `start` de unidades generadas; `CS-08` repetido (issues #698, #695, #696)
+
+- **Fix #698 (Alto)**: `plataforma-migrate` es `oneshot` con `RemainAfterExit`; ya activa, `systemctl --user start` no ejecuta el contenedor y las migraciones del tag nuevo no correrían. La ayuda de `install.sh`, `SYSADMIN.md §4c` y `RUNBOOK.md §3b.2`/`§3b.9` indican ahora `daemon-reload`, `restart plataforma-migrate.service` y comprobar `Result=success` antes de reiniciar API y *workers*.
+- **Fix #695 (Baja)**: las unidades generadas por Quadlet no admiten `enable`; la ayuda usa `start` (incluida `mailpit.service` con `--with-mailpit`). `infra/test-install-env.sh` comprueba que la salida no contiene `enable --now` ni `start plataforma-migrate` y sí `restart plataforma-migrate`.
+- **#696 desplegado**: con `pcntl` en la imagen, parada de `worker` en 0,6 s y de `worker-long` en 0,9 s (antes 130,9 s y 620,8 s).
+- **`CS-08`, 2.ª ejecución** (VPS de staging, verificado a mano): reversión `sha-5072b79` → `sha-ba00db4` en 23,2 s y avance en 27,2 s; corte en los *backends* ~2,9 s y ~2,8 s, a través de Traefik ~6,1 s y ~3,1 s; un trabajo encolado por la versión anterior lo procesó la nueva (`jobs=0`, `failed_jobs=0`). **Salvedades** en `RUNBOOK.md §3b.9`: el trabajo es un *closure* consumido con `queue:work --once`, no por el *worker* de systemd; ambas versiones comparten esquema y casi todo el código; sin migraciones pendientes (no se probó una migración real); los *workers* del destino de reversión (sin `pcntl`) se pararon con `SIGKILL` a mano; sondeo desde el propio VPS.
+- **No ejecutado**: `CS-17`, `CS-19` y `CS-02` completo; #693 sigue abierto.
+- Versiones: `SYSADMIN.md` 0.9.1, `RUNBOOK.md` 0.3.25, `README.md` 2.6.56 (sin cambio propio).
+
 ## 2026-11-16 · `infra`/`docs`: staging en un VPS con Podman sin privilegios, `0.10e-c` tramos 1-3 (`ADR-080`, `ADR-087`, `ADR-088`; issues #685, #690, #693)
 
 - **Tramo 1** (#689, mezclado) y **tramo 2** (#692, mezclado): `install.sh --user`, rutas por modo, migraciones con `--database=pgsql_owner`, plantillas de unidades con sustitución de tokens y Traefik en red `host` con *backends* en `127.0.0.1` (la IP real del cliente para la lista blanca del *backoffice*). Staging promocionado por avance rápido a `a1f27d2`.

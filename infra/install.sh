@@ -86,23 +86,27 @@ prepare_postgres_init "$REPO_ROOT/infra/containers/postgres/init" "$POSTGRES_INI
 $SYSTEMCTL daemon-reload
 
 echo "Unidades instaladas. Arrancar con, por ejemplo:"
-echo "  $SYSTEMCTL enable --now plataforma-network.service"
-echo "  $SYSTEMCTL enable --now postgres.service redis.service"
-# plataforma-migrate.container es un oneshot sin sección [Install]: se
-# ejecuta una vez por despliegue, no se habilita para el arranque del
-# sistema (hallazgo de la revisión independiente de doc-reviewer sobre
-# 0.9b — "enable" sobre esta unidad es un no-op sin efecto, y habilitarla
-# sería semánticamente incorrecto: no debe correr en cada reinicio).
-echo "  $SYSTEMCTL start plataforma-migrate.service"
-echo "  $SYSTEMCTL enable --now api@1.service web.service traefik.service"
+# Las unidades las genera Quadlet (/run/.../generator): "enable" falla con
+# "transient or generated" (issue #695). Se activan solas por su [Install]
+# y aquí solo se arrancan con "start".
+echo "  $SYSTEMCTL daemon-reload"
+echo "  $SYSTEMCTL start plataforma-network.service"
+echo "  $SYSTEMCTL start postgres.service redis.service"
+# plataforma-migrate.container es un oneshot con RemainAfterExit: tras la
+# primera ejecución queda "active (exited)" y un "start" no hace nada, así
+# que las migraciones del tag nuevo no se ejecutarían (issue #698). Hay que
+# usar "restart" y comprobar el resultado antes de seguir.
+echo "  $SYSTEMCTL restart plataforma-migrate.service   # restart y no start: la unidad (oneshot + RemainAfterExit) queda activa y start no migra"
+echo "  $SYSTEMCTL show plataforma-migrate.service -p Result --value   # debe ser 'success' antes de seguir"
+echo "  $SYSTEMCTL start api@1.service web.service traefik.service"
 # Worker de colas (issue #128): sin él, los trabajos de cola (correos de
 # MFA, invitaciones, restablecimiento de contraseña, exportaciones) quedan
 # en la tabla `jobs` sin procesar. Lee su propio fichero de entorno,
 # plataforma-worker.env (plantilla: plataforma-worker.env.example). worker-long.service (plataforma-worker-long.env) consume la
 # cola `long` (copia y reversión del rollover del curso, REQ-CURSO 1.12b) con su propio retry_after.
-echo "  $SYSTEMCTL enable --now worker.service worker-long.service"
+echo "  $SYSTEMCTL start worker.service worker-long.service"
 if [[ "$WITH_MAILPIT" == "1" ]]; then
-    echo "  $SYSTEMCTL enable --now mailpit.service   # solo staging; UI en 127.0.0.1:8025 por túnel SSH"
+    echo "  $SYSTEMCTL start mailpit.service   # solo staging; UI en 127.0.0.1:8025 por túnel SSH"
 fi
 if [[ ! -f "$(dirname "$ENV_FILE")/plataforma-worker.env" ]]; then
     echo "AVISO: falta $(dirname "$ENV_FILE")/plataforma-worker.env (plantilla: infra/quadlet/plataforma-worker.env.example); worker.service no arrancará sin él." >&2
