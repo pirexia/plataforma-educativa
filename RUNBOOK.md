@@ -1,6 +1,6 @@
 # RUNBOOK.md
 
-> **Versión 0.3.20** · 2026-11-16
+> **Versión 0.3.21** · 2026-11-16
 > Documento vivo: se actualiza en cada fase (`CLAUDE.md` §6). Cubre por ahora únicamente el entorno de **desarrollo** en WSL2 (`ADR-030`) — no hay producción, piloto ni usuarios reales todavía. Los procedimientos de guardia, alertas y recuperación ante desastre de un entorno real se documentarán aquí cuando `OPEN-11` (alojamiento del piloto) se resuelva.
 
 ---
@@ -181,6 +181,8 @@ El directorio de inicialización de PostgreSQL lo deja preparado `install.sh` en
 **Prerrequisitos del modo `--user`.** Traefik monta el socket de Podman del usuario (`%t/podman/podman.sock`), que **no existe** hasta activarlo: `systemctl --user enable --now podman.socket`. Sin él `traefik.service` falla con código 125. Además, `loginctl enable-linger <usuario>` para que las unidades de usuario sigan vivas sin sesión (`ADR-080 §3.4`).
 
 **A decidir (sin resolver):** `02-tenancy-test-db.sh` crea la base `plataforma_test` en **cualquier** entorno, también en *staging* (comprobado con `\l`). No se ha decidido si debe existir fuera de desarrollo.
+
+**Traefik en red host (se aparta de `ADR-080 §3.7` y de `ADR-037`; falta un ADR del `architect` que lo recoja).** Con Podman rootless y una red *bridge*, la IP de origen se enmascara (llega como `10.89.10.x`): la lista blanca de IP del *backoffice* (`ipallowlist`) y la IP de auditoría dejarían de funcionar (riesgo B1 de `docs/modulos/REQ-FAM-UNIT/operacion.md §13.3` y `CS-10` de `ADR-080`). Por eso `traefik.container` usa `Network=host` (enlaza 80 y 443 directamente; requiere `sysctl net.ipv4.ip_unprivileged_port_start=80`), sin `PublishPort`, con `--providers.docker.useBindPortIP=true` y el *entrypoint* interno del *ping* en `127.0.0.1:8080`. `api@` publica en `127.0.0.1:1800<instancia>` (la fórmula solo vale para las instancias 1 a 9; la segunda réplica es `0.10e-d`) y `web` en `127.0.0.1:18080`: los *backends* solo son accesibles desde el propio *host*. El *peer* que ve la API sigue siendo una dirección de la red de contenedores (`10.89.10.x` vía *rootlessport*), así que `TRUSTED_PROXIES` por defecto (`10.89.10.0/24`, `SYSADMIN.md`) sigue siendo válida y no se cambia. Mientras no haya ADR, las reglas de redes de `ADR-028` se aplican al resto de servicios. **Comprobado a mano en el VPS de *staging*** (no con una prueba automatizada): la lista blanca pasa con una IP permitida y bloquea (403) con otra.
 
 **Migraciones.** `plataforma-migrate.container` ejecuta `php artisan migrate --database=pgsql_owner --force`: se aplican con el rol propietario (`plataforma_owner`), no con `plataforma_app`.
 
