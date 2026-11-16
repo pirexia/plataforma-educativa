@@ -158,6 +158,40 @@ else
     echo "FALLA  install.sh --user con CIDR (rc=$rc): $(tail -3 <<<"$out")"; FAILS=$((FAILS + 1))
 fi
 
+# #701: Quadlet descarta en silencio (o trunca) un Label= con espacios o con barra invertida.
+# (a) Estático: ningún Label= (fuera de comentarios) de infra/quadlet los lleva.
+bad=""
+while IFS= read -r l; do
+    [[ "$l" == Label=* ]] || continue
+    [[ "$l" =~ [[:space:]] || "$l" == *'\\'* ]] && bad="$bad [$l]"
+done < <(cat "$HERE"/quadlet/*.container)
+if [[ -z "$bad" ]]; then echo "ok     ningún Label= de infra/quadlet lleva espacios ni barra invertida (#701)"; else echo "FALLA  Label= con espacio o \\:$bad"; FAILS=$((FAILS + 1)); fi
+# (b) Texto exacto de las tres reglas tras renderizar con install.sh --user (dominio de $H).
+U="$H/.config/containers/systemd"
+bad=""
+grep -qxF 'Label=traefik.http.routers.plataforma-web.rule=HostRegexp(`^[a-z0-9-]+[.]centros[.]adagiox[.]eu$`)&&PathPrefix(`/`)' "$U/web.container" || bad="$bad web;"
+grep -qxF 'Label=traefik.http.routers.plataforma-api.rule=HostRegexp(`^[a-z0-9-]+[.]centros[.]adagiox[.]eu$`)&&PathPrefix(`/api`)' "$U/api@.container" || bad="$bad api;"
+grep -qxF 'Label=traefik.http.routers.plataforma-api-platform.rule=Host(`panel.adagiox.eu`)&&PathPrefix(`/api/platform`)' "$U/api@.container" || bad="$bad api-platform;"
+if [[ -z "$bad" ]]; then echo "ok     texto exacto de las tres reglas de los routers renderizadas"; else echo "FALLA  reglas de routers:$bad"; FAILS=$((FAILS + 1)); fi
+# (c) Con el generador de Quadlet disponible, la regla debe llegar al ExecStart.
+GEN=""
+for c in /usr/libexec/podman/quadlet /usr/lib/systemd/system-generators/podman-system-generator "$(command -v quadlet 2>/dev/null)"; do
+    [[ -n "$c" && -x "$c" ]] && { GEN="$c"; break; }
+done
+if [[ -z "$GEN" ]]; then
+    echo "omitido: sin generador de Quadlet"
+else
+    gen_out="$(QUADLET_UNIT_DIRS="$U" "$GEN" --user --dryrun 2>&1)"
+    bad=""
+    for want in \
+        'traefik.http.routers.plataforma-web.rule=HostRegexp(`^[a-z0-9-]+[.]centros[.]adagiox[.]eu$`)&&PathPrefix(`/`)' \
+        'traefik.http.routers.plataforma-api.rule=HostRegexp(`^[a-z0-9-]+[.]centros[.]adagiox[.]eu$`)&&PathPrefix(`/api`)' \
+        'traefik.http.routers.plataforma-api-platform.rule=Host(`panel.adagiox.eu`)&&PathPrefix(`/api/platform`)'; do
+        grep -qF -- "--label $want" <<<"$gen_out" || bad="$bad [${want%%=*}]"
+    done
+    if [[ -z "$bad" ]]; then echo "ok     generador de Quadlet (--dryrun): las tres reglas llegan al ExecStart"; else echo "FALLA  generador de Quadlet descarta:$bad"; FAILS=$((FAILS + 1)); fi
+fi
+
 # #693: install.sh sin TENANT_ALLOWED_IPS aborta; con ella, los routers de los centros llevan
 # el middleware y el del backoffice conserva el suyo.
 UD="$H/.config/containers/systemd"
