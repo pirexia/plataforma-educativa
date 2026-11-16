@@ -351,7 +351,16 @@ Solo la hace la sesión orquestadora o `janitor`, y **`main` solo cuando el prop
 4. A petición del propietario, y con el mismo avance rápido: `git push origin <sha>:refs/heads/main` y etiqueta anotada `vX.Y.Z` sobre ese commit (dispara la imagen de versión, `ADR-037 §5.2`).
 5. Un PR `develop` → `staging` solo sirve para dejar constancia; **nunca se pulsa «Merge»** en él.
 
-La retención de imágenes (`build-images.yml`, job `prune-old-images`) nunca purga el `sha-<7>` al que apuntan `staging` y `main` en ese momento. Límite: lo calcula en cada purga (cada *push* a `develop`) a partir de las ramas del remoto; una imagen de un commit que ya no es la punta de `staging` ni de `main` vuelve a estar sujeta a las 10 versiones más recientes.
+La retención de imágenes (`build-images.yml`, job `prune-old-images`, con `.github/scripts/purgar-imagenes.sh`) lista las versiones del paquete con la API de GitHub y conserva las 10 más recientes, toda versión con etiqueta `vX.Y.Z` y toda versión con la etiqueta `sha-<7>` de los commits a los que apuntan `staging` y `main` en ese momento (más los manifiestos sin etiqueta creados a menos de 120 s de una imagen conservada por esas dos reglas, heurística no verificada contra GHCR). No usa `actions/delete-package-versions`: esa acción aplica `ignore-versions` al digest de la versión, no a sus etiquetas. La lógica de selección se prueba sin red con `.github/scripts/test-purgar-imagenes.sh`; **sin verificar** contra GHCR real (permisos del `GITHUB_TOKEN` sobre `/users/<dueño>/packages/container/…` y comportamiento de los manifiestos sin etiqueta). Límite: lo calcula en cada purga (cada *push* a `develop`) a partir de las ramas del remoto; una imagen de un commit que ya no es la punta de `staging` ni de `main` vuelve a estar sujeta a las 10 versiones más recientes.
+
+**Límites conocidos del gancho** (`.claude/hooks/block-protected-branch.sh`; solo protege las sesiones de Claude Code y se prueba con `.claude/hooks/test-block-protected-branch.sh`):
+
+- No cubre `git merge`, `reset`, `cherry-pick`, `rebase`, `tag -f` ni `branch -f` sobre ramas protegidas.
+- No ve comandos dentro de `bash -c`, `env`, `xargs`, alias ni `$(…)`.
+- No distingue remotos: analiza el destino, no a qué remoto va.
+- No frena un *push* manual del propietario desde su terminal.
+- Un texto de varias líneas (cuerpo de un PR, heredoc) con una línea que empiece por `git push …` puede dar un falso bloqueo.
+- El guardarraíl definitivo son las reglas de protección de ramas de GitHub, que crea el propietario (`SYSADMIN.md §4`) y que **siguen sin verificar**.
 
 ### 3c.2 Arreglo urgente
 

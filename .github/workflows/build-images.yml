@@ -198,13 +198,14 @@ jobs:
   # 500 MB para paquetes privados (verificado en 0.9b.1, cifra exacta a
   # confirmar en docs.github.com si cambia). N=10 sha- de develop: cubre
   # dos semanas largas al ritmo de commits de este proyecto sin acumular
-  # sin límite. Todos los vX.Y.Z se conservan siempre (ignore-versions).
+  # sin límite. Todos los vX.Y.Z se conservan siempre (.github/scripts/purgar-imagenes.sh).
   prune-old-images:
     name: Purgar imágenes antiguas de develop
     runs-on: ubuntu-24.04  # fijada: ubuntu-latest migra a 26.04 hasta el 19-11-2026 (#609, actions/runner-images#14748)
     needs: [build-api, build-web]
     if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
     permissions:
+      contents: read
       packages: write
     # #654: varios push seguidos a develop lanzaban purgas a la vez que borraban las mismas versiones, y la API
     # respondía «Package version not found» a la que llegaba tarde. Una sola purga a la vez por paquete; sin
@@ -216,28 +217,35 @@ jobs:
       matrix:
         package: [plataforma-api, plataforma-web]
     steps:
-      # ADR-080 §4.5 / 0.10e-a: la imagen `sha-<7>` de los commits a los que apuntan hoy `staging` y `main` no se
-      # purga nunca, por muy lejos que quede de las 10 más recientes de develop. Se lee con `git ls-remote` sobre el
-      # repositorio público (sin credenciales nuevas) y se añade al regex de `ignore-versions`. Si una de las ramas
-      # aún no existe, se omite. El prefijo de 7 caracteres es el de `docker/metadata-action` (`type=sha,format=short`).
-      - name: Calcular imágenes protegidas (staging y main)
-        id: protegidas
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: .github/scripts
+      # ADR-080 §4.5 / 0.10e-a: no se purga nunca la imagen `sha-<7>` de los commits a los que apuntan hoy `staging` y
+      # `main`, ni las etiquetadas vX.Y.Z, por muy lejos que queden de las 10 más recientes. Las ramas se leen con
+      # `git ls-remote` sobre el repositorio público (sin credenciales nuevas); si una aún no existe, se omite.
+      # El prefijo de 7 caracteres es el de `docker/metadata-action` (`type=sha,format=short`).
+      # Se usa un script propio con la API de GitHub y no `actions/delete-package-versions`: esa acción aplica
+      # `ignore-versions` al nombre de la versión, que en un contenedor es el digest `sha256:…`, no a sus etiquetas.
+      - name: Purgar imágenes antiguas (conserva 10 recientes, vX.Y.Z y los sha- de staging y main)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PAQUETE: ${{ matrix.package }}
+          PROPIETARIO: ${{ github.repository_owner }}
         run: |
-          regex='^v?\d+\.\d+\.\d+$'
+          set -euo pipefail
+          proteger=()
           for rama in staging main; do
             sha="$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" "refs/heads/${rama}" | cut -c1-7)"
             if [[ "$sha" =~ ^[0-9a-f]{7}$ ]]; then
-              regex="${regex}|^sha-${sha}$"
+              proteger+=(--proteger "sha-${sha}")
               echo "Protegida: sha-${sha} (${rama})"
             else
               echo "La rama ${rama} no existe en el remoto: nada que proteger"
             fi
           done
-          echo "regex=${regex}" >> "$GITHUB_OUTPUT"
-      - name: Purgar sha- antiguos, conservar vX.Y.Z y los sha- de staging y main
-        uses: actions/delete-package-versions@v5
-        with:
-          package-name: ${{ matrix.package }}
-          package-type: container
-          min-versions-to-keep: 10
-          ignore-versions: ${{ steps.protegidas.outputs.regex }}
+          tipo="$(gh api "repos/${GITHUB_REPOSITORY}" --jq .owner.type)"
+          if [ "$tipo" = "Organization" ]; then base="/orgs/${PROPIETARIO}"; else base="/users/${PROPIETARIO}"; fi
+          ruta="${base}/packages/container/${PAQUETE}"
+          gh api --paginate "${ruta}/versions?per_page=100" --jq '.[]' | jq -s . > versiones.json
+          echo "Versiones del paquete: $(jq length versiones.json)"
+          .github/scripts/purgar-imagenes.sh --fichero versiones.json --ruta "${ruta}" "${proteger[@]}"
