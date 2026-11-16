@@ -18,7 +18,7 @@ defaults:
 jobs:
   test:
     name: Tests (Pest)
-    runs-on: ubuntu-24.04  # fijada: ubuntu-latest (suite «resolute») falla resolviendo security.ubuntu.com en apt (#609)
+    runs-on: ubuntu-26.04  # fijada: ubuntu-latest (suite «resolute») falla resolviendo security.ubuntu.com en apt (#609)
     # ADR-033 §10: PostgreSQL real, no SQLite. RLS es la barrera primaria y
     # SQLite no la tiene: un test de aislamiento sobre SQLite daría verde
     # con las políticas ausentes.
@@ -66,7 +66,7 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: "8.4"
-          extensions: pdo_pgsql, pgsql, zip, intl, mbstring, redis, gd, exif
+          extensions: pdo_pgsql, pgsql, zip, intl, mbstring, redis, gd, exif, pcntl
           coverage: none
 
       - uses: actions/cache@v6
@@ -168,7 +168,7 @@ jobs:
 
   lint:
     name: Lint (Pint)
-    runs-on: ubuntu-24.04  # fijada: ubuntu-latest migra a 26.04 hasta el 19-11-2026 (#609, actions/runner-images#14748)
+    runs-on: ubuntu-26.04  # fijada: ubuntu-latest migra a 26.04 hasta el 19-11-2026 (#609, actions/runner-images#14748)
     # Mismos servicios que "test": el arranque del framework durante
     # composer install (artisan package:discover) puede intentar resolver
     # una conexión de base de datos/caché real, no solo leer config
@@ -225,7 +225,7 @@ jobs:
 
   static-analysis:
     name: Análisis estático (Larastan)
-    runs-on: ubuntu-24.04  # fijada: ubuntu-latest migra a 26.04 hasta el 19-11-2026 (#609, actions/runner-images#14748)
+    runs-on: ubuntu-26.04  # fijada: ubuntu-latest migra a 26.04 hasta el 19-11-2026 (#609, actions/runner-images#14748)
     # Ver comentario del job "lint" sobre los servicios.
     services:
       postgres:
@@ -285,7 +285,7 @@ jobs:
   # Los secretos se generan en este job, se enmascaran y mueren con el runner.
   storage-conformance:
     name: Conformidad del almacén (Garage)
-    runs-on: ubuntu-24.04  # fijada por #609
+    runs-on: ubuntu-26.04  # fijada por #609
     services:
       postgres:
         image: postgres:18
@@ -330,7 +330,7 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: "8.4"
-          extensions: pdo_pgsql, pgsql, zip, intl, mbstring, redis, gd, exif
+          extensions: pdo_pgsql, pgsql, zip, intl, mbstring, redis, gd, exif, pcntl
           coverage: none
 
       - uses: actions/cache@v6
@@ -413,7 +413,7 @@ jobs:
   # comportamiento, no de texto de plantilla.
   make-module:
     name: Generador de módulos (make:module)
-    runs-on: ubuntu-24.04  # fijada por #609
+    runs-on: ubuntu-26.04  # fijada por #609
     # Mismos servicios que "test": hay que migrar y correr tests de tenant.
     services:
       postgres:
@@ -456,7 +456,7 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: "8.4"
-          extensions: pdo_pgsql, pgsql, zip, intl, mbstring, redis, gd, exif
+          extensions: pdo_pgsql, pgsql, zip, intl, mbstring, redis, gd, exif, pcntl
           coverage: none
 
       - uses: actions/cache@v6

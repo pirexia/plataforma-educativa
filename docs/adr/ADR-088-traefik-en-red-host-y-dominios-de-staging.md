@@ -19,7 +19,7 @@
 1. Con Podman **sin privilegios** (`OPEN-STG-05`, decidida el 2026-11-14) y Traefik en una red *bridge* con `PublishPort`, el reenvío de puertos (*rootlessport*) **enmascara la IP de origen**: Traefik ve una dirección de la red de contenedores (`10.89.10.x`), no la del cliente. Comprobado en el VPS de staging (comentario de `traefik.container`). Es el riesgo B1 de `docs/modulos/REQ-FAM-UNIT/operacion.md §13.3`.
 2. Consecuencia sin síntoma: la lista blanca del *backoffice* (`ipallowlist` de Traefik, `RN-BO-06`/`-07`) y la IP de auditoría (`admin_action_logs`, `audit_logs`) comparan contra una dirección interna. `ADR-080 §3.3` lo listaba como lo que staging tenía que probar (`CS-10`).
 3. `ADR-080 §3.7` y `ADR-037` suponían Traefik dentro de una red de contenedores.
-4. Para generar las unidades de staging, `install.sh` sustituye ya once *tokens*, no solo `__TAG__` (`render_units` en `infra/install-lib.sh`).
+4. Para generar las unidades de staging, `install.sh` sustituye ya doce *tokens*, no solo `__TAG__` (`render_units` en `infra/install-lib.sh`).
 5. `RN-BO-49` (`ADR-046 §4.4`) prohíbe que el *host* del *backoffice* sea subdominio de `TENANCY_BASE_DOMAIN`, porque `TenantHost::slugFrom()` tomaría su etiqueta izquierda como *slug* de un centro.
 
 ## 2 · Decisión
@@ -36,13 +36,14 @@ Sigue vigente de `ADR-028`: Traefik descubre los *backends* por el socket de Pod
 
 ### 2.3 · Sustituciones de `install.sh`: lista cerrada
 
-Se admite el mismo `sed` de `ADR-037 §6.1` con esta lista **cerrada** de *tokens*: `__TAG__`, `__TENANCY_BASE_DOMAIN__`, `__TENANCY_BASE_DOMAIN_ESCAPED__`, `__TRAEFIK_IMAGE__`, `__ACME_EMAIL__`, `__ACME_CA_SERVER__`, `__TRAEFIK_ENV_FILE__`, `__ENV_DIR__`, `__POSTGRES_INIT_DIR__`, `__BACKOFFICE_HOST__`, `__BACKOFFICE_ALLOWED_IPS__`. Reglas:
+Se admite el mismo `sed` de `ADR-037 §6.1` con esta lista **cerrada** de *tokens*: `__TAG__`, `__TENANCY_BASE_DOMAIN__`, `__TENANCY_BASE_DOMAIN_ESCAPED__`, `__TRAEFIK_IMAGE__`, `__ACME_EMAIL__`, `__ACME_CA_SERVER__`, `__TRAEFIK_ENV_FILE__`, `__ENV_DIR__`, `__POSTGRES_INIT_DIR__`, `__BACKOFFICE_HOST__`, `__BACKOFFICE_ALLOWED_IPS__`, `__TENANT_ALLOWED_IPS__`. Reglas:
 
 - Sigue sin haber sistema de plantillado: ni condicionales, ni bucles, ni *includes* dentro de las unidades. La única lógica es la exclusión de una unidad opcional entera (`mailpit.container`, `ADR-087`).
 - Cada *token* se valida en `install-lib.sh` antes de sustituirlo, y `test-install-env.sh` comprueba que no queda ninguno sin sustituir (hoy lo hace: `grep '__[A-Z_]*__'`).
+- **`__TENANT_ALLOWED_IPS__` (`TENANT_ALLOWED_IPS`, #693; decidido por el usuario el 2026-11-16)**: lista blanca de IP del *ingress* para las rutas de los **centros** (`plataforma-api` y `plataforma-web`, middleware `tenant-ipallowlist` en `api@` y `tenant-ipallowlist-web` en `web`, cada uno definido en su propia unidad para que la web no dependa de que `api@` esté arriba), aparte de la del *backoffice*. **Cerrada por defecto** (`INV-002`): `install.sh` **aborta** si falta o está vacía; no hay valor por defecto. Staging pone las IP permitidas; producción la pone a `0.0.0.0/0,::/0` de forma **explícita**, nunca por omisión. Misma validación de IP/CIDR (IPv4 e IPv6) que la del *backoffice*. Resuelve el hallazgo de `OPEN-STG-09` sobre las rutas de los centros. **Forma de las reglas (#701)**: el generador de Quadlet descarta en silencio un `Label=` con espacios o `\.`; las reglas se escriben con `&&` sin espacios y el *token* `__TENANCY_BASE_DOMAIN_ESCAPED__` genera los puntos como `[.]` (`centros[.]adagiox[.]eu`; la lista cerrada no cambia). Limitación aceptada en staging: la redirección `:80`→`:443` del *entrypoint* responde a cualquier IP antes de la lista blanca (solo un 301 con *host* y ruta, sin datos); la alternativa es mover la redirección a un router propio con el middleware. **No verificado, a probar en el VPS tras desplegar**: web cerrada con `api@` parada, IP de cliente real en las rutas de los centros, y 200/403 con IP permitida y no permitida.
 - **Un *token* nuevo exige actualizar este apartado con un ADR nuevo** o, si es una ruta o valor del mismo tipo que los de la lista, al menos su validación y su prueba. Si la lista crece hasta pedir lógica, es la señal de que hace falta otra decisión, no más `sed`.
 
-Motivo: `ADR-037 §6.1` buscaba que no hubiera nada que mantener; once sustituciones literales, validadas y probadas, siguen sin serlo. Un gestor de plantillas sí lo sería.
+Motivo: `ADR-037 §6.1` buscaba que no hubiera nada que mantener; doce sustituciones literales, validadas y probadas, siguen sin serlo. Un gestor de plantillas sí lo sería.
 
 ## 3 · Lo que esto rompe de `ADR-080 §3.7` y de `CS-10`
 
@@ -91,6 +92,7 @@ El ajuste es de todo el host: cualquier usuario local puede enlazar cualquier pu
 ### 5.3 · Otros, ya conocidos (no cambian con este ADR)
 
 - Socket de Podman montado en Traefik: un Traefik comprometido controla el Podman del usuario. Lo resuelve el proxy de socket de `0.10e-d` (`ADR-037 §6.3`).
+- **SELinux desactivado solo en Traefik hasta el proxy de socket de `0.10e-d`** (#705, decisión del usuario del 2026-11-16). Con SELinux en `enforcing`, un contenedor `container_t` no puede conectarse (`connectto`) al proceso de Podman que atiende el socket, ni con `:Z`, y Traefik no descubre ningún router (`permission denied while trying to connect to the docker API`). `traefik.container` lleva `SecurityLabelDisable=true` (`--security-opt label=disable`) y **solo él**; el host y el resto de contenedores siguen en `enforcing`. **Riesgo**: un Traefik comprometido (expuesto a Internet en 80/443, con red host) queda sin la barrera de SELinux; para cumplir su función necesita el socket, que equivale a control de Podman, y el confinamiento SELinux ya no protege de ese vector. Comprometer Traefik da código arbitrario como el usuario del host, con acceso a los secretos de `plataforma*.env` y al token de Cloudflare; lo que se pierde con `label=disable` es la barrera contra escapes por kernel/runc y contra el uso de recursos del host (el montaje `:ro` del socket no restringe la API de Podman). **Mitigación**: provisional; el proxy de socket de `0.10e-d` reduce la superficie (filtra métodos), pero el confinamiento del propio proxy está por verificar en `0.10e-d` (también tendrá que conectarse al socket bajo `enforcing`). Además `traefik.container` lleva `NoNewPrivileges=true` y `DropCapability=ALL`, **no verificados con Traefik real**: si Traefik no arranca o no descubre routers, se retiran esas dos líneas antes de tocar nada más; `infra/test-install-env.sh` exige que ninguna otra unidad lo lleve. No verificado en el VPS hasta desplegarlo.
 - Si algún día hay un proxy delante de Traefik, hay que añadir `forwardedHeaders.trustedIPs` en los dos *entrypoints* (comentario de `traefik.container`).
 
 ## 6 · Opciones consideradas para ver la IP del cliente
@@ -119,6 +121,7 @@ El ajuste es de todo el host: cualquier usuario local puede enlazar cualquier pu
 | `OPEN-088-03` | Dominios de producción con `RN-BO-49` | **Base de centros en un subdominio propio de `adagiox.com` y *backoffice* en otro hermano**, nunca el ápice como base | Producción (`OPEN-08`) | Usuario |
 | `OPEN-088-04` | Cómo se restringe `TRUSTED_PROXIES` sin red `plataforma-edge` (`§3`, `CS-10`) | Se decide en la especificación de `0.10e-d` | `CS-10`, primer dato real | `architect` + usuario |
 | `OPEN-088-05` | Aceptar este ADR (red `host`, lista cerrada de `§2.3`, riesgos aceptados en staging) | **Aceptarlo** | Cierre de `0.10e-c` | Usuario |
+| `OPEN-088-06` | El *host* del *backoffice* (`panel.<dominio>`) solo tiene *router* para `/api/platform`; no hay *router* para `/`. **Es lo previsto, no un defecto**: el *backoffice* se opera solo por API hasta `1.7` y `1.9` (`OPEN-BO-08`, decidida por el usuario el 2026-09-08) y el *router* de su SPA es la fila 4 de `REQ-BO/operacion.md §0.2`, del paso de interfaz (`apps/backoffice`, `ADR-046 §4.1`), que aún no existe. Antes de #701 el *router* truncado atendía todo el *host* hacia la API | Sin acción: `plataforma-web` lleva `Host()` de centros a propósito para que la SPA de los centros no se sirva bajo el *host* del *backoffice* (`REQ-BO/operacion.md §0.1`) | Cerrada (prevista) |
 
 ## 9 · No verificado y hallazgos fuera del ámbito
 

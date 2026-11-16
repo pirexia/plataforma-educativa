@@ -1,6 +1,6 @@
 # Unidad plantilla (ADR-037 §6.2): instanciable como api@1, api@2. Una
 # sola instancia habilitada hasta que exista tráfico real (§6.4) — pasar a
-# dos es "systemctl --user enable --now api@2" sobre esta misma unidad, no
+# dos es "systemctl --user start api@2" sobre esta misma unidad, no
 # un rediseño.
 #
 # Se relaciona con plataforma-migrate.service mediante Wants=+After=, no
@@ -45,12 +45,20 @@ Notify=healthy
 # puerto): es la misma API Laravel, con un segundo grupo de rutas
 # (`/api/platform/*`) que decide por sí solo, con su propia pila de
 # middleware, que no lleva ninguno de los tres de tenant (api.md §1.1).
+# Reglas sin espacios ni barra invertida: el generador de Quadlet descarta en silencio
+# (o trunca) un Label= con espacios o con \. (#701). Punto como [.], && sin espacios.
 Label=traefik.enable=true
-Label=traefik.http.routers.plataforma-api.rule=HostRegexp(`^[a-z0-9-]+\.__TENANCY_BASE_DOMAIN_ESCAPED__$`) && PathPrefix(`/api`)
+Label=traefik.http.routers.plataforma-api.rule=HostRegexp(`^[a-z0-9-]+[.]__TENANCY_BASE_DOMAIN_ESCAPED__$`)&&PathPrefix(`/api`)
 Label=traefik.http.routers.plataforma-api.priority=10
+# #693, INV-002: lista blanca de IP también para las rutas de los centros
+# (cerrada por defecto: install.sh aborta sin TENANT_ALLOWED_IPS; en
+# producción vale 0.0.0.0/0,::/0 de forma explícita). Cada unidad define su
+# propio middleware (web.container usa tenant-ipallowlist-web): ninguna
+# referencia uno definido en otra.
+Label=traefik.http.routers.plataforma-api.middlewares=tenant-ipallowlist@docker
 Label=traefik.http.services.plataforma-api.loadbalancer.server.port=8000
 
-Label=traefik.http.routers.plataforma-api-platform.rule=Host(`__BACKOFFICE_HOST__`) && PathPrefix(`/api/platform`)
+Label=traefik.http.routers.plataforma-api-platform.rule=Host(`__BACKOFFICE_HOST__`)&&PathPrefix(`/api/platform`)
 Label=traefik.http.routers.plataforma-api-platform.priority=20
 Label=traefik.http.routers.plataforma-api-platform.service=plataforma-api
 Label=traefik.http.routers.plataforma-api-platform.middlewares=platform-ipallowlist@docker
@@ -62,9 +70,16 @@ Label=traefik.http.routers.plataforma-api-platform.middlewares=platform-ipallowl
 # Traefik ve la IP real del cliente — si algún día hay otro proxy
 # delante, hace falta forwardedHeaders.trustedIPs en traefik.container.
 Label=traefik.http.middlewares.platform-ipallowlist.ipallowlist.sourcerange=__BACKOFFICE_ALLOWED_IPS__
+# A diferencia de la del backoffice, aquí no se llega a una lista vacía:
+# install.sh aborta si TENANT_ALLOWED_IPS falta o está vacía.
+Label=traefik.http.middlewares.tenant-ipallowlist.ipallowlist.sourcerange=__TENANT_ALLOWED_IPS__
 
 [Service]
 Restart=always
 
 [Install]
 WantedBy=default.target
+# Una sola instancia por defecto (#707): sin DefaultInstance Quadlet no genera
+# api@1 en default.target.wants y la API no arranca con el host. api@2 es de 0.10e-d
+# y se activará aparte.
+DefaultInstance=1

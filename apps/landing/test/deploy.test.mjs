@@ -51,8 +51,10 @@ test('.lighthouserc.json: móvil, la portada de cada idioma de LANGS y una pági
 
 test('package.json: dependencias de desarrollo fijadas a versión exacta y script lighthouse', () => {
   const pkg = json('package.json')
-  assert.equal(pkg.devDependencies['@lhci/cli'], '0.16.0')
-  assert.equal(pkg.devDependencies.wrangler, '4.159.0')
+  // Versión exacta (sin ^ ni ~), no un literal: así una subida de Renovate no rompe el test (#711).
+  const exacta = /^\d+\.\d+\.\d+$/
+  assert.match(pkg.devDependencies['@lhci/cli'], exacta)
+  assert.match(pkg.devDependencies.wrangler, exacta)
   assert.deepEqual(Object.keys(pkg.devDependencies).sort(), ['@lhci/cli', 'wrangler'])
   assert.equal(pkg.dependencies, undefined)
   assert.equal(pkg.scripts.lighthouse, 'lhci autorun')

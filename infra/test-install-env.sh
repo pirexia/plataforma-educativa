@@ -17,7 +17,7 @@ TRAEFIK_ENV_FILE="$TMP/traefik-cloudflare.env"
 
 # base_env <línea extra...>: escribe un plataforma.env válido más las líneas dadas.
 base_env() {
-    printf '%s\n' "TENANCY_BASE_DOMAIN=adagiox.eu" "BACKOFFICE_HOST=panel.adagiox.com" "$@" > "$ENV_FILE"
+    printf '%s\n' "TENANCY_BASE_DOMAIN=adagiox.eu" "BACKOFFICE_HOST=panel.adagiox.com" "TENANT_ALLOWED_IPS=203.0.113.0/24" "$@" > "$ENV_FILE"
 }
 
 # expect <nombre> <código esperado 0|1> <patrón stderr o ""> <comando...>
@@ -65,6 +65,36 @@ base_env "BACKOFFICE_ALLOWED_IPS=203.0.113.0/24 &" "ACME_EMAIL=ops@example.com"
 expect "BACKOFFICE_ALLOWED_IPS con espacio y & rechazada" 1 "no es IP ni CIDR" validate
 base_env "BACKOFFICE_ALLOWED_IPS=host.example.com" "ACME_EMAIL=ops@example.com"
 expect "BACKOFFICE_ALLOWED_IPS con un nombre rechazada" 1 "no es IP ni CIDR" validate
+
+# Validador de listas de IP endurecido (#693).
+for v in ":" "::::" "a:b" "1.2.3.4," ",1.2.3.4" "1.2.3.4,,5.6.7.8" "1:2:3:4:5:6:7:8:9" "1::2::3" "12345::1" ":1:2:3:4:5:6:7" "1.2.3" "1.2.3.4/"; do
+    base_env "TENANT_ALLOWED_IPS=$v" "ACME_EMAIL=ops@example.com"
+    expect "TENANT_ALLOWED_IPS '$v' rechazada" 1 "no es IP ni CIDR" validate
+done
+for v in "::/0" "2001:db8::/32" "::1/128" "203.0.113.0/24,2001:db8::/32" "0.0.0.0/0,::/0" "1:2:3:4:5:6:7:8" "::ffff:203.0.113.7"; do
+    base_env "TENANT_ALLOWED_IPS=$v" "ACME_EMAIL=ops@example.com"
+    expect "TENANT_ALLOWED_IPS '$v' aceptada" 0 "" validate
+done
+base_env "BACKOFFICE_ALLOWED_IPS=1.2.3.4," "ACME_EMAIL=ops@example.com"
+expect "BACKOFFICE_ALLOWED_IPS con coma final rechazada" 1 "no es IP ni CIDR" validate
+
+# TENANT_ALLOWED_IPS (#693, INV-002): obligatoria, cerrada por defecto.
+printf '%s\n' "TENANCY_BASE_DOMAIN=adagiox.eu" "BACKOFFICE_HOST=panel.adagiox.com" "ACME_EMAIL=ops@example.com" > "$ENV_FILE"
+expect "TENANT_ALLOWED_IPS ausente aborta" 1 "TENANT_ALLOWED_IPS tiene que estar fijado" validate
+base_env "TENANT_ALLOWED_IPS=" "ACME_EMAIL=ops@example.com"
+expect "TENANT_ALLOWED_IPS vacía aborta" 1 "TENANT_ALLOWED_IPS tiene que estar fijado" validate
+base_env "TENANT_ALLOWED_IPS=203.0.113.0/33" "ACME_EMAIL=ops@example.com"
+expect "TENANT_ALLOWED_IPS IPv4 con prefijo /33 rechazada" 1 "TENANT_ALLOWED_IPS.*no es IP ni CIDR" validate
+base_env "TENANT_ALLOWED_IPS=2001:db8::/129" "ACME_EMAIL=ops@example.com"
+expect "TENANT_ALLOWED_IPS IPv6 con prefijo /129 rechazada" 1 "no es IP ni CIDR" validate
+base_env "TENANT_ALLOWED_IPS=203.0.113.0/24,host.example.com" "ACME_EMAIL=ops@example.com"
+expect "TENANT_ALLOWED_IPS con un nombre rechazada" 1 "no es IP ni CIDR" validate
+base_env "TENANT_ALLOWED_IPS=203.0.113.0/24|rm" "ACME_EMAIL=ops@example.com"
+expect "TENANT_ALLOWED_IPS con | rechazada" 1 "no es IP ni CIDR" validate
+base_env "TENANT_ALLOWED_IPS=0.0.0.0/0,::/0" "ACME_EMAIL=ops@example.com"
+expect "TENANT_ALLOWED_IPS abierta explícita (0.0.0.0/0,::/0) aceptada" 0 "" validate
+base_env "TENANT_ALLOWED_IPS=203.0.113.0/24,198.51.100.7,2001:db8::/32" "ACME_EMAIL=ops@example.com"
+expect "TENANT_ALLOWED_IPS válidas (IPv4, IPv6, sin prefijo) aceptadas" 0 "" validate
 
 base_env
 expect "ACME_EMAIL ausente: error claro" 1 "ACME_EMAIL tiene que estar fijado" validate
@@ -118,7 +148,7 @@ fi
 H="$TMP/home"; mkdir -p "$H/.config/plataforma" "$TMP/bin"
 printf '#!/usr/bin/env bash\nexit 0\n' > "$TMP/bin/systemctl"; chmod +x "$TMP/bin/systemctl"
 printf '%s\n' "TENANCY_BASE_DOMAIN=centros.adagiox.eu" "BACKOFFICE_HOST=panel.adagiox.eu" \
-    "BACKOFFICE_ALLOWED_IPS=203.0.113.7/32,198.51.100.0/24" "ACME_EMAIL=ops@example.com" > "$H/.config/plataforma/plataforma.env"
+    "BACKOFFICE_ALLOWED_IPS=203.0.113.7/32,198.51.100.0/24" "TENANT_ALLOWED_IPS=198.51.100.0/24,2001:db8::/32" "ACME_EMAIL=ops@example.com" > "$H/.config/plataforma/plataforma.env"
 printf 'CF_DNS_API_TOKEN=x\n' > "$H/.config/plataforma/traefik-cloudflare.env"; chmod 600 "$H/.config/plataforma/traefik-cloudflare.env"
 out="$(HOME="$H" PATH="$TMP/bin:$PATH" bash "$HERE/install.sh" sha-test --user 2>&1)"; rc=$?
 if [[ "$rc" -eq 0 ]] && grep -q 'sourcerange=203.0.113.7/32,198.51.100.0/24' "$H/.config/containers/systemd/api@.container" \
@@ -126,6 +156,117 @@ if [[ "$rc" -eq 0 ]] && grep -q 'sourcerange=203.0.113.7/32,198.51.100.0/24' "$H
     echo "ok     install.sh --user con CIDR sustituye la lista y no deja tokens sin sustituir"
 else
     echo "FALLA  install.sh --user con CIDR (rc=$rc): $(tail -3 <<<"$out")"; FAILS=$((FAILS + 1))
+fi
+
+# #701: Quadlet descarta en silencio (o trunca) un Label= con espacios o con barra invertida.
+# (a) Estático: ningún Label= (fuera de comentarios) de infra/quadlet los lleva.
+bad=""
+while IFS= read -r l; do
+    [[ "$l" == Label=* ]] || continue
+    [[ "$l" =~ [[:space:]] || "$l" == *'\\'* ]] && bad="$bad [$l]"
+done < <(cat "$HERE"/quadlet/*.container)
+if [[ -z "$bad" ]]; then echo "ok     ningún Label= de infra/quadlet lleva espacios ni barra invertida (#701)"; else echo "FALLA  Label= con espacio o \\:$bad"; FAILS=$((FAILS + 1)); fi
+# (b) Texto exacto de las tres reglas tras renderizar con install.sh --user (dominio de $H).
+U="$H/.config/containers/systemd"
+bad=""
+grep -qxF 'Label=traefik.http.routers.plataforma-web.rule=HostRegexp(`^[a-z0-9-]+[.]centros[.]adagiox[.]eu$`)&&PathPrefix(`/`)' "$U/web.container" || bad="$bad web;"
+grep -qxF 'Label=traefik.http.routers.plataforma-api.rule=HostRegexp(`^[a-z0-9-]+[.]centros[.]adagiox[.]eu$`)&&PathPrefix(`/api`)' "$U/api@.container" || bad="$bad api;"
+grep -qxF 'Label=traefik.http.routers.plataforma-api-platform.rule=Host(`panel.adagiox.eu`)&&PathPrefix(`/api/platform`)' "$U/api@.container" || bad="$bad api-platform;"
+if [[ -z "$bad" ]]; then echo "ok     texto exacto de las tres reglas de los routers renderizadas"; else echo "FALLA  reglas de routers:$bad"; FAILS=$((FAILS + 1)); fi
+# (c) Con el generador de Quadlet disponible, la regla debe llegar al ExecStart.
+GEN=""
+for c in /usr/libexec/podman/quadlet /usr/lib/systemd/system-generators/podman-system-generator "$(command -v quadlet 2>/dev/null)"; do
+    [[ -n "$c" && -x "$c" ]] && { GEN="$c"; break; }
+done
+if [[ -z "$GEN" ]]; then
+    echo "omitido: sin generador de Quadlet"
+else
+    gen_out="$(QUADLET_UNIT_DIRS="$U" "$GEN" --user --dryrun 2>&1)"
+    bad=""
+    for want in \
+        'traefik.http.routers.plataforma-web.rule=HostRegexp(`^[a-z0-9-]+[.]centros[.]adagiox[.]eu$`)&&PathPrefix(`/`)' \
+        'traefik.http.routers.plataforma-api.rule=HostRegexp(`^[a-z0-9-]+[.]centros[.]adagiox[.]eu$`)&&PathPrefix(`/api`)' \
+        'traefik.http.routers.plataforma-api-platform.rule=Host(`panel.adagiox.eu`)&&PathPrefix(`/api/platform`)'; do
+        grep -qF -- "--label $want" <<<"$gen_out" || bad="$bad [${want%%=*}]"
+    done
+    if [[ -z "$bad" ]]; then echo "ok     generador de Quadlet (--dryrun): las tres reglas llegan al ExecStart"; else echo "FALLA  generador de Quadlet descarta:$bad"; FAILS=$((FAILS + 1)); fi
+fi
+
+# #705: SELinux desactivado SOLO en Traefik (provisional hasta 0.10e-d). Estático: solo
+# traefik.container lleva SecurityLabelDisable=true (fuera de comentarios).
+bad=""
+for f in "$HERE"/quadlet/*.container; do
+    n="$(basename "$f")"
+    if grep -qx 'SecurityLabelDisable=true' "$f"; then
+        [[ "$n" == traefik.container ]] || bad="$bad $n lo lleva;"
+    else
+        [[ "$n" == traefik.container ]] && bad="$bad traefik.container no lo lleva;"
+    fi
+done
+if [[ -z "$bad" ]]; then echo "ok     SecurityLabelDisable=true solo en traefik.container (#705)"; else echo "FALLA  SecurityLabelDisable:$bad"; FAILS=$((FAILS + 1)); fi
+# Hueco de #705: ninguna vía alternativa (PodmanArgs, espacios, --privileged, SecurityLabel*) fuera de
+# comentarios; lo único admitido es la línea exacta SecurityLabelDisable=true de traefik.container.
+bad="$(grep -rnE 'label[:=]disable|SecurityLabel|PodmanArgs|privileged|label *= *disable' "$HERE"/quadlet/*.container \
+    | grep -vE '^[^:]+:[0-9]+:[[:space:]]*#' | grep -vE '^[^:]*/traefik\.container:[0-9]+:SecurityLabelDisable=true$' || true)"
+if [[ -z "$bad" ]]; then echo "ok     ninguna otra vía de label=disable/privileged/PodmanArgs en infra/quadlet (#705)"; else echo "FALLA  vía no admitida: $bad"; FAILS=$((FAILS + 1)); fi
+# Con el generador: solo el ExecStart de traefik.service lleva label=disable (los comentarios
+# de la unidad también salen en --dryrun, por eso se mira solo la línea ExecStart=).
+if [[ -n "$GEN" ]]; then
+    bad=""; unit=""
+    while IFS= read -r l; do
+        if [[ "$l" =~ ^---(.*)---$ ]]; then unit="${BASH_REMATCH[1]}"; continue; fi
+        [[ "$l" == ExecStart=* ]] || continue
+        if [[ "$l" == *'--security-opt label=disable'* ]]; then
+            [[ "$unit" == traefik.service ]] || bad="$bad $unit lo lleva;"
+        else
+            [[ "$unit" == traefik.service ]] && bad="$bad traefik.service no lo lleva;"
+        fi
+    done <<<"$gen_out"
+    if [[ -z "$bad" ]]; then echo "ok     generador de Quadlet: label=disable solo en el ExecStart de Traefik (#705)"; else echo "FALLA  generador label=disable:$bad"; FAILS=$((FAILS + 1)); fi
+    tl="$(grep -E '^ExecStart=.*plataforma-traefik' <<<"$gen_out")"
+    if grep -q 'no-new-privileges' <<<"$tl" && grep -q -- '--cap-drop all' <<<"$tl"; then echo "ok     generador de Quadlet: Traefik con no-new-privileges y --cap-drop all (#705)"; else echo "FALLA  generador: Traefik sin no-new-privileges o --cap-drop all"; FAILS=$((FAILS + 1)); fi
+fi
+
+# #707: con el generador real, default.target.wants debe llevar api@1 y el resto de servicios que
+# arrancan con el host (sin DefaultInstance=1 la API no arrancaba tras un reinicio).
+if [[ -z "$GEN" ]]; then
+    echo "omitido: sin generador de Quadlet"
+else
+    GOUT="$TMP/gen-707"; rm -rf "$GOUT"; mkdir -p "$GOUT"
+    QUADLET_UNIT_DIRS="$U" "$GEN" --user "$GOUT" "$GOUT" "$GOUT" >/dev/null 2>&1
+    bad=""
+    for svc in api@1 plataforma-network postgres redis traefik web worker worker-long; do
+        [[ -e "$GOUT/default.target.wants/$svc.service" ]] || bad="$bad $svc;"
+    done
+    [[ -e "$U/mailpit.container" ]] && { [[ -e "$GOUT/default.target.wants/mailpit.service" ]] || bad="$bad mailpit;"; }
+    if [[ -z "$bad" ]]; then echo "ok     generador de Quadlet: default.target.wants arranca api@1 y el resto de la pila (#707)"; else echo "FALLA  default.target.wants sin:$bad"; FAILS=$((FAILS + 1)); fi
+fi
+
+# #693: install.sh sin TENANT_ALLOWED_IPS aborta; con ella, los routers de los centros llevan
+# el middleware y el del backoffice conserva el suyo.
+UD="$H/.config/containers/systemd"
+bad=""
+grep -q 'middlewares\.tenant-ipallowlist\.ipallowlist\.sourcerange=198.51.100.0/24,2001:db8::/32' "$UD/api@.container" || bad="$bad sin sourcerange tenant;"
+grep -q 'routers\.plataforma-api\.middlewares=tenant-ipallowlist@docker' "$UD/api@.container" || bad="$bad plataforma-api sin middleware;"
+grep -q 'routers\.plataforma-web\.middlewares=tenant-ipallowlist-web@docker' "$UD/web.container" || bad="$bad plataforma-web sin middleware;"
+grep -q 'middlewares\.tenant-ipallowlist-web\.ipallowlist\.sourcerange=198.51.100.0/24,2001:db8::/32' "$UD/web.container" || bad="$bad web sin su middleware definido;"
+# Ninguna unidad referencia un middleware definido en otra: cada @docker usado se define en la misma unidad.
+for f in "$UD"/*.container; do
+    for m in $(grep -oE 'middlewares=[a-z-]+@docker' "$f" | sed -E 's/middlewares=([a-z-]+)@docker/\1/'); do
+        grep -q "traefik\.http\.middlewares\.$m\." "$f" || bad="$bad $(basename "$f") usa $m sin definirlo;"
+    done
+done
+grep -q 'routers\.plataforma-api-platform\.middlewares=platform-ipallowlist@docker' "$UD/api@.container" || bad="$bad backoffice sin su middleware;"
+grep -q 'platform-ipallowlist\.ipallowlist\.sourcerange=203.0.113.7/32,198.51.100.0/24' "$UD/api@.container" || bad="$bad backoffice sin su sourcerange;"
+grep -q 'plataforma-api-platform\.middlewares=tenant' "$UD/api@.container" && bad="$bad backoffice con middleware de centros;"
+if [[ -z "$bad" ]]; then echo "ok     routers de centros con tenant-ipallowlist y backoffice con el suyo"; else echo "FALLA  middlewares de lista blanca:$bad"; FAILS=$((FAILS + 1)); fi
+H3="$TMP/home3"; mkdir -p "$H3/.config"; cp -r "$H/.config/plataforma" "$H3/.config/plataforma"
+sed -i '/^TENANT_ALLOWED_IPS=/d' "$H3/.config/plataforma/plataforma.env"
+out3="$(HOME="$H3" PATH="$TMP/bin:$PATH" bash "$HERE/install.sh" sha-test --user 2>&1)"; rc3=$?
+if [[ "$rc3" -ne 0 ]] && grep -q 'TENANT_ALLOWED_IPS tiene que estar fijado' <<<"$out3" && [[ ! -e "$H3/.config/containers/systemd/web.container" ]]; then
+    echo "ok     install.sh sin TENANT_ALLOWED_IPS aborta y no genera unidades"
+else
+    echo "FALLA  install.sh sin TENANT_ALLOWED_IPS (rc=$rc3): $(tail -2 <<<"$out3")"; FAILS=$((FAILS + 1))
 fi
 
 # prepare_postgres_init: destino enlace simbólico, destino escribible, sobrantes.
@@ -166,7 +307,7 @@ if grep -qF "Volume=$H/.local/share/plataforma/postgres-init:" "$H/.config/conta
 else
     echo "FALLA  directorio de init --user"; FAILS=$((FAILS + 1))
 fi
-if grep -q 'enable --now plataforma-network.service' <<<"$out" && ! grep -q 'plataforma\.network' <<<"$out"; then
+if grep -q 'start plataforma-network.service' <<<"$out" && ! grep -q 'plataforma\.network' <<<"$out"; then
     echo "ok     aviso final con el nombre real de la unidad de red"
 else
     echo "FALLA  aviso final de la unidad de red"; FAILS=$((FAILS + 1))
@@ -215,7 +356,7 @@ out2="$(HOME="$H2" PATH="$TMP/bin:$PATH" bash "$HERE/install.sh" sha-test --user
 M="$H2/.config/containers/systemd/mailpit.container"; bad=""
 [[ "$rc2" -eq 0 ]] || bad="$bad rc=$rc2;"
 [[ -f "$M" ]] || bad="$bad sin mailpit.container;"
-grep -q 'enable --now mailpit.service' <<<"$out2" || bad="$bad sin enable --now;"
+grep -q 'start mailpit.service' <<<"$out2" || bad="$bad sin start mailpit;"
 [[ "$(grep -c '^PublishPort=' "$M")" -eq 1 ]] && grep -q '^PublishPort=127.0.0.1:8025:8025$' "$M" || bad="$bad PublishPort;"
 grep -q 'PublishPort=.*1025' "$M" && bad="$bad publica SMTP;"
 grep -q '^Network=plataforma.network$' "$M" || bad="$bad sin red;"
@@ -223,6 +364,12 @@ grep -qE '^(Requires|BindsTo)=' "$M" && bad="$bad Requires/BindsTo;"
 grep -qE '^Image=.+:v[0-9]+\.[0-9]+\.[0-9]+@sha256:[0-9a-f]{64}$' "$M" || bad="$bad imagen sin versión y digest;"
 grep -q '__[A-Z_]*__' "$M" && bad="$bad tokens;"
 if [[ -z "$bad" ]]; then echo "ok     --with-mailpit instala mailpit (127.0.0.1:8025, sin publicar SMTP, sin tokens)"; else echo "FALLA  --with-mailpit:$bad"; FAILS=$((FAILS + 1)); fi
+# Ayuda de arranque (#695, #698): sin enable --now ni start de migrate; con restart de migrate.
+bad=""
+grep -q 'enable --now' <<<"$out2" && bad="$bad enable --now;"
+grep -qE '(^|[^e])start plataforma-migrate' <<<"$out2" && bad="$bad start plataforma-migrate;"
+grep -q 'restart plataforma-migrate' <<<"$out2" || bad="$bad sin restart plataforma-migrate;"
+if [[ -z "$bad" ]]; then echo "ok     la ayuda de arranque usa restart de migrate y start (sin enable --now)"; else echo "FALLA  ayuda de arranque:$bad"; FAILS=$((FAILS + 1)); fi
 # Reinstalar sin la opción no borra una unidad mailpit ya instalada.
 HOME="$H2" PATH="$TMP/bin:$PATH" bash "$HERE/install.sh" sha-test --user >/dev/null 2>&1
 [[ -f "$M" ]] && echo "ok     reinstalar sin --with-mailpit conserva la unidad existente" \
@@ -232,7 +379,7 @@ expect "install.sh rechaza opciones desconocidas" 1 "Opción desconocida" env HO
 # Modo sistema: render_units a un directorio temporal, sin escribir en /etc ni /opt.
 ( ENV_FILE="/etc/plataforma/plataforma.env"; TRAEFIK_ENV_FILE="/etc/plataforma/traefik-cloudflare.env"
   ENV_DIR="/etc/plataforma"; POSTGRES_INIT_DIR="/opt/plataforma/postgres-init"
-  TENANCY_BASE_DOMAIN=centros.adagiox.eu; BACKOFFICE_HOST=panel.adagiox.eu; BACKOFFICE_ALLOWED_IPS=10.0.0.0/8
+  TENANCY_BASE_DOMAIN=centros.adagiox.eu; BACKOFFICE_HOST=panel.adagiox.eu; BACKOFFICE_ALLOWED_IPS=10.0.0.0/8; TENANT_ALLOWED_IPS=0.0.0.0/0,::/0
   ACME_EMAIL=ops@example.com; ACME_CA_SERVER="$ACME_CA_STAGING"
   render_units "$HERE/quadlet" "$TMP/sistema" sha-test )
 check_units "unidades en modo sistema: EnvironmentFile en /etc/plataforma, sin tokens ni rutas del usuario" \

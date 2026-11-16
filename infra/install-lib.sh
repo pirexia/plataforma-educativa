@@ -16,24 +16,89 @@ env_value() {
     { grep -E "^${1}=" "$ENV_FILE" || true; } | tail -n1 | cut -d= -f2-
 }
 
-# Rangos de una entrada IP/CIDR que ya cumple el formato: octetos IPv4 0-255,
-# prefijo <= 32 (IPv4) o <= 128 (IPv6).
-ip_entry_in_range() {
-    local entry="$1" addr="${1%%/*}" prefix="" octet
-    [[ "$entry" == */* ]] && prefix="${entry#*/}"
+# IPv4 de cuatro octetos 0-255 (sin ceros a la izquierda de más de 3 dígitos).
+ipv4_valid() {
+    local a="$1" o
+    [[ "$a" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]] || return 1
+    local IFS=.
+    for o in $a; do
+        [[ "$((10#$o))" -le 255 ]] || return 1
+    done
+    return 0
+}
+
+# IPv6: solo [0-9A-Fa-f:], grupos de 1-4 hex, a lo sumo un `::`, 8 grupos
+# (como mucho 7 con `::`); admite un cuarteto final IPv4 (cuenta como 2 grupos).
+ipv6_valid() {
+    local a="$1" left right g n=0 dbl=0
+    [[ "$a" == *:* ]] || return 1
+    if [[ "$a" == *.* ]]; then
+        ipv4_valid "${a##*:}" || return 1
+        a="${a%:*}:0:0"
+    fi
+    [[ "$a" =~ ^[0-9A-Fa-f:]+$ ]] || return 1
+    [[ "$a" != *:::* ]] || return 1
+    if [[ "$a" == *::* ]]; then
+        dbl=1
+        left="${a%%::*}"; right="${a#*::}"
+        [[ "$right" != *::* ]] || return 1
+    else
+        left="$a"; right=""
+    fi
+    local IFS=:
+    for g in $left $right; do
+        [[ "$g" =~ ^[0-9A-Fa-f]{1,4}$ ]] || return 1
+        n=$((n + 1))
+    done
+    # `for` sobre cadena vacía no itera; los grupos vacíos intermedios se detectan abajo.
+    if [[ "$dbl" -eq 1 ]]; then
+        [[ "$n" -le 7 ]] || return 1
+    else
+        [[ "$n" -eq 8 ]] || return 1
+    fi
+    # Sin `::`, un `:` inicial o final o un grupo vacío (`a::b` ya excluido) no cuentan 8 grupos.
+    [[ "$dbl" -eq 1 || ( "$a" != :* && "$a" != *: ) ]] || return 1
+    return 0
+}
+
+# Una entrada: IP o IP/prefijo (IPv4 prefijo 0-32, IPv6 prefijo 0-128).
+ip_entry_valid() {
+    local entry="$1" addr prefix=""
+    addr="${entry%%/*}"
+    if [[ "$entry" == */* ]]; then
+        prefix="${entry#*/}"
+        [[ "$prefix" =~ ^[0-9]{1,3}$ ]] || return 1
+    fi
     if [[ "$addr" == *:* ]]; then
+        ipv6_valid "$addr" || return 1
         [[ -z "$prefix" || "$((10#$prefix))" -le 128 ]] || return 1
     else
-        local IFS=.
-        for octet in $addr; do
-            [[ "$((10#$octet))" -le 255 ]] || return 1
-        done
+        ipv4_valid "$addr" || return 1
         [[ -z "$prefix" || "$((10#$prefix))" -le 32 ]] || return 1
     fi
     return 0
 }
 
+# validate_ip_list <nombre> <valor>: lista de IP o CIDR (IPv4/IPv6) separadas por
+# comas, sin elementos vacíos (ni coma inicial, final o doble).
+validate_ip_list() {
+    local name="$1" list="$2" entry
+    local -a entries
+    if [[ "$list" == ,* || "$list" == *, || "$list" == *,,* ]]; then
+        echo "$name de $ENV_FILE tiene una entrada que no es IP ni CIDR (separadas por comas, sin espacios)." >&2
+        return 1
+    fi
+    IFS=',' read -r -a entries <<<"$list"
+    for entry in "${entries[@]}"; do
+        if ! ip_entry_valid "$entry"; then
+            echo "$name de $ENV_FILE tiene una entrada que no es IP ni CIDR (separadas por comas, sin espacios)." >&2
+            return 1
+        fi
+    done
+}
+
 # Lee y valida TENANCY_BASE_DOMAIN, BACKOFFICE_HOST, BACKOFFICE_ALLOWED_IPS,
+# TENANT_ALLOWED_IPS (obligatoria),
 # ACME_EMAIL y ACME_CA_SERVER (con valor por defecto: entorno de pruebas).
 load_and_validate_config() {
     local host_re='^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$'
@@ -42,6 +107,7 @@ load_and_validate_config() {
     TENANCY_BASE_DOMAIN="$(env_value TENANCY_BASE_DOMAIN)"
     BACKOFFICE_HOST="$(env_value BACKOFFICE_HOST)"
     BACKOFFICE_ALLOWED_IPS="$(env_value BACKOFFICE_ALLOWED_IPS)"
+    TENANT_ALLOWED_IPS="$(env_value TENANT_ALLOWED_IPS)"
     ACME_EMAIL="$(env_value ACME_EMAIL)"
     ACME_CA_SERVER="$(env_value ACME_CA_SERVER)"
     ACME_CA_SERVER="${ACME_CA_SERVER:-$ACME_CA_STAGING}"
@@ -60,16 +126,16 @@ load_and_validate_config() {
         return 1
     fi
     if [[ -n "$BACKOFFICE_ALLOWED_IPS" ]]; then
-        local ip_re='^(([0-9]{1,3}\.){3}[0-9]{1,3}|[0-9A-Fa-f:]*:[0-9A-Fa-f:.]*)(/[0-9]{1,3})?$' entry
-        local -a entries
-        IFS=',' read -r -a entries <<<"$BACKOFFICE_ALLOWED_IPS"
-        for entry in "${entries[@]}"; do
-            if [[ ! "$entry" =~ $ip_re ]] || ! ip_entry_in_range "$entry"; then
-                echo "BACKOFFICE_ALLOWED_IPS de $ENV_FILE tiene una entrada que no es IP ni CIDR (separadas por comas, sin espacios)." >&2
-                return 1
-            fi
-        done
+        validate_ip_list BACKOFFICE_ALLOWED_IPS "$BACKOFFICE_ALLOWED_IPS" || return 1
     fi
+    # #693, INV-002: cerrada por defecto. Sin valor no se instala (a diferencia
+    # de la del backoffice, no se admite vacío): producción pone 0.0.0.0/0,::/0
+    # de forma explícita, nunca por omisión.
+    if [[ -z "$TENANT_ALLOWED_IPS" ]]; then
+        echo "TENANT_ALLOWED_IPS tiene que estar fijado en $ENV_FILE (lista blanca de IP de las rutas de los centros; en producción, 0.0.0.0/0,::/0 de forma explícita)." >&2
+        return 1
+    fi
+    validate_ip_list TENANT_ALLOWED_IPS "$TENANT_ALLOWED_IPS" || return 1
     if [[ -z "$ACME_EMAIL" ]]; then
         echo "ACME_EMAIL tiene que estar fijado en $ENV_FILE (email de la cuenta ACME, ADR-080 §3.5)." >&2
         return 1
@@ -161,7 +227,8 @@ prepare_postgres_init() {
 # POSTGRES_INIT_DIR) y la versión $3. Único sitio con el `sed`.
 render_units() {
     local src="$1" dest="$2" tag="$3" unit name escaped
-    escaped="${TENANCY_BASE_DOMAIN//./\\.}"
+    # Punto como [.] y no \. : Quadlet descarta en silencio un Label= con barra invertida (#701).
+    escaped="${TENANCY_BASE_DOMAIN//./[.]}"
     mkdir -p "$dest"
     for unit in "$src"/*.container "$src"/*.network "$src"/*.volume; do
         name="$(basename "$unit")"
@@ -182,6 +249,7 @@ render_units() {
             -e "s|__POSTGRES_INIT_DIR__|$POSTGRES_INIT_DIR|g" \
             -e "s/__BACKOFFICE_HOST__/$BACKOFFICE_HOST/g" \
             -e "s|__BACKOFFICE_ALLOWED_IPS__|$BACKOFFICE_ALLOWED_IPS|g" \
+            -e "s|__TENANT_ALLOWED_IPS__|$TENANT_ALLOWED_IPS|g" \
             "$unit" > "$dest/$name"
     done
 }

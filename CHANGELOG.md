@@ -6,6 +6,47 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-16 · `infra`: `DefaultInstance=1` en `api@.container` para que la API arranque con el host (issue #707)
+
+- **Fix #707 (Alto)**: sin `DefaultInstance=`, Quadlet no generaba `api@1.service` en `default.target.wants` y tras reiniciar el host la API no arrancaba. Comprobado con el generador real (Podman 5.7).
+- `infra/test-install-env.sh`: con el generador, `default.target.wants` debe contener `api@1` y el resto de la pila; falla si se quita `DefaultInstance=1`.
+- `SYSADMIN.md §4c` y `RUNBOOK.md §3b.9`: qué esperar tras un reinicio y cómo comprobarlo.
+- **No verificado**: no desplegado ni reiniciado el host con este cambio.
+- Versiones: `SYSADMIN.md` 0.9.5, `RUNBOOK.md` 0.3.29.
+
+## 2026-11-16 · `infra`: SELinux desactivado solo en Traefik para leer el socket de Podman bajo `enforcing`, provisional hasta `0.10e-d` (issue #705)
+
+- **Fix #705**: con SELinux en `enforcing`, Traefik no se conecta al socket de Podman (`permission denied while trying to connect to the docker API`) y no descubre routers; con `permissive` funcionaba (comprobado a mano el 2026-11-16, antes de este cambio; este cambio no está desplegado ni verificado). `infra/quadlet/traefik.container` añade `SecurityLabelDisable=true` (el generador de Quadlet emite `--security-opt label=disable`). Solo Traefik; el resto sigue confinado. Añade también `NoNewPrivileges=true` y `DropCapability=ALL` (**no verificados con Traefik real**; si no arranca o no descubre routers, se retiran antes de tocar nada más) y quita `,Z` del montaje del socket. Provisional hasta el proxy de socket de `0.10e-d`. Decisión del usuario, 2026-11-16.
+- `infra/test-install-env.sh`: comprueba que solo `traefik.container` lleva la opción y, con generador, que solo el `ExecStart` de `traefik.service` lleva `label=disable`.
+- `ADR-088 §5.3` (riesgo y mitigación), `SYSADMIN.md §4c` y `RUNBOOK.md §3b.9`.
+- **No verificado**: no desplegado; falta comprobar en el VPS con `enforcing` que Traefik descubre los routers.
+- Versiones: `SYSADMIN.md` 0.9.4, `RUNBOOK.md` 0.3.28; `ADR-088` sigue en `PROPUESTA`.
+
+## 2026-11-16 · `infra`: reglas de los routers sin espacios ni barra invertida, que Quadlet descartaba (issue #701)
+
+- **Fix #701 (Alto)**: el generador de Quadlet (Podman 5.8) descarta en silencio un `Label=` con espacios o `\.` y trunca en el primer espacio, así que los routers `plataforma-web` y `plataforma-api` de los centros no existían. Reglas reescritas con `&&` sin espacios y `[.]`; `__TENANCY_BASE_DOMAIN_ESCAPED__` genera `centros[.]adagiox[.]eu` (el nombre del *token* no cambia).
+- `infra/test-install-env.sh`: comprobación estática de `Label=`, texto exacto de las tres reglas renderizadas y, si hay generador de Quadlet, `--dryrun` que exige las reglas completas en el `ExecStart`.
+- `OPEN-088-06` en `ADR-088`, **cerrada como prevista**: `panel.<dominio>` solo tiene *router* para `/api/platform`; el de su SPA (fila 4 de `REQ-BO/operacion.md §0.2`) es del paso de interfaz, `apps/backoffice`, y el *backoffice* se opera solo por API hasta `1.7`/`1.9` (`OPEN-BO-08`).
+- **No verificado**: la parte con Traefik real hasta desplegar.
+
+## 2026-11-16 · `infra`/`docs`: lista blanca de IP también para las rutas de los centros, cerrada por defecto (issue #693, `OPEN-STG-09`)
+
+- **Fix #693 (Media)**: la lista blanca de Traefik solo protegía el *backoffice*. Nuevo *token* `__TENANT_ALLOWED_IPS__` (variable `TENANT_ALLOWED_IPS`, 12.º de `install.sh`) y un middleware propio por unidad: `tenant-ipallowlist` en `plataforma-api` (`api@.container`) y `tenant-ipallowlist-web` en `plataforma-web` (`web.container`), para que la web no dependa de `api@`; el del *backoffice* no cambia.
+- **Cerrada por defecto** (`INV-002`, decisión del usuario del 2026-11-16): `install.sh` aborta si la variable falta o está vacía, y valida IP/CIDR (IPv4 e IPv6) como la del *backoffice*. Producción debe fijarla a `0.0.0.0/0,::/0` de forma explícita.
+- `infra/test-install-env.sh` comprueba la sustitución, el aborto por ausencia, vacío y CIDR inválido, y que los routers de los centros y el del *backoffice* llevan cada uno su middleware.
+- Revisión: validador de listas de IP endurecido en bash (rechaza `:`, `::::`, `a:b`, comas vacías, más de un `::`, grupos fuera de 1-4 hex); la redirección `:80`→`:443` responde antes de la lista blanca (aceptado en staging, `ADR-088`).
+- **No verificado**: no desplegado ni probado con Traefik real (web cerrada con `api@` parada, IP real del cliente, 200/403).
+- Versiones: `SYSADMIN.md` 0.9.3, `RUNBOOK.md` 0.3.27, `README.md` 2.6.56 (sin cambio propio); `ADR-088` sigue en `PROPUESTA`.
+
+## 2026-11-16 · `infra`/`docs`: ayuda de `install.sh` con `restart` de migrate y `start` de unidades generadas; `CS-08` repetido (issues #698, #695, #696)
+
+- **Fix #698 (Alto)**: `plataforma-migrate` es `oneshot` con `RemainAfterExit`; ya activa, `systemctl --user start` no ejecuta el contenedor y las migraciones del tag nuevo no correrían. La ayuda de `install.sh`, `SYSADMIN.md §4c` y `RUNBOOK.md §3b.2`/`§3b.9` indican ahora `daemon-reload`, `restart plataforma-migrate.service` y comprobar `Result=success` antes de reiniciar API y *workers*.
+- **Fix #695 (Baja)**: las unidades generadas por Quadlet no admiten `enable`; la ayuda usa `start` (incluida `mailpit.service` con `--with-mailpit`). `infra/test-install-env.sh` comprueba que la salida no contiene `enable --now` ni `start plataforma-migrate` y sí `restart plataforma-migrate`.
+- **#696 desplegado**: con `pcntl` en la imagen, parada de `worker` en 0,6 s y de `worker-long` en 0,9 s (antes 130,9 s y 620,8 s).
+- **`CS-08`, 2.ª ejecución** (VPS de staging, verificado a mano): reversión `sha-5072b79` → `sha-ba00db4` en 23,2 s y avance en 27,2 s; corte en los *backends* ~2,9 s y ~2,8 s, a través de Traefik ~6,1 s y ~3,1 s; un trabajo encolado por la versión anterior lo procesó la nueva (`jobs=0`, `failed_jobs=0`). **Salvedades** en `RUNBOOK.md §3b.9`: el trabajo es un *closure* consumido con `queue:work --once`, no por el *worker* de systemd; ambas versiones comparten esquema y casi todo el código; sin migraciones pendientes (no se probó una migración real); los *workers* del destino de reversión (sin `pcntl`) se pararon con `SIGKILL` a mano; sondeo desde el propio VPS.
+- **No ejecutado**: `CS-17`, `CS-19` y `CS-02` completo; #693 sigue abierto.
+- Versiones: `SYSADMIN.md` 0.9.1, `RUNBOOK.md` 0.3.25, `README.md` 2.6.56 (sin cambio propio).
+
 ## 2026-11-16 · `infra`/`docs`: staging en un VPS con Podman sin privilegios, `0.10e-c` tramos 1-3 (`ADR-080`, `ADR-087`, `ADR-088`; issues #685, #690, #693)
 
 - **Tramo 1** (#689, mezclado) y **tramo 2** (#692, mezclado): `install.sh --user`, rutas por modo, migraciones con `--database=pgsql_owner`, plantillas de unidades con sustitución de tokens y Traefik en red `host` con *backends* en `127.0.0.1` (la IP real del cliente para la lista blanca del *backoffice*). Staging promocionado por avance rápido a `a1f27d2`.
