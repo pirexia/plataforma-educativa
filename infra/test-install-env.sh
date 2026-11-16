@@ -192,6 +192,41 @@ else
     if [[ -z "$bad" ]]; then echo "ok     generador de Quadlet (--dryrun): las tres reglas llegan al ExecStart"; else echo "FALLA  generador de Quadlet descarta:$bad"; FAILS=$((FAILS + 1)); fi
 fi
 
+# #705: SELinux desactivado SOLO en Traefik (provisional hasta 0.10e-d). Estático: solo
+# traefik.container lleva SecurityLabelDisable=true (fuera de comentarios).
+bad=""
+for f in "$HERE"/quadlet/*.container; do
+    n="$(basename "$f")"
+    if grep -qx 'SecurityLabelDisable=true' "$f"; then
+        [[ "$n" == traefik.container ]] || bad="$bad $n lo lleva;"
+    else
+        [[ "$n" == traefik.container ]] && bad="$bad traefik.container no lo lleva;"
+    fi
+done
+if [[ -z "$bad" ]]; then echo "ok     SecurityLabelDisable=true solo en traefik.container (#705)"; else echo "FALLA  SecurityLabelDisable:$bad"; FAILS=$((FAILS + 1)); fi
+# Hueco de #705: ninguna vía alternativa (PodmanArgs, espacios, --privileged, SecurityLabel*) fuera de
+# comentarios; lo único admitido es la línea exacta SecurityLabelDisable=true de traefik.container.
+bad="$(grep -rnE 'label[:=]disable|SecurityLabel|PodmanArgs|privileged|label *= *disable' "$HERE"/quadlet/*.container \
+    | grep -vE '^[^:]+:[0-9]+:[[:space:]]*#' | grep -vE '^[^:]*/traefik\.container:[0-9]+:SecurityLabelDisable=true$' || true)"
+if [[ -z "$bad" ]]; then echo "ok     ninguna otra vía de label=disable/privileged/PodmanArgs en infra/quadlet (#705)"; else echo "FALLA  vía no admitida: $bad"; FAILS=$((FAILS + 1)); fi
+# Con el generador: solo el ExecStart de traefik.service lleva label=disable (los comentarios
+# de la unidad también salen en --dryrun, por eso se mira solo la línea ExecStart=).
+if [[ -n "$GEN" ]]; then
+    bad=""; unit=""
+    while IFS= read -r l; do
+        if [[ "$l" =~ ^---(.*)---$ ]]; then unit="${BASH_REMATCH[1]}"; continue; fi
+        [[ "$l" == ExecStart=* ]] || continue
+        if [[ "$l" == *'--security-opt label=disable'* ]]; then
+            [[ "$unit" == traefik.service ]] || bad="$bad $unit lo lleva;"
+        else
+            [[ "$unit" == traefik.service ]] && bad="$bad traefik.service no lo lleva;"
+        fi
+    done <<<"$gen_out"
+    if [[ -z "$bad" ]]; then echo "ok     generador de Quadlet: label=disable solo en el ExecStart de Traefik (#705)"; else echo "FALLA  generador label=disable:$bad"; FAILS=$((FAILS + 1)); fi
+    tl="$(grep -E '^ExecStart=.*plataforma-traefik' <<<"$gen_out")"
+    if grep -q 'no-new-privileges' <<<"$tl" && grep -q -- '--cap-drop all' <<<"$tl"; then echo "ok     generador de Quadlet: Traefik con no-new-privileges y --cap-drop all (#705)"; else echo "FALLA  generador: Traefik sin no-new-privileges o --cap-drop all"; FAILS=$((FAILS + 1)); fi
+fi
+
 # #693: install.sh sin TENANT_ALLOWED_IPS aborta; con ella, los routers de los centros llevan
 # el middleware y el del backoffice conserva el suyo.
 UD="$H/.config/containers/systemd"
