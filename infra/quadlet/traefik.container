@@ -15,6 +15,24 @@
 #    defecto (10.89.10.0/24, SYSADMIN.md) sigue siendo válida. No se cambia.
 #  - Mientras no haya ADR, las reglas de redes de ADR-028 se aplican al resto
 #    de servicios; la separación de redes (0.10e-d) está pendiente.
+# Supuestos y riesgos aceptados de la red host:
+#  (a) Staging es un host de UN SOLO USUARIO/operador. Los backends escuchan
+#      en 127.0.0.1 (18001 API, 18080 web): cualquier proceso local puede
+#      llamarlos saltándose Traefik y su lista blanca. La lista blanca de la
+#      APLICACIÓN (platform_ip_allowlist) tampoco lo evita: el peer que ve
+#      Laravel (10.89.10.x vía rootlessport) está en TRUSTED_PROXIES por
+#      defecto y acepta X-Forwarded-For. Limitación abierta, pendiente de un
+#      ADR del architect (confiar solo en la IP concreta de rootlessport,
+#      secreto compartido o socket Unix).
+#  (b) net.ipv4.ip_unprivileged_port_start=80 permite a cualquier usuario
+#      local enlazar 80/443: si Traefik cae o se reinicia, un proceso local
+#      podría ocuparlos antes. Supuesto de host mono-usuario, a evaluar en el
+#      ADR (alternativa: redirección con nftables a puertos altos).
+#  (c) El puerto interno 127.0.0.1:8080 (ping) no debe abrirse en ninguna
+#      regla de cortafuegos de entrada.
+#  (d) El socket de Podman montado en Traefik con red host: un Traefik
+#      comprometido controla el Podman de ese usuario y todos los servicios
+#      de loopback. Lo resuelve el proxy de socket de 0.10e-d.
 # Verificado a mano en el VPS de staging: la lista blanca pasa con una IP
 # permitida y bloquea (403) con otra.
 #
