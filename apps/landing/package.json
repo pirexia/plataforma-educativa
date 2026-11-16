@@ -15,7 +15,7 @@
     "lighthouse": "lhci autorun"
   },
   "devDependencies": {
-    "@lhci/cli": "0.16.0",
+    "@lhci/cli": "0.16.1",
     "wrangler": "4.159.0"
   },
   "overrides": {
