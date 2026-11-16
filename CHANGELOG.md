@@ -6,6 +6,14 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-16 · `infra`: `DefaultInstance=1` en `api@.container` para que la API arranque con el host (issue #707)
+
+- **Fix #707 (Alto)**: sin `DefaultInstance=`, Quadlet no generaba `api@1.service` en `default.target.wants` y tras reiniciar el host la API no arrancaba. Comprobado con el generador real (Podman 5.7).
+- `infra/test-install-env.sh`: con el generador, `default.target.wants` debe contener `api@1` y el resto de la pila; falla si se quita `DefaultInstance=1`.
+- `SYSADMIN.md §4c` y `RUNBOOK.md §3b.9`: qué esperar tras un reinicio y cómo comprobarlo.
+- **No verificado**: no desplegado ni reiniciado el host con este cambio.
+- Versiones: `SYSADMIN.md` 0.9.5, `RUNBOOK.md` 0.3.29.
+
 ## 2026-11-16 · `infra`: SELinux desactivado solo en Traefik para leer el socket de Podman bajo `enforcing`, provisional hasta `0.10e-d` (issue #705)
 
 - **Fix #705**: con SELinux en `enforcing`, Traefik no se conecta al socket de Podman (`permission denied while trying to connect to the docker API`) y no descubre routers; con `permissive` funcionaba (comprobado a mano el 2026-11-16, antes de este cambio; este cambio no está desplegado ni verificado). `infra/quadlet/traefik.container` añade `SecurityLabelDisable=true` (el generador de Quadlet emite `--security-opt label=disable`). Solo Traefik; el resto sigue confinado. Añade también `NoNewPrivileges=true` y `DropCapability=ALL` (**no verificados con Traefik real**; si no arranca o no descubre routers, se retiran antes de tocar nada más) y quita `,Z` del montaje del socket. Provisional hasta el proxy de socket de `0.10e-d`. Decisión del usuario, 2026-11-16.

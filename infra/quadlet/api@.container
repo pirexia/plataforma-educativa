@@ -79,3 +79,7 @@ Restart=always
 
 [Install]
 WantedBy=default.target
+# Una sola instancia por defecto (#707): sin DefaultInstance Quadlet no genera
+# api@1 en default.target.wants y la API no arranca con el host. api@2 es de 0.10e-d
+# y se activará aparte.
+DefaultInstance=1

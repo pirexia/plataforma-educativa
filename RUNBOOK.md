@@ -1,6 +1,6 @@
 # RUNBOOK.md
 
-> **Versión 0.3.28** · 2026-11-16
+> **Versión 0.3.29** · 2026-11-16
 > Documento vivo: se actualiza en cada fase (`CLAUDE.md` §6). Cubre el entorno de **desarrollo** en WSL2 (`ADR-030`) y, desde `§3b.9`, el de **staging** en un VPS (con datos sintéticos) — no hay producción, piloto ni usuarios reales todavía. Los procedimientos de guardia, alertas y recuperación ante desastre de un entorno real se documentarán aquí cuando `OPEN-11` (alojamiento del piloto) se resuelva.
 
 ---
@@ -354,6 +354,8 @@ Despacha un trabajo por centro activo a la cola `default` (necesita el *worker*,
 `migrate:rollback` de `2026_11_05_100200_widen_consent_verification_timestamps_to_microseconds` redondea `image_consent_decisions.occurred_at` y `guardian_student_links.legal_guardian_verified_at` al segundo más cercano (hasta 0,5 s de diferencia, irrecuperable). Si ya hay decisiones, prefiere desplegar la imagen anterior sin revertir el esquema (es compatible).
 
 ### 3b.9 Staging en el VPS: qué está probado y reversión (`ADR-080`, `0.10e-c`; estado a 2026-11-16)
+
+**Tras reiniciar el host** (#707): con `linger`, la pila arranca sola, `api@1` incluida (`DefaultInstance=1` en `api@.container`). Comprobar con `podman ps` (8 contenedores con Mailpit, 7 sin él) y `systemctl --user is-active api@1`. Antes de este cambio `api@1` no arrancaba tras un reinicio (la web servía y `/api/…` caía a la SPA con 200). **No verificado tras el despliegue**: pendiente de desplegar y de repetir `CS-04`.
 
 Staging se instala sin privilegios con `./infra/install.sh <tag> --user` (`SYSADMIN.md §4c`). **Probado a mano el 2026-11-16** (no con una prueba automatizada), con la imagen `sha-a1f27d2`: los siete contenedores en `healthy`; las 130 migraciones con `--database=pgsql_owner`; el almacenamiento S3 real del proveedor (bucket de staging); la lista blanca del *backoffice* (200 con una IP permitida, 403 con otra); `CS-01` verificado por el usuario desde su terminal (el *push* forzado y el borrado de `staging` se rechazan con `GH013`). El corte medido del conjunto API + web + Traefik al redesplegar fue de unos 26 s. Los certificados son de **pruebas** (ACME de staging de la autoridad), por lo que un navegador los marcará como no fiables.
 

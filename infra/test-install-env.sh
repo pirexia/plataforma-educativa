@@ -227,6 +227,21 @@ if [[ -n "$GEN" ]]; then
     if grep -q 'no-new-privileges' <<<"$tl" && grep -q -- '--cap-drop all' <<<"$tl"; then echo "ok     generador de Quadlet: Traefik con no-new-privileges y --cap-drop all (#705)"; else echo "FALLA  generador: Traefik sin no-new-privileges o --cap-drop all"; FAILS=$((FAILS + 1)); fi
 fi
 
+# #707: con el generador real, default.target.wants debe llevar api@1 y el resto de servicios que
+# arrancan con el host (sin DefaultInstance=1 la API no arrancaba tras un reinicio).
+if [[ -z "$GEN" ]]; then
+    echo "omitido: sin generador de Quadlet"
+else
+    GOUT="$TMP/gen-707"; rm -rf "$GOUT"; mkdir -p "$GOUT"
+    QUADLET_UNIT_DIRS="$U" "$GEN" --user "$GOUT" "$GOUT" "$GOUT" >/dev/null 2>&1
+    bad=""
+    for svc in api@1 plataforma-network postgres redis traefik web worker worker-long; do
+        [[ -e "$GOUT/default.target.wants/$svc.service" ]] || bad="$bad $svc;"
+    done
+    [[ -e "$U/mailpit.container" ]] && { [[ -e "$GOUT/default.target.wants/mailpit.service" ]] || bad="$bad mailpit;"; }
+    if [[ -z "$bad" ]]; then echo "ok     generador de Quadlet: default.target.wants arranca api@1 y el resto de la pila (#707)"; else echo "FALLA  default.target.wants sin:$bad"; FAILS=$((FAILS + 1)); fi
+fi
+
 # #693: install.sh sin TENANT_ALLOWED_IPS aborta; con ella, los routers de los centros llevan
 # el middleware y el del backoffice conserva el suyo.
 UD="$H/.config/containers/systemd"
