@@ -38,10 +38,12 @@ if [[ "$USER_MODE" == "--user" ]]; then
     DEST_DIR="$HOME/.config/containers/systemd"
     SYSTEMCTL="systemctl --user"
     ENV_FILE="$HOME/.config/plataforma/plataforma.env"
+    TRAEFIK_ENV_FILE="$HOME/.config/plataforma/traefik-cloudflare.env"
 else
     DEST_DIR="/etc/containers/systemd"
     SYSTEMCTL="sudo systemctl"
     ENV_FILE="/etc/plataforma/plataforma.env"
+    TRAEFIK_ENV_FILE="/etc/plataforma/traefik-cloudflare.env"
 fi
 
 if [[ ! -f "$ENV_FILE" ]]; then
@@ -65,6 +67,28 @@ if [[ -z "$TENANCY_BASE_DOMAIN" || -z "$BACKOFFICE_HOST" ]]; then
     exit 1
 fi
 
+# ADR-080 §3.5: TLS por ACME. Servidor por defecto = entorno de pruebas de
+# Let's Encrypt; se pasa a producción con ACME_CA_SERVER en plataforma.env.
+ACME_EMAIL="$(env_value ACME_EMAIL)"
+ACME_CA_SERVER="$(env_value ACME_CA_SERVER)"
+ACME_CA_SERVER="${ACME_CA_SERVER:-https://acme-staging-v02.api.letsencrypt.org/directory}"
+
+if [[ -z "$ACME_EMAIL" ]]; then
+    echo "ACME_EMAIL tiene que estar fijado en $ENV_FILE (email de la cuenta ACME, ADR-080 §3.5)." >&2
+    exit 1
+fi
+
+# El fichero del token de Cloudflare solo se comprueba (existe y 0600):
+# nunca se lee ni se imprime su contenido.
+if [[ ! -f "$TRAEFIK_ENV_FILE" ]]; then
+    echo "No existe $TRAEFIK_ENV_FILE (plantilla: infra/quadlet/plataforma-traefik.env.example); Traefik no podría emitir el certificado." >&2
+    exit 1
+fi
+if [[ "$(stat -c %a "$TRAEFIK_ENV_FILE")" != "600" ]]; then
+    echo "$TRAEFIK_ENV_FILE debe tener permisos 600 (contiene un token): chmod 600 $TRAEFIK_ENV_FILE" >&2
+    exit 1
+fi
+
 # Escapado para HostRegexp (un literal de regexp, no una cadena Traefik):
 # el único metacaracter real en un dominio es el punto.
 TENANCY_BASE_DOMAIN_ESCAPED="${TENANCY_BASE_DOMAIN//./\\.}"
@@ -79,6 +103,10 @@ for unit in "$SOURCE_DIR"/*.container "$SOURCE_DIR"/*.network "$SOURCE_DIR"/*.vo
     sed \
         -e "s/__TAG__/$TAG/g" \
         -e "s/__TENANCY_BASE_DOMAIN_ESCAPED__/$TENANCY_BASE_DOMAIN_ESCAPED/g" \
+        -e "s/__TENANCY_BASE_DOMAIN__/$TENANCY_BASE_DOMAIN/g" \
+        -e "s|__ACME_EMAIL__|$ACME_EMAIL|g" \
+        -e "s|__ACME_CA_SERVER__|$ACME_CA_SERVER|g" \
+        -e "s|__TRAEFIK_ENV_FILE__|$TRAEFIK_ENV_FILE|g" \
         -e "s/__BACKOFFICE_HOST__/$BACKOFFICE_HOST/g" \
         -e "s/__BACKOFFICE_ALLOWED_IPS__/$BACKOFFICE_ALLOWED_IPS/g" \
         "$unit" > "$DEST_DIR/$name"
