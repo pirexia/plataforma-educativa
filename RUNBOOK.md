@@ -1,6 +1,6 @@
 # RUNBOOK.md
 
-> **Versión 0.3.18** · 2026-11-16
+> **Versión 0.3.23** · 2026-11-16
 > Documento vivo: se actualiza en cada fase (`CLAUDE.md` §6). Cubre por ahora únicamente el entorno de **desarrollo** en WSL2 (`ADR-030`) — no hay producción, piloto ni usuarios reales todavía. Los procedimientos de guardia, alertas y recuperación ante desastre de un entorno real se documentarán aquí cuando `OPEN-11` (alojamiento del piloto) se resuelva.
 
 ---
@@ -167,6 +167,26 @@ systemctl --user status worker.service                        # servidor
 ## 3b. Despliegue y reversión (`ADR-037`)
 
 Escrito, y probado **en parte** en WSL2 — ver `SYSADMIN.md §6` para el detalle exacto de qué está verificado y qué no. La topología completa (red, cinco servicios, imágenes `prod` reales) y las tres pruebas de resiliencia obligatorias se ejecutaron de verdad con `compose.prodlike.yaml` (`SYSADMIN.md §6.3`). El ciclo de vida por unidades Quadlet reales (`install.sh`, `systemctl --user`) **no se ha podido ejecutar en este host concreto**: `~/.config/containers` pertenece a `root`, un problema de permisos preexistente sin relación con este paso (`SYSADMIN.md §6.2`) — se corrige con un `sudo chown` que esta sesión no puede ejecutar sin contraseña interactiva.
+
+**Rutas por modo de `install.sh` (`ADR-080 §3.4`).** `install.sh` sustituye en las unidades las rutas que dependen del modo, así que ninguna lleva rutas del otro modo escritas a mano:
+
+| | Modo sistema (`install.sh <tag>`) | Modo usuario (`install.sh <tag> --user`) |
+|---|---|---|
+| Unidades | `/etc/containers/systemd` | `~/.config/containers/systemd` |
+| Ficheros de entorno (`plataforma.env`, `plataforma-postgres.env`, `plataforma-worker.env`, `plataforma-worker-long.env`, `traefik-cloudflare.env`) | `/etc/plataforma` | `~/.config/plataforma` |
+| Scripts de inicialización de PostgreSQL | `/opt/plataforma/postgres-init` | `~/.local/share/plataforma/postgres-init` |
+
+El directorio de inicialización de PostgreSQL lo deja preparado `install.sh` en cada ejecución, copiando `infra/containers/postgres/init/` (ejecutable `01-tenancy.sh` y `02-tenancy-test-db.sh`, más `01-tenancy.sql.tpl`). **No contiene secretos**: las contraseñas llegan al contenedor por las variables `TENANCY_*_PASSWORD` de `plataforma-postgres.env`. Esos scripts solo se ejecutan al inicializar un volumen nuevo. El nombre real de la unidad de red generada por Quadlet es `plataforma-network.service` (no `plataforma.network`): `systemctl [--user] enable --now plataforma-network.service`. Lo comprobado: la validación en seco de ambos generadores y la prueba de shell `infra/test-install-env.sh`; el arranque real de las unidades en modo usuario se prueba en el servidor de staging.
+
+**Prerrequisitos del modo `--user`.** Traefik monta el socket de Podman del usuario (`%t/podman/podman.sock`), que **no existe** hasta activarlo: `systemctl --user enable --now podman.socket`. Sin él `traefik.service` falla con código 125 (**comprobado a mano en el VPS de staging, 2026-11-16**; el instalador no lo activa ni hay prueba automatizada). Además, `loginctl enable-linger <usuario>` para que las unidades de usuario sigan vivas sin sesión (`ADR-080 §3.4`); **tampoco lo aplica `install.sh`**: es un paso manual del preparado del *host*.
+
+**A decidir (sin resolver):** `02-tenancy-test-db.sh` crea la base `plataforma_test` en **cualquier** entorno, también en *staging* (comprobado con `\l`). No se ha decidido si debe existir fuera de desarrollo.
+
+**Traefik en red host (se aparta de `ADR-080 §3.7` y de `ADR-037`; falta un ADR del `architect` que lo recoja; otra desviación de `ADR-037 §6.1`, «ficheros literales, sin sistema de plantillado», a recoger en ese mismo ADR: `install.sh` sustituye ya unos doce tokens —rutas, imagen de Traefik, dominio, lista de IP— con un mismo `sed`, no un sistema de plantillado nuevo, pero sí más de la única sustitución de `__TAG__` que `ADR-037` admitía).** Con Podman rootless y una red *bridge*, la IP de origen se enmascara (llega como `10.89.10.x`): la lista blanca de IP del *backoffice* (`ipallowlist`) y la IP de auditoría dejarían de funcionar (riesgo B1 de `docs/modulos/REQ-FAM-UNIT/operacion.md §13.3` y `CS-10` de `ADR-080`). Por eso `traefik.container` usa `Network=host` (enlaza 80 y 443 directamente; requiere `sysctl net.ipv4.ip_unprivileged_port_start=80`, que `install.sh` **no** configura: hay que dejarlo persistente a mano, p. ej. `echo 'net.ipv4.ip_unprivileged_port_start=80' | sudo tee /etc/sysctl.d/99-ports.conf && sudo sysctl --system`), sin `PublishPort`, con `--providers.docker.useBindPortIP=true` y el *entrypoint* interno del *ping* en `127.0.0.1:8080`. `api@` publica en `127.0.0.1:1800<instancia>` (la fórmula solo vale para las instancias 1 a 9; la segunda réplica es `0.10e-d`) y `web` en `127.0.0.1:18080`: los *backends* solo son accesibles desde el propio *host*. El *peer* que ve la API sigue siendo una dirección de la red de contenedores (`10.89.10.x` vía *rootlessport*), así que `TRUSTED_PROXIES` por defecto (`10.89.10.0/24`, `SYSADMIN.md`) sigue siendo válida **con esta exposición local** (ver los supuestos de abajo) y no se cambia. Mientras no haya ADR, las reglas de redes de `ADR-028` se aplican al resto de servicios. **Supuestos y riesgos aceptados de la red host.** (a) *Staging* es un *host* de **un solo usuario/operador**: los *backends* escuchan en `127.0.0.1` (18001 API, 18080 web) y cualquier proceso local con acceso al *host* puede llamarlos saltándose Traefik y su lista blanca; la lista blanca de la **aplicación** (`platform_ip_allowlist`) tampoco lo evita, porque el *peer* que ve Laravel (`10.89.10.x` vía *rootlessport*) está en `TRUSTED_PROXIES` por defecto y acepta `X-Forwarded-For`. Es una limitación abierta, pendiente de un ADR del `architect` (confiar solo en la IP concreta que presenta *rootlessport*, un secreto compartido o un *socket* Unix). (b) `net.ipv4.ip_unprivileged_port_start=80` permite que cualquier usuario local enlace 80/443: si Traefik cae o se reinicia, un proceso local podría ocuparlos antes; es un supuesto de *host* mono-usuario, a evaluar en el ADR (alternativa: redirección con `nftables` a puertos altos). (c) El puerto interno `127.0.0.1:8080` (*ping*) no debe abrirse en ninguna regla de cortafuegos de entrada. (d) Con el *socket* de Podman montado en Traefik y red host, un Traefik comprometido controla el Podman de ese usuario y todos los servicios de *loopback*; lo resuelve el proxy de *socket* de `0.10e-d`.
+
+**Comprobado a mano en el VPS de *staging*** (no con una prueba automatizada): la lista blanca pasa con una IP permitida y bloquea (403) con otra.
+
+**Migraciones.** `plataforma-migrate.container` ejecuta `php artisan migrate --database=pgsql_owner --force`: se aplican con el rol propietario (`plataforma_owner`), no con `plataforma_app`.
 
 ### 3b.1 Generar el fichero de secretos
 

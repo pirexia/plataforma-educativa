@@ -1,3 +1,41 @@
+# RED HOST (aparta de ADR-080 §3.7 y de ADR-037; falta un ADR del
+# `architect` que lo recoja). Con Podman rootless y una red bridge, la IP de
+# origen de las peticiones se enmascara (llega como una dirección de la red de
+# contenedores, 10.89.10.x): la lista blanca de IP del backoffice (ipallowlist)
+# y la IP de auditoría dejan de funcionar (riesgo B1 de docs/modulos/
+# REQ-FAM-UNIT/operacion.md §13.3 y CS-10 de ADR-080). Con `Network=host`
+# Traefik enlaza 80 y 443 directamente (sysctl ip_unprivileged_port_start=80
+# en el host) y ve la IP real del cliente. Consecuencias:
+#  - Traefik llega a los backends por el puerto publicado en 127.0.0.1
+#    (`useBindPortIP`), no por la IP del contenedor, que en rootless no es
+#    alcanzable desde el host: api@ y web publican SOLO en 127.0.0.1.
+#  - Los backends quedan accesibles únicamente desde el propio host.
+#  - El peer que ve la API sigue siendo una dirección de la red de
+#    contenedores (10.89.10.x vía rootlessport), así que TRUSTED_PROXIES por
+#    defecto (10.89.10.0/24, SYSADMIN.md) sigue siendo válida. No se cambia.
+#  - Mientras no haya ADR, las reglas de redes de ADR-028 se aplican al resto
+#    de servicios; la separación de redes (0.10e-d) está pendiente.
+# Supuestos y riesgos aceptados de la red host:
+#  (a) Staging es un host de UN SOLO USUARIO/operador. Los backends escuchan
+#      en 127.0.0.1 (18001 API, 18080 web): cualquier proceso local puede
+#      llamarlos saltándose Traefik y su lista blanca. La lista blanca de la
+#      APLICACIÓN (platform_ip_allowlist) tampoco lo evita: el peer que ve
+#      Laravel (10.89.10.x vía rootlessport) está en TRUSTED_PROXIES por
+#      defecto y acepta X-Forwarded-For. Limitación abierta, pendiente de un
+#      ADR del architect (confiar solo en la IP concreta de rootlessport,
+#      secreto compartido o socket Unix).
+#  (b) net.ipv4.ip_unprivileged_port_start=80 permite a cualquier usuario
+#      local enlazar 80/443: si Traefik cae o se reinicia, un proceso local
+#      podría ocuparlos antes. Supuesto de host mono-usuario, a evaluar en el
+#      ADR (alternativa: redirección con nftables a puertos altos).
+#  (c) El puerto interno 127.0.0.1:8080 (ping) no debe abrirse en ninguna
+#      regla de cortafuegos de entrada.
+#  (d) El socket de Podman montado en Traefik con red host: un Traefik
+#      comprometido controla el Podman de ese usuario y todos los servicios
+#      de loopback. Lo resuelve el proxy de socket de 0.10e-d.
+# Verificado a mano en el VPS de staging: la lista blanca pasa con una IP
+# permitida y bloquea (403) con otra.
+#
 # Único punto de entrada (ADR-028 §1/§4). Descubre contenedores por el
 # socket de Podman en vez de una IP cacheada — así una recreación de api@
 # o web no rompe el enrutado.
@@ -31,7 +69,7 @@
 # aparte.
 #
 # REQ-BO (1.6), operacion.md §0.3. Hoy Traefik recibe la conexión
-# directamente (PublishPort=80:80, sin nada delante) — la IP del cliente
+# directamente (red host, sin nada delante) — la IP del cliente
 # que ve es la real, y el middleware `ipallowlist` del backoffice
 # (api@.container) compara contra ella sin más. Si algún día hay OTRO
 # proxy delante de Traefik (balanceador, CDN, WAF), hace falta añadir
@@ -55,15 +93,13 @@ Wants=plataforma-network.service
 Image=__TRAEFIK_IMAGE__
 EnvironmentFile=__TRAEFIK_ENV_FILE__
 ContainerName=plataforma-traefik
-Network=plataforma.network
-PublishPort=80:80
-PublishPort=443:443
+Network=host
 Volume=traefik-acme.volume:/acme:Z
 Volume=%t/podman/podman.sock:/var/run/docker.sock:ro,Z
 Exec=--providers.docker=true \
     --providers.docker.endpoint=unix:///var/run/docker.sock \
     --providers.docker.exposedbydefault=false \
-    --providers.docker.network=plataforma-net \
+    --providers.docker.useBindPortIP=true \
     --entrypoints.web.address=:80 \
     --entrypoints.web.http.redirections.entrypoint.to=websecure \
     --entrypoints.web.http.redirections.entrypoint.scheme=https \
@@ -78,6 +114,7 @@ Exec=--providers.docker=true \
     --certificatesresolvers.letsencrypt.acme.caserver=__ACME_CA_SERVER__ \
     --certificatesresolvers.letsencrypt.acme.dnschallenge=true \
     --certificatesresolvers.letsencrypt.acme.dnschallenge.provider=cloudflare \
+    --entrypoints.traefik.address=127.0.0.1:8080 \
     --ping=true \
     --api.dashboard=false \
     --log.level=INFO

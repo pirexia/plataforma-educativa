@@ -226,7 +226,7 @@ test('#128 la unidad Quadlet del worker cumple ADR-028 (Wants+After, nunca Requi
         ->not->toMatch('/^(Requires|BindsTo)=/m')
         ->not->toMatch('/^PublishPort=/m')
         ->toMatch('/--max-time=\d+/')
-        ->toMatch('#^EnvironmentFile=/etc/plataforma/plataforma-worker\.env$#m')
+        ->toMatch('#^EnvironmentFile=__ENV_DIR__/plataforma-worker\.env$#m')
         ->toMatch('/^NoNewPrivileges=true$/m')
         ->toMatch('/^DropCapability=ALL$/m');
 
@@ -244,7 +244,7 @@ test('CA-CURSO-155 ADR-028: la unidad Quadlet del worker long cumple ADR-028 (Wa
         ->not->toMatch('/^(Requires|BindsTo)=/m')
         ->not->toMatch('/^PublishPort=/m')
         ->toMatch('/--max-time=\d+/')
-        ->toMatch('#^EnvironmentFile=/etc/plataforma/plataforma-worker-long\.env$#m')
+        ->toMatch('#^EnvironmentFile=__ENV_DIR__/plataforma-worker-long\.env$#m')
         ->toMatch('/^NoNewPrivileges=true$/m')
         ->toMatch('/^DropCapability=ALL$/m');
 
