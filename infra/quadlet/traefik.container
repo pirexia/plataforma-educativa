@@ -6,15 +6,39 @@
 # no haya datos reales. Antes del primer dato real hace falta un proxy de
 # socket que filtre a los métodos de solo lectura (0.10e, no esta unidad).
 #
-# Sin TLS todavía: certificado comodín bloqueado por OPEN-08 (0.10b).
-# Solo HTTP hasta entonces — documentado, no un olvido.
+# TLS (ADR-080 §3.5, 0.10e-c): entrypoint websecure en :443, redirección
+# permanente 80→443 y certificado comodín (*.dominio base + el propio
+# dominio base como SAN) emitido y renovado por Traefik con ACME DNS-01 y
+# el proveedor `cloudflare` de Lego. Cloudflare solo como DNS, SIN su
+# proxy (si no, la IP que ve Traefik dejaría de ser la del cliente).
+#  - Token: EnvironmentFile del host con CF_DNS_API_TOKEN (plantilla
+#    plataforma-traefik.env.example). Nunca en Git ni en esta unidad.
+#  - Servidor ACME: por defecto el ENTORNO DE PRUEBAS de Let's Encrypt;
+#    se pasa al de producción cambiando ACME_CA_SERVER en plataforma.env y
+#    reinstalando, sin editar la unidad. Sus certificados de pruebas no
+#    son de confianza para el navegador.
+#  - acme.json: volumen traefik-acme (`:Z`). Traefik lo rechaza si no es
+#    0600, así que ExecStartPre lo crea y fija 0600 de forma explícita.
+#    Perderlo solo obliga a reemitir.
+# Certificado del backoffice: RN-BO-49 obliga a que el host del backoffice
+# NO sea subdominio del dominio base, así que el comodín no lo cubre. Se
+# pide como certificado APARTE (domains[1]), no como SAN del primero: si el
+# token de Cloudflare no cubre esa zona, solo falla ese certificado y no el
+# comodín. El token tiene que cubrir la zona de ese host (Zone:Zone:Read y
+# Zone:DNS:Edit); qué host usa cada entorno lo decide el usuario.
+# Cabeceras de seguridad (HSTS, etc.): no se añaden aquí; el dominio de
+# producción comparte landing, y includeSubDomains/preload es decisión
+# aparte.
 #
 # REQ-BO (1.6), operacion.md §0.3. Hoy Traefik recibe la conexión
 # directamente (PublishPort=80:80, sin nada delante) — la IP del cliente
 # que ve es la real, y el middleware `ipallowlist` del backoffice
 # (api@.container) compara contra ella sin más. Si algún día hay OTRO
 # proxy delante de Traefik (balanceador, CDN, WAF), hace falta añadir
-# aquí --entrypoints.web.forwardedHeaders.trustedIPs=<CIDR del proxy> —
+# aquí forwardedHeaders.trustedIPs=<CIDR del proxy> en AMBOS entrypoints,
+# `web` y `websecure` (--entrypoints.<nombre>.forwardedHeaders.trustedIPs).
+# Hoy NO existe lógica de trustedIPs en esta unidad: ningún entrypoint la
+# configura, y tampoco hay nada delante de Traefik. —
 # sin eso, la lista blanca de IP del backoffice pasaría a comparar
 # contra la IP de ese proxy (o del NAT) y dejaría de proteger nada, SIN
 # dar ningún síntoma (ni error, ni log raro, ni 403 que investigar).
@@ -28,16 +52,32 @@ After=plataforma-network.service
 Wants=plataforma-network.service
 
 [Container]
-Image=docker.io/library/traefik:v3
+Image=__TRAEFIK_IMAGE__
+EnvironmentFile=__TRAEFIK_ENV_FILE__
 ContainerName=plataforma-traefik
 Network=plataforma.network
 PublishPort=80:80
+PublishPort=443:443
+Volume=traefik-acme.volume:/acme:Z
 Volume=%t/podman/podman.sock:/var/run/docker.sock:ro,Z
 Exec=--providers.docker=true \
     --providers.docker.endpoint=unix:///var/run/docker.sock \
     --providers.docker.exposedbydefault=false \
     --providers.docker.network=plataforma-net \
     --entrypoints.web.address=:80 \
+    --entrypoints.web.http.redirections.entrypoint.to=websecure \
+    --entrypoints.web.http.redirections.entrypoint.scheme=https \
+    --entrypoints.web.http.redirections.entrypoint.permanent=true \
+    --entrypoints.websecure.address=:443 \
+    --entrypoints.websecure.http.tls.certresolver=letsencrypt \
+    --entrypoints.websecure.http.tls.domains[0].main=__TENANCY_BASE_DOMAIN__ \
+    --entrypoints.websecure.http.tls.domains[0].sans=*.__TENANCY_BASE_DOMAIN__ \
+    --entrypoints.websecure.http.tls.domains[1].main=__BACKOFFICE_HOST__ \
+    --certificatesresolvers.letsencrypt.acme.email=__ACME_EMAIL__ \
+    --certificatesresolvers.letsencrypt.acme.storage=/acme/acme.json \
+    --certificatesresolvers.letsencrypt.acme.caserver=__ACME_CA_SERVER__ \
+    --certificatesresolvers.letsencrypt.acme.dnschallenge=true \
+    --certificatesresolvers.letsencrypt.acme.dnschallenge.provider=cloudflare \
     --ping=true \
     --api.dashboard=false \
     --log.level=INFO
@@ -50,6 +90,11 @@ Notify=healthy
 
 [Service]
 Restart=always
+# El primer arranque puede tener que descargar la imagen.
+TimeoutStartSec=300
+# Garantiza acme.json existente y 0600 antes de arrancar (Traefik se niega
+# a usar uno con otros permisos). Misma imagen y mismo volumen que la unidad.
+ExecStartPre=/usr/bin/podman run --rm --entrypoint /bin/sh -v traefik-acme:/acme:Z __TRAEFIK_IMAGE__ -c 'touch /acme/acme.json && chmod 600 /acme/acme.json && stat -c %%a /acme/acme.json | grep -qx 600'
 
 [Install]
 WantedBy=default.target

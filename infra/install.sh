@@ -38,10 +38,12 @@ if [[ "$USER_MODE" == "--user" ]]; then
     DEST_DIR="$HOME/.config/containers/systemd"
     SYSTEMCTL="systemctl --user"
     ENV_FILE="$HOME/.config/plataforma/plataforma.env"
+    TRAEFIK_ENV_FILE="$HOME/.config/plataforma/traefik-cloudflare.env"
 else
     DEST_DIR="/etc/containers/systemd"
     SYSTEMCTL="sudo systemctl"
     ENV_FILE="/etc/plataforma/plataforma.env"
+    TRAEFIK_ENV_FILE="/etc/plataforma/traefik-cloudflare.env"
 fi
 
 if [[ ! -f "$ENV_FILE" ]]; then
@@ -49,21 +51,14 @@ if [[ ! -f "$ENV_FILE" ]]; then
     exit 1
 fi
 
-# Lectura simple de valores del env file, sin exportarlo entero (evita
-# ejecutar secretos como comandos si el fichero tuviera algo raro).
-env_value() {
-    grep -E "^${1}=" "$ENV_FILE" | tail -n1 | cut -d= -f2-
-}
+# Funciones y validaciones (env_value, load_and_validate_config,
+# check_token_file...) en install-lib.sh, para poder probarlas sin systemctl.
+# shellcheck source=infra/install-lib.sh
+source "$REPO_ROOT/infra/install-lib.sh"
 
-TENANCY_BASE_DOMAIN="$(env_value TENANCY_BASE_DOMAIN)"
-BACKOFFICE_HOST="$(env_value BACKOFFICE_HOST)"
-BACKOFFICE_ALLOWED_IPS="$(env_value BACKOFFICE_ALLOWED_IPS)"
-
-if [[ -z "$TENANCY_BASE_DOMAIN" || -z "$BACKOFFICE_HOST" ]]; then
-    echo "TENANCY_BASE_DOMAIN y BACKOFFICE_HOST tienen que estar fijados en $ENV_FILE" >&2
-    echo "(operacion.md §0.4, RN-BO-49: BACKOFFICE_HOST nunca puede ser subdominio de TENANCY_BASE_DOMAIN)." >&2
-    exit 1
-fi
+load_and_validate_config || exit 1
+check_token_file || exit 1
+warn_acme_staging_in_production "$TAG"
 
 # Escapado para HostRegexp (un literal de regexp, no una cadena Traefik):
 # el único metacaracter real en un dominio es el punto.
@@ -79,6 +74,11 @@ for unit in "$SOURCE_DIR"/*.container "$SOURCE_DIR"/*.network "$SOURCE_DIR"/*.vo
     sed \
         -e "s/__TAG__/$TAG/g" \
         -e "s/__TENANCY_BASE_DOMAIN_ESCAPED__/$TENANCY_BASE_DOMAIN_ESCAPED/g" \
+        -e "s/__TENANCY_BASE_DOMAIN__/$TENANCY_BASE_DOMAIN/g" \
+        -e "s|__TRAEFIK_IMAGE__|$TRAEFIK_IMAGE|g" \
+        -e "s|__ACME_EMAIL__|$ACME_EMAIL|g" \
+        -e "s|__ACME_CA_SERVER__|$ACME_CA_SERVER|g" \
+        -e "s|__TRAEFIK_ENV_FILE__|$TRAEFIK_ENV_FILE|g" \
         -e "s/__BACKOFFICE_HOST__/$BACKOFFICE_HOST/g" \
         -e "s/__BACKOFFICE_ALLOWED_IPS__/$BACKOFFICE_ALLOWED_IPS/g" \
         "$unit" > "$DEST_DIR/$name"
