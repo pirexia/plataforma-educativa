@@ -1,6 +1,6 @@
 # CONTRIBUTING.md
 
-> **Versión 0.3.3** · 2026-10-26
+> **Versión 0.3.4** · 2026-11-16
 > Estilo de código, flujo de trabajo Git y revisión de código. Extraído de `CLAUDE.md`, que es la fuente de verdad si algo difiere.
 
 ---
