@@ -17,6 +17,10 @@ Wants=plataforma-network.service postgres.service redis.service plataforma-migra
 Image=ghcr.io/pirexia/plataforma-api:__TAG__
 ContainerName=plataforma-api-%i
 Network=plataforma.network
+# Publicado SOLO en 127.0.0.1 para Traefik en red host (ver traefik.container).
+# La fórmula 1800%i vale solo para las instancias 1 a 9 (instancia 1 -> 18001);
+# la segunda réplica queda para 0.10e-d.
+PublishPort=127.0.0.1:1800%i:8000
 EnvironmentFile=__ENV_DIR__/plataforma.env
 HealthCmd=curl -f http://localhost:8000/api/health || exit 1
 HealthInterval=10s

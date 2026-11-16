@@ -165,6 +165,22 @@ for f in plataforma plataforma-worker plataforma-worker-long; do
     fi
 done
 
+# Red host de Traefik: conserva la IP real del cliente (CS-10); backends solo en 127.0.0.1.
+U="$H/.config/containers/systemd"
+tr="$U/traefik.container"; bad=""
+grep -q '^Network=host$' "$tr" || bad="$bad sin Network=host;"
+grep -q 'providers.docker.useBindPortIP=true' "$tr" || bad="$bad sin useBindPortIP;"
+grep -q 'entrypoints.traefik.address=127.0.0.1:8080' "$tr" || bad="$bad sin entrypoint 127.0.0.1:8080;"
+grep -q '^PublishPort' "$tr" && bad="$bad traefik publica puertos;"
+grep -q 'PublishPort=127.0.0.1:1800%i:8000' "$U/api@.container" || bad="$bad api@ sin publicar en 127.0.0.1;"
+grep -q 'PublishPort=127.0.0.1:18080:80' "$U/web.container" || bad="$bad web sin publicar en 127.0.0.1;"
+for f in "$U"/*.container; do
+    while IFS= read -r l; do
+        [[ "$l" == PublishPort=127.0.0.1:* ]] || bad="$bad $(basename "$f"): $l;"
+    done < <(grep -E '^PublishPort=' "$f")
+done
+if [[ -z "$bad" ]]; then echo "ok     Traefik en red host y backends publicados solo en 127.0.0.1"; else echo "FALLA  red host:$bad"; FAILS=$((FAILS + 1)); fi
+
 # Modo sistema: render_units a un directorio temporal, sin escribir en /etc ni /opt.
 ( ENV_FILE="/etc/plataforma/plataforma.env"; TRAEFIK_ENV_FILE="/etc/plataforma/traefik-cloudflare.env"
   ENV_DIR="/etc/plataforma"; POSTGRES_INIT_DIR="/opt/plataforma/postgres-init"
