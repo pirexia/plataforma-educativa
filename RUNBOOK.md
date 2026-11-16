@@ -1,6 +1,6 @@
 # RUNBOOK.md
 
-> **Versión 0.3.19** · 2026-11-16
+> **Versión 0.3.20** · 2026-11-16
 > Documento vivo: se actualiza en cada fase (`CLAUDE.md` §6). Cubre por ahora únicamente el entorno de **desarrollo** en WSL2 (`ADR-030`) — no hay producción, piloto ni usuarios reales todavía. Los procedimientos de guardia, alertas y recuperación ante desastre de un entorno real se documentarán aquí cuando `OPEN-11` (alojamiento del piloto) se resuelva.
 
 ---
@@ -177,6 +177,12 @@ Escrito, y probado **en parte** en WSL2 — ver `SYSADMIN.md §6` para el detall
 | Scripts de inicialización de PostgreSQL | `/opt/plataforma/postgres-init` | `~/.local/share/plataforma/postgres-init` |
 
 El directorio de inicialización de PostgreSQL lo deja preparado `install.sh` en cada ejecución, copiando `infra/containers/postgres/init/` (ejecutable `01-tenancy.sh` y `02-tenancy-test-db.sh`, más `01-tenancy.sql.tpl`). **No contiene secretos**: las contraseñas llegan al contenedor por las variables `TENANCY_*_PASSWORD` de `plataforma-postgres.env`. Esos scripts solo se ejecutan al inicializar un volumen nuevo. El nombre real de la unidad de red generada por Quadlet es `plataforma-network.service` (no `plataforma.network`): `systemctl [--user] enable --now plataforma-network.service`. Lo comprobado: la validación en seco de ambos generadores y la prueba de shell `infra/test-install-env.sh`; el arranque real de las unidades en modo usuario se prueba en el servidor de staging.
+
+**Prerrequisitos del modo `--user`.** Traefik monta el socket de Podman del usuario (`%t/podman/podman.sock`), que **no existe** hasta activarlo: `systemctl --user enable --now podman.socket`. Sin él `traefik.service` falla con código 125. Además, `loginctl enable-linger <usuario>` para que las unidades de usuario sigan vivas sin sesión (`ADR-080 §3.4`).
+
+**A decidir (sin resolver):** `02-tenancy-test-db.sh` crea la base `plataforma_test` en **cualquier** entorno, también en *staging* (comprobado con `\l`). No se ha decidido si debe existir fuera de desarrollo.
+
+**Migraciones.** `plataforma-migrate.container` ejecuta `php artisan migrate --database=pgsql_owner --force`: se aplican con el rol propietario (`plataforma_owner`), no con `plataforma_app`.
 
 ### 3b.1 Generar el fichero de secretos
 
