@@ -102,6 +102,48 @@ caso allow "$d_develop" 'echo "git commit -m x"' 'git commit dentro de un echo'
 caso allow "$d_develop" 'gh pr create --body "git push origin main"' 'git push dentro del cuerpo de un PR'
 caso allow "$d_work" 'git log origin/staging..HEAD' 'git log sobre staging'
 
+# --- M-1: continuaciones de línea ---
+caso block "$d_work" $'git push origin \\\nmain' 'continuación de línea antes del destino main'
+caso block "$d_work" $'git push \\\n  origin HEAD:main' 'continuación de línea con HEAD:main'
+caso block "$d_work" $'git push origin \\\n  +staging' 'continuación de línea con +staging'
+caso allow "$d_det" $'git push origin \\\n  '"$sha"':refs/heads/staging' 'promoción válida con continuación de línea'
+
+# --- M-2: --mirror, --all, comodines y expansiones ---
+caso block "$d_work" 'git push --mirror origin' 'push --mirror'
+caso block "$d_work" 'git push origin --all' 'push --all'
+caso block "$d_work" "git push origin 'refs/heads/*:refs/heads/*'" 'refspec con comodín'
+caso block "$d_work" 'git push origin HEAD:$b' 'destino con variable'
+caso block "$d_work" 'git push origin HEAD:${B:-main}' 'destino con expansión por defecto'
+caso block "$d_work" 'git push origin HEAD:`echo main`' 'destino con comilla invertida'
+caso block "$d_work" 'git push origin HEAD:$(echo main)' 'destino con sustitución de comando'
+caso allow "$d_work" 'git push -u origin chore/trabajo' 'push normal sigue permitido'
+
+# --- B-1: opciones globales e inicios de segmento ---
+caso block "$d_work" 'git --no-pager push origin main' 'git --no-pager push a main'
+caso block "$d_work" 'git -c k=v push origin main' 'git -c k=v push a main'
+caso block "$d_work" "git -C $d_work push origin main" 'git -C dir push a main'
+caso block "$d_work" 'git --git-dir=x push origin develop' 'git --git-dir=x push a develop'
+caso block "$d_work" '(git push origin main)' 'push entre paréntesis'
+caso block "$d_work" '{ git push origin main; }' 'push en grupo con llaves'
+caso block "$d_work" 'if true; then git push origin main; fi' 'push tras then'
+caso block "$d_work" 'for i in 1; do git push -f origin staging; done' 'push tras do'
+caso block "$d_develop" 'git -c k=v commit -m x' 'git -c k=v commit en develop'
+caso block "$d_develop" 'git --no-pager commit -m x' 'git --no-pager commit en develop'
+caso block "$d_staging" '(git commit -m x)' 'commit entre paréntesis en staging'
+caso allow "$d_work" 'git --no-pager log --oneline' 'git --no-pager log permitido'
+
+# --- B-2: cambio de rama dentro del mismo comando ---
+caso block "$d_work" 'git checkout develop && git commit -m x' 'checkout develop y luego commit'
+caso block "$d_work" 'git switch main && git commit -m x' 'switch main y luego commit'
+caso block "$d_work" 'git checkout staging; git push origin chore/x' 'checkout staging y luego push'
+caso block "$d_develop" 'echo "git checkout -b x" ; git commit -m y' 'checkout -b solo dentro de un echo'
+caso block "$d_develop" 'echo git checkout -b x && git commit -m y' 'echo con checkout -b no crea rama'
+caso allow "$d_develop" 'git checkout -b chore/x && git commit -m x' 'checkout -b real y luego commit'
+caso allow "$d_develop" 'git switch -c chore/x && git commit -m x' 'switch -c real y luego commit'
+caso allow "$d_staging" 'git checkout chore/x && git commit -m x' 'checkout de rama de trabajo y luego commit'
+caso allow "$d_work" 'git checkout develop -- README.md && git commit -m x' 'checkout de un fichero desde develop no cambia de rama'
+caso block "$d_work" 'git checkout -b chore/x && git checkout develop && git commit -m x' 'rama nueva, vuelta a develop y commit'
+
 echo "---"
 echo "$((total - fail))/$total casos correctos"
 [ "$fail" -eq 0 ] || exit 1
