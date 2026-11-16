@@ -13,7 +13,7 @@
 #     └─ build → npm run build con VITE_API_URL=/api
 #          └─ prod → nginx sirviendo solo estáticos
 
-FROM docker.io/library/node:24-bookworm-slim AS base
+FROM docker.io/library/node:26-bookworm-slim AS base
 
 RUN apt-get update && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/*
