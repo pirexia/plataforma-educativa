@@ -66,7 +66,7 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: "8.4"
-          extensions: pdo_pgsql, pgsql, zip, intl, mbstring, redis, gd, exif
+          extensions: pdo_pgsql, pgsql, zip, intl, mbstring, redis, gd, exif, pcntl
           coverage: none
 
       - uses: actions/cache@v6
@@ -330,7 +330,7 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: "8.4"
-          extensions: pdo_pgsql, pgsql, zip, intl, mbstring, redis, gd, exif
+          extensions: pdo_pgsql, pgsql, zip, intl, mbstring, redis, gd, exif, pcntl
           coverage: none
 
       - uses: actions/cache@v6
@@ -456,7 +456,7 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: "8.4"
-          extensions: pdo_pgsql, pgsql, zip, intl, mbstring, redis, gd, exif
+          extensions: pdo_pgsql, pgsql, zip, intl, mbstring, redis, gd, exif, pcntl
           coverage: none
 
       - uses: actions/cache@v6
