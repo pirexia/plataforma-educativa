@@ -2,8 +2,8 @@
 
 | Campo | Valor |
 |-------|-------|
-| **Versión** | 3.2.33 |
-| **Fecha** | 2026-11-14 |
+| **Versión** | 3.2.34 |
+| **Fecha** | 2026-11-16 |
 | **Estado** | Borrador consolidado — pendiente de aprobación |
 | **Autor** | Product Owner |
 | **Documento sustituye a** | v1.2.0 (mismo contenido, reorganizado y ampliado) |
@@ -3307,7 +3307,7 @@ Del `028` en adelante, cada decisión vive en `docs/adr/` (`ADR-026`).
 | `OPEN-08` | Dominio de la plataforma y proveedor de DNS con API (necesario para certificado comodín por DNS-01). Dos ADR (`ACEPTADA`) la usan sin cerrarla: `ADR-079` saca de este dominio los dos subdominios de envío de correo, nunca el ápice (`OPEN-079-02`), y `ADR-080` decide aparte el dominio de staging (`OPEN-STG-02`). | Fase 0 |
 | `OPEN-09` | Proveedor de correo transaccional. **Reformulada por `ADR-079`** (`ACEPTADA` el 2026-11-14): contrato y requisitos técnicos propuestos; queda la contratación (`OPEN-079-01`) y el dominio de envío (`OPEN-079-02`, que depende de `OPEN-08`). Sigue abierta hasta contratar. | `REQ-AUTH`, `REQ-COM`, paso `0.10c` |
 | `OPEN-10` | Proveedor de almacenamiento de objetos para copias, distinto del host. Relacionada con `ADR-083 §7` (`ACEPTADA`), que no la decide. | `REQ-BKP` |
-| `OPEN-11` | **Dónde se aloja el piloto.** El desarrollo pasa a WSL2 en equipo personal (`ADR-030`), que no puede alojar datos reales bajo ningún concepto. Decidir antes de que llegue el centro, no después. Staging (`ADR-080`, `PROPUESTA`) no la cierra: solo datos sintéticos (`ADR-080 §3.2`). | Hito H0 |
+| `OPEN-11` | **Dónde se aloja el piloto.** El desarrollo pasa a WSL2 en equipo personal (`ADR-030`), que no puede alojar datos reales bajo ningún concepto. Decidir antes de que llegue el centro, no después. Staging (`ADR-080`, `ACEPTADA`) no la cierra: solo datos sintéticos (`ADR-080 §3.2`). | Hito H0 |
 | `OPEN-13` | **Lista definitiva de columnas de `Person` y su base legal por campo.** `ADR-034` fija un mínimo por minimización y deja fuera fotografía, sexo, nacionalidad y dirección postal hasta que exista el catálogo de bases legales. | `REQ-PRIV-006`, paso 1.1, `REQ-AUTH-004`/paso 1.4b (la parte de fotografía del mapeo de atributos no se puede cumplir mientras siga abierta, `docs/modulos/REQ-AUTH/funcional.md §F.0.3` punto 1) |
 
 Las preguntas de cumplimiento y de proveedor de almacenamiento `OPEN-STO-01` a `OPEN-STO-12` se registran en [`docs/cumplimiento/preguntas-abiertas.md`](cumplimiento/preguntas-abiertas.md) (`ADR-083`, `PROPUESTA`), no en esta tabla.
@@ -3383,6 +3383,7 @@ Se mantendrá una matriz de trazabilidad (generada automáticamente desde las re
 
 | Versión | Fecha | Autor | Descripción |
 |---------|-------|-------|-------------|
+| 3.2.34 | 2026-11-16 | Product Owner | Corrección menor: la fila `OPEN-11` citaba `ADR-080` como `PROPUESTA`; está `ACEPTADA` desde el 2026-11-14. Sin cambios de requisitos. |
 | 3.2.33 | 2026-11-14 | Product Owner | Ronda de decisiones de la ola 1: `ADR-078`, `ADR-079`, `ADR-080`, `ADR-082` y `ADR-083` pasan a `ACEPTADA` en el índice de `§18`; `§5.5` y `§5.50`, dependencias corregidas (`OPEN-CALIF-01`, `OPEN-INF-02`). Corregidos los residuos «en `PROPUESTA`» de los ADR, de `§18`, de `OPEN-08`/`-09`/`-10`, del plan y de las especificaciones de módulo. |
 | 3.2.32 | 2026-11-14 | Product Owner | Solo el índice de `§18`: alta de `ADR-086` (landing: se mantiene Cloudflare pese a los bloqueos de LaLiga, cuarto dominio `.org`) y nota de sustitución parcial en la fila de `ADR-072`. El cuerpo de requisitos no se toca. |
 | 3.2.31 | 2026-11-13 | Product Owner | Ola 1 de arquitectura y especificación, solo documentación: `ADR-077` a `ADR-083` en `PROPUESTA` e índice de `§18` con ellos (`ADR-084` y `ADR-085` reservados, sin redactar); `OPEN-09` reformulada por `ADR-079`; `OPEN-08`, `OPEN-10` y `OPEN-11` anotadas; especificaciones de `S-2`, `1.13`, `1.15a`, `1.15b`, `1.16`-`1.17`, `1.18` y `1.19` en `PROPUESTO`; expediente de cumplimiento `docs/cumplimiento/` (`OPEN-STO-01` a `-12`). Ninguna decisión aceptada ni requisito modificado. |

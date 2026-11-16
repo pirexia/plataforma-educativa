@@ -14,6 +14,8 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 - **Reconciliación** `main` → `develop` (PR #687, *merge commit*): `main` ya no tiene nada que `develop` no tenga.
 - **Documentación**: `CLAUDE.md` 2.13.0 (§4 con las tres ramas, promociones, arreglo urgente y gancho; la fila de runtime pasa a `0.10e-b` y `ADR-080` figura como `ACEPTADA`), `CONTRIBUTING.md`, `RUNBOOK.md §3c` (promoción y arreglo urgente), `SYSADMIN.md`.
 - **Revisión**: Codex no estuvo disponible (cuota de OpenAI agotada hasta el 2026-12-02); revisó `security-reviewer` (régimen de respaldo de `ADR-050`): sin Críticos ni Altos; 3 Medios (continuaciones de línea, `--mirror`/comodines, retención) y 2 Bajos corregidos; 1 Bajo rechazado (`B-3`, comprobar en el gancho que el `sha` está en `develop`: ya es un paso del procedimiento).
+- Versiones: `CLAUDE.md` 2.13.0, `PLAN-IMPLEMENTACION.md` 2.3.25, `README.md` 2.6.50, `SYSADMIN.md` 0.8.27, `RUNBOOK.md` 0.3.18, `CONTRIBUTING.md` 0.3.4, `REQUISITOS` 3.2.34 (corrección menor). `ADR-080 §4.5` es inmutable: su «`build-images.yml` no cambia» queda enmendado por esta entrada.
+- **Sin dueño aún**: `ADR-080 §11` pide que `CLAUDE.md §9` y `§11` nombren también staging (solo datos sintéticos, destruible) y `ARCHITECTURE.md` (entornos); se asigna a `0.10e-c`, tramo 3.
 - **Pendiente**: crear la rama `staging` (por avance rápido desde `main`, tras crear el usuario las reglas de protección en GitHub; el *token* actual da 403) y verificar `CS-01` y `CS-02` contra el remoto.
 
 ---

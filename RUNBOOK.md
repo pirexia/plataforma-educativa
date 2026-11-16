@@ -338,6 +338,8 @@ Despacha un trabajo por centro activo a la cola `default` (necesita el *worker*,
 
 Solo la hace la sesión orquestadora o `janitor`, y **`main` solo cuando el propietario lo pide** (publicar una versión). Nunca con el botón de mezclar de GitHub ni con `espera-ci`.
 
+**Primera creación de `staging` (`ADR-080 §4.6`; sin ejecutar a 2026-11-16).** Mientras la rama no exista, el paso 2 siguiente no es aplicable (`origin/staging` no existe). Se crea una sola vez, **después de que el propietario cree las reglas de protección de `staging` y `main` en GitHub**, apuntando al commit de `main` ya reconciliado con `develop`, desde HEAD desacoplado: `git push origin <sha de main, 40 hex>:refs/heads/staging`. A continuación se comprueba `CS-01` (un *push* no avance rápido a `staging` es rechazado) y se ensaya `CS-02`.
+
 1. Elige el commit candidato `<sha>` (40 caracteres hexadecimales) de `develop` con el CI en verde.
 2. Desde **HEAD desacoplado** o un *worktree* (el gancho bloquea el *push* con una rama protegida como actual):
    ```bash
