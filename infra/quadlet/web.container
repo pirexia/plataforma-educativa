@@ -18,6 +18,8 @@ Wants=plataforma-network.service
 Image=ghcr.io/pirexia/plataforma-web:__TAG__
 ContainerName=plataforma-web
 Network=plataforma.network
+# Publicado SOLO en 127.0.0.1 para Traefik en red host (ver traefik.container).
+PublishPort=127.0.0.1:18080:80
 HealthCmd=curl -f http://localhost:80/ || exit 1
 HealthInterval=10s
 HealthTimeout=3s
