@@ -1,7 +1,7 @@
 # SYSADMIN.md
 
-> **Versión 0.8.27** · 2026-11-16
-> Documento vivo: se actualiza en cada fase (`CLAUDE.md` sección 6), no solo al final. Cubre por ahora únicamente el entorno de **desarrollo** en WSL2 (`ADR-030`); el alojamiento del piloto y de producción se documentará aquí cuando `OPEN-11` se resuelva.
+> **Versión 0.9.0** · 2026-11-16
+> Documento vivo: se actualiza en cada fase (`CLAUDE.md` sección 6), no solo al final. Cubre el entorno de **desarrollo** en WSL2 (`ADR-030`) y, desde `§4c`, el de **staging** en un VPS; el alojamiento del piloto y de producción se documentará aquí cuando `OPEN-11` se resuelva.
 
 ---
 
@@ -477,6 +477,20 @@ Puerta de publicación: los datos legales están resueltos por `ADR-073` (titula
 5. **Dominio**: `apps/landing/wrangler.jsonc` lleva `routes` con `custom_domain` para `adagiox.com` (ápice; `www` y los dominios secundarios redirigen con 301 por reglas de zona de Cloudflare, no por el repositorio). Las cuatro zonas están en Cloudflare (`johnny.ns.cloudflare.com` y `keyla.ns.cloudflare.com`). **DNSSEC**: activo en la zona de `adagiox.com` y `pending` hasta que Arsys ponga el DS (key tag `2371`, algoritmo `13`, digest SHA-256, el que da `GET /zones/<id>/dnssec`); no bloquea el despliegue.
 
 Reversión: `apps/landing/README.md`, «Desplegar y revertir». Probada a nivel de API de Cloudflare el 2026-11-14 (vuelta a una versión anterior del Worker); falta probar `npx wrangler rollback` con una versión de contenido distinto.
+
+## 4c. Staging en un VPS (`ADR-080`, `ADR-087`, `ADR-088`, paso `0.10e-c`)
+
+Estado a **2026-11-16**. Staging es un entorno **de pruebas**, no producción: sin datos reales (solo sintéticos de `REQ-SEED`, `ADR-030`), destruible, con certificados de pruebas y sin garantías de disponibilidad ni de copia de seguridad. Hoy tiene 0 centros y 0 usuarios.
+
+- **Instalación sin privilegios**: `./infra/install.sh <tag> --user` (unidades de usuario de systemd/Quadlet). Prerrequisitos del modo `--user`, rutas y variables: `RUNBOOK.md §3b.2`. No se usa `compose` en el servidor (`ADR-028`).
+- **Dominios** (`ADR-088 §4`, `RN-BO-49`): centros en `*.centros.adagiox.eu` y *backoffice* en `panel.adagiox.eu` (`TENANCY_BASE_DOMAIN` y `BACKOFFICE_HOST`). Producción: por decidir (`OPEN-08`).
+- **Certificados**: comodín `*.centros.adagiox.eu` y uno aparte para `panel.adagiox.eu`, por DNS-01 con el entorno de **pruebas** de la autoridad ACME: el navegador los rechaza. Pasar a producción de ACME lo decide el usuario (pendiente).
+- **Lista blanca**: `BACKOFFICE_ALLOWED_IPS` limita el *backoffice* en Traefik (probado a mano: 200 con IP permitida, 403 con otra). **No** cubre los routers de los centros (hallazgo abierto #693).
+- **Correo**: el VPS usa hoy un SMTP provisional que no entrega nada; el relay real (`OPEN-079-01`) y `CS-19` están pendientes. Con `--with-mailpit` (`ADR-087`, opcional y nunca en producción) se instala Mailpit y se fija a mano en el entorno del VPS `MAIL_MAILER=smtp`, `MAIL_HOST=mailpit`, `MAIL_PORT=1025` (sin cifrado ni credenciales). El SMTP no se publica fuera de la red de contenedores y el correo vive en memoria (sin volumen: se pierde al reiniciar).
+- **Interfaz de Mailpit**: solo en `127.0.0.1:8025` del VPS, sin router en Traefik; se consulta por túnel SSH (`ssh -L 8025:127.0.0.1:8025 <usuario>@<vps>` y abrir `http://127.0.0.1:8025` en local). Mailpit **no cierra `CS-19`**.
+- **Primer administrador**: `bo:create-admin` envía una invitación por correo, así que necesita un SMTP que la capture (p. ej. Mailpit).
+- **No probado (2026-11-16)**: la unidad de Mailpit no se ha arrancado con Quadlet real; ni el envío desde la API ni la interfaz por túnel SSH se han ejercitado. Los pasos anteriores son el diseño de `ADR-087`, no un procedimiento verificado.
+- **Qué NO es producción**: certificados de pruebas, sin copia de seguridad ni PITR, `plataforma_test` presente (`RUNBOOK.md §3b.2`), Traefik en red `host` con supuestos de host mono-usuario (`ADR-088 §5`, `PROPUESTA`) y reversión sin medir (`RUNBOOK.md §3b.9`).
 
 ## 5. Pendiente de documentar aquí
 

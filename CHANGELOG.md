@@ -6,6 +6,16 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-16 · `infra`/`docs`: staging en un VPS con Podman sin privilegios, `0.10e-c` tramos 1-3 (`ADR-080`, `ADR-087`, `ADR-088`; issues #685, #690, #693)
+
+- **Tramo 1** (#689, mezclado) y **tramo 2** (#692, mezclado): `install.sh --user`, rutas por modo, migraciones con `--database=pgsql_owner`, plantillas de unidades con sustitución de tokens y Traefik en red `host` con *backends* en `127.0.0.1` (la IP real del cliente para la lista blanca del *backoffice*). Staging promocionado por avance rápido a `a1f27d2`.
+- **Tramo 3** (rama `chore/0-10e-c-t3-cierre`): Mailpit opcional (`install.sh --with-mailpit`, `ADR-087`, `ACEPTADA` contra la recomendación de `architect`; interfaz solo por túnel SSH, no cierra `CS-19`); `ADR-088` (`PROPUESTA`: red `host`, tokens de `install.sh`, dominios `centros.adagiox.eu` y `panel.adagiox.eu`); documentación: `SYSADMIN.md §4c`, `RUNBOOK.md §3b.9`, `ARCHITECTURE.md §4.1b` (entornos), `CLAUDE.md §9` y `§11` (staging, datos sintéticos).
+- **Verificado a mano el 2026-11-16 en el VPS** (sin prueba automatizada): siete contenedores `healthy` con `sha-a1f27d2`, 130 migraciones, S3 real del proveedor, lista blanca del *backoffice* (200/403), corte del conjunto API + web + Traefik al redesplegar de unos 26 s, y `CS-01` (por el usuario). Los certificados son de **pruebas**.
+- **No ejecutado**: `CS-02` completo, `CS-08`, `CS-17` y `CS-19`; la unidad de Mailpit no se ha arrancado con Quadlet real (sin probar el envío ni la interfaz por túnel); #693 (lista blanca de los centros) abierto.
+- **No ejecutado**: `CS-02` completo (`main` sigue en `12a9834`), `CS-08` (reversión medida), `CS-17` (E2E real), `CS-19` (relay SMTP real); `CS-05`, `CS-06`, `CS-07` y `CS-09` sin evidencia registrada. El estado de datos es de 0 centros y 0 usuarios (`demo:seed` es de `1.15b`).
+- **Hallazgo abierto #693**: la lista blanca de IP solo cubre el *backoffice*, no los routers de los centros (`OPEN-STG-09`).
+- Versiones: `CLAUDE.md` 2.13.1, `README.md` 2.6.56, `ARCHITECTURE.md` 2.5.14, `SYSADMIN.md` 0.9.0, `RUNBOOK.md` 0.3.24, `REQUISITOS` 3.2.35. Los ADR son inmutables y no se tocan.
+
 ## 2026-11-16 · `ci`/`docs`: preparación del flujo `develop` → `staging` → `main`, `0.10e-a` (`ADR-080 §4`; issue #686)
 
 - **Gancho** `.claude/hooks/block-protected-branch.sh` reescrito: `staging` pasa a ser rama protegida para `commit`; bloquea `push` forzado (`--force`, `-f`, `--force-with-lease`, refspec con `+`), `--mirror`, `--all`, destinos con comodín o expansión y todo destino `develop`, `staging` o `main` que no sea `<sha de 40 hex>:refs/heads/<rama>`; une continuaciones de línea, reconoce opciones globales de `git` y el cambio de rama dentro del mismo comando. Arnés de pruebas nuevo `.claude/hooks/test-block-protected-branch.sh` (105 casos; `CS-01`). Límites conocidos documentados en `RUNBOOK.md §3c`.
