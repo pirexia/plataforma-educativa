@@ -1,6 +1,6 @@
 # Unidad plantilla (ADR-037 §6.2): instanciable como api@1, api@2. Una
 # sola instancia habilitada hasta que exista tráfico real (§6.4) — pasar a
-# dos es "systemctl --user enable --now api@2" sobre esta misma unidad, no
+# dos es "systemctl --user start api@2" sobre esta misma unidad, no
 # un rediseño.
 #
 # Se relaciona con plataforma-migrate.service mediante Wants=+After=, no
