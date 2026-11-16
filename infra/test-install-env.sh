@@ -166,7 +166,7 @@ if grep -qF "Volume=$H/.local/share/plataforma/postgres-init:" "$H/.config/conta
 else
     echo "FALLA  directorio de init --user"; FAILS=$((FAILS + 1))
 fi
-if grep -q 'enable --now plataforma-network.service' <<<"$out" && ! grep -q 'plataforma\.network' <<<"$out"; then
+if grep -q 'start plataforma-network.service' <<<"$out" && ! grep -q 'plataforma\.network' <<<"$out"; then
     echo "ok     aviso final con el nombre real de la unidad de red"
 else
     echo "FALLA  aviso final de la unidad de red"; FAILS=$((FAILS + 1))
@@ -215,7 +215,7 @@ out2="$(HOME="$H2" PATH="$TMP/bin:$PATH" bash "$HERE/install.sh" sha-test --user
 M="$H2/.config/containers/systemd/mailpit.container"; bad=""
 [[ "$rc2" -eq 0 ]] || bad="$bad rc=$rc2;"
 [[ -f "$M" ]] || bad="$bad sin mailpit.container;"
-grep -q 'enable --now mailpit.service' <<<"$out2" || bad="$bad sin enable --now;"
+grep -q 'start mailpit.service' <<<"$out2" || bad="$bad sin start mailpit;"
 [[ "$(grep -c '^PublishPort=' "$M")" -eq 1 ]] && grep -q '^PublishPort=127.0.0.1:8025:8025$' "$M" || bad="$bad PublishPort;"
 grep -q 'PublishPort=.*1025' "$M" && bad="$bad publica SMTP;"
 grep -q '^Network=plataforma.network$' "$M" || bad="$bad sin red;"
@@ -223,6 +223,12 @@ grep -qE '^(Requires|BindsTo)=' "$M" && bad="$bad Requires/BindsTo;"
 grep -qE '^Image=.+:v[0-9]+\.[0-9]+\.[0-9]+@sha256:[0-9a-f]{64}$' "$M" || bad="$bad imagen sin versión y digest;"
 grep -q '__[A-Z_]*__' "$M" && bad="$bad tokens;"
 if [[ -z "$bad" ]]; then echo "ok     --with-mailpit instala mailpit (127.0.0.1:8025, sin publicar SMTP, sin tokens)"; else echo "FALLA  --with-mailpit:$bad"; FAILS=$((FAILS + 1)); fi
+# Ayuda de arranque (#695, #698): sin enable --now ni start de migrate; con restart de migrate.
+bad=""
+grep -q 'enable --now' <<<"$out2" && bad="$bad enable --now;"
+grep -qE '(^|[^e])start plataforma-migrate' <<<"$out2" && bad="$bad start plataforma-migrate;"
+grep -q 'restart plataforma-migrate' <<<"$out2" || bad="$bad sin restart plataforma-migrate;"
+if [[ -z "$bad" ]]; then echo "ok     la ayuda de arranque usa restart de migrate y start (sin enable --now)"; else echo "FALLA  ayuda de arranque:$bad"; FAILS=$((FAILS + 1)); fi
 # Reinstalar sin la opción no borra una unidad mailpit ya instalada.
 HOME="$H2" PATH="$TMP/bin:$PATH" bash "$HERE/install.sh" sha-test --user >/dev/null 2>&1
 [[ -f "$M" ]] && echo "ok     reinstalar sin --with-mailpit conserva la unidad existente" \
