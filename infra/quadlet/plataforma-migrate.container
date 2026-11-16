@@ -18,7 +18,9 @@ Image=ghcr.io/pirexia/plataforma-api:__TAG__
 ContainerName=plataforma-migrate
 Network=plataforma.network
 EnvironmentFile=__ENV_DIR__/plataforma.env
-Exec=php artisan migrate --force
+# Con el rol propietario: sin --database=pgsql_owner TenantMigration aborta
+# (el rol plataforma_app no tiene CREATE sobre el esquema public).
+Exec=php artisan migrate --database=pgsql_owner --force
 
 [Service]
 Type=oneshot
