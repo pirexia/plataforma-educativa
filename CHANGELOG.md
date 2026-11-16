@@ -10,7 +10,7 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 - **Fix #701 (Alto)**: el generador de Quadlet (Podman 5.8) descarta en silencio un `Label=` con espacios o `\.` y trunca en el primer espacio, así que los routers `plataforma-web` y `plataforma-api` de los centros no existían. Reglas reescritas con `&&` sin espacios y `[.]`; `__TENANCY_BASE_DOMAIN_ESCAPED__` genera `centros[.]adagiox[.]eu` (el nombre del *token* no cambia).
 - `infra/test-install-env.sh`: comprobación estática de `Label=`, texto exacto de las tres reglas renderizadas y, si hay generador de Quadlet, `--dryrun` que exige las reglas completas en el `ExecStart`.
-- Pregunta abierta `OPEN-088-06` en `ADR-088`: `panel.<dominio>` no tiene router para `/` (la SPA del *backoffice* no se sirve ahí).
+- `OPEN-088-06` en `ADR-088`, **cerrada como prevista**: `panel.<dominio>` solo tiene *router* para `/api/platform`; el de su SPA (fila 4 de `REQ-BO/operacion.md §0.2`) es del paso de interfaz, `apps/backoffice`, y el *backoffice* se opera solo por API hasta `1.7`/`1.9` (`OPEN-BO-08`).
 - **No verificado**: la parte con Traefik real hasta desplegar.
 
 ## 2026-11-16 · `infra`/`docs`: lista blanca de IP también para las rutas de los centros, cerrada por defecto (issue #693, `OPEN-STG-09`)

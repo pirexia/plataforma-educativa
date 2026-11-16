@@ -120,7 +120,7 @@ El ajuste es de todo el host: cualquier usuario local puede enlazar cualquier pu
 | `OPEN-088-03` | Dominios de producción con `RN-BO-49` | **Base de centros en un subdominio propio de `adagiox.com` y *backoffice* en otro hermano**, nunca el ápice como base | Producción (`OPEN-08`) | Usuario |
 | `OPEN-088-04` | Cómo se restringe `TRUSTED_PROXIES` sin red `plataforma-edge` (`§3`, `CS-10`) | Se decide en la especificación de `0.10e-d` | `CS-10`, primer dato real | `architect` + usuario |
 | `OPEN-088-05` | Aceptar este ADR (red `host`, lista cerrada de `§2.3`, riesgos aceptados en staging) | **Aceptarlo** | Cierre de `0.10e-c` | Usuario |
-| `OPEN-088-06` | El *host* del *backoffice* (`panel.<dominio>`) no tiene router para `/`, solo para `/api/platform`: la SPA del *backoffice* no se sirve ahí. Antes de #701 el router truncado atendía todo el *host* hacia la API | Pendiente: decidir qué unidad sirve la SPA del *backoffice* y con qué lista blanca; no se resuelve en #701 | Abierta |
+| `OPEN-088-06` | El *host* del *backoffice* (`panel.<dominio>`) solo tiene *router* para `/api/platform`; no hay *router* para `/`. **Es lo previsto, no un defecto**: el *backoffice* se opera solo por API hasta `1.7` y `1.9` (`OPEN-BO-08`, decidida por el usuario el 2026-09-08) y el *router* de su SPA es la fila 4 de `REQ-BO/operacion.md §0.2`, del paso de interfaz (`apps/backoffice`, `ADR-046 §4.1`), que aún no existe. Antes de #701 el *router* truncado atendía todo el *host* hacia la API | Sin acción: `plataforma-web` lleva `Host()` de centros a propósito para que la SPA de los centros no se sirva bajo el *host* del *backoffice* (`REQ-BO/operacion.md §0.1`) | Cerrada (prevista) |
 
 ## 9 · No verificado y hallazgos fuera del ámbito
 
