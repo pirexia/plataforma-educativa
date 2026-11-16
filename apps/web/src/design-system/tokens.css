@@ -57,7 +57,7 @@
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
+  --radius: 2px;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: var(--brand-primary, oklch(0.205 0 0));
@@ -91,6 +91,15 @@
      contenido, en ambos modos: no forma parte de la paleta semántica del
      centro ni tiene requisito de contraste (decorativo, como `--border`). */
   --overlay: oklch(0 0 0 / 40%);
+
+  /* `docs/modulos/REQ-CORE/capa-visual.md §5.1`, `ADR-064 §3`, `RN-DS-28`,
+     `RN-DS-29`. Colores fijos, iguales en ambos modos (como `--overlay`):
+     la sombra cae sobre la imagen del acceso, que no cambia con el modo,
+     y un velo teñido por la marca sería un semántico nuevo dependiente de
+     la marca (`RN-DS-02`). `--on-scrim` es el texto sobre el velo. */
+  --shadow-auth-panel: -2px 0 6px oklch(0 0 0 / 28%), -12px 0 40px oklch(0 0 0 / 42%);
+  --scrim-auth: oklch(0 0 0 / 64%);
+  --on-scrim: oklch(1 0 0);
 }
 
 .dark {

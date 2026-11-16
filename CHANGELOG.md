@@ -14,6 +14,15 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 - **Sin decidir**: `ADR-077`, `ADR-081`, `REQ-SEED` (`OPEN-SEED-04`), `OPEN-COM-28` (técnica), `ADR-084`, `ADR-085`, `OPEN-ACAD-56` (revisión de `architect`).
 - Ningún cambio de código ni de infraestructura; no se contrata nada.
 
+---
+
+## 2026-11-14 · `feat(web)`: capa visual de la interfaz, `1.15a-a` (`REQ-CORE`, `ADR-064`; issues #431 y #674)
+
+- **T1 (tokens y radio)**: `--radius` de 2 px y toda la escala `--radius-xs` a `-4xl` igual a `var(--radius)`; tokens `--shadow-auth-panel`, `--scrim-auth`, `--on-scrim`, `--auth-panel-width` y `--auth-visual-min-height`. Los componentes vendorizados de `components/ui/` y las vistas que llevaban sombra se ajustan a la escala de radios y a la lista cerrada de sombras (`RN-UI-16`, `RN-UI-17`). Tests de arquitectura (`CA-UI-001` a `-008`, `-023`) y de contraste del velo.
+- **T2 (pantalla «Panel»)**: `PublicAuthShell.vue` pasa a la disposición «Panel» (`RN-DS-26`, `RN-DS-27`): región visual a la izquierda con imagen del centro o ilustración SVG original (`public/auth/illustration.svg`) y bienvenida genérica sobre un velo; panel de 360-460 px con sombra desde `md`; en móvil, franja superior sin sombra. Selector de idioma público en el pie. Claves `auth.shell.*` y `auth.login.lead` en los cuatro idiomas.
+- **Idioma de las pantallas públicas** (`RN-UI-15`, amplía `CA-AUTH-063`, `OPEN-UI-12` = A): elección guardada si es un idioma activo → navegador ∩ activos → idioma por defecto. La resolución automática no persiste `plataforma.locale` (`applyLocale`; solo la elección explícita usa `setLocale`, #674).
+- Documentación: `docs/design-system.md` (§4, §10.7, §11, §13, §22 y nuevo §23, registro de recursos gráficos), `docs/i18n.md`, `docs/modulos/REQ-AUTH/funcional.md §1.6`.
+- Pendiente de `1.15a-b` (texto de bienvenida personalizable, crítico) y de la imagen `sign-in` de la landing (`CA-UI-025`).
 
 ## 2026-11-14 · `docs(landing)`: U6 revisada, programa de startups de Anthropic (issue #579)
 
