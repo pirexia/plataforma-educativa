@@ -6,6 +6,13 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-16 · `infra`: reglas de los routers sin espacios ni barra invertida, que Quadlet descartaba (issue #701)
+
+- **Fix #701 (Alto)**: el generador de Quadlet (Podman 5.8) descarta en silencio un `Label=` con espacios o `\.` y trunca en el primer espacio, así que los routers `plataforma-web` y `plataforma-api` de los centros no existían. Reglas reescritas con `&&` sin espacios y `[.]`; `__TENANCY_BASE_DOMAIN_ESCAPED__` genera `centros[.]adagiox[.]eu` (el nombre del *token* no cambia).
+- `infra/test-install-env.sh`: comprobación estática de `Label=`, texto exacto de las tres reglas renderizadas y, si hay generador de Quadlet, `--dryrun` que exige las reglas completas en el `ExecStart`.
+- `OPEN-088-06` en `ADR-088`, **cerrada como prevista**: `panel.<dominio>` solo tiene *router* para `/api/platform`; el de su SPA (fila 4 de `REQ-BO/operacion.md §0.2`) es del paso de interfaz, `apps/backoffice`, y el *backoffice* se opera solo por API hasta `1.7`/`1.9` (`OPEN-BO-08`).
+- **No verificado**: la parte con Traefik real hasta desplegar.
+
 ## 2026-11-16 · `infra`/`docs`: lista blanca de IP también para las rutas de los centros, cerrada por defecto (issue #693, `OPEN-STG-09`)
 
 - **Fix #693 (Media)**: la lista blanca de Traefik solo protegía el *backoffice*. Nuevo *token* `__TENANT_ALLOWED_IPS__` (variable `TENANT_ALLOWED_IPS`, 12.º de `install.sh`) y un middleware propio por unidad: `tenant-ipallowlist` en `plataforma-api` (`api@.container`) y `tenant-ipallowlist-web` en `plataforma-web` (`web.container`), para que la web no dependa de `api@`; el del *backoffice* no cambia.

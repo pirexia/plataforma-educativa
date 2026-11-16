@@ -27,8 +27,10 @@ HealthRetries=10
 HealthStartPeriod=5s
 Notify=healthy
 
+# Regla sin espacios ni barra invertida: el generador de Quadlet descarta en silencio
+# (o trunca) un Label= con espacios o con \. (#701). Punto como [.], && sin espacios.
 Label=traefik.enable=true
-Label=traefik.http.routers.plataforma-web.rule=HostRegexp(`^[a-z0-9-]+\.__TENANCY_BASE_DOMAIN_ESCAPED__$`) && PathPrefix(`/`)
+Label=traefik.http.routers.plataforma-web.rule=HostRegexp(`^[a-z0-9-]+[.]__TENANCY_BASE_DOMAIN_ESCAPED__$`)&&PathPrefix(`/`)
 Label=traefik.http.routers.plataforma-web.priority=1
 # #693, INV-002: lista blanca de IP de las rutas de los centros. El
 # middleware se define AQUÍ, en el propio contenedor (con otro nombre que el

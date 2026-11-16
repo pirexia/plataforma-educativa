@@ -227,7 +227,8 @@ prepare_postgres_init() {
 # POSTGRES_INIT_DIR) y la versión $3. Único sitio con el `sed`.
 render_units() {
     local src="$1" dest="$2" tag="$3" unit name escaped
-    escaped="${TENANCY_BASE_DOMAIN//./\\.}"
+    # Punto como [.] y no \. : Quadlet descarta en silencio un Label= con barra invertida (#701).
+    escaped="${TENANCY_BASE_DOMAIN//./[.]}"
     mkdir -p "$dest"
     for unit in "$src"/*.container "$src"/*.network "$src"/*.volume; do
         name="$(basename "$unit")"
