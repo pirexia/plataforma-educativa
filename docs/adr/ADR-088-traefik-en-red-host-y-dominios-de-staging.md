@@ -19,7 +19,7 @@
 1. Con Podman **sin privilegios** (`OPEN-STG-05`, decidida el 2026-11-14) y Traefik en una red *bridge* con `PublishPort`, el reenvío de puertos (*rootlessport*) **enmascara la IP de origen**: Traefik ve una dirección de la red de contenedores (`10.89.10.x`), no la del cliente. Comprobado en el VPS de staging (comentario de `traefik.container`). Es el riesgo B1 de `docs/modulos/REQ-FAM-UNIT/operacion.md §13.3`.
 2. Consecuencia sin síntoma: la lista blanca del *backoffice* (`ipallowlist` de Traefik, `RN-BO-06`/`-07`) y la IP de auditoría (`admin_action_logs`, `audit_logs`) comparan contra una dirección interna. `ADR-080 §3.3` lo listaba como lo que staging tenía que probar (`CS-10`).
 3. `ADR-080 §3.7` y `ADR-037` suponían Traefik dentro de una red de contenedores.
-4. Para generar las unidades de staging, `install.sh` sustituye ya once *tokens*, no solo `__TAG__` (`render_units` en `infra/install-lib.sh`).
+4. Para generar las unidades de staging, `install.sh` sustituye ya doce *tokens*, no solo `__TAG__` (`render_units` en `infra/install-lib.sh`).
 5. `RN-BO-49` (`ADR-046 §4.4`) prohíbe que el *host* del *backoffice* sea subdominio de `TENANCY_BASE_DOMAIN`, porque `TenantHost::slugFrom()` tomaría su etiqueta izquierda como *slug* de un centro.
 
 ## 2 · Decisión
@@ -36,13 +36,14 @@ Sigue vigente de `ADR-028`: Traefik descubre los *backends* por el socket de Pod
 
 ### 2.3 · Sustituciones de `install.sh`: lista cerrada
 
-Se admite el mismo `sed` de `ADR-037 §6.1` con esta lista **cerrada** de *tokens*: `__TAG__`, `__TENANCY_BASE_DOMAIN__`, `__TENANCY_BASE_DOMAIN_ESCAPED__`, `__TRAEFIK_IMAGE__`, `__ACME_EMAIL__`, `__ACME_CA_SERVER__`, `__TRAEFIK_ENV_FILE__`, `__ENV_DIR__`, `__POSTGRES_INIT_DIR__`, `__BACKOFFICE_HOST__`, `__BACKOFFICE_ALLOWED_IPS__`. Reglas:
+Se admite el mismo `sed` de `ADR-037 §6.1` con esta lista **cerrada** de *tokens*: `__TAG__`, `__TENANCY_BASE_DOMAIN__`, `__TENANCY_BASE_DOMAIN_ESCAPED__`, `__TRAEFIK_IMAGE__`, `__ACME_EMAIL__`, `__ACME_CA_SERVER__`, `__TRAEFIK_ENV_FILE__`, `__ENV_DIR__`, `__POSTGRES_INIT_DIR__`, `__BACKOFFICE_HOST__`, `__BACKOFFICE_ALLOWED_IPS__`, `__TENANT_ALLOWED_IPS__`. Reglas:
 
 - Sigue sin haber sistema de plantillado: ni condicionales, ni bucles, ni *includes* dentro de las unidades. La única lógica es la exclusión de una unidad opcional entera (`mailpit.container`, `ADR-087`).
 - Cada *token* se valida en `install-lib.sh` antes de sustituirlo, y `test-install-env.sh` comprueba que no queda ninguno sin sustituir (hoy lo hace: `grep '__[A-Z_]*__'`).
+- **`__TENANT_ALLOWED_IPS__` (`TENANT_ALLOWED_IPS`, #693; decidido por el usuario el 2026-11-16)**: lista blanca de IP del *ingress* para las rutas de los **centros** (`plataforma-api` y `plataforma-web`, middleware `tenant-ipallowlist` en `api@` y `tenant-ipallowlist-web` en `web`, cada uno definido en su propia unidad para que la web no dependa de que `api@` esté arriba), aparte de la del *backoffice*. **Cerrada por defecto** (`INV-002`): `install.sh` **aborta** si falta o está vacía; no hay valor por defecto. Staging pone las IP permitidas; producción la pone a `0.0.0.0/0,::/0` de forma **explícita**, nunca por omisión. Misma validación de IP/CIDR (IPv4 e IPv6) que la del *backoffice*. Resuelve el hallazgo de `OPEN-STG-09` sobre las rutas de los centros. Limitación aceptada en staging: la redirección `:80`→`:443` del *entrypoint* responde a cualquier IP antes de la lista blanca (solo un 301 con *host* y ruta, sin datos); la alternativa es mover la redirección a un router propio con el middleware. **No verificado, a probar en el VPS tras desplegar**: web cerrada con `api@` parada, IP de cliente real en las rutas de los centros, y 200/403 con IP permitida y no permitida.
 - **Un *token* nuevo exige actualizar este apartado con un ADR nuevo** o, si es una ruta o valor del mismo tipo que los de la lista, al menos su validación y su prueba. Si la lista crece hasta pedir lógica, es la señal de que hace falta otra decisión, no más `sed`.
 
-Motivo: `ADR-037 §6.1` buscaba que no hubiera nada que mantener; once sustituciones literales, validadas y probadas, siguen sin serlo. Un gestor de plantillas sí lo sería.
+Motivo: `ADR-037 §6.1` buscaba que no hubiera nada que mantener; doce sustituciones literales, validadas y probadas, siguen sin serlo. Un gestor de plantillas sí lo sería.
 
 ## 3 · Lo que esto rompe de `ADR-080 §3.7` y de `CS-10`
 
