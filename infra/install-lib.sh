@@ -16,31 +16,81 @@ env_value() {
     { grep -E "^${1}=" "$ENV_FILE" || true; } | tail -n1 | cut -d= -f2-
 }
 
-# Rangos de una entrada IP/CIDR que ya cumple el formato: octetos IPv4 0-255,
-# prefijo <= 32 (IPv4) o <= 128 (IPv6).
-ip_entry_in_range() {
-    local entry="$1" addr="${1%%/*}" prefix="" octet
-    [[ "$entry" == */* ]] && prefix="${entry#*/}"
+# IPv4 de cuatro octetos 0-255 (sin ceros a la izquierda de más de 3 dígitos).
+ipv4_valid() {
+    local a="$1" o
+    [[ "$a" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]] || return 1
+    local IFS=.
+    for o in $a; do
+        [[ "$((10#$o))" -le 255 ]] || return 1
+    done
+    return 0
+}
+
+# IPv6: solo [0-9A-Fa-f:], grupos de 1-4 hex, a lo sumo un `::`, 8 grupos
+# (como mucho 7 con `::`); admite un cuarteto final IPv4 (cuenta como 2 grupos).
+ipv6_valid() {
+    local a="$1" left right g n=0 dbl=0
+    [[ "$a" == *:* ]] || return 1
+    if [[ "$a" == *.* ]]; then
+        ipv4_valid "${a##*:}" || return 1
+        a="${a%:*}:0:0"
+    fi
+    [[ "$a" =~ ^[0-9A-Fa-f:]+$ ]] || return 1
+    [[ "$a" != *:::* ]] || return 1
+    if [[ "$a" == *::* ]]; then
+        dbl=1
+        left="${a%%::*}"; right="${a#*::}"
+        [[ "$right" != *::* ]] || return 1
+    else
+        left="$a"; right=""
+    fi
+    local IFS=:
+    for g in $left $right; do
+        [[ "$g" =~ ^[0-9A-Fa-f]{1,4}$ ]] || return 1
+        n=$((n + 1))
+    done
+    # `for` sobre cadena vacía no itera; los grupos vacíos intermedios se detectan abajo.
+    if [[ "$dbl" -eq 1 ]]; then
+        [[ "$n" -le 7 ]] || return 1
+    else
+        [[ "$n" -eq 8 ]] || return 1
+    fi
+    # Sin `::`, un `:` inicial o final o un grupo vacío (`a::b` ya excluido) no cuentan 8 grupos.
+    [[ "$dbl" -eq 1 || ( "$a" != :* && "$a" != *: ) ]] || return 1
+    return 0
+}
+
+# Una entrada: IP o IP/prefijo (IPv4 prefijo 0-32, IPv6 prefijo 0-128).
+ip_entry_valid() {
+    local entry="$1" addr prefix=""
+    addr="${entry%%/*}"
+    if [[ "$entry" == */* ]]; then
+        prefix="${entry#*/}"
+        [[ "$prefix" =~ ^[0-9]{1,3}$ ]] || return 1
+    fi
     if [[ "$addr" == *:* ]]; then
+        ipv6_valid "$addr" || return 1
         [[ -z "$prefix" || "$((10#$prefix))" -le 128 ]] || return 1
     else
-        local IFS=.
-        for octet in $addr; do
-            [[ "$((10#$octet))" -le 255 ]] || return 1
-        done
+        ipv4_valid "$addr" || return 1
         [[ -z "$prefix" || "$((10#$prefix))" -le 32 ]] || return 1
     fi
     return 0
 }
 
-# validate_ip_list <nombre> <valor>: lista de IP o CIDR (IPv4/IPv6) separadas por comas.
+# validate_ip_list <nombre> <valor>: lista de IP o CIDR (IPv4/IPv6) separadas por
+# comas, sin elementos vacíos (ni coma inicial, final o doble).
 validate_ip_list() {
-    local name="$1" list="$2"
-    local ip_re='^(([0-9]{1,3}\.){3}[0-9]{1,3}|[0-9A-Fa-f:]*:[0-9A-Fa-f:.]*)(/[0-9]{1,3})?$' entry
+    local name="$1" list="$2" entry
     local -a entries
+    if [[ "$list" == ,* || "$list" == *, || "$list" == *,,* ]]; then
+        echo "$name de $ENV_FILE tiene una entrada que no es IP ni CIDR (separadas por comas, sin espacios)." >&2
+        return 1
+    fi
     IFS=',' read -r -a entries <<<"$list"
     for entry in "${entries[@]}"; do
-        if [[ ! "$entry" =~ $ip_re ]] || ! ip_entry_in_range "$entry"; then
+        if ! ip_entry_valid "$entry"; then
             echo "$name de $ENV_FILE tiene una entrada que no es IP ni CIDR (separadas por comas, sin espacios)." >&2
             return 1
         fi

@@ -66,6 +66,18 @@ expect "BACKOFFICE_ALLOWED_IPS con espacio y & rechazada" 1 "no es IP ni CIDR" v
 base_env "BACKOFFICE_ALLOWED_IPS=host.example.com" "ACME_EMAIL=ops@example.com"
 expect "BACKOFFICE_ALLOWED_IPS con un nombre rechazada" 1 "no es IP ni CIDR" validate
 
+# Validador de listas de IP endurecido (#693).
+for v in ":" "::::" "a:b" "1.2.3.4," ",1.2.3.4" "1.2.3.4,,5.6.7.8" "1:2:3:4:5:6:7:8:9" "1::2::3" "12345::1" ":1:2:3:4:5:6:7" "1.2.3" "1.2.3.4/"; do
+    base_env "TENANT_ALLOWED_IPS=$v" "ACME_EMAIL=ops@example.com"
+    expect "TENANT_ALLOWED_IPS '$v' rechazada" 1 "no es IP ni CIDR" validate
+done
+for v in "::/0" "2001:db8::/32" "::1/128" "203.0.113.0/24,2001:db8::/32" "0.0.0.0/0,::/0" "1:2:3:4:5:6:7:8" "::ffff:203.0.113.7"; do
+    base_env "TENANT_ALLOWED_IPS=$v" "ACME_EMAIL=ops@example.com"
+    expect "TENANT_ALLOWED_IPS '$v' aceptada" 0 "" validate
+done
+base_env "BACKOFFICE_ALLOWED_IPS=1.2.3.4," "ACME_EMAIL=ops@example.com"
+expect "BACKOFFICE_ALLOWED_IPS con coma final rechazada" 1 "no es IP ni CIDR" validate
+
 # TENANT_ALLOWED_IPS (#693, INV-002): obligatoria, cerrada por defecto.
 printf '%s\n' "TENANCY_BASE_DOMAIN=adagiox.eu" "BACKOFFICE_HOST=panel.adagiox.com" "ACME_EMAIL=ops@example.com" > "$ENV_FILE"
 expect "TENANT_ALLOWED_IPS ausente aborta" 1 "TENANT_ALLOWED_IPS tiene que estar fijado" validate
@@ -152,7 +164,14 @@ UD="$H/.config/containers/systemd"
 bad=""
 grep -q 'middlewares\.tenant-ipallowlist\.ipallowlist\.sourcerange=198.51.100.0/24,2001:db8::/32' "$UD/api@.container" || bad="$bad sin sourcerange tenant;"
 grep -q 'routers\.plataforma-api\.middlewares=tenant-ipallowlist@docker' "$UD/api@.container" || bad="$bad plataforma-api sin middleware;"
-grep -q 'routers\.plataforma-web\.middlewares=tenant-ipallowlist@docker' "$UD/web.container" || bad="$bad plataforma-web sin middleware;"
+grep -q 'routers\.plataforma-web\.middlewares=tenant-ipallowlist-web@docker' "$UD/web.container" || bad="$bad plataforma-web sin middleware;"
+grep -q 'middlewares\.tenant-ipallowlist-web\.ipallowlist\.sourcerange=198.51.100.0/24,2001:db8::/32' "$UD/web.container" || bad="$bad web sin su middleware definido;"
+# Ninguna unidad referencia un middleware definido en otra: cada @docker usado se define en la misma unidad.
+for f in "$UD"/*.container; do
+    for m in $(grep -oE 'middlewares=[a-z-]+@docker' "$f" | sed -E 's/middlewares=([a-z-]+)@docker/\1/'); do
+        grep -q "traefik\.http\.middlewares\.$m\." "$f" || bad="$bad $(basename "$f") usa $m sin definirlo;"
+    done
+done
 grep -q 'routers\.plataforma-api-platform\.middlewares=platform-ipallowlist@docker' "$UD/api@.container" || bad="$bad backoffice sin su middleware;"
 grep -q 'platform-ipallowlist\.ipallowlist\.sourcerange=203.0.113.7/32,198.51.100.0/24' "$UD/api@.container" || bad="$bad backoffice sin su sourcerange;"
 grep -q 'plataforma-api-platform\.middlewares=tenant' "$UD/api@.container" && bad="$bad backoffice con middleware de centros;"
