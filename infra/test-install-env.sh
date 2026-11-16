@@ -149,6 +149,22 @@ else
     echo "FALLA  aviso final de la unidad de red"; FAILS=$((FAILS + 1))
 fi
 
+if grep -qE '^Exec=php artisan migrate --database=pgsql_owner --force$' "$H/.config/containers/systemd/plataforma-migrate.container"; then
+    echo "ok     plataforma-migrate migra con --database=pgsql_owner"
+else
+    echo "FALLA  plataforma-migrate sin --database=pgsql_owner"; FAILS=$((FAILS + 1))
+fi
+# Las plantillas de entorno que arrancan la aplicación llevan las variables de sesión (sin SESSION_DOMAIN).
+for f in plataforma plataforma-worker plataforma-worker-long; do
+    ex="$HERE/quadlet/$f.env.example"
+    if grep -q '^SESSION_DRIVER=database$' "$ex" && grep -q '^SESSION_SECURE_COOKIE=true$' "$ex" \
+       && grep -q '^SESSION_LIFETIME=480$' "$ex" && grep -q '^SESSION_ENCRYPT=true$' "$ex" && ! grep -q '^SESSION_DOMAIN' "$ex"; then
+        echo "ok     $f.env.example con variables de sesión y sin SESSION_DOMAIN"
+    else
+        echo "FALLA  $f.env.example: variables de sesión"; FAILS=$((FAILS + 1))
+    fi
+done
+
 # Modo sistema: render_units a un directorio temporal, sin escribir en /etc ni /opt.
 ( ENV_FILE="/etc/plataforma/plataforma.env"; TRAEFIK_ENV_FILE="/etc/plataforma/traefik-cloudflare.env"
   ENV_DIR="/etc/plataforma"; POSTGRES_INIT_DIR="/opt/plataforma/postgres-init"
