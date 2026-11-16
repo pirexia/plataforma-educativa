@@ -1,6 +1,6 @@
 # CLAUDE.md — Normas de trabajo del proyecto
 
-> **Versión 2.12.0** · 2026-11-13 · Fichero de contexto permanente. Se carga en **todas** las sesiones. Contiene solo reglas estables.
+> **Versión 2.13.0** · 2026-11-16 · Fichero de contexto permanente. Se carga en **todas** las sesiones. Contiene solo reglas estables.
 > Proyecto: **Plataforma de Gestión Educativa Multi-tenant**. Fuente de verdad funcional: `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md`.
 
 ---
@@ -35,7 +35,7 @@ Frases prohibidas: "¡Excelente idea!", "Tienes toda la razón" como apertura re
 | Almacenamiento | API S3 como contrato único; Garage en desarrollo, CI y E2E, nunca en servidores (`ADR-076`) |
 | PDF | Servicio contenerizado de renderizado HTML→PDF. **Elegido y no instalado**: WeasyPrint tras la interfaz propia `PdfRenderer` (`ADR-078`, `PROPUESTA`; decisión del usuario del 2026-11-12), con Gotenberg como vuelta atrás; no hay servicio ni código (paso `P` del plan) |
 | Tests | Pest (backend), Vitest + Playwright (frontend) |
-| Contenedores | **Podman**. Desarrollo en **WSL2** con perfil reducido (`ADR-030`); `compose.yaml` estándar con `podman compose`; Quadlet/systemd en producción. Kubernetes a partir de 3-5 centros. **Elegido y no implementado**: runtime agnóstico (`CONTAINER_RUNTIME`, Quadlet como referencia; `ADR-080`, `PROPUESTA`, paso `0.10e-a`): ningún guion lee esa variable hoy |
+| Contenedores | **Podman**. Desarrollo en **WSL2** con perfil reducido (`ADR-030`); `compose.yaml` estándar con `podman compose`; Quadlet/systemd en producción. Kubernetes a partir de 3-5 centros. **Elegido y no implementado**: runtime agnóstico (`CONTAINER_RUNTIME`, Quadlet como referencia; `ADR-080`, `ACEPTADA`, paso `0.10e-b`): ningún guion lee esa variable hoy |
 | Repositorio | Monorepo: `apps/api`, `apps/web`, `infra`, `docs` |
 
 **Esta tabla dice qué está elegido, no qué está instalado.** Cuando no coinciden, la fila lo dice con el issue que lo sigue. Antes de apoyarse en una pieza de esta tabla, se comprueba en `composer.json`/`package.json`. Motivo: `docs/proceso/casos-reales.md#horizon-no-instalado`.
@@ -120,19 +120,21 @@ Un relanzamiento que encuentra esa nota confía en los commits que cubre sin ree
 
 ## 4. Git
 
-- Ramas permanentes: **`main`** (producción) y **`develop`** (integración).
+- Ramas permanentes: **`main`** (producción), **`staging`** (lo que se prueba en el entorno de staging) y **`develop`** (integración). Flujo: `develop` → `staging` → `main` (`ADR-080 §4`).
 - Todo desarrollo ocurre en ramas colgadas de `develop`:
   - `feature/REQ-XXX-descripcion-corta`
   - `fix/REQ-XXX-descripcion-corta`
   - `chore/descripcion-corta`
 - Merge a `develop` al terminar, y **borrado inmediato de la subrama** local y remota.
-- `main` solo recibe merges desde `develop` en release, etiquetados con versión semántica.
-- **Nunca commitees directamente en `main` ni en `develop`.**
+- **Promociones** (`ADR-080 §4.3`): `staging` y `main` solo avanzan por **avance rápido** de un commit que ya está en `develop` (`staging`) o en `staging` (`main`), con `git push origin <sha de 40 hex>:refs/heads/<rama>`, **sin *squash*, sin `--force` y sin el botón de mezclar** de GitHub. La promoción se hace desde **HEAD desacoplado** (o un *worktree*), nunca con una rama protegida como actual: el gancho lo exige y no se relaja. `main` solo recibe lo que ya está en `staging`, etiquetado con versión semántica, y solo cuando el usuario lo pide.
+- **Nunca commitees directamente en `main`, `staging` ni `develop`.**
+- **Arreglo urgente** (`ADR-080 §4.4`), solo si `develop` contiene algo que no puede ir aún a staging: rama `fix/…` desde `staging`, PR a `staging` con *merge commit* (nunca *squash*) y, en la misma sesión, PR `staging` → `develop` también con *merge commit*; hasta que se mezcle no hay más promociones. La reconciliación `main` → `develop` sigue la misma regla. Estos PR se mezclan a mano, sin borrar `staging` ni `main` (la rama `fix/…` de origen sí se borra como siempre).
+- El gancho `.claude/hooks/block-protected-branch.sh` bloquea el commit en las tres ramas protegidas, el `push` desde ellas, cualquier `push` forzado (`--force`, `-f`, `--force-with-lease`, refspec con `+`) con destino protegido y todo destino `develop`, `staging` o `main` que no sea la forma `<sha de 40 hex>:refs/heads/<rama>`. Se prueba con `.claude/hooks/test-block-protected-branch.sh`.
 - Formato de commit: `tipo(ámbito): descripción [REQ-XXX-NNN]`
   - Ejemplo: `feat(auth): MFA obligatorio por rol [REQ-AUTH-003]`
 - Todo commit referencia al menos un ID de requisito o de issue.
 - Antes de cualquier merge: tests en verde, lint limpio, documentación del módulo actualizada.
-- **Pull request** (skills `pr-check` y `espera-ci`; lo hace la sesión orquestadora o `janitor`, que las lleva cargadas): antes de `gh pr create`, `pr-check` (rama, commits, `Verificado`, ficheros sensibles, documentación; la suite la ejecuta `verificador`, un subagente nunca la lanza); tras abrirlo, `espera-ci` espera el CI en segundo plano y mezcla solo si no hay `fail` ni `pending`. Un hook (`.claude/hooks/block-protected-branch.sh`) bloquea además commit y push en `develop` y `main`.
+- **Pull request** (skills `pr-check` y `espera-ci`; lo hace la sesión orquestadora o `janitor`, que las lleva cargadas): antes de `gh pr create`, `pr-check` (rama, commits, `Verificado`, ficheros sensibles, documentación; la suite la ejecuta `verificador`, un subagente nunca la lanza); tras abrirlo, `espera-ci` espera el CI en segundo plano y mezcla solo si no hay `fail` ni `pending`. Un hook (`.claude/hooks/block-protected-branch.sh`) bloquea además el commit y el push en `develop`, `staging` y `main` y los pushes forzados o con destino no permitido (ver la viñeta del gancho arriba).
 
 ### .gitignore
 

@@ -6,6 +6,20 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-16 · `ci`/`docs`: preparación del flujo `develop` → `staging` → `main`, `0.10e-a` (`ADR-080 §4`; issue #686)
+
+- **Gancho** `.claude/hooks/block-protected-branch.sh` reescrito: `staging` pasa a ser rama protegida para `commit`; bloquea `push` forzado (`--force`, `-f`, `--force-with-lease`, refspec con `+`), `--mirror`, `--all`, destinos con comodín o expansión y todo destino `develop`, `staging` o `main` que no sea `<sha de 40 hex>:refs/heads/<rama>`; une continuaciones de línea, reconoce opciones globales de `git` y el cambio de rama dentro del mismo comando. Arnés de pruebas nuevo `.claude/hooks/test-block-protected-branch.sh` (105 casos; `CS-01`). Límites conocidos documentados en `RUNBOOK.md §3c`.
+- **Skills** `espera-ci` y `pr-check`: nunca *squash* con base `staging` o `main`, nunca borrar la rama de origen de un PR cuyo origen sea `main` o `staging`; la reconciliación y los arreglos urgentes se mezclan a mano con *merge commit*.
+- **CI**: `staging` solo en `pull_request.branches` de `ci-api`, `ci-web`, `ci-landing`, `dependency-scan` y `build-images`. **Retención de imágenes** (`ADR-080 §4.5`, que el ADR decía «no cambia» y la retención se especifica aquí, según su propio §4.5): `actions/delete-package-versions` aplicaba `ignore-versions` al digest y no a las etiquetas, así que no protegía nada, tampoco las `vX.Y.Z` (defecto anterior a este paso); se sustituye por `.github/scripts/purgar-imagenes.sh` (`gh api` + `jq`), que conserva las 10 versiones más recientes, las `vX.Y.Z`, los `sha-<7>` de `staging` y `main` y los manifiestos hijos sin etiqueta creados a menos de 120 s de una versión conservada, con prueba en `--dry-run` (15 casos). **Sin verificar contra GHCR real**: permisos de `GITHUB_TOKEN` y endpoint.
+- **Reconciliación** `main` → `develop` (PR #687, *merge commit*): `main` ya no tiene nada que `develop` no tenga.
+- **Documentación**: `CLAUDE.md` 2.13.0 (§4 con las tres ramas, promociones, arreglo urgente y gancho; la fila de runtime pasa a `0.10e-b` y `ADR-080` figura como `ACEPTADA`), `CONTRIBUTING.md`, `RUNBOOK.md §3c` (promoción y arreglo urgente), `SYSADMIN.md`.
+- **Revisión**: Codex no estuvo disponible (cuota de OpenAI agotada hasta el 2026-12-02); revisó `security-reviewer` (régimen de respaldo de `ADR-050`): sin Críticos ni Altos; 3 Medios (continuaciones de línea, `--mirror`/comodines, retención) y 2 Bajos corregidos; 1 Bajo rechazado (`B-3`, comprobar en el gancho que el `sha` está en `develop`: ya es un paso del procedimiento).
+- Versiones: `CLAUDE.md` 2.13.0, `PLAN-IMPLEMENTACION.md` 2.3.25, `README.md` 2.6.50, `SYSADMIN.md` 0.8.27, `RUNBOOK.md` 0.3.18, `CONTRIBUTING.md` 0.3.4, `REQUISITOS` 3.2.34 (corrección menor). `ADR-080 §4.5` es inmutable y no se edita: su «`build-images.yml` no cambia» se refiere a la construcción de imágenes, y el propio §4.5 deja la retención «a especificar en 0.10e»; el cambio queda registrado aquí.
+- **Sin dueño aún**: `ADR-080 §11` pide que `CLAUDE.md §9` y `§11` nombren también staging (solo datos sintéticos, destruible) y `ARCHITECTURE.md` (entornos); se asigna a `0.10e-c`, tramo 3.
+- **Pendiente**: crear la rama `staging` (por avance rápido desde `main`, tras crear el usuario las reglas de protección en GitHub; el *token* actual da 403) y verificar `CS-01` y `CS-02` contra el remoto.
+
+---
+
 ## 2026-11-14 · `docs`: ronda de decisiones de la ola 1 (ADR-078, 079, 080, 082, 083 aceptadas; S-2, REQ-CALIF, REQ-INF y REQ-ACAD §1.13-a/-b aprobados)
 
 - **ADR aceptados** (siguen abiertas sus preguntas no bloqueantes y las condiciones jurídicas antes de datos reales): `ADR-078` (motor PDF; `OPEN-PDF-03` = P1), `ADR-082` (firma por niveles; `OPEN-FIRMA-02` y `-15`), `ADR-083` (S3 en producción; `OPEN-STO-03` = un bucket con prefijo por centro, sin cuenta de prueba por ahora, P-15 y P-16 no son condición), `ADR-080` (staging; AlmaLinux o Rocky, Podman sin privilegios, lista blanca de IP) y `ADR-079` (notificaciones; `OPEN-079-02`, `-05`, `-06` y `-09`).

@@ -1,6 +1,6 @@
 # RUNBOOK.md
 
-> **Versión 0.3.17** · 2026-11-12
+> **Versión 0.3.18** · 2026-11-16
 > Documento vivo: se actualiza en cada fase (`CLAUDE.md` §6). Cubre por ahora únicamente el entorno de **desarrollo** en WSL2 (`ADR-030`) — no hay producción, piloto ni usuarios reales todavía. Los procedimientos de guardia, alertas y recuperación ante desastre de un entorno real se documentarán aquí cuando `OPEN-11` (alojamiento del piloto) se resuelva.
 
 ---
@@ -45,7 +45,7 @@ podman compose logs -f <servicio>
 ### 2.3 Si CI falla en un PR
 
 - Revisar el check concreto (`ci-api.yml`, `ci-web.yml`, `dependency-scan.yml`) antes de reintentar sin más.
-- Los ocho checks originales son *required status checks* en `develop` desde el cierre de 0.7; el noveno (`make-module`, `1.11b`) está pendiente de marcar como *required* — un PR no se puede mezclar sin ellos en verde, y no se puede saltar con `--no-verify` ni equivalente.
+- Los ocho checks originales son *required status checks* en `develop` desde el cierre de 0.7 (**sin verificar**: `SYSADMIN.md §4` los lista como pendientes de configurar; el *token* del proyecto no puede leer la protección de ramas, `ADR-080 §4.3`); el noveno (`make-module`, `1.11b`) está pendiente de marcar como *required* — un PR no se puede mezclar sin ellos en verde, y no se puede saltar con `--no-verify` ni equivalente.
 
 ### 2.4 Si `db-reviewer` o `security-reviewer` encuentran un hallazgo Crítico o Alto
 
@@ -217,7 +217,7 @@ No hay salida por la aplicación: es intervención directa sobre la base de dato
 ./infra/install.sh <tag> --user       # WSL2, systemd de usuario
 ```
 
-`<tag>` es siempre una versión exacta (`X.Y.Z` en producción, `sha-<7>` o `develop` en *staging*) — nunca `latest` (`ADR-037 §5.2`). El script sustituye el *tag* en las unidades y recarga systemd; no arranca nada por sí solo.
+`<tag>` es siempre una versión exacta (`X.Y.Z` en producción, `sha-<7>` en *staging*; la etiqueta móvil `develop` deja de usarse para desplegar en *staging*, `ADR-080 §4.5`) — nunca `latest` (`ADR-037 §5.2`). El script sustituye el *tag* en las unidades y recarga systemd; no arranca nada por sí solo.
 
 **Escrito, no ejecutado de extremo a extremo en este host** (`SYSADMIN.md §6.2`): `install.sh --user` requiere escribir en `~/.config/containers/systemd/`, bloqueado por el propietario incorrecto del directorio. La lógica que sí se ha ejercido — sustitución de `__TAG__`, generación de unidades systemd válidas a partir de estos ficheros — está verificada por separado (`SYSADMIN.md §6.1`); lo que falta es la instalación automática en este directorio concreto, no el contenido de las unidades.
 
@@ -329,6 +329,46 @@ Despacha un trabajo por centro activo a la cola `default` (necesita el *worker*,
 ### 3b.8 Revertir la precisión de microsegundos del consentimiento de imagen (issue #483)
 
 `migrate:rollback` de `2026_11_05_100200_widen_consent_verification_timestamps_to_microseconds` redondea `image_consent_decisions.occurred_at` y `guardian_student_links.legal_guardian_verified_at` al segundo más cercano (hasta 0,5 s de diferencia, irrecuperable). Si ya hay decisiones, prefiere desplegar la imagen anterior sin revertir el esquema (es compatible).
+
+## 3c. Ramas: promoción y arreglo urgente (`ADR-080 §4`, paso `0.10e-a`)
+
+**Estado**: el procedimiento, el gancho (`.claude/hooks/block-protected-branch.sh`, probado con su arnés de shell) y los workflows están escritos. **Sin probar** hasta que exista la rama `staging` y su protección en GitHub: que Git rechace un avance no rápido en `staging` y `main` (`CS-01`), que GitHub acepte el *push* de un commit que ya pasó los checks en otra rama con las comprobaciones obligatorias activas, y una promoción completa con etiqueta de ensayo (`CS-02`). Las reglas de protección de `staging` y `main` las crea el propietario en GitHub; no las crea el código.
+
+### 3c.1 Promoción `develop` → `staging` → `main`
+
+Solo la hace la sesión orquestadora o `janitor`, y **`main` solo cuando el propietario lo pide** (publicar una versión). Nunca con el botón de mezclar de GitHub ni con `espera-ci`.
+
+**Primera creación de `staging` (`ADR-080 §4.6`; sin ejecutar a 2026-11-16).** Mientras la rama no exista, el paso 2 siguiente no es aplicable (`origin/staging` no existe). Se crea una sola vez, **después de que el propietario cree las reglas de protección de `staging` y `main` en GitHub**, apuntando al commit de `main` ya reconciliado con `develop`, desde HEAD desacoplado: `git push origin <sha de main, 40 hex>:refs/heads/staging`. A continuación se comprueba `CS-01` (un *push* no avance rápido a `staging` es rechazado) y se ensaya `CS-02`.
+
+1. Elige el commit candidato `<sha>` (40 caracteres hexadecimales) de `develop` con el CI en verde.
+2. Desde **HEAD desacoplado** o un *worktree* (el gancho bloquea el *push* con una rama protegida como actual):
+   ```bash
+   git fetch origin
+   git merge-base --is-ancestor origin/staging <sha> && echo "avance rápido posible"
+   git checkout --detach <sha>
+   git push origin <sha>:refs/heads/staging      # sin --force, sin -f, sin '+'
+   ```
+   Git rechaza solo un *push* que no sea avance rápido; ese rechazo es la protección. Si lo rechaza, **no se fuerza**: se investiga (`§3c.2`).
+3. Despliega `sha-<7>` en staging (`§3b.2`) y comprueba lo que la entrega pida.
+4. A petición del propietario, y con el mismo avance rápido: `git push origin <sha>:refs/heads/main` y etiqueta anotada `vX.Y.Z` sobre ese commit (dispara la imagen de versión, `ADR-037 §5.2`).
+5. Un PR `develop` → `staging` solo sirve para dejar constancia; **nunca se pulsa «Merge»** en él.
+
+La retención de imágenes (`build-images.yml`, job `prune-old-images`, con `.github/scripts/purgar-imagenes.sh`) lista las versiones del paquete con la API de GitHub y conserva las 10 más recientes, toda versión con etiqueta `vX.Y.Z` y toda versión con la etiqueta `sha-<7>` de los commits a los que apuntan `staging` y `main` en ese momento (más los manifiestos sin etiqueta creados a menos de 120 s de una imagen conservada por esas dos reglas, heurística no verificada contra GHCR). No usa `actions/delete-package-versions`: esa acción aplica `ignore-versions` al digest de la versión, no a sus etiquetas. La lógica de selección se prueba sin red con `.github/scripts/test-purgar-imagenes.sh`; **sin verificar** contra GHCR real (permisos del `GITHUB_TOKEN` sobre `/users/<dueño>/packages/container/…` y comportamiento de los manifiestos sin etiqueta). Límite: lo calcula en cada purga (cada *push* a `develop`) a partir de las ramas del remoto; una imagen de un commit que ya no es la punta de `staging` ni de `main` vuelve a estar sujeta a las 10 versiones más recientes.
+
+**Límites conocidos del gancho** (`.claude/hooks/block-protected-branch.sh`; solo protege las sesiones de Claude Code y se prueba con `.claude/hooks/test-block-protected-branch.sh`):
+
+- No cubre `git merge`, `reset`, `cherry-pick`, `rebase`, `tag -f` ni `branch -f` sobre ramas protegidas.
+- No ve comandos dentro de `bash -c`, `env`, `xargs`, alias ni `$(…)`.
+- No distingue remotos: analiza el destino, no a qué remoto va.
+- No frena un *push* manual del propietario desde su terminal.
+- Un texto de varias líneas (cuerpo de un PR, heredoc) con una línea que empiece por `git push …` puede dar un falso bloqueo.
+- El guardarraíl definitivo son las reglas de protección de ramas de GitHub, que crea el propietario (`SYSADMIN.md §4`) y que **siguen sin verificar**.
+
+### 3c.2 Arreglo urgente
+
+- **Norma**: el arreglo va por `develop` (`fix/…`, *squash*) y se promociona.
+- **Excepción**, solo si `develop` contiene algo que no puede ir aún a staging: rama `fix/…` desde `staging`, PR a `staging` con ***merge commit*** (`gh pr merge --merge`, sin borrar `staging`) y **en la misma sesión** un PR `staging` → `develop` también con *merge commit*, para que `staging` vuelva a ser ancestro de `develop`. Hasta que ese segundo PR se mezcle no hay más promociones. Se anota en `memory.md`. Ninguno de estos PR usa `espera-ci`.
+- La reconciliación `main` → `develop` (cuando `main` lleva un commit que `develop` no tiene) se hace igual: PR con *merge commit*, sin borrar la rama de origen.
 
 ## 4. Copias de seguridad y recuperación
 

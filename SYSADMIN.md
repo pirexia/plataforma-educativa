@@ -1,6 +1,6 @@
 # SYSADMIN.md
 
-> **Versión 0.8.26** · 2026-11-12
+> **Versión 0.8.27** · 2026-11-16
 > Documento vivo: se actualiza en cada fase (`CLAUDE.md` sección 6), no solo al final. Cubre por ahora únicamente el entorno de **desarrollo** en WSL2 (`ADR-030`); el alojamiento del piloto y de producción se documentará aquí cuando `OPEN-11` se resuelva.
 
 ---
@@ -444,7 +444,7 @@ curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:5173/
 
 ## 4. CI/CD (GitHub Actions)
 
-Tres workflows en `.github/workflows/`, disparados por `push`/`pull_request` sobre `develop` y `main`. `ci-api.yml` y `ci-web.yml` corrían solo si el PR tocaba `apps/api/**`/`apps/web/**` respectivamente; se quitó ese filtro `paths:` porque combinado con *required status checks* en branch protection dejaba bloqueado para siempre cualquier PR que no tocara esas rutas (p.ej. uno que solo cambia documentación) — GitHub no considera "aprobado" un check requerido que nunca se dispara. Ahora los tres workflows corren siempre.
+Tres workflows en `.github/workflows/`, disparados por `push`/`pull_request` sobre `develop` y `main` (y sobre `staging`, solo en `pull_request`). `ci-api.yml` y `ci-web.yml` corrían solo si el PR tocaba `apps/api/**`/`apps/web/**` respectivamente; se quitó ese filtro `paths:` porque combinado con *required status checks* en branch protection dejaba bloqueado para siempre cualquier PR que no tocara esas rutas (p.ej. uno que solo cambia documentación) — GitHub no considera "aprobado" un check requerido que nunca se dispara. Ahora los tres workflows corren siempre.
 
 | Workflow | Jobs (nombre mostrado en GitHub) | Qué cubre |
 |----------|------|-----------|
@@ -454,9 +454,11 @@ Tres workflows en `.github/workflows/`, disparados por `push`/`pull_request` sob
 
 **Por qué Trivy y no `actions/dependency-review-action`**: se probó primero ese action nativo de GitHub, pero falla con *"Dependency review is not supported on this repository"* — el repo es privado y ese action necesita GitHub Advanced Security, que en una cuenta personal (no Enterprise) no se puede activar aunque se pague aparte. Trivy corre en el propio job sin depender de ninguna funcionalidad de plan de GitHub, y sin subir SARIF al tab Security (esa subida también está gateada por GHAS en repos privados).
 
+**Ramas protegidas y estado real (`ADR-080 §4`, `0.10e-a`)**: el repositorio tiene tres ramas permanentes, `develop`, `staging` y `main`. `staging` se añade a `pull_request.branches` (no a `push`) de `ci-api.yml`, `ci-web.yml`, `ci-landing.yml`, `dependency-scan.yml` y `build-images.yml`, solo para el PR de arreglo urgente (`ADR-080 §4.4`). Las reglas de protección de `staging` y `main` en GitHub **las crea el propietario** (sin avance no rápido, sin borrado, sin *push* directo de commits nuevos); este repositorio no las crea ni puede comprobarlas con el *token* del proyecto: **sin verificar**. El gancho de Claude Code solo cubre las sesiones de Claude: esa protección es la única barrera frente a un *push* manual. **Contradicción sin resolver**: `RUNBOOK.md §2.3` afirma que ocho checks son *required* en `develop` desde el cierre de 0.7, y el punto 1 de la lista de abajo dice que marcarlos sigue pendiente; **sin verificar** cuál es cierta (hay que mirar *Settings → Branches* en GitHub).
+
 **Pendiente de configurar manualmente** (no automatizable desde una sesión de Claude Code, requiere al propietario del repositorio):
 
-1. **Branch protection** en `develop` y `main`: marcar como *required status checks* los nueve jobs de la tabla anterior (cuatro de `ci-api.yml`, cuatro de `ci-web.yml`, uno de `dependency-scan.yml`). Sin esto los workflows se ejecutan pero no bloquean el merge.
+1. **Branch protection** en `develop`, `staging` y `main` (**sin verificar** si ya está activa; ver la contradicción con `RUNBOOK.md §2.3` arriba): marcar como *required status checks* los nueve jobs de la tabla anterior (cuatro de `ci-api.yml`, cuatro de `ci-web.yml`, uno de `dependency-scan.yml`). Sin esto los workflows se ejecutan pero no bloquean el merge.
 2. **Dependabot alerts**: activar en Settings → Security → *Dependabot alerts* para ver vulnerabilidades en dependencias ya mezcladas (Trivy en CI solo escanea lo que hay en cada PR en el momento de ejecutarse, no vigila el repo de forma continua).
 3. **Renovate**: instalar la GitHub App desde `github.com/apps/renovate` sobre este repositorio. La configuración ya está en `renovate.json` (raíz): agrupa por `apps/api`/`apps/web`, ejecución semanal los lunes, sin automerge, alertas de vulnerabilidad con prioridad inmediata.
 4. **Permiso de lectura de checks para el conector MCP de GitHub**: el PAT de grano fino usado por el `github` MCP de Claude Code (`claude mcp get github`) no tiene permiso de "Checks"/"Commit statuses", así que Claude Code no puede leer el resultado de estos workflows por API (`403`). Añadir esos dos permisos de solo lectura al token en https://github.com/settings/personal-access-tokens.
@@ -491,7 +493,7 @@ Reversión: `apps/landing/README.md`, «Desplegar y revertir». Probada a nivel 
 |-------|-------|--------|
 | `Containerfile` multi-etapa de `api` (FrankenPHP, modo clásico) | `infra/containers/api/Containerfile` | Construido de verdad (`podman build --target prod`), imagen arranca |
 | `Containerfile` multi-etapa de `web` (nginx de estáticos, sin `proxy_pass`) | `infra/containers/web/Containerfile` | Construido de verdad, imagen arranca |
-| Publicación de imágenes en GHCR | `.github/workflows/build-images.yml` | Escrito, con retención desde el primer commit (`ADR-037 §5.1`). **No verificado de extremo a extremo**: requiere un `push` real a `develop` o un PR, que esta sesión de implementación no puede disparar por sí misma |
+| Publicación de imágenes en GHCR | `.github/workflows/build-images.yml` | Escrito, con retención desde el primer commit (`ADR-037 §5.1`): 10 versiones más recientes, todas las `vX.Y.Z` y los `sha-<7>` de `staging` y `main`, con `.github/scripts/purgar-imagenes.sh` (`ADR-080 §4.5`; la selección se prueba con `.github/scripts/test-purgar-imagenes.sh`, el borrado real contra GHCR **sin verificar**). **No verificado de extremo a extremo**: requiere un `push` real a `develop` o un PR, que esta sesión de implementación no puede disparar por sí misma |
 | Unidades Quadlet (`plataforma.network`, `postgres`/`redis`/`api@`/`web`/`traefik`/`worker`, `plataforma-migrate`) | `infra/quadlet/` | Validación en seco correcta con **ambos** generadores (`podman-system-generator` y `podman-user-generator`, `-dryrun`): las 11 unidades generan systemd válido sin errores, `ExecStart=`/`Wants=`/`After=`/`HealthCmd=` correctos. **Arranque real automático desde `~/.config/containers/systemd/` NO verificado en este host** — ver §6.2, bloqueado por un problema de permisos preexistente, no por las unidades |
 | Topología completa (red, `postgres`/`redis`/`api`/`web`/`traefik`, imágenes `prod` reales) | `infra/compose/compose.prodlike.yaml` | **Arrancada de verdad** (`podman compose up -d`) y usada para ejecutar las tres pruebas obligatorias de `ARCHITECTURE.md §4.3` — ver §6.3, las tres pasaron |
 | Instalador (sustitución de *tag*, `daemon-reload`) | `infra/install.sh` | Escrito; la parte de sustitución de `__TAG__` y copia de ficheros es lógica simple ya ejercida a mano durante la prueba de generación. El flujo completo con `--user` no se pudo ejecutar por el mismo bloqueo de §6.2 |
