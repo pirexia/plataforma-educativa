@@ -1,6 +1,6 @@
 # SYSADMIN.md
 
-> **Versión 0.9.1** · 2026-11-16
+> **Versión 0.9.2** · 2026-11-16
 > Documento vivo: se actualiza en cada fase (`CLAUDE.md` sección 6), no solo al final. Cubre el entorno de **desarrollo** en WSL2 (`ADR-030`) y, desde `§4c`, el de **staging** en un VPS; el alojamiento del piloto y de producción se documentará aquí cuando `OPEN-11` se resuelva.
 
 ---
@@ -320,6 +320,7 @@ Variables nuevas, ninguna con valor por defecto seguro que sirva para producció
 |---|---|---|
 | `BACKOFFICE_HOST` | Host del backoffice (`RN-BO-48`) | **Nunca subdominio de `TENANCY_BASE_DOMAIN`** (`RN-BO-49`) — `infra/install.sh` aborta si no está fijada o si `TENANCY_BASE_DOMAIN` tampoco lo está |
 | `BACKOFFICE_ALLOWED_IPS` | Lista blanca de IP del *ingress* (Traefik), CIDR separados por comas | Segunda capa, además de `platform_ip_allowlist` en la aplicación (`RN-BO-06`/`RN-BO-07`) — vacío deniega a todo el mundo bajo ese host |
+| `TENANT_ALLOWED_IPS` | Lista blanca de IP del *ingress* para las rutas de los **centros** (#693), CIDR separados por comas | **Obligatoria**: `infra/install.sh` aborta si falta o está vacía. Staging: IP permitidas; producción: `0.0.0.0/0,::/0` explícito (`§4c`) |
 | `BO_SESSION_COOKIE` | Nombre de la cookie de sesión de plataforma | Distinto del de la cookie del producto, *host-only* |
 | `BO_SESSION_LIFETIME` | Vida de la sesión de plataforma, minutos | Más corta que la del tenant (`RN-BO-09`) |
 | `BO_REAUTH_WINDOW` | Ventana de reautenticación para operaciones sensibles, minutos | `RN-BO-08` |
@@ -486,7 +487,7 @@ Estado a **2026-11-16**. Staging es un entorno **de pruebas**, no producción: s
 - **Arranque tras instalar** (#695, #698): `systemctl --user daemon-reload`; las migraciones con `systemctl --user restart plataforma-migrate.service` y, antes de seguir, `systemctl --user show plataforma-migrate.service -p Result --value` debe dar `success`; el resto de unidades generadas se arrancan con `systemctl --user start <unidad>` (no `enable --now`: Quadlet las genera y `enable` falla; se activan por su `[Install]`, que solo las arranca en el siguiente inicio de sesión, no al instalar: por eso el `start`). **`CS-08` no está cerrado: cumplido con salvedades** (`RUNBOOK.md §3b.9`). Es `restart` y no `start` porque `plataforma-migrate` es `oneshot` con `RemainAfterExit` y, ya activa, `start` no ejecuta el contenedor: las migraciones del tag nuevo no correrían.
 - **Dominios** (`ADR-088 §4`, `RN-BO-49`): centros en `*.centros.adagiox.eu` y *backoffice* en `panel.adagiox.eu` (`TENANCY_BASE_DOMAIN` y `BACKOFFICE_HOST`). Producción: por decidir (`OPEN-08`).
 - **Certificados**: comodín `*.centros.adagiox.eu` y uno aparte para `panel.adagiox.eu`, por DNS-01 con el entorno de **pruebas** de la autoridad ACME: el navegador los rechaza. Pasar a producción de ACME lo decide el usuario (pendiente).
-- **Lista blanca**: `BACKOFFICE_ALLOWED_IPS` limita el *backoffice* en Traefik (probado a mano: 200 con IP permitida, 403 con otra). **No** cubre los routers de los centros (hallazgo abierto #693).
+- **Lista blanca**: `BACKOFFICE_ALLOWED_IPS` limita el *backoffice* en Traefik (probado a mano: 200 con IP permitida, 403 con otra). **`TENANT_ALLOWED_IPS`** (#693, token `__TENANT_ALLOWED_IPS__`, middleware `tenant-ipallowlist`) hace lo mismo con las rutas de los **centros** (`plataforma-api` y `plataforma-web`). **Obligatoria y cerrada por defecto** (`INV-002`): `install.sh` aborta si falta o está vacía, y valida cada entrada como IP o CIDR (IPv4 e IPv6, separadas por comas, sin espacios). **Staging**: las IP permitidas (p. ej. `203.0.113.0/24,2001:db8::/32`). **Producción**: `0.0.0.0/0,::/0` de forma explícita, nunca por omisión. **Sin desplegar ni probar aún con Traefik real** (200/403 de los centros): solo comprobado el render de las unidades y la validación (`infra/test-install-env.sh`).
 - **Correo**: el VPS usa hoy un SMTP provisional que no entrega nada; el relay real (`OPEN-079-01`) y `CS-19` están pendientes. Con `--with-mailpit` (`ADR-087`, opcional y nunca en producción) se instala Mailpit y se fija a mano en el entorno del VPS `MAIL_MAILER=smtp`, `MAIL_HOST=mailpit`, `MAIL_PORT=1025` (sin cifrado ni credenciales). El SMTP no se publica fuera de la red de contenedores y el correo vive en memoria (sin volumen: se pierde al reiniciar).
 - **Interfaz de Mailpit**: solo en `127.0.0.1:8025` del VPS, sin router en Traefik; se consulta por túnel SSH (`ssh -L 8025:127.0.0.1:8025 <usuario>@<vps>` y abrir `http://127.0.0.1:8025` en local). Mailpit **no cierra `CS-19`**.
 - **Primer administrador**: `bo:create-admin` envía una invitación por correo, así que necesita un SMTP que la capture (p. ej. Mailpit).

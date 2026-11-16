@@ -17,7 +17,7 @@ TRAEFIK_ENV_FILE="$TMP/traefik-cloudflare.env"
 
 # base_env <línea extra...>: escribe un plataforma.env válido más las líneas dadas.
 base_env() {
-    printf '%s\n' "TENANCY_BASE_DOMAIN=adagiox.eu" "BACKOFFICE_HOST=panel.adagiox.com" "$@" > "$ENV_FILE"
+    printf '%s\n' "TENANCY_BASE_DOMAIN=adagiox.eu" "BACKOFFICE_HOST=panel.adagiox.com" "TENANT_ALLOWED_IPS=203.0.113.0/24" "$@" > "$ENV_FILE"
 }
 
 # expect <nombre> <código esperado 0|1> <patrón stderr o ""> <comando...>
@@ -65,6 +65,24 @@ base_env "BACKOFFICE_ALLOWED_IPS=203.0.113.0/24 &" "ACME_EMAIL=ops@example.com"
 expect "BACKOFFICE_ALLOWED_IPS con espacio y & rechazada" 1 "no es IP ni CIDR" validate
 base_env "BACKOFFICE_ALLOWED_IPS=host.example.com" "ACME_EMAIL=ops@example.com"
 expect "BACKOFFICE_ALLOWED_IPS con un nombre rechazada" 1 "no es IP ni CIDR" validate
+
+# TENANT_ALLOWED_IPS (#693, INV-002): obligatoria, cerrada por defecto.
+printf '%s\n' "TENANCY_BASE_DOMAIN=adagiox.eu" "BACKOFFICE_HOST=panel.adagiox.com" "ACME_EMAIL=ops@example.com" > "$ENV_FILE"
+expect "TENANT_ALLOWED_IPS ausente aborta" 1 "TENANT_ALLOWED_IPS tiene que estar fijado" validate
+base_env "TENANT_ALLOWED_IPS=" "ACME_EMAIL=ops@example.com"
+expect "TENANT_ALLOWED_IPS vacía aborta" 1 "TENANT_ALLOWED_IPS tiene que estar fijado" validate
+base_env "TENANT_ALLOWED_IPS=203.0.113.0/33" "ACME_EMAIL=ops@example.com"
+expect "TENANT_ALLOWED_IPS IPv4 con prefijo /33 rechazada" 1 "TENANT_ALLOWED_IPS.*no es IP ni CIDR" validate
+base_env "TENANT_ALLOWED_IPS=2001:db8::/129" "ACME_EMAIL=ops@example.com"
+expect "TENANT_ALLOWED_IPS IPv6 con prefijo /129 rechazada" 1 "no es IP ni CIDR" validate
+base_env "TENANT_ALLOWED_IPS=203.0.113.0/24,host.example.com" "ACME_EMAIL=ops@example.com"
+expect "TENANT_ALLOWED_IPS con un nombre rechazada" 1 "no es IP ni CIDR" validate
+base_env "TENANT_ALLOWED_IPS=203.0.113.0/24|rm" "ACME_EMAIL=ops@example.com"
+expect "TENANT_ALLOWED_IPS con | rechazada" 1 "no es IP ni CIDR" validate
+base_env "TENANT_ALLOWED_IPS=0.0.0.0/0,::/0" "ACME_EMAIL=ops@example.com"
+expect "TENANT_ALLOWED_IPS abierta explícita (0.0.0.0/0,::/0) aceptada" 0 "" validate
+base_env "TENANT_ALLOWED_IPS=203.0.113.0/24,198.51.100.7,2001:db8::/32" "ACME_EMAIL=ops@example.com"
+expect "TENANT_ALLOWED_IPS válidas (IPv4, IPv6, sin prefijo) aceptadas" 0 "" validate
 
 base_env
 expect "ACME_EMAIL ausente: error claro" 1 "ACME_EMAIL tiene que estar fijado" validate
@@ -118,7 +136,7 @@ fi
 H="$TMP/home"; mkdir -p "$H/.config/plataforma" "$TMP/bin"
 printf '#!/usr/bin/env bash\nexit 0\n' > "$TMP/bin/systemctl"; chmod +x "$TMP/bin/systemctl"
 printf '%s\n' "TENANCY_BASE_DOMAIN=centros.adagiox.eu" "BACKOFFICE_HOST=panel.adagiox.eu" \
-    "BACKOFFICE_ALLOWED_IPS=203.0.113.7/32,198.51.100.0/24" "ACME_EMAIL=ops@example.com" > "$H/.config/plataforma/plataforma.env"
+    "BACKOFFICE_ALLOWED_IPS=203.0.113.7/32,198.51.100.0/24" "TENANT_ALLOWED_IPS=198.51.100.0/24,2001:db8::/32" "ACME_EMAIL=ops@example.com" > "$H/.config/plataforma/plataforma.env"
 printf 'CF_DNS_API_TOKEN=x\n' > "$H/.config/plataforma/traefik-cloudflare.env"; chmod 600 "$H/.config/plataforma/traefik-cloudflare.env"
 out="$(HOME="$H" PATH="$TMP/bin:$PATH" bash "$HERE/install.sh" sha-test --user 2>&1)"; rc=$?
 if [[ "$rc" -eq 0 ]] && grep -q 'sourcerange=203.0.113.7/32,198.51.100.0/24' "$H/.config/containers/systemd/api@.container" \
@@ -126,6 +144,26 @@ if [[ "$rc" -eq 0 ]] && grep -q 'sourcerange=203.0.113.7/32,198.51.100.0/24' "$H
     echo "ok     install.sh --user con CIDR sustituye la lista y no deja tokens sin sustituir"
 else
     echo "FALLA  install.sh --user con CIDR (rc=$rc): $(tail -3 <<<"$out")"; FAILS=$((FAILS + 1))
+fi
+
+# #693: install.sh sin TENANT_ALLOWED_IPS aborta; con ella, los routers de los centros llevan
+# el middleware y el del backoffice conserva el suyo.
+UD="$H/.config/containers/systemd"
+bad=""
+grep -q 'middlewares\.tenant-ipallowlist\.ipallowlist\.sourcerange=198.51.100.0/24,2001:db8::/32' "$UD/api@.container" || bad="$bad sin sourcerange tenant;"
+grep -q 'routers\.plataforma-api\.middlewares=tenant-ipallowlist@docker' "$UD/api@.container" || bad="$bad plataforma-api sin middleware;"
+grep -q 'routers\.plataforma-web\.middlewares=tenant-ipallowlist@docker' "$UD/web.container" || bad="$bad plataforma-web sin middleware;"
+grep -q 'routers\.plataforma-api-platform\.middlewares=platform-ipallowlist@docker' "$UD/api@.container" || bad="$bad backoffice sin su middleware;"
+grep -q 'platform-ipallowlist\.ipallowlist\.sourcerange=203.0.113.7/32,198.51.100.0/24' "$UD/api@.container" || bad="$bad backoffice sin su sourcerange;"
+grep -q 'plataforma-api-platform\.middlewares=tenant' "$UD/api@.container" && bad="$bad backoffice con middleware de centros;"
+if [[ -z "$bad" ]]; then echo "ok     routers de centros con tenant-ipallowlist y backoffice con el suyo"; else echo "FALLA  middlewares de lista blanca:$bad"; FAILS=$((FAILS + 1)); fi
+H3="$TMP/home3"; mkdir -p "$H3/.config"; cp -r "$H/.config/plataforma" "$H3/.config/plataforma"
+sed -i '/^TENANT_ALLOWED_IPS=/d' "$H3/.config/plataforma/plataforma.env"
+out3="$(HOME="$H3" PATH="$TMP/bin:$PATH" bash "$HERE/install.sh" sha-test --user 2>&1)"; rc3=$?
+if [[ "$rc3" -ne 0 ]] && grep -q 'TENANT_ALLOWED_IPS tiene que estar fijado' <<<"$out3" && [[ ! -e "$H3/.config/containers/systemd/web.container" ]]; then
+    echo "ok     install.sh sin TENANT_ALLOWED_IPS aborta y no genera unidades"
+else
+    echo "FALLA  install.sh sin TENANT_ALLOWED_IPS (rc=$rc3): $(tail -2 <<<"$out3")"; FAILS=$((FAILS + 1))
 fi
 
 # prepare_postgres_init: destino enlace simbólico, destino escribible, sobrantes.
@@ -238,7 +276,7 @@ expect "install.sh rechaza opciones desconocidas" 1 "Opción desconocida" env HO
 # Modo sistema: render_units a un directorio temporal, sin escribir en /etc ni /opt.
 ( ENV_FILE="/etc/plataforma/plataforma.env"; TRAEFIK_ENV_FILE="/etc/plataforma/traefik-cloudflare.env"
   ENV_DIR="/etc/plataforma"; POSTGRES_INIT_DIR="/opt/plataforma/postgres-init"
-  TENANCY_BASE_DOMAIN=centros.adagiox.eu; BACKOFFICE_HOST=panel.adagiox.eu; BACKOFFICE_ALLOWED_IPS=10.0.0.0/8
+  TENANCY_BASE_DOMAIN=centros.adagiox.eu; BACKOFFICE_HOST=panel.adagiox.eu; BACKOFFICE_ALLOWED_IPS=10.0.0.0/8; TENANT_ALLOWED_IPS=0.0.0.0/0,::/0
   ACME_EMAIL=ops@example.com; ACME_CA_SERVER="$ACME_CA_STAGING"
   render_units "$HERE/quadlet" "$TMP/sistema" sha-test )
 check_units "unidades en modo sistema: EnvironmentFile en /etc/plataforma, sin tokens ni rutas del usuario" \

@@ -33,7 +33,22 @@ ip_entry_in_range() {
     return 0
 }
 
+# validate_ip_list <nombre> <valor>: lista de IP o CIDR (IPv4/IPv6) separadas por comas.
+validate_ip_list() {
+    local name="$1" list="$2"
+    local ip_re='^(([0-9]{1,3}\.){3}[0-9]{1,3}|[0-9A-Fa-f:]*:[0-9A-Fa-f:.]*)(/[0-9]{1,3})?$' entry
+    local -a entries
+    IFS=',' read -r -a entries <<<"$list"
+    for entry in "${entries[@]}"; do
+        if [[ ! "$entry" =~ $ip_re ]] || ! ip_entry_in_range "$entry"; then
+            echo "$name de $ENV_FILE tiene una entrada que no es IP ni CIDR (separadas por comas, sin espacios)." >&2
+            return 1
+        fi
+    done
+}
+
 # Lee y valida TENANCY_BASE_DOMAIN, BACKOFFICE_HOST, BACKOFFICE_ALLOWED_IPS,
+# TENANT_ALLOWED_IPS (obligatoria),
 # ACME_EMAIL y ACME_CA_SERVER (con valor por defecto: entorno de pruebas).
 load_and_validate_config() {
     local host_re='^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$'
@@ -42,6 +57,7 @@ load_and_validate_config() {
     TENANCY_BASE_DOMAIN="$(env_value TENANCY_BASE_DOMAIN)"
     BACKOFFICE_HOST="$(env_value BACKOFFICE_HOST)"
     BACKOFFICE_ALLOWED_IPS="$(env_value BACKOFFICE_ALLOWED_IPS)"
+    TENANT_ALLOWED_IPS="$(env_value TENANT_ALLOWED_IPS)"
     ACME_EMAIL="$(env_value ACME_EMAIL)"
     ACME_CA_SERVER="$(env_value ACME_CA_SERVER)"
     ACME_CA_SERVER="${ACME_CA_SERVER:-$ACME_CA_STAGING}"
@@ -60,16 +76,16 @@ load_and_validate_config() {
         return 1
     fi
     if [[ -n "$BACKOFFICE_ALLOWED_IPS" ]]; then
-        local ip_re='^(([0-9]{1,3}\.){3}[0-9]{1,3}|[0-9A-Fa-f:]*:[0-9A-Fa-f:.]*)(/[0-9]{1,3})?$' entry
-        local -a entries
-        IFS=',' read -r -a entries <<<"$BACKOFFICE_ALLOWED_IPS"
-        for entry in "${entries[@]}"; do
-            if [[ ! "$entry" =~ $ip_re ]] || ! ip_entry_in_range "$entry"; then
-                echo "BACKOFFICE_ALLOWED_IPS de $ENV_FILE tiene una entrada que no es IP ni CIDR (separadas por comas, sin espacios)." >&2
-                return 1
-            fi
-        done
+        validate_ip_list BACKOFFICE_ALLOWED_IPS "$BACKOFFICE_ALLOWED_IPS" || return 1
     fi
+    # #693, INV-002: cerrada por defecto. Sin valor no se instala (a diferencia
+    # de la del backoffice, no se admite vacío): producción pone 0.0.0.0/0,::/0
+    # de forma explícita, nunca por omisión.
+    if [[ -z "$TENANT_ALLOWED_IPS" ]]; then
+        echo "TENANT_ALLOWED_IPS tiene que estar fijado en $ENV_FILE (lista blanca de IP de las rutas de los centros; en producción, 0.0.0.0/0,::/0 de forma explícita)." >&2
+        return 1
+    fi
+    validate_ip_list TENANT_ALLOWED_IPS "$TENANT_ALLOWED_IPS" || return 1
     if [[ -z "$ACME_EMAIL" ]]; then
         echo "ACME_EMAIL tiene que estar fijado en $ENV_FILE (email de la cuenta ACME, ADR-080 §3.5)." >&2
         return 1
@@ -182,6 +198,7 @@ render_units() {
             -e "s|__POSTGRES_INIT_DIR__|$POSTGRES_INIT_DIR|g" \
             -e "s/__BACKOFFICE_HOST__/$BACKOFFICE_HOST/g" \
             -e "s|__BACKOFFICE_ALLOWED_IPS__|$BACKOFFICE_ALLOWED_IPS|g" \
+            -e "s|__TENANT_ALLOWED_IPS__|$TENANT_ALLOWED_IPS|g" \
             "$unit" > "$dest/$name"
     done
 }

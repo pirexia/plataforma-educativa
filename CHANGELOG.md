@@ -6,6 +6,14 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-16 · `infra`/`docs`: lista blanca de IP también para las rutas de los centros, cerrada por defecto (issue #693, `OPEN-STG-09`)
+
+- **Fix #693 (Media)**: la lista blanca de Traefik solo protegía el *backoffice*. Nuevo *token* `__TENANT_ALLOWED_IPS__` (variable `TENANT_ALLOWED_IPS`, 12.º de `install.sh`) y middleware `tenant-ipallowlist` en los routers `plataforma-api` (`api@.container`) y `plataforma-web` (`web.container`); el del *backoffice* no cambia.
+- **Cerrada por defecto** (`INV-002`, decisión del usuario del 2026-11-16): `install.sh` aborta si la variable falta o está vacía, y valida IP/CIDR (IPv4 e IPv6) como la del *backoffice*. Producción debe fijarla a `0.0.0.0/0,::/0` de forma explícita.
+- `infra/test-install-env.sh` comprueba la sustitución, el aborto por ausencia, vacío y CIDR inválido, y que los routers de los centros y el del *backoffice* llevan cada uno su middleware.
+- **No verificado**: no desplegado ni probado con Traefik real (200/403 de los centros).
+- Versiones: `SYSADMIN.md` 0.9.2, `RUNBOOK.md` 0.3.26, `README.md` 2.6.56 (sin cambio propio); `ADR-088` sigue en `PROPUESTA`.
+
 ## 2026-11-16 · `infra`/`docs`: ayuda de `install.sh` con `restart` de migrate y `start` de unidades generadas; `CS-08` repetido (issues #698, #695, #696)
 
 - **Fix #698 (Alto)**: `plataforma-migrate` es `oneshot` con `RemainAfterExit`; ya activa, `systemctl --user start` no ejecuta el contenedor y las migraciones del tag nuevo no correrían. La ayuda de `install.sh`, `SYSADMIN.md §4c` y `RUNBOOK.md §3b.2`/`§3b.9` indican ahora `daemon-reload`, `restart plataforma-migrate.service` y comprobar `Result=success` antes de reiniciar API y *workers*.

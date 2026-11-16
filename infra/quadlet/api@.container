@@ -48,6 +48,11 @@ Notify=healthy
 Label=traefik.enable=true
 Label=traefik.http.routers.plataforma-api.rule=HostRegexp(`^[a-z0-9-]+\.__TENANCY_BASE_DOMAIN_ESCAPED__$`) && PathPrefix(`/api`)
 Label=traefik.http.routers.plataforma-api.priority=10
+# #693, INV-002: lista blanca de IP también para las rutas de los centros
+# (cerrada por defecto: install.sh aborta sin TENANT_ALLOWED_IPS; en
+# producción vale 0.0.0.0/0,::/0 de forma explícita). El middleware se
+# define aquí y lo referencia también web.container con @docker.
+Label=traefik.http.routers.plataforma-api.middlewares=tenant-ipallowlist@docker
 Label=traefik.http.services.plataforma-api.loadbalancer.server.port=8000
 
 Label=traefik.http.routers.plataforma-api-platform.rule=Host(`__BACKOFFICE_HOST__`) && PathPrefix(`/api/platform`)
@@ -62,6 +67,7 @@ Label=traefik.http.routers.plataforma-api-platform.middlewares=platform-ipallowl
 # Traefik ve la IP real del cliente — si algún día hay otro proxy
 # delante, hace falta forwardedHeaders.trustedIPs en traefik.container.
 Label=traefik.http.middlewares.platform-ipallowlist.ipallowlist.sourcerange=__BACKOFFICE_ALLOWED_IPS__
+Label=traefik.http.middlewares.tenant-ipallowlist.ipallowlist.sourcerange=__TENANT_ALLOWED_IPS__
 
 [Service]
 Restart=always

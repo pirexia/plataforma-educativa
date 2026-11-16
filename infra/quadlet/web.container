@@ -30,6 +30,9 @@ Notify=healthy
 Label=traefik.enable=true
 Label=traefik.http.routers.plataforma-web.rule=HostRegexp(`^[a-z0-9-]+\.__TENANCY_BASE_DOMAIN_ESCAPED__$`) && PathPrefix(`/`)
 Label=traefik.http.routers.plataforma-web.priority=1
+# #693, INV-002: lista blanca de IP de las rutas de los centros; el
+# middleware tenant-ipallowlist se define en los labels de api@.container.
+Label=traefik.http.routers.plataforma-web.middlewares=tenant-ipallowlist@docker
 Label=traefik.http.services.plataforma-web.loadbalancer.server.port=80
 
 [Service]

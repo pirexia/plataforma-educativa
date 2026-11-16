@@ -29,6 +29,11 @@
 # segundo sistema de plantillado, son tres tokens más del mismo tipo. Se
 # leen del propio plataforma.env que este script ya exige que exista,
 # para no pedir tres argumentos más en la línea de comandos.
+#
+# #693, INV-002: TENANT_ALLOWED_IPS (lista blanca de IP de las rutas de los
+# centros, token __TENANT_ALLOWED_IPS__) es OBLIGATORIA y sin valor por
+# defecto: si falta o está vacía, el instalador aborta (cerrada por defecto).
+# Producción la fija a 0.0.0.0/0,::/0 de forma explícita.
 
 set -euo pipefail
 
