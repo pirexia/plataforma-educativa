@@ -1,6 +1,6 @@
 # CLAUDE.md — Normas de trabajo del proyecto
 
-> **Versión 2.13.0** · 2026-11-16 · Fichero de contexto permanente. Se carga en **todas** las sesiones. Contiene solo reglas estables.
+> **Versión 2.13.1** · 2026-11-16 · Fichero de contexto permanente. Se carga en **todas** las sesiones. Contiene solo reglas estables.
 > Proyecto: **Plataforma de Gestión Educativa Multi-tenant**. Fuente de verdad funcional: `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md`.
 
 ---
@@ -237,6 +237,7 @@ Idiomas obligatorios: **es-ES (por defecto), en, de, fr**, en interfaz, document
 - **Red y dependencias** (`ADR-028`): el frontend no hace de proxy hacia la API; la red es externa y no se destruye; `compose down` está prohibido en el servidor; entre servicios de aplicación se usa `Wants=` + `After=`, nunca `Requires=` ni `BindsTo=`; ninguna IP de contenedor escrita a mano.
 - Los workers deben procesar trabajos encolados por la versión anterior.
 - Cada entrega incluye su procedimiento de reversión probado.
+- **Staging** (`ADR-080`, `ADR-088`) es un entorno más, entre desarrollo y producción: se despliega con Quadlet **rootless** (`install.sh <tag> --user`), nunca con `compose`, y es **destruible y sin datos reales**: solo datos sintéticos de `REQ-SEED`. No es producción: certificados de pruebas hasta que el usuario decida otra cosa, y sin garantías de disponibilidad ni de copia de seguridad.
 
 ---
 
@@ -265,5 +266,6 @@ Un requisito está terminado cuando:
 - No refactorices código ajeno al objetivo de la sesión sin avisar.
 - **Nunca escribas el NIF/DNI ni la dirección física del usuario en Git**: ni en ficheros, ni en mensajes de commit, PR, *issues* o comentarios, ni en el historial (repositorio público; riesgo físico para su familia). Tampoco se publican en la landing (`ADR-073`).
 - No uses datos reales de alumnos, familias o personal en desarrollo, **bajo ningún concepto** (`ADR-030`). Ni una exportación del centro, ni una copia de producción para depurar. Para eso está `REQ-SEED`.
+- **Staging tampoco admite datos reales**, ni siquiera de prueba «temporal» de un centro: la regla de arriba rige igual allí que en desarrollo (`ADR-080`).
 - Los datos de prueba siguen la convención de `REQ-SEED-005`: dominios `@example.com`, documentos de identidad con dígito de control inválido, centros con nombre explícitamente ficticio, y nunca fotografías de personas reales.
 - No declares terminado lo que no has ejecutado y verificado.

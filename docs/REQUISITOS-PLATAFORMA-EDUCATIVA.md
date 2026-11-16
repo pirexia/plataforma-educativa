@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |-------|-------|
-| **Versión** | 3.2.34 |
+| **Versión** | 3.2.35 |
 | **Fecha** | 2026-11-16 |
 | **Estado** | Borrador consolidado — pendiente de aprobación |
 | **Autor** | Product Owner |
@@ -3385,6 +3385,7 @@ Se mantendrá una matriz de trazabilidad (generada automáticamente desde las re
 
 | Versión | Fecha | Autor | Descripción |
 |---------|-------|-------|-------------|
+| 3.2.35 | 2026-11-16 | Product Owner | `0.10e-c`, tramo 3, solo documentación: `ADR-087` (Mailpit opcional en staging, `ACEPTADA`) y `ADR-088` (Traefik en red `host`, sustituciones de `install.sh` y dominios de staging, `PROPUESTA`) en el índice de `§18`; documentos de operación y entornos alineados (`SYSADMIN.md`, `RUNBOOK.md`, `ARCHITECTURE.md`, `CLAUDE.md` `§9` y `§11`). Sin cambios de requisitos. |
 | 3.2.34 | 2026-11-16 | Product Owner | Corrección menor: la fila `OPEN-11` citaba `ADR-080` como `PROPUESTA`; está `ACEPTADA` desde el 2026-11-14. Sin cambios de requisitos. |
 | 3.2.33 | 2026-11-14 | Product Owner | Ronda de decisiones de la ola 1: `ADR-078`, `ADR-079`, `ADR-080`, `ADR-082` y `ADR-083` pasan a `ACEPTADA` en el índice de `§18`; `§5.5` y `§5.50`, dependencias corregidas (`OPEN-CALIF-01`, `OPEN-INF-02`). Corregidos los residuos «en `PROPUESTA`» de los ADR, de `§18`, de `OPEN-08`/`-09`/`-10`, del plan y de las especificaciones de módulo. |
 | 3.2.32 | 2026-11-14 | Product Owner | Solo el índice de `§18`: alta de `ADR-086` (landing: se mantiene Cloudflare pese a los bloqueos de LaLiga, cuarto dominio `.org`) y nota de sustitución parcial en la fila de `ADR-072`. El cuerpo de requisitos no se toca. |

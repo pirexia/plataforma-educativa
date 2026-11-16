@@ -2,8 +2,8 @@
 
 | Campo | Valor |
 |-------|-------|
-| Versión | 2.5.13 |
-| Fecha | 2026-11-12 |
+| Versión | 2.5.14 |
+| Fecha | 2026-11-16 |
 | Estado | Propuesta cerrada, pendiente de ratificación |
 | Documento de requisitos | `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` |
 
@@ -233,6 +233,16 @@ Los detectores de llamadas y literales comparten **un único escáner de tokens*
 ```
 
 **Almacenamiento S3 (`ADR-076`)**: la aplicación solo habla la API S3 (Flysystem S3, SigV4); toda URL firmada y todo fichero privado nuevo pasan por `PrivateObjectStore`, y las llamadas directas heredadas al disco (escrituras, lecturas y borrados de jobs) se migran en `S-2`; en producción lo sirve el proveedor que decida `OPEN-STO-01`. **Garage** (un nodo, imagen fijada por digest, `infra/garage/`) es el S3 de desarrollo, CI y E2E, con datos sintéticos, y **nunca se despliega en un servidor**. Las URL se firman con un *endpoint* propio (`AWS_URL_SIGNING_ENDPOINT`, el que alcanza el navegador) distinto del de operación, con caducidad topada por `FILES_SIGNED_URL_MAX_TTL_MINUTES`. El test de conformidad (`composer test:conformance`) prueba el contrato contra un S3 real; en CI lo ejecuta el job `Conformidad del almacén (Garage)`.
+
+### 4.1b Entornos (`ADR-080`, `ADR-087`, `ADR-088`)
+
+| Entorno | Dónde y cómo | Datos |
+|---|---|---|
+| **Desarrollo** | WSL2 con Podman y `compose.yaml` (`ADR-030`) | Sintéticos (`REQ-SEED`) |
+| **Staging** | VPS con Podman **sin privilegios**, unidades Quadlet de usuario (`install.sh <tag> --user`), rama `staging` (`CLAUDE.md §4`); Traefik en red `host` con *backends* en loopback (`ADR-088`); Mailpit opcional (`ADR-087`). Dominios `centros.adagiox.eu` y `panel.adagiox.eu` | Solo sintéticos; destruible; certificados de pruebas |
+| **Producción** | Por decidir (`OPEN-11`, `OPEN-08`) | Reales, cuando exista |
+
+Staging no usa `compose` (`ADR-028`) y no es producción: ver `SYSADMIN.md §4c` y `RUNBOOK.md §3b.9` para su estado verificado y lo pendiente. `ADR-088` está en `PROPUESTA`.
 
 ### 4.2 Evolución de la infraestructura (`ADR-024`)
 

@@ -1,5 +1,5 @@
-# RED HOST (aparta de ADR-080 §3.7 y de ADR-037; falta un ADR del
-# `architect` que lo recoja). Con Podman rootless y una red bridge, la IP de
+# RED HOST (aparta de ADR-080 §3.7 y de ADR-037; recogida en ADR-088,
+# PROPUESTA a 2026-11-16). Con Podman rootless y una red bridge, la IP de
 # origen de las peticiones se enmascara (llega como una dirección de la red de
 # contenedores, 10.89.10.x): la lista blanca de IP del backoffice (ipallowlist)
 # y la IP de auditoría dejan de funcionar (riesgo B1 de docs/modulos/
@@ -21,13 +21,13 @@
 #      llamarlos saltándose Traefik y su lista blanca. La lista blanca de la
 #      APLICACIÓN (platform_ip_allowlist) tampoco lo evita: el peer que ve
 #      Laravel (10.89.10.x vía rootlessport) está en TRUSTED_PROXIES por
-#      defecto y acepta X-Forwarded-For. Limitación abierta, pendiente de un
-#      ADR del architect (confiar solo en la IP concreta de rootlessport,
+#      defecto y acepta X-Forwarded-For. Limitación abierta, tratada en
+#      ADR-088 §5.1 y §6 (confiar solo en la IP concreta de rootlessport,
 #      secreto compartido o socket Unix).
 #  (b) net.ipv4.ip_unprivileged_port_start=80 permite a cualquier usuario
 #      local enlazar 80/443: si Traefik cae o se reinicia, un proceso local
-#      podría ocuparlos antes. Supuesto de host mono-usuario, a evaluar en el
-#      ADR (alternativa: redirección con nftables a puertos altos).
+#      podría ocuparlos antes. Supuesto de host mono-usuario, tratado en
+#      ADR-088 §5.2 (alternativa: redirección con nftables a puertos altos).
 #  (c) El puerto interno 127.0.0.1:8080 (ping) no debe abrirse en ninguna
 #      regla de cortafuegos de entrada.
 #  (d) El socket de Podman montado en Traefik con red host: un Traefik
