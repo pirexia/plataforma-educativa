@@ -8,8 +8,9 @@
 #   1. es una de las N más recientes por `created_at` (N = --conservar, 10 por defecto);
 #   2. alguna de sus etiquetas es una versión semántica (`^v?X.Y.Z$`);
 #   3. alguna de sus etiquetas está en --proteger (p. ej. `sha-<7>` de los commits de staging y main);
-#   4. no tiene etiquetas y se creó a menos de --margen segundos (120 por defecto) de una versión conservada por 2 o 3:
-#      son los manifiestos hijos (plataforma, atestaciones) del índice etiquetado; borrarlos rompería la imagen protegida.
+#   4. no tiene etiquetas y se creó a menos de --margen segundos (120 por defecto) de CUALQUIER versión conservada por 1, 2 o 3:
+#      son los manifiestos hijos (plataforma, atestaciones) del índice etiquetado, que se suben unos segundos ANTES que él, así que
+#      pueden quedar justo fuera de las N más recientes aunque su índice esté dentro; borrarlos rompería la imagen conservada.
 #      Heurística por tiempo: no se ha verificado contra la API de GHCR (la API no expone la relación padre-hijo).
 # Borra el resto.
 #
@@ -60,7 +61,7 @@ decisiones="$(printf '%s' "$entrada" | jq -r \
        elif (etiquetas | any(test("^v?[0-9]+\\.[0-9]+\\.[0-9]+$"))) then "semver"
        elif (etiquetas | any(. as $t | $prot | index($t))) then "protegida"
        else null end)})) as $a
-  | ($a | map(select(.motivo == "semver" or .motivo == "protegida") | f)) as $anclas
+  | ($a | map(select(.motivo != null) | f)) as $anclas
   | $a[]
   | . as $x
   | (if $x.motivo != null then $x.motivo

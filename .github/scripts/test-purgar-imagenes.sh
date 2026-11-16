@@ -9,6 +9,7 @@ trap 'rm -rf "$tmp"' EXIT
 # 14 versiones `sha-` recientes (ids 101..114, 114 la más reciente), y debajo, más antiguas:
 #   id 50  v0.1.0 (semver) · id 51  sha-aaaaaaa (staging) · id 52  sha-bbbbbbb (main) · id 53 sha-ccccccc (sin protección)
 #   id 54  etiqueta móvil `develop` antigua · id 55 sin etiqueta, junto a v0.1.0 (hijo) · id 56 sin etiqueta, aislada
+#   id 57  sin etiqueta, 10 s antes de la décima más reciente (id 105): hijo que queda justo fuera de las 10 recientes
 jq -n '
   ([range(101; 115)] | map({id: ., created_at: "2026-11-\(. - 90)T10:00:00Z", metadata: {container: {tags: ["sha-0000\(.)"]}}}))
   + [
@@ -18,7 +19,8 @@ jq -n '
     {id: 53, created_at: "2026-10-04T10:00:00Z", metadata: {container: {tags: ["sha-ccccccc"]}}},
     {id: 54, created_at: "2026-10-05T10:00:00Z", metadata: {container: {tags: ["develop"]}}},
     {id: 55, created_at: "2026-10-01T10:00:20Z", metadata: {container: {tags: []}}},
-    {id: 56, created_at: "2026-10-06T10:00:00Z", metadata: {container: {tags: []}}}
+    {id: 56, created_at: "2026-10-06T10:00:00Z", metadata: {container: {tags: []}}},
+    {id: 57, created_at: "2026-11-15T09:59:50Z", metadata: {container: {tags: []}}}
   ]' >"$tmp/versiones.json"
 
 salida="$("$dir/purgar-imagenes.sh" --dry-run --fichero "$tmp/versiones.json" --proteger sha-aaaaaaa --proteger sha-bbbbbbb)"
@@ -41,9 +43,10 @@ espera BORRAR 53 'sha- sin protección se borra'
 espera BORRAR 54 'la etiqueta móvil develop antigua se borra'
 espera CONSERVAR 55 'manifiesto sin etiqueta junto a una imagen semver'
 espera BORRAR 56 'sin etiqueta y sin imagen conservada cerca'
+espera CONSERVAR 57 'hijo sin etiqueta de una de las 10 recientes, fuera de la décima posición'
 
 total=$((total + 1))
-if [ "$(grep -c '^CONSERVAR' <<<"$salida")" -eq 14 ]; then echo "ok    14 conservadas (10 recientes, semver, 2 protegidas y 1 hijo)"; else echo "FALLA recuento de conservadas"; fail=$((fail + 1)); fi
+if [ "$(grep -c '^CONSERVAR' <<<"$salida")" -eq 15 ]; then echo "ok    15 conservadas (10 recientes, semver, 2 protegidas y 2 hijos)"; else echo "FALLA recuento de conservadas"; fail=$((fail + 1)); fi
 
 # Con --dry-run no hay llamadas a la API: sin --dry-run y sin --ruta debe negarse.
 total=$((total + 1))
