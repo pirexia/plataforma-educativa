@@ -33,14 +33,3 @@ export const SECURITY_HEADERS = {
   'Cross-Origin-Opener-Policy': 'same-origin',
   'Cross-Origin-Resource-Policy': 'same-origin',
 }
-
-// ADR-072 §4.3: www y los otros tres dominios -> 301 a https://adagiox.com/<misma ruta>.
-export const REDIRECT_HOSTS = [
-  'www.adagiox.com',
-  'adagiox.es',
-  'www.adagiox.es',
-  'adagiox.eu',
-  'www.adagiox.eu',
-  'adagiox.net',
-  'www.adagiox.net',
-]

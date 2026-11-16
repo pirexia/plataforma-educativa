@@ -160,7 +160,10 @@ Todos los valores en `oklch()`. Los valores de los tokens **nuevos** y **AA** so
 | `--input` | `oklch(0.64 0 0)` (≈ 3,36:1 sobre `--background`) | `oklch(1 0 0 / 36%)` (≈ 3,25:1 sobre `--background`) | AA (`OPEN-DS-02` resuelta: sí) |
 | `--ring` | `var(--primary-on-background)` (hoy `0.708`) | `var(--primary-on-background)` (hoy `0.556`) | marca, AA |
 | `--chart-1` … `--chart-5` | sin cambio | sin cambio | = (sin consumidor en 1.7; fuera de §11) |
-| `--radius` | `0.625rem` | — | = |
+| `--radius` | `2px` | no se redefine | `RN-DS-25`, `ADR-064 §4`; la escala `--radius-xs` … `-4xl` vale `var(--radius)` en `@theme inline` (`RN-UI-04`) |
+| `--shadow-auth-panel` | `-2px 0 6px oklch(0 0 0 / 28%), -12px 0 40px oklch(0 0 0 / 42%)` | igual | `RN-DS-28`; mapeado a la utilidad `shadow-auth-panel` (`@utility` en `style.css`); solo `PublicAuthShell` desde `md` |
+| `--scrim-auth` | `oklch(0 0 0 / 64%)` | igual | `RN-DS-29`, `RN-UI-02`; velo bajo el texto de bienvenida |
+| `--on-scrim` | `oklch(1 0 0)` | igual | texto sobre `--scrim-auth`, opacidad completa |
 | `--sidebar` | `oklch(0.985 0 0)` | `oklch(0.205 0 0)` | = |
 | `--sidebar-foreground` | `oklch(0.145 0 0)` | `oklch(0.985 0 0)` | = |
 | `--sidebar-primary` | `var(--brand-primary, oklch(0.205 0 0))` | `var(--brand-primary, oklch(0.488 0.243 264.376))` | marca |
@@ -233,6 +236,8 @@ Se añaden como tokens `--google-blue`/`--google-green`/`--google-yellow`/`--goo
 ### 4.9 Velo de capa (`--overlay`), añadido en 1.8
 
 Mismo criterio que §4.8: color fijo que no depende del modo. El componente `sheet` (§12.3, vendorizado en 1.8) necesita un velo oscuro traslúcido detrás del panel de navegación en móvil/tableta, en ambos modos — no forma parte de la paleta semántica del centro ni tiene requisito de contraste (decorativo, como `--border`). `--overlay: oklch(0 0 0 / 40%)` en `tokens.css` (mismo valor en `:root` y `.dark`), mapeado a `--color-overlay` en `@theme inline`, consumido como `bg-overlay` en `SheetOverlay.vue` — sustituye al `bg-black/10` literal que trae el registro de `shadcn-vue` por defecto (`RN-DS-19`).
+
+Geometría de la pantalla de acceso (`@theme` de `style.css`, como los *breakpoints* de §4.10): `--auth-panel-width: clamp(22.5rem, 30vw, 28.75rem)` (360-460 px, en `rem` para escalar con la letra del usuario) y `--auth-visual-min-height: 11.25rem` (franja móvil, 180 px).
 
 ### 4.10 *Breakpoints* (`RN-CORE-29`, paso 1.8)
 
@@ -523,6 +528,10 @@ Destinos `@/` permitidos: `@/design-system/**`, `@/components/ui/**`, `@/lib/uti
 - **`RN-DS-22`** · El identificador `getTenantBranding` solo aparece en `src/modules/core/api/**` (donde se define) y `src/tenant/**` (`ADR-052 §1`: la capa B es el único llamador).
 - **`RN-DS-01`** (§4.1) · La cadena `--brand-` solo aparece en `src/design-system/theme/**` y `src/design-system/tokens.css`.
 
+### 10.7 Radio y sombra (`1.15a-a`: `RN-UI-05`, `RN-UI-08`, `RN-UI-16`, `RN-UI-17`)
+
+Los tests de `architecture.spec.ts` (`CA-UI-003`, `CA-UI-006`) barren **todo `src/`, incluido `components/ui/**`** (los vendorizados ya no están exentos): sin `rounded-[…]`, `rounded-none` ni `rounded-4xl`; `rounded-full` solo en la lista cerrada (`RadioGroupItem.vue`); las utilidades `shadow-*` distintas de `shadow-none` solo en las capas flotantes vendorizadas de la lista cerrada, y `md:shadow-auth-panel` solo en `PublicAuthShell.vue`.
+
 ### 10.6 Los tests prueban que saben fallar
 
 Cada regla de §10.2-§10.5 tiene casos con **contenido fijo en el propio test** (cadenas, no ficheros del repositorio) que deben detectarse y casos que no. Sin esto, un test que siempre pasa es indistinguible de uno correcto.
@@ -534,6 +543,7 @@ Cada regla de §10.2-§10.5 tiene casos con **contenido fijo en el propio test**
 Test `src/design-system/tokens-contrast.spec.ts`. Lee `tokens.css` como texto y extrae el valor de cada semántico en `:root` y `.dark`.
 
 - Resolución: `var(--brand-…, X)` → `X` (el neutro: es el caso estático; el caso con marca lo cubre §6); `var(--otro)` → valor de `--otro` en el mismo modo; `oklch(L C H)` y `oklch(L C H / A%)` → color. **Cualquier otro formato hace fallar el test** (`CA-DS-006`): obliga a que la hoja siga siendo analizable.
+- Los tokens `--shadow-*` se ignoran **por nombre** (no son un color sino una composición); cualquier otro semántico de color en formato no admitido sigue fallando. Par añadido en `1.15a-a`: `--on-scrim` sobre `--scrim-auth` compuesto sobre blanco y sobre negro, umbral 4,5:1 (`CA-UI-007`).
 - Los pares con opacidad (`bg-destructive/10`) se componen sobre la superficie indicada en sRGB, como hace el navegador.
 
 | Tipo | Primer plano | Sobre | Umbral |
@@ -644,6 +654,8 @@ Además, 1.9b usa casillas nativas (`<input type="checkbox">`) con `accent-prima
 ## 13. Migración de `PublicAuthShell` y `usePublicAuthScreen`
 
 ### 13.1 `PublicAuthShell.vue`
+
+> **`1.15a-a`**: el componente es la disposición **«Panel»** (`capa-visual.md §5.4`): región visual (`aside`) a la izquierda con la imagen del centro o la ilustración por defecto (`public/auth/illustration.svg`) y la bienvenida genérica sobre el velo `--scrim-auth`; panel de acceso (`main`) a la derecha, a toda la altura, con logo y nombre del centro arriba, el *slot* y un pie con «Con tecnología de {plataforma}» y el selector de idioma público. Desde `md` hay dos columnas y sombra `shadow-auth-panel`; por debajo, franja superior y panel sin sombra. `CA-DS-045` queda sustituido por `CA-UI-021` (misma comprobación: nombre, logo e imagen de la capa B, sin `--primary`/`--primary-foreground` en `style`, sin *prop* `branding`, un `reportAssetError` por fallo del logo). Lo que sigue describe la migración de 1.7.
 
 - Se retiran `brandVars` y el `:style="brandVars"` de la tarjeta: el tema es global y la tarjeta hereda (`ADR-052 §1`).
 - Deja de recibir `branding` por *prop*: lee `branding` de `useTenantBranding()`. Las vistas que hoy le pasan `:branding` dejan de hacerlo.
@@ -852,12 +864,20 @@ Reglas de composición para quien escribe pantallas y componentes de `apps/web`.
 - Todo literal visible va traducido en los cuatro idiomas (`INV-009`).
 - WCAG 2.2 AA (`RNF-UX-002`).
 
-### Reglas aprobadas por `ADR-064`, pendientes de implementar en `1.15a`
+### Reglas aprobadas por `ADR-064`, implementadas en `1.15a-a`
 
-Decididas por el usuario el 2026-10-16 sobre la maqueta del acceso (issue [#431](https://github.com/pirexia/plataforma-educativa/issues/431)). **Hasta que cierre `1.15a` el código no las cumple todavía**: el radio sigue en `0.625rem` y el acceso es una tarjeta centrada. Al cerrar el paso se quita esta advertencia.
+Decididas por el usuario el 2026-10-16 sobre la maqueta del acceso (issue [#431](https://github.com/pirexia/plataforma-educativa/issues/431)). **Implementadas en `1.15a-a`** (`docs/modulos/REQ-CORE/capa-visual.md`): radio de 2 px, pantalla «Panel», sombra y velo.
 
 - **`RN-DS-25`** · `--radius` vale **`2px`**; ninguna derivada (`--radius-sm/md/lg/xl`) puede quedar negativa. Enmienda la regla 5 (cambia el valor, no la regla).
 - **`RN-DS-26`** · La pantalla de acceso usa la disposición **«Panel»**: imagen del centro a la izquierda y panel de acceso a toda altura a la derecha, **estrecho** (entre 360 y 460 px). En móvil, franja de imagen arriba y formulario debajo.
 - **`RN-DS-27`** · El panel de acceso lleva el logo y el nombre del centro arriba; el nombre de la plataforma va **solo en el pie**, fuera del formulario.
 - **`RN-DS-28`** · El panel de acceso proyecta una **sombra marcada direccional** sobre la imagen, desde un token propio. Es la **única excepción** a la regla 3: ninguna otra superficie que no sea capa flotante lleva sombra sin otro ADR. En móvil, sin sombra.
 - **`RN-DS-29`** · El texto sobre la imagen va siempre sobre un velo que garantiza 4,5:1, sea cual sea la imagen. Sin imagen del centro se usa la ilustración por defecto de la plataforma: original, abstracta y sin personas.
+
+## 23. Registro de recursos gráficos (`RUX-ICON-007`)
+
+Todo recurso gráfico incorporado al producto (ilustraciones, imágenes; los iconos son de Lucide, `OPEN-CORE-17`) se anota aquí con su autoría y licencia.
+
+| Recurso | Fichero | Autoría | Licencia | Notas |
+|---------|---------|---------|----------|-------|
+| Ilustración por defecto de la pantalla de acceso | `apps/web/public/auth/illustration.svg` | Original del proyecto (generada por programa a partir de círculos geométricos; sin terceros) | Propia del proyecto, sin restricciones de uso dentro de la plataforma | Abstracta, sin personas, sin texto; ≤ 20 KB; patrón monocromo blanco translúcido sobre `--primary` del centro (`RN-UI-13`, `CA-UI-019`) |

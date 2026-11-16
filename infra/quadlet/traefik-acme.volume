@@ -1,0 +1,5 @@
+# acme.json de Traefik (certificados y clave de la cuenta ACME), ADR-080 §3.5.
+# Se monta con :Z en traefik.container; el fichero lo deja en 0600 el
+# ExecStartPre de esa unidad.
+[Volume]
+VolumeName=traefik-acme

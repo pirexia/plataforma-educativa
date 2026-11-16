@@ -4,7 +4,7 @@ name: CI · Landing
 # (un check filtrado por rutas queda en `pending` en los PR que no lo tocan).
 on:
   pull_request:
-    branches: [develop, main]
+    branches: [develop, main, staging]
     paths: ['apps/landing/**', '.github/workflows/ci-landing.yml']
   push:
     branches: [develop, main]
@@ -22,7 +22,7 @@ defaults:
 jobs:
   build:
     name: Build (landing)
-    runs-on: ubuntu-24.04  # fijada: ubuntu-latest migra a 26.04 hasta el 19-11-2026 (#609, actions/runner-images#14748)
+    runs-on: ubuntu-26.04  # fijada: ubuntu-latest migra a 26.04 hasta el 19-11-2026 (#609, actions/runner-images#14748)
     steps:
       - uses: actions/checkout@v7
         with:
@@ -39,7 +39,7 @@ jobs:
 
   check:
     name: Comprobaciones y tests (landing)
-    runs-on: ubuntu-24.04  # fijada: ubuntu-latest migra a 26.04 hasta el 19-11-2026 (#609, actions/runner-images#14748)
+    runs-on: ubuntu-26.04  # fijada: ubuntu-latest migra a 26.04 hasta el 19-11-2026 (#609, actions/runner-images#14748)
     steps:
       - uses: actions/checkout@v7
         with:
@@ -59,7 +59,7 @@ jobs:
 
   lighthouse:
     name: Lighthouse (landing)
-    runs-on: ubuntu-24.04  # fijada: ubuntu-latest migra a 26.04 hasta el 19-11-2026 (#609, actions/runner-images#14748)
+    runs-on: ubuntu-26.04  # fijada: ubuntu-latest migra a 26.04 hasta el 19-11-2026 (#609, actions/runner-images#14748)
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
@@ -85,7 +85,7 @@ jobs:
     # el interruptor evita un despliegue accidental al hacer la release a main.
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.LANDING_DEPLOY_ENABLED == 'true'
     needs: [build, check, lighthouse]
-    runs-on: ubuntu-24.04  # fijada: ubuntu-latest migra a 26.04 hasta el 19-11-2026 (#609, actions/runner-images#14748)
+    runs-on: ubuntu-26.04  # fijada: ubuntu-latest migra a 26.04 hasta el 19-11-2026 (#609, actions/runner-images#14748)
     environment: landing-production
     timeout-minutes: 15
     concurrency:

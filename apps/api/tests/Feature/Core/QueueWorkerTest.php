@@ -226,7 +226,7 @@ test('#128 la unidad Quadlet del worker cumple ADR-028 (Wants+After, nunca Requi
         ->not->toMatch('/^(Requires|BindsTo)=/m')
         ->not->toMatch('/^PublishPort=/m')
         ->toMatch('/--max-time=\d+/')
-        ->toMatch('#^EnvironmentFile=/etc/plataforma/plataforma-worker\.env$#m')
+        ->toMatch('#^EnvironmentFile=__ENV_DIR__/plataforma-worker\.env$#m')
         ->toMatch('/^NoNewPrivileges=true$/m')
         ->toMatch('/^DropCapability=ALL$/m');
 
@@ -244,7 +244,7 @@ test('CA-CURSO-155 ADR-028: la unidad Quadlet del worker long cumple ADR-028 (Wa
         ->not->toMatch('/^(Requires|BindsTo)=/m')
         ->not->toMatch('/^PublishPort=/m')
         ->toMatch('/--max-time=\d+/')
-        ->toMatch('#^EnvironmentFile=/etc/plataforma/plataforma-worker-long\.env$#m')
+        ->toMatch('#^EnvironmentFile=__ENV_DIR__/plataforma-worker-long\.env$#m')
         ->toMatch('/^NoNewPrivileges=true$/m')
         ->toMatch('/^DropCapability=ALL$/m');
 
@@ -309,3 +309,10 @@ test('CA-CURSO-155 revisión de seguridad B3: cada HEALTHCHECK de worker pasa --
 
     expect(array_map(fn (string $l): array => explode(',', $l), $health[1]))->toBe([$fromCompose['database'], $fromCompose['database_long']]);
 })->skip(fn () => ! is_file(base_path('../../compose.yaml')), 'La raíz del repositorio no está montada (contenedor de desarrollo solo con apps/api); CI sí la tiene.');
+
+test('INV-012 #696 la imagen de la API carga la extensión pcntl (señales y --timeout de los workers)', function (): void {
+    // Sin pcntl, `queue:work` (PID 1 del contenedor) ignora SIGTERM y Podman espera el
+    // StopTimeout entero (130 s y 620 s medidos en staging), y `--timeout` no se aplica
+    // porque Laravel solo arma la alarma del trabajo con pcntl. Issue #696.
+    expect(extension_loaded('pcntl'))->toBeTrue();
+});
