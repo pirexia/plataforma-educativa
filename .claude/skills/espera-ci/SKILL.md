@@ -12,7 +12,7 @@ Argumento: número de PR. Sin argumento, el de la rama actual: `gh pr view --jso
 ## Antes de esperar
 
 1. Comprueba que el PR no es de `develop`, `staging` ni `main` y que el trabajo del paso está completo: si cierra un paso del plan, `memory.md` ya va **dentro** de este PR (`CLAUDE.md §3`; no hay PR aparte de memoria).
-2. **Fuera de esta skill** (`ADR-080 §4`): las promociones `develop` → `staging` → `main` (se hacen con `git push` de avance rápido, nunca con el botón de mezclar) y todo PR cuya **rama de origen sea `main` o `staging`. La skill acaba con `git push --delete` de la rama de origen y con `gh pr merge --squash`: aplicados a esas ramas borrarían una rama permanente o romperían el avance rápido.
+2. **Fuera de esta skill** (`ADR-080 §4`): las promociones `develop` → `staging` → `main` (se hacen con `git push` de avance rápido, nunca con el botón de mezclar) y todo PR cuya **rama de origen sea `main` o `staging`**. La skill acaba con `git push --delete` de la rama de origen y con `gh pr merge --squash`: aplicados a esas ramas borrarían una rama permanente o romperían el avance rápido.
 3. **Nunca `--squash` con base `staging` o `main`.** Un PR con esa base solo existe en el arreglo urgente de `ADR-080 §4.4` (rama `fix/…` hacia `staging`), y va con `--merge`, a mano.
 4. Los PR de reconciliación `main` → `develop` y de arreglo urgente `staging` → `develop` (`ADR-080 §4.4`) **tampoco** se mezclan con esta skill: se mezclan a mano con `gh pr merge --merge`, sin `--delete-branch` y sin borrar la rama de origen, y se anota en `memory.md`.
 
