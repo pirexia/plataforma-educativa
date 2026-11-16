@@ -43,6 +43,7 @@
 # ADR-037 §6.3: socket montado en solo lectura, Podman rootless, mientras
 # no haya datos reales. Antes del primer dato real hace falta un proxy de
 # socket que filtre a los métodos de solo lectura (0.10e, no esta unidad).
+# OJO: `:ro` sobre el socket NO restringe la API de Podman.
 #
 # TLS (ADR-080 §3.5, 0.10e-c): entrypoint websecure en :443, redirección
 # permanente 80→443 y certificado comodín (*.dominio base + el propio
@@ -98,15 +99,25 @@ Network=host
 # `enforcing` un contenedor `container_t` no tiene `connectto` sobre el proceso
 # de Podman que atiende el socket, aunque el volumen lleve `:Z`, y Traefik falla
 # con `permission denied while trying to connect to the docker API`. Se
-# desactiva el confinamiento SOLO en este contenedor (--security-opt
-# label=disable); el host sigue en `enforcing`. Traefik con acceso al socket ya
-# equivale a control de Podman (supuesto (d) de arriba), así que el confinamiento
-# aportaba poco aquí. NO se aplica a ningún otro contenedor. Con label=disable
-# el `:Z` del socket no tiene efecto (no se reetiqueta nada); el de traefik-acme
-# se mantiene por coherencia y es inocuo.
+# desactiva el confinamiento SOLO en este contenedor (la opción de Podman
+# `--security-opt` con `label=disable`); el host sigue en `enforcing`.
+# Para cumplir su función Traefik necesita el socket, que equivale a control de
+# Podman; el confinamiento SELinux ya no protege de ese vector. Comprometer
+# Traefik da código arbitrario como el usuario del host, con acceso a los
+# secretos de plataforma*.env y al token de Cloudflare; lo que se pierde es la
+# barrera contra escapes por kernel/runc y contra el uso de recursos del host.
+# NO se aplica a ningún otro contenedor. El montaje `:ro` del socket NO
+# restringe la API de Podman (solo impide cambiar el fichero del socket).
+# El volumen del socket va sin `:Z` a propósito: reetiquetaría el socket del host.
 SecurityLabelDisable=true
+# Endurecimiento (#705), NO verificado con Traefik real: con
+# ip_unprivileged_port_start=80 no hace falta CAP_NET_BIND_SERVICE y el socket
+# y /acme se acceden por propiedad del fichero. Si Traefik no arranca o no
+# descubre routers, se retiran estas dos líneas antes de tocar nada más.
+NoNewPrivileges=true
+DropCapability=ALL
 Volume=traefik-acme.volume:/acme:Z
-Volume=%t/podman/podman.sock:/var/run/docker.sock:ro,Z
+Volume=%t/podman/podman.sock:/var/run/docker.sock:ro
 Exec=--providers.docker=true \
     --providers.docker.endpoint=unix:///var/run/docker.sock \
     --providers.docker.exposedbydefault=false \
