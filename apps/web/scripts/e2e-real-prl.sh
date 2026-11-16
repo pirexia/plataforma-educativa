@@ -6,9 +6,9 @@
 # `e2e-real-api.sh`: solo contenedores de desarrollo, solo centros que lleven la marca del script, solo datos sintéticos).
 #
 # Requisitos: la pila de desarrollo levantada (`plataforma-api` en :8000 y `plataforma-postgres`), migraciones y
-# `platform:sync-registry` aplicados, y un almacén S3 en `minio:9000` con el *bucket* `plataforma` (MinIO con
-# `podman compose --profile full up -d minio` o, si no se puede descargar, el servidor falso de
-# apps/api/tests/Support/e2e-fake-s3.php; ver docs/modulos/REQ-PRL/operacion.md §12.7) publicado en 127.0.0.1:9000.
+# `platform:sync-registry` aplicados, y Garage (ADR-076) como almacén S3: el script lo levanta
+# (`podman compose --profile full up -d garage`), ejecuta infra/garage/init.sh y recrea api/worker si hace falta (lib/e2e-garage.sh);
+# las URL firmadas apuntan a 127.0.0.1:3900.
 # No necesita entradas de `hosts`: el test alcanza cada centro por 127.0.0.1:8000 con la cabecera `Host` de su subdominio.
 #
 # Uso: npm run test:e2e:real:prl -- [argumentos de playwright]
@@ -29,6 +29,11 @@ done
 # shellcheck source=e2e-vite-api-url.sh
 source "$(dirname "${BASH_SOURCE[0]}")/e2e-vite-api-url.sh"
 prepare_vite_api_url "$SLUG_A" || exit 2
+
+# Almacén S3 de desarrollo (Garage, ADR-076): levantado, inicializado y con api/worker configurados contra él.
+# shellcheck source=lib/e2e-garage.sh
+source "$(dirname "${BASH_SOURCE[0]}")/lib/e2e-garage.sh"
+ensure_garage || exit 2
 
 support() { podman exec -e E2E_ALLOW_DESTRUCTIVE=1 "$API_CONTAINER" php tests/Support/e2e-real-tenant.php "$@"; }
 field() { python3 -c 'import json,sys; print(json.load(sys.stdin)[sys.argv[1]])' "$1"; }

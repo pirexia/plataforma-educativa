@@ -1,0 +1,292 @@
+{
+  "alum": {
+    "nav": {
+      "students": "Students",
+      "backToStudents": "Back to students",
+      "classList": "Class lists",
+      "groupChanges": "Group changes"
+    },
+    "common": {
+      "dash": "—",
+      "yes": "Yes",
+      "no": "No",
+      "loading": "Loading…"
+    },
+    "errors": {
+      "unexpected": "The operation could not be completed. Please try again."
+    },
+    "fields": {
+      "name": "Name",
+      "givenName": "Given name",
+      "familyName1": "First family name",
+      "familyName2": "Second family name",
+      "birthDate": "Date of birth",
+      "documentType": "Document type",
+      "documentNumber": "Document number",
+      "locale": "Language",
+      "enrollment": "Enrollment",
+      "createdAt": "Created",
+      "actions": "Actions"
+    },
+    "enums": {
+      "documentType": {
+        "dni": "DNI",
+        "nie": "NIE",
+        "pasaporte": "Passport"
+      },
+      "locale": {
+        "es-ES": "Spanish",
+        "en": "English",
+        "de": "German",
+        "fr": "French"
+      },
+      "enrollmentStatus": {
+        "activa": "Active",
+        "baja": "Withdrawn"
+      },
+      "relationship": {
+        "padre": "Father",
+        "madre": "Mother",
+        "tutor_legal": "Legal guardian",
+        "abuelo": "Grandparent",
+        "apoderado": "Authorised proxy",
+        "otro": "Other"
+      },
+      "linkStatus": {
+        "activo": "Active",
+        "revocado": "Revoked"
+      },
+      "consentLevel": {
+        "web": "Web del centro",
+        "redes_sociales": "Redes sociales"
+      },
+      "consentState": {
+        "autorizo": "Autorizo",
+        "no_autorizo": "No autorizo",
+        "pendiente": "Pendiente"
+      },
+      "withdrawalReason": {
+        "traslado": "Transfer",
+        "baja_voluntaria": "Voluntary withdrawal",
+        "otro": "Other"
+      },
+      "groupChangeStatus": {
+        "pendiente": "Pending",
+        "aprobada": "Approved",
+        "rechazada": "Rejected",
+        "cancelada": "Cancelled"
+      }
+    },
+    "students": {
+      "title": "Students",
+      "intro": "Students of the school. The academic year is the one selected in the selector in the top bar.",
+      "caption": "List of students",
+      "new": "New student",
+      "unnamed": "No name",
+      "deleted": "withdrawn",
+      "restore": "Restore",
+      "restored": "The student has been restored.",
+      "empty": {
+        "title": "There are no students to show",
+        "text": "Create the first student of the school."
+      },
+      "filters": {
+        "course": "Course",
+        "group": "Group",
+        "enrollmentStatus": "Enrollment status",
+        "includeDeleted": "Include withdrawn"
+      },
+      "confirmRestore": {
+        "title": "Restore {name}",
+        "description": "The student will appear again in the list of students. If their person record no longer exists or they already have another student record, the system will prevent it.",
+        "confirm": "Restore {name}"
+      }
+    },
+    "detail": {
+      "pageTitle": "Student record",
+      "personal": "Personal data",
+      "edit": "Correct data",
+      "delete": "Withdraw",
+      "saved": "The student's data have been saved.",
+      "deleted": "The student has been withdrawn.",
+      "readOnlyYear": "The selected academic year is read-only: no changes can be made.",
+      "confirmDelete": {
+        "title": "Withdraw {name}",
+        "description": "Withdrawal is logical: it does not delete the person or their membership of the family unit, and it can be restored. It is not allowed while there is an active enrollment.",
+        "confirm": "Withdraw {name}"
+      }
+    },
+    "form": {
+      "close": "Close",
+      "cancel": "Cancel",
+      "create": "Create",
+      "save": "Save changes",
+      "createTitle": "New student",
+      "createDescription": "Personal data of the student. The family unit is optional.",
+      "editTitle": "Correct student data",
+      "editDescription": "Only the data you change is sent. Membership of the family unit is managed in Families.",
+      "none": "Not specified",
+      "localeDefault": "School language",
+      "documentKeep": "Current document: {masked}. Leave it blank to keep it; if you enter a new one, also indicate the type."
+    },
+    "familyPicker": {
+      "legend": "Family unit (optional)",
+      "hint": "The student is added to the chosen family unit. Requires permission to modify families.",
+      "search": "Search by unit code",
+      "loading": "Searching family units…",
+      "empty": "There are no family units with that code.",
+      "none": "No family unit",
+      "loadError": "The family units could not be loaded."
+    },
+    "photo": {
+      "title": "Photo",
+      "none": "The student has no photo.",
+      "show": "Show photo",
+      "hide": "Hide photo",
+      "loading": "Loading photo…",
+      "expired": "The photo link has expired. Show it again.",
+      "alt": "Photo of {student}",
+      "file": "Image file",
+      "hint": "JPEG o PNG, hasta 5 MB. El servidor reprocesa la imagen y descarta sus metadatos.",
+      "tooLarge": "The file exceeds the 5 MB limit.",
+      "wrongType": "The file must be a JPEG or PNG image.",
+      "submitUpload": "Upload photo",
+      "submitReplace": "Replace photo",
+      "replace": "Replace",
+      "remove": "Remove",
+      "saved": "The photo has been saved.",
+      "removed": "The photo has been removed.",
+      "confirmRemove": {
+        "title": "Remove the photo of {name}",
+        "description": "The photo will no longer be available. You can upload another one afterwards.",
+        "confirm": "Remove the photo of {name}"
+      }
+    },
+    "guardians": {
+      "title": "Guardians and emergency contact",
+      "hint": "Vínculos del alumno con sus tutores. Consultarlos queda registrado en la auditoría, por eso solo se piden al pulsar el botón.",
+      "show": "Show links",
+      "empty": "The student has no guardian links.",
+      "relationship": "Relationship",
+      "legal": "Legal representation",
+      "emergency": "Emergency contact",
+      "status": "Status",
+      "caption": "Guardian links of the student"
+    },
+    "consents": {
+      "title": "Consentimiento de imagen",
+      "show": "Mostrar consentimientos",
+      "empty": "No hay consentimientos de imagen registrados.",
+      "level": "Ámbito",
+      "state": "Estado",
+      "lastDecision": "Última decisión",
+      "caption": "Consentimiento de imagen del alumno"
+    },
+    "enrollments": {
+      "title": "Enrolments",
+      "caption": "Enrolments of the student",
+      "empty": "The student has no enrolments.",
+      "create": "Enrol",
+      "createTitle": "Enrol the student",
+      "createDescription": "Enrolment in the selected academic year. The group is optional.",
+      "course": "Course",
+      "coursePlaceholder": "Choose a course",
+      "group": "Group",
+      "noGroup": "No group",
+      "academicYear": "Academic year",
+      "status": "Status",
+      "enrolledOn": "Enrolment date",
+      "withdrawnOn": "Withdrawal date",
+      "withdrawalReason": "Reason for withdrawal",
+      "reasonPlaceholder": "Choose a reason",
+      "withdraw": "Withdraw enrolment",
+      "withdrawTitle": "Withdraw enrolment",
+      "withdrawDescription": "The enrolment in {course} becomes withdrawn and is kept in full. This cannot be undone.",
+      "withdrawConfirm": "Withdraw",
+      "cancel": "Cancel enrolment",
+      "created": "The enrolment has been created.",
+      "withdrawn": "The enrolment has been withdrawn.",
+      "cancelled": "The enrolment has been cancelled.",
+      "optionsLoadError": "The courses and groups could not be loaded.",
+      "groupsLoadError": "The groups could not be loaded.",
+      "confirmCancel": {
+        "title": "Cancel the enrolment in {course}",
+        "description": "Cancelling deletes the enrolment as if it had never existed (for example, if it was created by mistake). For a transfer or a withdrawal, use “Withdraw enrolment”.",
+        "confirm": "Cancel enrolment in {course}"
+      }
+    },
+    "groupChange": {
+      "request": "Request group change",
+      "title": "Request group change",
+      "description": "Request to move {student} from group {group} to another group in the same course. Another person with the required permission must approve it.",
+      "toGroup": "Destination group",
+      "toGroupPlaceholder": "Choose a group",
+      "toGroupHint": "Only groups in the same course are offered.",
+      "noGroups": "There are no other groups in this course.",
+      "reason": "Reason",
+      "reasonHint": "Required, up to {max} characters.",
+      "submit": "Send request",
+      "requested": "The group change request has been sent."
+    },
+    "classList": {
+      "title": "Class lists",
+      "intro": "Enrolments in the selected academic year. Filter by course, group and status; the course and the group are optional.",
+      "caption": "Class list",
+      "readOnlyYear": "The selected academic year is read-only: the list can be exported, but group change requests cannot be made.",
+      "empty": {
+        "title": "There are no enrolments to show",
+        "text": "Try other filters or another academic year."
+      },
+      "noYear": "There is no active or selected academic year: select one to see the class list."
+    },
+    "groupChanges": {
+      "title": "Group change requests",
+      "intro": "Requests for the selected academic year. The school office submits them from the student record or the class list; here they are approved, rejected or cancelled.",
+      "caption": "Group change requests",
+      "readOnlyYear": "The selected academic year is read-only: no requests can be approved, rejected or cancelled.",
+      "noYear": "There is no active or selected academic year: choose one to see its requests.",
+      "empty": {
+        "title": "There are no requests to show",
+        "text": "Try other filters or another academic year."
+      },
+      "filters": {
+        "status": "Status",
+        "group": "Group (origin or destination)"
+      },
+      "columns": {
+        "student": "Student",
+        "fromGroup": "Origin group",
+        "toGroup": "Destination group",
+        "reason": "Reason",
+        "status": "Status",
+        "requestedBy": "Requested by",
+        "createdAt": "Request date",
+        "decisionNote": "Decision note"
+      },
+      "note": "Note",
+      "noteHintOptional": "Optional, up to {max} characters.",
+      "noteHintRequired": "Required, up to {max} characters.",
+      "approve": {
+        "title": "Approve the request",
+        "description": "The group change of {student} (from group {from} to group {to}) will be made. The person who made the request cannot approve it.",
+        "submit": "Approve",
+        "action": "Approve",
+        "done": "The request has been approved."
+      },
+      "reject": {
+        "title": "Reject the request",
+        "description": "The group change of {student} (from group {from} to group {to}) will be rejected. Please state the reason for the rejection.",
+        "submit": "Reject",
+        "action": "Reject",
+        "done": "The request has been rejected."
+      },
+      "cancel": {
+        "title": "Cancel the request",
+        "description": "The group change of {student} (from group {from} to group {to}) will be cancelled.",
+        "submit": "Cancel request",
+        "action": "Cancel",
+        "done": "The request has been cancelled."
+      }
+    }
+  }
+}

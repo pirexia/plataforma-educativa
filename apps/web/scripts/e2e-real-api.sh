@@ -44,6 +44,13 @@ case "${E2E_ONLY:-}" in
     ;;
 esac
 
+# Almacén S3 de desarrollo (Garage, ADR-076): levantado, inicializado y con api/worker configurados contra él. Va DESPUÉS de
+# validar `E2E_ONLY`: un valor inválido debe salir con código 2 antes de tocar ningún contenedor (lo comprueba
+# `e2e-real-api.spec.ts`).
+# shellcheck source=lib/e2e-garage.sh
+source "$(dirname "${BASH_SOURCE[0]}")/lib/e2e-garage.sh"
+ensure_garage || exit 2
+
 # La purga (lib/e2e-purge.sh) exige E2E_ALLOW_DESTRUCTIVE=1 en el entorno: estos scripts solo operan sobre el centro sintético de desarrollo.
 export E2E_ALLOW_DESTRUCTIVE=1
 support() { podman exec -e E2E_ALLOW_DESTRUCTIVE=1 "$API_CONTAINER" php tests/Support/e2e-real-tenant.php "$@"; }
@@ -143,8 +150,8 @@ fi
 
 # REQ-FAM-UNIT (1.14b-c1 T3), CA-FAM-UNIT-142: sección «Personas autorizadas» en navegador real contra la API real
 # (persona → autorización → fotografía → lista vigente → retirada). Centro propio con `fam_unit` y `prl` (modo `door`).
-# Requiere un almacén S3 en `minio:9000` con el bucket `plataforma` (MinIO o el servidor falso de
-# apps/api/tests/Support/e2e-fake-s3.php; `docs/modulos/REQ-PRL/operacion.md §12.7`) y publicado en 127.0.0.1:9000.
+# El almacén S3 es Garage (ADR-076): `ensure_garage` lo levanta, ejecuta infra/garage/init.sh y recrea api/worker si hace falta.
+# Su endpoint de firma es 127.0.0.1:3900, alcanzable desde el navegador y desde el host.
 if only fam-unit; then
   prepare_tenant door
   npx playwright test e2e/fam-unit-pickup-real.spec.ts --workers=1 "$@"

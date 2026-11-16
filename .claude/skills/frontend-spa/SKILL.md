@@ -39,7 +39,7 @@ Pauta completa y ejemplos: `REQ-FAM-UNIT/funcional.md §23.7`. Lo que más se om
 
 - **Vitest** (`npm test`): un `*.spec.ts` junto a cada vista, componente y `api/`; referencia el ID del requisito (`INV-015`). Incluye el caso de acceso denegado, no solo el feliz.
 - **E2E con API simulada** (`npm run test:e2e`, Playwright, `e2e/`): prueba la SPA aislada. **No demuestra** que el contrato con la API real funcione.
-- **E2E contra la API real** (`npm run test:e2e:real`, `apps/web/scripts/e2e-real-api.sh`; `e2e-real-prl.sh` para `prl`): crea un centro sintético, lanza Playwright con `E2E_REAL_API=1` y lo retira. Obligatorio con el paso implementado (CLAUDE.md §3); puede recrearse el demo sin pedir permiso. Pide la pila de desarrollo levantada y `demo.plataforma.test` en `/etc/hosts`. Datos solo de `REQ-SEED` (`@example.com`, `CLAUDE.md §11`). Di en el informe qué se probó y qué no (p. ej. S3/MinIO).
+- **E2E contra la API real** (`npm run test:e2e:real`, `apps/web/scripts/e2e-real-api.sh`; `e2e-real-prl.sh` para `prl`): crea un centro sintético, lanza Playwright con `E2E_REAL_API=1` y lo retira. Obligatorio con el paso implementado (CLAUDE.md §3); puede recrearse el demo sin pedir permiso. Pide la pila de desarrollo levantada y `demo.plataforma.test` en `/etc/hosts`. Datos solo de `REQ-SEED` (`@example.com`, `CLAUDE.md §11`). Di en el informe qué se probó y qué no (p. ej. el S3 real del proveedor, `ADR-076 §2.3`).
 - No declares una pantalla terminada sin haber ejecutado `lint`, `lint:i18n`, `vue-tsc` y Vitest.
 
 ## Antes de cerrar un cambio en `apps/web`

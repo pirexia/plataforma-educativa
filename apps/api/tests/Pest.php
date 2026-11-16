@@ -43,6 +43,9 @@ pest()->extend(TestCase::class)
 // Concurrencia real (issue #351): sin transacción envolvente, ver ConcurrentTestCase.
 pest()->extend(ConcurrentTestCase::class)->in('Concurrency');
 
+// ADR-076 §5: conformidad del almacén contra un S3 real. Fuera de `composer test`; se salta sin STORAGE_CONFORMANCE_ENABLED.
+pest()->extend(TestCase::class)->group('storage-conformance')->in('StorageConformance');
+
 /*
 |--------------------------------------------------------------------------
 | Expectations

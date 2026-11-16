@@ -12,6 +12,7 @@ import { shell as coreShell } from '@/modules/core/shell'
 import { shell as cursoShell } from '@/modules/curso/shell'
 import { shell as acadShell } from '@/modules/acad/shell'
 import { shell as famUnitShell } from '@/modules/fam-unit/shell'
+import { shell as alumShell } from '@/modules/alum/shell'
 import { shell as prlShell } from '@/modules/prl/shell'
 import type { ModuleShell } from './types'
 
@@ -22,4 +23,5 @@ export const moduleShells: readonly ModuleShell[] = [
   authShell,
   famUnitShell,
   prlShell,
+  alumShell,
 ]

@@ -1,0 +1,292 @@
+{
+  "alum": {
+    "nav": {
+      "students": "Élèves",
+      "backToStudents": "Retour aux élèves",
+      "classList": "Listes de classe",
+      "groupChanges": "Changements de groupe"
+    },
+    "common": {
+      "dash": "—",
+      "yes": "Oui",
+      "no": "Non",
+      "loading": "Chargement…"
+    },
+    "errors": {
+      "unexpected": "L'opération n'a pas pu aboutir. Veuillez réessayer."
+    },
+    "fields": {
+      "name": "Nom",
+      "givenName": "Prénom",
+      "familyName1": "Premier nom de famille",
+      "familyName2": "Second nom de famille",
+      "birthDate": "Date de naissance",
+      "documentType": "Type de document",
+      "documentNumber": "Numéro de document",
+      "locale": "Langue",
+      "enrollment": "Inscription",
+      "createdAt": "Créé le",
+      "actions": "Actions"
+    },
+    "enums": {
+      "documentType": {
+        "dni": "DNI",
+        "nie": "NIE",
+        "pasaporte": "Passeport"
+      },
+      "locale": {
+        "es-ES": "Espagnol",
+        "en": "Anglais",
+        "de": "Allemand",
+        "fr": "Français"
+      },
+      "enrollmentStatus": {
+        "activa": "Active",
+        "baja": "Retirée"
+      },
+      "relationship": {
+        "padre": "Père",
+        "madre": "Mère",
+        "tutor_legal": "Tuteur légal",
+        "abuelo": "Grand-père/grand-mère",
+        "apoderado": "Mandataire",
+        "otro": "Autre"
+      },
+      "linkStatus": {
+        "activo": "Actif",
+        "revocado": "Révoqué"
+      },
+      "consentLevel": {
+        "web": "Web del centro",
+        "redes_sociales": "Redes sociales"
+      },
+      "consentState": {
+        "autorizo": "Autorizo",
+        "no_autorizo": "No autorizo",
+        "pendiente": "Pendiente"
+      },
+      "withdrawalReason": {
+        "traslado": "Transfert",
+        "baja_voluntaria": "Retrait volontaire",
+        "otro": "Autre"
+      },
+      "groupChangeStatus": {
+        "pendiente": "En attente",
+        "aprobada": "Approuvée",
+        "rechazada": "Refusée",
+        "cancelada": "Annulée"
+      }
+    },
+    "students": {
+      "title": "Élèves",
+      "intro": "Élèves de l'établissement. L'année scolaire est celle choisie dans le sélecteur de la barre supérieure.",
+      "caption": "Liste des élèves",
+      "new": "Nouvel élève",
+      "unnamed": "Sans nom",
+      "deleted": "retiré",
+      "restore": "Restaurer",
+      "restored": "L'élève a été rétabli.",
+      "empty": {
+        "title": "Aucun élève à afficher",
+        "text": "Créez le premier élève de l'établissement."
+      },
+      "filters": {
+        "course": "Niveau",
+        "group": "Groupe",
+        "enrollmentStatus": "Statut de l'inscription",
+        "includeDeleted": "Inclure les retirés"
+      },
+      "confirmRestore": {
+        "title": "Restaurer {name}",
+        "description": "L'élève réapparaîtra dans la liste des élèves. Si sa fiche personne n'existe plus ou si elle a déjà une autre fiche d'élève, le système l'en empêchera.",
+        "confirm": "Restaurer {name}"
+      }
+    },
+    "detail": {
+      "pageTitle": "Fiche de l'élève",
+      "personal": "Données personnelles",
+      "edit": "Corriger les données",
+      "delete": "Désinscrire",
+      "saved": "Les données de l'élève ont été enregistrées.",
+      "deleted": "L'élève a été désinscrit.",
+      "readOnlyYear": "L'année scolaire sélectionnée est en lecture seule : aucune modification n'est possible.",
+      "confirmDelete": {
+        "title": "Désinscrire {name}",
+        "description": "La désinscription est logique : elle ne supprime ni la personne ni son appartenance à l'unité familiale, et elle peut être annulée par une restauration. Elle n'est pas autorisée si une inscription est active.",
+        "confirm": "Désinscrire {name}"
+      }
+    },
+    "form": {
+      "close": "Fermer",
+      "cancel": "Annuler",
+      "create": "Créer",
+      "save": "Enregistrer les modifications",
+      "createTitle": "Nouvel élève",
+      "createDescription": "Données personnelles de l'élève. L'unité familiale est facultative.",
+      "editTitle": "Corriger les données de l'élève",
+      "editDescription": "Seules les données modifiées sont envoyées. L'appartenance à l'unité familiale se gère dans Familles.",
+      "none": "Non indiqué",
+      "localeDefault": "Langue de l'établissement",
+      "documentKeep": "Document actuel : {masked}. Laissez ce champ vide pour le conserver ; si vous en saisissez un nouveau, indiquez aussi le type."
+    },
+    "familyPicker": {
+      "legend": "Unité familiale (facultative)",
+      "hint": "L'élève est ajouté à l'unité familiale choisie. Nécessite l'autorisation de modifier les familles.",
+      "search": "Rechercher par code d'unité",
+      "loading": "Recherche des unités familiales…",
+      "empty": "Aucune unité familiale ne correspond à ce code.",
+      "none": "Aucune unité familiale",
+      "loadError": "Les unités familiales n'ont pas pu être chargées."
+    },
+    "photo": {
+      "title": "Photo",
+      "none": "L'élève n'a pas de photo.",
+      "show": "Afficher la photo",
+      "hide": "Masquer la photo",
+      "loading": "Chargement de la photo…",
+      "expired": "Le lien de la photo a expiré. Affichez-la de nouveau.",
+      "alt": "Photo de {student}",
+      "file": "Fichier image",
+      "hint": "JPEG o PNG, hasta 5 MB. El servidor reprocesa la imagen y descarta sus metadatos.",
+      "tooLarge": "Le fichier dépasse la limite de 5 Mo.",
+      "wrongType": "Le fichier doit être une image JPEG ou PNG.",
+      "submitUpload": "Importer la photo",
+      "submitReplace": "Remplacer la photo",
+      "replace": "Remplacer",
+      "remove": "Retirer",
+      "saved": "La photo a été enregistrée.",
+      "removed": "La photo a été retirée.",
+      "confirmRemove": {
+        "title": "Retirer la photo de {name}",
+        "description": "La photo ne sera plus disponible. Vous pourrez en importer une autre ensuite.",
+        "confirm": "Retirer la photo de {name}"
+      }
+    },
+    "guardians": {
+      "title": "Tuteurs et contact d'urgence",
+      "hint": "Vínculos del alumno con sus tutores. Consultarlos queda registrado en la auditoría, por eso solo se piden al pulsar el botón.",
+      "show": "Afficher les liens",
+      "empty": "L'élève n'a aucun lien avec un tuteur.",
+      "relationship": "Lien",
+      "legal": "Représentation légale",
+      "emergency": "Contact d'urgence",
+      "status": "Statut",
+      "caption": "Liens entre l'élève et ses tuteurs"
+    },
+    "consents": {
+      "title": "Consentimiento de imagen",
+      "show": "Mostrar consentimientos",
+      "empty": "No hay consentimientos de imagen registrados.",
+      "level": "Ámbito",
+      "state": "Estado",
+      "lastDecision": "Última decisión",
+      "caption": "Consentimiento de imagen del alumno"
+    },
+    "enrollments": {
+      "title": "Inscriptions",
+      "caption": "Inscriptions de l'élève",
+      "empty": "L'élève n'a aucune inscription.",
+      "create": "Inscrire",
+      "createTitle": "Inscrire l'élève",
+      "createDescription": "Inscription à l'année scolaire sélectionnée. Le groupe est facultatif.",
+      "course": "Niveau",
+      "coursePlaceholder": "Choisissez un niveau",
+      "group": "Groupe",
+      "noGroup": "Sans groupe",
+      "academicYear": "Année scolaire",
+      "status": "Statut",
+      "enrolledOn": "Date d'inscription",
+      "withdrawnOn": "Date de retrait",
+      "withdrawalReason": "Motif du retrait",
+      "reasonPlaceholder": "Choisissez un motif",
+      "withdraw": "Retirer l'inscription",
+      "withdrawTitle": "Retirer l'inscription",
+      "withdrawDescription": "L'inscription en {course} passe au statut retirée et est conservée intégralement. Cette opération est irréversible.",
+      "withdrawConfirm": "Retirer",
+      "cancel": "Annuler l'inscription",
+      "created": "L'inscription a été créée.",
+      "withdrawn": "L'inscription a été retirée.",
+      "cancelled": "L'inscription a été annulée.",
+      "optionsLoadError": "Les niveaux et les groupes n'ont pas pu être chargés.",
+      "groupsLoadError": "Les groupes n'ont pas pu être chargés.",
+      "confirmCancel": {
+        "title": "Annuler l'inscription en {course}",
+        "description": "L'annulation supprime l'inscription comme si elle n'avait jamais existé (par exemple, si elle a été créée par erreur). Pour un transfert ou un retrait, utilisez « Retirer l'inscription ».",
+        "confirm": "Annuler l'inscription en {course}"
+      }
+    },
+    "groupChange": {
+      "request": "Demander un changement de groupe",
+      "title": "Demander un changement de groupe",
+      "description": "Demande de déplacer {student} du groupe {group} vers un autre groupe du même niveau. Elle doit être approuvée par une autre personne disposant de l'autorisation nécessaire.",
+      "toGroup": "Groupe de destination",
+      "toGroupPlaceholder": "Choisissez un groupe",
+      "toGroupHint": "Seuls les groupes du même niveau sont proposés.",
+      "noGroups": "Il n'y a pas d'autre groupe dans ce niveau.",
+      "reason": "Motif",
+      "reasonHint": "Obligatoire, jusqu'à {max} caractères.",
+      "submit": "Envoyer la demande",
+      "requested": "La demande de changement de groupe a été envoyée."
+    },
+    "classList": {
+      "title": "Listes de classe",
+      "intro": "Inscriptions de l'année scolaire sélectionnée. Filtrez par niveau, groupe et statut ; le niveau et le groupe sont facultatifs.",
+      "caption": "Liste de classe",
+      "readOnlyYear": "L'année scolaire sélectionnée est en lecture seule : la liste peut être exportée, mais aucune demande de changement de groupe ne peut être formulée.",
+      "empty": {
+        "title": "Aucune inscription à afficher",
+        "text": "Essayez d'autres filtres ou une autre année scolaire."
+      },
+      "noYear": "Il n'y a aucune année scolaire active ni sélectionnée : veuillez en choisir une pour voir la liste de classe."
+    },
+    "groupChanges": {
+      "title": "Demandes de changement de groupe",
+      "intro": "Demandes de l'année scolaire sélectionnée. Elles sont formulées par le secrétariat depuis la fiche ou la liste de classe ; ici, elles sont approuvées, refusées ou annulées.",
+      "caption": "Demandes de changement de groupe",
+      "readOnlyYear": "L'année scolaire sélectionnée est en lecture seule : aucune demande ne peut être approuvée, refusée ou annulée.",
+      "noYear": "Aucune année scolaire active ou sélectionnée : choisissez-en une pour voir ses demandes.",
+      "empty": {
+        "title": "Aucune demande à afficher",
+        "text": "Essayez d'autres filtres ou une autre année scolaire."
+      },
+      "filters": {
+        "status": "Statut",
+        "group": "Groupe (d'origine ou de destination)"
+      },
+      "columns": {
+        "student": "Élève",
+        "fromGroup": "Groupe d'origine",
+        "toGroup": "Groupe de destination",
+        "reason": "Motif",
+        "status": "Statut",
+        "requestedBy": "Demandée par",
+        "createdAt": "Date de la demande",
+        "decisionNote": "Note de la décision"
+      },
+      "note": "Note",
+      "noteHintOptional": "Facultatif, jusqu'à {max} caractères.",
+      "noteHintRequired": "Obligatoire, jusqu'à {max} caractères.",
+      "approve": {
+        "title": "Approuver la demande",
+        "description": "Le changement de groupe de {student} (du groupe {from} au groupe {to}) sera effectué. La personne qui a formulé la demande ne peut pas l'approuver.",
+        "submit": "Approuver",
+        "action": "Approuver",
+        "done": "La demande a été approuvée."
+      },
+      "reject": {
+        "title": "Refuser la demande",
+        "description": "Le changement de groupe de {student} (du groupe {from} au groupe {to}) sera refusé. Indiquez le motif du refus.",
+        "submit": "Refuser",
+        "action": "Refuser",
+        "done": "La demande a été refusée."
+      },
+      "cancel": {
+        "title": "Annuler la demande",
+        "description": "Le changement de groupe de {student} (du groupe {from} au groupe {to}) sera annulé.",
+        "submit": "Annuler la demande",
+        "action": "Annuler",
+        "done": "La demande a été annulée."
+      }
+    }
+  }
+}

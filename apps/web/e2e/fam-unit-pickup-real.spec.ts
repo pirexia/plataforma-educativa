@@ -11,13 +11,10 @@ import { RealSession } from './fixtures/realSession'
  * icono, `OPEN-FAM-UNIT-62` A), sin `@axe-core/playwright`.
  *
  * Solo con `E2E_REAL_API=1`: `npm run test:e2e:real` (apps/web/scripts/e2e-real-api.sh) prepara el centro `demo` con
- * `fam_unit` y `prl` y define las variables. Almacén: el S3 que haya en `minio:9000` (MinIO o el servidor falso de
- * `apps/api/tests/Support/e2e-fake-s3.php`, `D-67`); la URL firmada de la fotografía apunta a `minio:9000`, que el navegador no
- * resuelve, así que se redirige a `127.0.0.1:9000` (como `prl-door-api.spec.ts`).
+ * `fam_unit` y `prl` y define las variables. Almacén: Garage (ADR-076); la URL firmada de la fotografía ya apunta a `127.0.0.1:3900`,
+ * que el navegador alcanza sin reescribirla.
  */
 
-const S3_PUBLIC = process.env.E2E_S3_PUBLIC_URL ?? 'http://127.0.0.1:9000'
-const S3_INTERNAL = process.env.E2E_S3_INTERNAL_URL ?? 'http://minio:9000'
 const PERSON = { given: 'Abuelo', family: 'Ficticio', document: 'E2EFICT0002', phone: '600555777' }
 const PERSON_NAME = `${PERSON.given} ${PERSON.family}`
 
@@ -90,15 +87,6 @@ test.describe('CA-FAM-UNIT-142 (REQ-FAM-UNIT-005): personas autorizadas en naveg
   test('secretaría da de alta un tercero, sube su foto, lo ve en la lista vigente y lo retira', async ({
     page,
   }) => {
-    // La URL firmada apunta al `minio` interno de la red de contenedores: el navegador la pide por loopback.
-    await page.route(`${S3_INTERNAL}/**`, async (route) => {
-      const response = await route.fetch({
-        url: route.request().url().replace(S3_INTERNAL, S3_PUBLIC),
-      })
-
-      await route.fulfill({ response })
-    })
-
     await signIn(page)
     await page.goto(`/familias/${unit}`)
 
@@ -209,7 +197,7 @@ test.describe('CA-FAM-UNIT-142 (REQ-FAM-UNIT-005): personas autorizadas en naveg
       PERSON.family,
       PERSON.document,
       PERSON.phone,
-      'minio',
+      'garage',
       '/photo',
       'Lucía',
     ]) {

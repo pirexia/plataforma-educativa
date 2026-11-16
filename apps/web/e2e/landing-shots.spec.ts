@@ -239,9 +239,7 @@ test.describe('landing:shots: escaparate, comprobación de humo y capturas', () 
     // #592: la API responde 200 aunque el almacén falle; el fondo debe quedar registrado y descargarse (bytes PNG).
     expect(tenant.login_background_url, 'fondo de acceso no registrado').toBeTruthy()
 
-    const s3Internal = process.env.E2E_S3_INTERNAL_URL ?? 'http://minio:9000'
-    const s3Public = process.env.E2E_S3_PUBLIC_URL ?? 'http://127.0.0.1:9000'
-    const bg = await fetch(String(tenant.login_background_url).replace(s3Internal, s3Public))
+    const bg = await fetch(String(tenant.login_background_url))
 
     expect(bg.status, 'el fondo de acceso no se descarga').toBe(200)
     expect(bg.headers.get('content-type')).toContain('image/png')
@@ -304,8 +302,8 @@ test.describe('landing:shots: escaparate, comprobación de humo y capturas', () 
     const failures: string[] = []
 
     page.on('requestfailed', (request) => {
-      // El logo de marca se sirve del almacén S3 (`minio:9000`), que este humo no exige (lo necesitan las capturas de marca, T2b).
-      if (/^http:\/\/(minio|127\.0\.0\.1):9000\//.test(request.url())) {
+      // El logo de marca se sirve del almacén S3 (Garage, `127.0.0.1:3900`, ADR-076); un fallo de red de ese logo no cuenta como error del humo.
+      if (/^http:\/\/127\.0\.0\.1:3900\//.test(request.url())) {
         return
       }
 
@@ -356,18 +354,6 @@ test.describe('landing:shots: escaparate, comprobación de humo y capturas', () 
     test.setTimeout(480_000)
     page.setDefaultTimeout(20_000)
     mkdirSync(MASTERS_DIR, { recursive: true })
-
-    // El logo se sirve por URL firmada al `minio` interno de la red de contenedores: el navegador la pide por loopback.
-    const s3Internal = process.env.E2E_S3_INTERNAL_URL ?? 'http://minio:9000'
-    const s3Public = process.env.E2E_S3_PUBLIC_URL ?? 'http://127.0.0.1:9000'
-
-    await page.route(`${s3Internal}/**`, async (route) => {
-      const response = await route.fetch({
-        url: route.request().url().replace(s3Internal, s3Public),
-      })
-
-      await route.fulfill({ response })
-    })
 
     // Errores inesperados: cualquier 4xx/5xx de la API, salvo los que se esperan en el paso (`expected`), y cualquier fallo de red.
     let expected: RegExp | null = null

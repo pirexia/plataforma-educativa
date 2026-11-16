@@ -2,7 +2,7 @@ name: CI · Web
 
 on:
   pull_request:
-    branches: [develop, main]
+    branches: [develop, main, staging]
   push:
     branches: [develop, main]
 
@@ -18,13 +18,13 @@ defaults:
 jobs:
   lint:
     name: Lint (ESLint)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04  # fijada: ubuntu-latest migra a 26.04 hasta el 19-11-2026 (#609, actions/runner-images#14748)
     steps:
       - uses: actions/checkout@v7
 
       - uses: actions/setup-node@v7
         with:
-          node-version: "24"
+          node-version: "26"
           cache: npm
           cache-dependency-path: apps/web/package-lock.json
 
@@ -38,13 +38,13 @@ jobs:
 
   typecheck-build:
     name: Typecheck y build (vue-tsc + Vite)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04  # fijada: ubuntu-latest migra a 26.04 hasta el 19-11-2026 (#609, actions/runner-images#14748)
     steps:
       - uses: actions/checkout@v7
 
       - uses: actions/setup-node@v7
         with:
-          node-version: "24"
+          node-version: "26"
           cache: npm
           cache-dependency-path: apps/web/package-lock.json
 
@@ -53,13 +53,13 @@ jobs:
 
   test:
     name: Tests unitarios (Vitest)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04  # fijada: ubuntu-latest migra a 26.04 hasta el 19-11-2026 (#609, actions/runner-images#14748)
     steps:
       - uses: actions/checkout@v7
 
       - uses: actions/setup-node@v7
         with:
-          node-version: "24"
+          node-version: "26"
           cache: npm
           cache-dependency-path: apps/web/package-lock.json
 
@@ -68,13 +68,13 @@ jobs:
 
   e2e:
     name: Tests e2e (Playwright)
-    runs-on: ubuntu-24.04  # fijada por #609
+    runs-on: ubuntu-26.04  # fijada por #609
     steps:
       - uses: actions/checkout@v7
 
       - uses: actions/setup-node@v7
         with:
-          node-version: "24"
+          node-version: "26"
           cache: npm
           cache-dependency-path: apps/web/package-lock.json
 

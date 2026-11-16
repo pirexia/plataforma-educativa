@@ -18,13 +18,30 @@ export class RealSession {
     })
     const session = new RealSession(ctx)
 
-    await ctx.get('auth/csrf-cookie')
-    const response = await ctx.fetch('auth/session', {
-      method: 'POST',
-      headers: { 'X-XSRF-TOKEN': await session.xsrf() },
-      data: { email, password },
-    })
-    expect(response.status(), `login de ${email}: ${await response.text()}`).toBeLessThan(300)
+    // La API limita los intentos de acceso (429 con `Retry-After`: 10 por minuto y centro desde una IP): se espera lo que pide el servidor.
+    for (let attempt = 0; ; attempt++) {
+      await ctx.get('auth/csrf-cookie')
+
+      const response = await ctx.fetch('auth/session', {
+        method: 'POST',
+        headers: { 'X-XSRF-TOKEN': await session.xsrf() },
+        data: { email, password },
+      })
+
+      if (response.status() === 429 && attempt < 2) {
+        const wait = Number(response.headers()['retry-after'] ?? '60')
+
+        await new Promise((resolve) =>
+          setTimeout(resolve, (Number.isFinite(wait) ? wait : 60) * 1000 + 500),
+        )
+
+        continue
+      }
+
+      expect(response.status(), `login de ${email}: ${await response.text()}`).toBeLessThan(300)
+
+      break
+    }
 
     return session
   }

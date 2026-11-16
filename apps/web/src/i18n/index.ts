@@ -23,6 +23,10 @@ import famUnitEs from '@/modules/fam-unit/locales/es.json'
 import famUnitEn from '@/modules/fam-unit/locales/en.json'
 import famUnitDe from '@/modules/fam-unit/locales/de.json'
 import famUnitFr from '@/modules/fam-unit/locales/fr.json'
+import alumEs from '@/modules/alum/locales/es.json'
+import alumEn from '@/modules/alum/locales/en.json'
+import alumDe from '@/modules/alum/locales/de.json'
+import alumFr from '@/modules/alum/locales/fr.json'
 import prlEs from '@/modules/prl/locales/es.json'
 import prlEn from '@/modules/prl/locales/en.json'
 import prlDe from '@/modules/prl/locales/de.json'
@@ -85,6 +89,21 @@ export function resolveInitialLocale(): SupportedLocale {
   return DEFAULT_LOCALE
 }
 
+/**
+ * Elección guardada (`plataforma.locale`) si es un idioma soportado; si no,
+ * `null`. Nunca lanza (`RN-UI-15`: la precedencia de las pantallas públicas
+ * la necesita sin el recurso del navegador ni el idioma por defecto).
+ */
+export function getStoredLocale(): SupportedLocale | null {
+  try {
+    const stored = window.localStorage.getItem(STORAGE_KEY)
+
+    return isSupportedLocale(stored) ? stored : null
+  } catch {
+    return null
+  }
+}
+
 export function persistLocale(locale: SupportedLocale): void {
   window.localStorage.setItem(STORAGE_KEY, locale)
 }
@@ -100,17 +119,27 @@ export const i18n = createI18n({
   locale: resolveInitialLocale(),
   fallbackLocale: DEFAULT_LOCALE,
   messages: {
-    es: { ...es, ...coreEs, ...cursoEs, ...acadEs, ...authEs, ...famUnitEs, ...prlEs },
-    en: { ...en, ...coreEn, ...cursoEn, ...acadEn, ...authEn, ...famUnitEn, ...prlEn },
-    de: { ...de, ...coreDe, ...cursoDe, ...acadDe, ...authDe, ...famUnitDe, ...prlDe },
-    fr: { ...fr, ...coreFr, ...cursoFr, ...acadFr, ...authFr, ...famUnitFr, ...prlFr },
+    es: { ...es, ...coreEs, ...cursoEs, ...acadEs, ...authEs, ...famUnitEs, ...alumEs, ...prlEs },
+    en: { ...en, ...coreEn, ...cursoEn, ...acadEn, ...authEn, ...famUnitEn, ...alumEn, ...prlEn },
+    de: { ...de, ...coreDe, ...cursoDe, ...acadDe, ...authDe, ...famUnitDe, ...alumDe, ...prlDe },
+    fr: { ...fr, ...coreFr, ...cursoFr, ...acadFr, ...authFr, ...famUnitFr, ...alumFr, ...prlFr },
   },
 })
 
-export function setLocale(locale: SupportedLocale): void {
+/**
+ * Aplica el idioma sin guardarlo: la resolución automática de las pantallas
+ * públicas no es una elección del usuario y no debe escribir
+ * `plataforma.locale` (issue #674, `RN-UI-15`).
+ */
+export function applyLocale(locale: SupportedLocale): void {
   i18n.global.locale.value = locale
-  persistLocale(locale)
   document.documentElement.lang = locale
+}
+
+/** Elección explícita: aplica y guarda `plataforma.locale`. */
+export function setLocale(locale: SupportedLocale): void {
+  applyLocale(locale)
+  persistLocale(locale)
 }
 
 /**

@@ -123,7 +123,7 @@ const headerFailed = computed(
 
 /**
  * Solo `https:`: Vue no filtra el esquema de `href` (issue #275, `CA-CORE-190`). `http:`
- * únicamente en desarrollo (MinIO local sin TLS, `import.meta.env.DEV`); en un
+ * únicamente en desarrollo (S3 local de desarrollo sin TLS, `import.meta.env.DEV`); en un
  * despliegue de producción una URL firmada con `http:` no se ofrece
  * (security-reviewer S5).
  */

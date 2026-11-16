@@ -19,15 +19,13 @@ import {
  *
  * Solo con `E2E_REAL_API=1`: `npm run test:e2e:real:prl` (apps/web/scripts/e2e-real-prl.sh) prepara los dos centros sintéticos
  * (`@example.com`, nombres explícitamente ficticios, documentos con dígito de control inválido, `REQ-SEED-005`) y un almacén
- * S3 (en desarrollo, el servidor falso de `apps/api/tests/Support/e2e-fake-s3.php` si no hay MinIO) y define las variables.
+ * S3 (Garage, ADR-076) y define las variables.
  *
  * Los dos centros se alcanzan por `127.0.0.1:8000` con la cabecera `Host` de su subdominio (ADR-014), de modo que no hace falta
  * una entrada de `hosts` por centro.
  */
 
 const API = process.env.E2E_API_URL ?? 'http://127.0.0.1:8000/api/v1'
-const S3_PUBLIC = process.env.E2E_S3_PUBLIC_URL ?? 'http://127.0.0.1:9000'
-const S3_INTERNAL = process.env.E2E_S3_INTERNAL_URL ?? 'http://minio:9000'
 const BASE_DOMAIN = process.env.E2E_BASE_DOMAIN ?? 'plataforma.test'
 
 interface Centre {
@@ -299,7 +297,8 @@ test.describe('REQ-PRL-004 (1.14b-b): puerta y entrega de menores contra la API 
     expect(list.meta.protocol_available).toBe(true)
 
     // La URL firmada se descarga del almacén y la imagen guardada NO conserva los metadatos del original.
-    const photoUrl = (entry.photo_url as string).replace(S3_INTERNAL, S3_PUBLIC)
+    // ADR-076 §4: la URL ya se firma con el endpoint que alcanza el host (127.0.0.1:3900); no se reescribe.
+    const photoUrl = entry.photo_url as string
     const downloaded = await playwrightRequest.newContext()
     const image = await downloaded.get(photoUrl)
     expect(image.status()).toBe(200)

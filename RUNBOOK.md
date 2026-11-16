@@ -1,7 +1,7 @@
 # RUNBOOK.md
 
-> **Versión 0.3.16** · 2026-10-28
-> Documento vivo: se actualiza en cada fase (`CLAUDE.md` §6). Cubre por ahora únicamente el entorno de **desarrollo** en WSL2 (`ADR-030`) — no hay producción, piloto ni usuarios reales todavía. Los procedimientos de guardia, alertas y recuperación ante desastre de un entorno real se documentarán aquí cuando `OPEN-11` (alojamiento del piloto) se resuelva.
+> **Versión 0.3.29** · 2026-11-16
+> Documento vivo: se actualiza en cada fase (`CLAUDE.md` §6). Cubre el entorno de **desarrollo** en WSL2 (`ADR-030`) y, desde `§3b.9`, el de **staging** en un VPS (con datos sintéticos) — no hay producción, piloto ni usuarios reales todavía. Los procedimientos de guardia, alertas y recuperación ante desastre de un entorno real se documentarán aquí cuando `OPEN-11` (alojamiento del piloto) se resuelva.
 
 ---
 
@@ -24,7 +24,7 @@ Referencia completa de arranque, `compose.yaml` y red: `SYSADMIN.md`.
 
 ```bash
 podman compose up -d          # perfil reducido: postgres, redis, api, web
-podman compose --profile full up -d   # añade minio y el worker de colas
+podman compose --profile full up -d   # añade garage (S3 de desarrollo, ADR-076; después `bash infra/garage/init.sh`) y el worker de colas
 podman compose --profile worker up -d worker   # solo el worker de colas (§2.8)
 podman compose ps
 podman compose logs -f <servicio>
@@ -45,7 +45,7 @@ podman compose logs -f <servicio>
 ### 2.3 Si CI falla en un PR
 
 - Revisar el check concreto (`ci-api.yml`, `ci-web.yml`, `dependency-scan.yml`) antes de reintentar sin más.
-- Los ocho checks originales son *required status checks* en `develop` desde el cierre de 0.7; el noveno (`make-module`, `1.11b`) está pendiente de marcar como *required* — un PR no se puede mezclar sin ellos en verde, y no se puede saltar con `--no-verify` ni equivalente.
+- Los ocho checks originales son *required status checks* en `develop` desde el cierre de 0.7 (**sin verificar**: `SYSADMIN.md §4` los lista como pendientes de configurar; el *token* del proyecto no puede leer la protección de ramas, `ADR-080 §4.3`); el noveno (`make-module`, `1.11b`) está pendiente de marcar como *required* — un PR no se puede mezclar sin ellos en verde, y no se puede saltar con `--no-verify` ni equivalente.
 
 ### 2.4 Si `db-reviewer` o `security-reviewer` encuentran un hallazgo Crítico o Alto
 
@@ -136,11 +136,11 @@ podman stop plataforma-pg17-reversion
 
 **Producción (Quadlet)**: hoy no aplica (sin producción ni datos reales, `§4`); la primera instalación nacerá en 18 con `postgres-cluster` vacío. Para un host con un clúster 17 con datos, **condición previa**: ensayar entero, reversión incluida, en `compose.prodlike.yaml` con datos sintéticos (`ADR-030`) y anotar el resultado en `SYSADMIN.md`.
 
-1. Ventana de mantenimiento: `systemctl stop api@1.service web.service worker.service`.
+1. Ventana de mantenimiento: `systemctl stop api@1.service web.service traefik.service worker.service worker-long.service`.
 2. Inventario y volcados con el cliente de 18, como en los pasos 0 y 2 de arriba. El volcado contiene datos personales reales: se trata como copia de seguridad (cifrado, fuera del host de aplicación cuando `REQ-BKP`/`OPEN-10` lo permitan, borrado al cerrar la ventana de reversión) y nunca se lleva a desarrollo (`ADR-030`).
 3. `systemctl stop postgres.service`; `./infra/install.sh <tag con 18>`; `systemctl daemon-reload`; `systemctl start postgres.service` (inicialización sobre `postgres-cluster` con los *scripts* de `/opt/plataforma/postgres-init`).
 4. `dropdb` + `pg_restore --create --exit-on-error` + inventario + `diff` + comprobaciones, como en los pasos 5 y 6.
-5. Decidir continuar o volver **antes** de reabrir el tráfico. Continuar: `systemctl start api@1.service web.service worker.service` y prueba de humo. Volver: `systemctl stop postgres.service`, `./infra/install.sh <tag anterior>`, `systemctl daemon-reload`, `systemctl start postgres.service` (17 sobre el volumen antiguo, intacto), `systemctl start api@1.service web.service worker.service`. **Después de reabrir el tráfico**, volver a 17 pierde lo escrito en 18.
+5. Decidir continuar o volver **antes** de reabrir el tráfico. Continuar: `systemctl start api@1.service web.service traefik.service worker.service worker-long.service` y prueba de humo. Volver: `systemctl stop postgres.service`, `./infra/install.sh <tag anterior>`, `systemctl daemon-reload`, `systemctl start postgres.service` (17 sobre el volumen antiguo, intacto), `systemctl start api@1.service web.service traefik.service worker.service worker-long.service`. **Después de reabrir el tráfico**, volver a 17 pierde lo escrito en 18.
 
 ---
 
@@ -167,6 +167,28 @@ systemctl --user status worker.service                        # servidor
 ## 3b. Despliegue y reversión (`ADR-037`)
 
 Escrito, y probado **en parte** en WSL2 — ver `SYSADMIN.md §6` para el detalle exacto de qué está verificado y qué no. La topología completa (red, cinco servicios, imágenes `prod` reales) y las tres pruebas de resiliencia obligatorias se ejecutaron de verdad con `compose.prodlike.yaml` (`SYSADMIN.md §6.3`). El ciclo de vida por unidades Quadlet reales (`install.sh`, `systemctl --user`) **no se ha podido ejecutar en este host concreto**: `~/.config/containers` pertenece a `root`, un problema de permisos preexistente sin relación con este paso (`SYSADMIN.md §6.2`) — se corrige con un `sudo chown` que esta sesión no puede ejecutar sin contraseña interactiva.
+
+**Rutas por modo de `install.sh` (`ADR-080 §3.4`).** `install.sh` sustituye en las unidades las rutas que dependen del modo, así que ninguna lleva rutas del otro modo escritas a mano:
+
+| | Modo sistema (`install.sh <tag>`) | Modo usuario (`install.sh <tag> --user`) |
+|---|---|---|
+| Unidades | `/etc/containers/systemd` | `~/.config/containers/systemd` |
+| Ficheros de entorno (`plataforma.env`, `plataforma-postgres.env`, `plataforma-worker.env`, `plataforma-worker-long.env`, `traefik-cloudflare.env`) | `/etc/plataforma` | `~/.config/plataforma` |
+| Scripts de inicialización de PostgreSQL | `/opt/plataforma/postgres-init` | `~/.local/share/plataforma/postgres-init` |
+
+El directorio de inicialización de PostgreSQL lo deja preparado `install.sh` en cada ejecución, copiando `infra/containers/postgres/init/` (ejecutable `01-tenancy.sh` y `02-tenancy-test-db.sh`, más `01-tenancy.sql.tpl`). **No contiene secretos**: las contraseñas llegan al contenedor por las variables `TENANCY_*_PASSWORD` de `plataforma-postgres.env`. Esos scripts solo se ejecutan al inicializar un volumen nuevo. El nombre real de la unidad de red generada por Quadlet es `plataforma-network.service` (no `plataforma.network`): `systemctl [--user] start plataforma-network.service` (`enable` falla con unidades generadas, #695). Lo comprobado: la validación en seco de ambos generadores y la prueba de shell `infra/test-install-env.sh`; el arranque real de las unidades en modo usuario se prueba en el servidor de staging.
+
+**Prerrequisitos del modo `--user`.** Traefik monta el socket de Podman del usuario (`%t/podman/podman.sock`), que **no existe** hasta activarlo: `systemctl --user enable --now podman.socket`. Sin él `traefik.service` falla con código 125 (**comprobado a mano en el VPS de staging, 2026-11-16**; el instalador no lo activa ni hay prueba automatizada). Además, `loginctl enable-linger <usuario>` para que las unidades de usuario sigan vivas sin sesión (`ADR-080 §3.4`); **tampoco lo aplica `install.sh`**: es un paso manual del preparado del *host*.
+
+**`plataforma_test` también existe en staging.** `02-tenancy-test-db.sh` crea la base `plataforma_test` en **cualquier** entorno, también en *staging* (comprobado con `\l`). Es una consecuencia conocida y aceptada de momento (staging no tiene datos reales, `CLAUDE.md §9`); no se ha decidido eliminarla fuera de desarrollo y debe quedar fuera de cualquier copia o restauración que se trate como datos de producción.
+
+**Traefik en red host (se aparta de `ADR-080 §3.7` y de `ADR-037`; recogida en `ADR-088`, estado `PROPUESTA` a 2026-11-16; otra desviación de `ADR-037 §6.1`, «ficheros literales, sin sistema de plantillado», recogida en ese mismo ADR (§2.3): `install.sh` sustituye ya doce tokens —rutas, imagen de Traefik, dominio, listas de IP— con un mismo `sed`, no un sistema de plantillado nuevo, pero sí más de la única sustitución de `__TAG__` que `ADR-037` admitía).** Con Podman rootless y una red *bridge*, la IP de origen se enmascara (llega como `10.89.10.x`): la lista blanca de IP del *backoffice* (`ipallowlist`) y la IP de auditoría dejarían de funcionar (riesgo B1 de `docs/modulos/REQ-FAM-UNIT/operacion.md §13.3` y `CS-10` de `ADR-080`). Por eso `traefik.container` usa `Network=host` (enlaza 80 y 443 directamente; requiere `sysctl net.ipv4.ip_unprivileged_port_start=80`, que `install.sh` **no** configura: hay que dejarlo persistente a mano, p. ej. `echo 'net.ipv4.ip_unprivileged_port_start=80' | sudo tee /etc/sysctl.d/99-ports.conf && sudo sysctl --system`), sin `PublishPort`, con `--providers.docker.useBindPortIP=true` y el *entrypoint* interno del *ping* en `127.0.0.1:8080`. `api@` publica en `127.0.0.1:1800<instancia>` (la fórmula solo vale para las instancias 1 a 9; la segunda réplica es `0.10e-d`) y `web` en `127.0.0.1:18080`: los *backends* solo son accesibles desde el propio *host*. El *peer* que ve la API sigue siendo una dirección de la red de contenedores (`10.89.10.x` vía *rootlessport*), así que `TRUSTED_PROXIES` por defecto (`10.89.10.0/24`, `SYSADMIN.md`) sigue siendo válida **con esta exposición local** (ver los supuestos de abajo) y no se cambia. Hasta que `ADR-088` se acepte, las reglas de redes de `ADR-028` se aplican al resto de servicios. **Supuestos y riesgos aceptados de la red host.** (a) *Staging* es un *host* de **un solo usuario/operador**: los *backends* escuchan en `127.0.0.1` (18001 API, 18080 web) y cualquier proceso local con acceso al *host* puede llamarlos saltándose Traefik y su lista blanca; la lista blanca de la **aplicación** (`platform_ip_allowlist`) tampoco lo evita, porque el *peer* que ve Laravel (`10.89.10.x` vía *rootlessport*) está en `TRUSTED_PROXIES` por defecto y acepta `X-Forwarded-For`. Es una limitación abierta, tratada en `ADR-088 §5.1` y `§6` (confiar solo en la IP concreta que presenta *rootlessport*, un secreto compartido o un *socket* Unix). (b) `net.ipv4.ip_unprivileged_port_start=80` permite que cualquier usuario local enlace 80/443: si Traefik cae o se reinicia, un proceso local podría ocuparlos antes; es un supuesto de *host* mono-usuario, tratado en `ADR-088 §5.2` (alternativa: redirección con `nftables` a puertos altos). (c) El puerto interno `127.0.0.1:8080` (*ping*) no debe abrirse en ninguna regla de cortafuegos de entrada. (d) Con el *socket* de Podman montado en Traefik y red host, un Traefik comprometido controla el Podman de ese usuario y todos los servicios de *loopback*; lo resuelve el proxy de *socket* de `0.10e-d`.
+
+- **`install.sh` aborta con «TENANT_ALLOWED_IPS tiene que estar fijado»** (#693): falta la lista blanca de IP de las rutas de los centros en `plataforma.env` (está cerrada por defecto, `INV-002`); ocurre sobre todo al actualizar un `plataforma.env` ya existente creado antes de #693. Fijarla en CIDR separados por comas (staging: las IP permitidas; producción: `0.0.0.0/0,::/0` de forma explícita) y repetir `install.sh`; si dice que una entrada «no es IP ni CIDR», corregir esa entrada. Sin probar aún con Traefik real.
+
+**Comprobado a mano en el VPS de *staging*** (no con una prueba automatizada): la lista blanca pasa con una IP permitida y bloquea (403) con otra.
+
+**Migraciones.** `plataforma-migrate.container` ejecuta `php artisan migrate --database=pgsql_owner --force`: se aplican con el rol propietario (`plataforma_owner`), no con `plataforma_app`.
 
 ### 3b.1 Generar el fichero de secretos
 
@@ -217,7 +239,7 @@ No hay salida por la aplicación: es intervención directa sobre la base de dato
 ./infra/install.sh <tag> --user       # WSL2, systemd de usuario
 ```
 
-`<tag>` es siempre una versión exacta (`X.Y.Z` en producción, `sha-<7>` o `develop` en *staging*) — nunca `latest` (`ADR-037 §5.2`). El script sustituye el *tag* en las unidades y recarga systemd; no arranca nada por sí solo.
+`<tag>` es siempre una versión exacta (`X.Y.Z` en producción, `sha-<7>` en *staging*; la etiqueta móvil `develop` deja de usarse para desplegar en *staging*, `ADR-080 §4.5`) — nunca `latest` (`ADR-037 §5.2`). El script sustituye el *tag* en las unidades y recarga systemd; no arranca nada por sí solo. Después: `systemctl --user daemon-reload`; `systemctl --user restart plataforma-migrate.service` y comprobar `systemctl --user show plataforma-migrate.service -p Result --value` = `success` antes de reiniciar API y *workers*; el resto de unidades generadas, con `start` (no `enable --now`, #695). Es `restart` y no `start` porque `plataforma-migrate` es `oneshot` con `RemainAfterExit`: ya activa, `start` no ejecuta el contenedor y las migraciones del tag nuevo no correrían (#698). En sistema, sin `--user`.
 
 **Escrito, no ejecutado de extremo a extremo en este host** (`SYSADMIN.md §6.2`): `install.sh --user` requiere escribir en `~/.config/containers/systemd/`, bloqueado por el propietario incorrecto del directorio. La lógica que sí se ha ejercido — sustitución de `__TAG__`, generación de unidades systemd válidas a partir de estos ficheros — está verificada por separado (`SYSADMIN.md §6.1`); lo que falta es la instalación automática en este directorio concreto, no el contenido de las unidades.
 
@@ -229,21 +251,22 @@ Mismo mecanismo que el despliegue: bajar el *tag* a la versión anterior y reini
 
 ```bash
 ./infra/install.sh <tag-anterior> --user
-systemctl --user restart api@1.service web.service worker.service
+systemctl --user daemon-reload
+systemctl --user restart api@1.service web.service traefik.service worker.service worker-long.service
 ```
 
 **Módulo `acad` (`1.11-b`)**: se revierte con la imagen anterior; sus migraciones **no** se revierten (aditivas; la versión anterior no usa las tablas y su `down()` borraría datos de estructura). El siguiente `platform:sync-registry` de la versión anterior marca `acad` y sus permisos con `retired_at` (concesiones inertes). Detalle en `SYSADMIN.md §2g` y `docs/modulos/REQ-ACAD/operacion.md §9`.
 
 **Períodos lectivos y validación del cambio de fechas (`1.11d-a`, `acad` + `curso`)**: la reversión es **conjunta** (un solo cambio de imagen) y también es «imagen anterior, migraciones sin revertir» (`REQ-ACAD/operacion.md §11.6`, `REQ-CURSO/operacion.md §9.2`):
 
-1. `./infra/install.sh <tag-anterior> --user` y reiniciar `api@1.service web.service worker.service`, como en el resto de pasos.
+1. `./infra/install.sh <tag-anterior> --user` y reiniciar `api@1.service web.service traefik.service worker.service worker-long.service`, como en el resto de pasos.
 2. **No se ejecuta `migrate:rollback`**: la tabla `academic_periods` es aditiva y la versión anterior no la usa; su `down()` (`DROP TABLE`) borraría períodos configurados por los centros.
 3. Efectos de volver atrás: el `PATCH` de fechas de un curso deja de validar los períodos (los cambios hechos así pueden dejar períodos fuera de las fechas del curso, hay que revisarlos al volver a la versión nueva), `acad` deja de exigir `configuracion_academica` y `sync-registry` de la versión anterior marca sus cuatro códigos con `retired_at` (concesiones inertes); `acad:grant-structure-permissions` vuelve a sembrar solo los cuatro de `estructura_academica`. Una etapa con períodos podría borrarse (lógicamente) sin la regla `RN-ACAD-61`: sin daño de integridad, los períodos quedan huérfanos y la versión nueva los lee igualmente (la relación con la etapa usa `withTrashed()`).
 4. Al **volver a la versión nueva**: ejecutar `php artisan migrate --database=pgsql_owner --force` (las migraciones de este proyecto se aplican con la conexión propietaria; sin ella `TenantMigration` aborta con «debe ejecutarse dentro de una transacción de pgsql_owner» y la tabla puede quedar a medias: en ese caso, si está vacía, `DROP TABLE academic_periods` y repetir) y `php artisan acad:grant-structure-permissions` para recuperar las ocho concesiones.
 
 **Horarios y asignación docente (`1.12-a`, `acad`)**: también «imagen anterior, migraciones sin revertir» (`REQ-ACAD/operacion.md §12.5`).
 
-1. `./infra/install.sh <tag-anterior> --user` y reiniciar `api@1.service web.service worker.service`.
+1. `./infra/install.sh <tag-anterior> --user` y reiniciar `api@1.service web.service traefik.service worker.service worker-long.service`.
 2. **No se ejecuta `migrate:rollback`**: las siete tablas nuevas (`facilities`, `timetables`, `teaching_assignments`, `group_tutors`, `timetable_frames`, `time_slots`, `timetable_sessions`) y los dos únicos de `group_subjects` y `subgroups` son aditivos; la versión anterior no los usa y su `down()` borraría el horario de los centros.
 3. Efectos de volver atrás: `sync-registry` de la versión anterior marca los permisos de `asignacion_docente`, `espacios` y `horarios` con `retired_at` (concesiones inertes); `RN-ACAD-96` deja de aplicarse, así que se podría borrar (lógicamente) un grupo, un subgrupo, una asignatura o una etapa con tutores, asignaciones o marcos vivos: huérfanos lógicos sin daño de integridad (FK `NO ACTION`, borrado lógico), que la versión nueva lee igualmente (las relaciones usan `withTrashed()`).
 4. Al **volver a la versión nueva**: `php artisan migrate --database=pgsql_owner --force`, `php artisan platform:sync-registry` y `php artisan acad:grant-structure-permissions` para recuperar las concesiones.
@@ -283,7 +306,7 @@ Es una operación de segundos porque cada versión es una imagen inmutable en GH
 - **`worker-long.container`** (`1.12b`): una sola instancia del *worker* de la cola `long` (`queue:work database_long`, copia y reversión del rollover), mismo entorno y endurecimiento que `worker.container`; `StopTimeout=620` deja acabar la copia en curso. Al cambiar de versión se cambia su *tag* junto con el de `worker` y `api@N`. Antes de **revertir** la entrega de `1.12b`, esperar a que no haya copias ni reversiones en vuelo (`pendiente`, `en_curso`, `revirtiendo`): un *worker* de la versión anterior no conoce sus trabajos y los mandaría a `failed_jobs` (`REQ-CURSO/operacion.md §9.3`).
 - **`worker.container`** (issue #128): una sola instancia del *worker* de colas, misma imagen que la API, con su propio fichero de entorno `plataforma-worker.env` (plantilla `infra/quadlet/plataforma-worker.env.example`) y `NoNewPrivileges`/`DropCapability=ALL`. `systemctl --user restart worker.service` para reiniciarlo; al pararlo espera hasta 130 s a que acabe el trabajo en curso (`StopTimeout`). Al cambiar de versión (despliegue o reversión) se cambia el *tag* de `worker` junto con el de `api@N`. Diagnóstico: §2.8.
 - **Nunca `systemctl stop plataforma.network`** salvo desmantelamiento completo: es la misma regla que `podman compose down` en desarrollo (`ADR-028 §2`), aplicada a la unidad de red de Quadlet.
-- La segunda réplica de la API (`api@2`) existe como plantilla ya escrita pero **no se activa** hasta que haya tráfico real (`ADR-037 §6.4`): `systemctl --user enable --now api@2.service` cuando corresponda, sin cambios de fichero.
+- La segunda réplica de la API (`api@2`) existe como plantilla ya escrita pero **no se activa** hasta que haya tráfico real (`ADR-037 §6.4`): `systemctl --user start api@2.service` cuando corresponda (`enable` falla con unidades generadas, #695), sin cambios de fichero.
 - El proxy de socket delante de Traefik (`ADR-037 §6.3`) es una tarea de `0.10e`, no de hoy: mientras tanto el socket de Podman está montado de solo lectura y el entorno no tiene datos reales.
 
 ### 3b.5 SSO institucional SAML 2.0 (`REQ-AUTH-004`, 1.4c): seguimiento de la dependencia y rotación de la clave del SP
@@ -329,6 +352,71 @@ Despacha un trabajo por centro activo a la cola `default` (necesita el *worker*,
 ### 3b.8 Revertir la precisión de microsegundos del consentimiento de imagen (issue #483)
 
 `migrate:rollback` de `2026_11_05_100200_widen_consent_verification_timestamps_to_microseconds` redondea `image_consent_decisions.occurred_at` y `guardian_student_links.legal_guardian_verified_at` al segundo más cercano (hasta 0,5 s de diferencia, irrecuperable). Si ya hay decisiones, prefiere desplegar la imagen anterior sin revertir el esquema (es compatible).
+
+### 3b.9 Staging en el VPS: qué está probado y reversión (`ADR-080`, `0.10e-c`; estado a 2026-11-16)
+
+**Tras reiniciar el host** (#707): con `linger`, la pila arranca sola, `api@1` incluida (`DefaultInstance=1` en `api@.container`). Comprobar con `podman ps` (8 contenedores con Mailpit, 7 sin él) y `systemctl --user is-active api@1`. Antes de este cambio `api@1` no arrancaba tras un reinicio (la web servía y `/api/…` caía a la SPA con 200). **No verificado tras el despliegue**: pendiente de desplegar y de repetir `CS-04`.
+
+Staging se instala sin privilegios con `./infra/install.sh <tag> --user` (`SYSADMIN.md §4c`). **Probado a mano el 2026-11-16** (no con una prueba automatizada), con la imagen `sha-a1f27d2`: los siete contenedores en `healthy`; las 130 migraciones con `--database=pgsql_owner`; el almacenamiento S3 real del proveedor (bucket de staging); la lista blanca del *backoffice* (200 con una IP permitida, 403 con otra); `CS-01` verificado por el usuario desde su terminal (el *push* forzado y el borrado de `staging` se rechazan con `GH013`). El corte medido del conjunto API + web + Traefik al redesplegar fue de unos 26 s. Los certificados son de **pruebas** (ACME de staging de la autoridad), por lo que un navegador los marcará como no fiables.
+
+**No ejecutado todavía (a 2026-11-16)**: `CS-02` completo (`main` sigue por detrás de `staging`), `CS-17` (E2E real contra staging) y `CS-19` (relay SMTP real); `CS-05`, `CS-06`, `CS-07` y `CS-09` sin evidencia registrada. Hay 0 centros y 0 usuarios, y `demo:seed` no existe (llega con `1.15b`). Hallazgo abierto #693: la lista blanca solo cubre el *backoffice*, no los routers de los centros.
+
+**Procedimiento de reversión (`CS-08` medido en parte, ver abajo).** Es el mismo de `§3b.3`: reinstalar con el *tag* anterior y reiniciar las unidades, **sin migrar** (las migraciones no se revierten). Al avanzar de nuevo, `restart plataforma-migrate.service` y comprobar `Result=success` (#698).
+
+```bash
+./infra/install.sh <tag-anterior> --user
+systemctl --user daemon-reload
+systemctl --user restart api@1.service web.service traefik.service worker.service worker-long.service   # la reversión NO migra: las migraciones no se revierten
+```
+
+Sin `migrate:rollback` (las migraciones son aditivas, `CLAUDE.md §9`).
+
+**Si Traefik registra `permission denied while trying to connect to the docker API at unix:///var/run/docker.sock` y no hay routers (#705).** Casi seguro es SELinux en `enforcing` impidiendo la conexión al socket de Podman. Comprobar: `getenforce` y `systemctl --user cat traefik.service | grep -c -- '--security-opt label=disable'` (debe dar `1`: `traefik.container` lleva `SecurityLabelDisable=true`, provisional hasta `0.10e-d`). Si no sale, la unidad instalada es anterior: reinstalar con `./infra/install.sh <tag> --user`, `systemctl --user daemon-reload` y `systemctl --user restart traefik.service`. **No** pongas el host en `permissive` ni desactives SELinux en otros contenedores. Sin verificar aún en el VPS.
+
+**`CS-08`, 2.ª ejecución (2026-11-16, VPS de staging; hechos verificados a mano, sin prueba automatizada).** Reversión `sha-5072b79` → `sha-ba00db4` en 23,2 s (`install.sh` 0,6 s; API + web + Traefik 16,5 s; `worker` 0,7 s; `worker-long` 1,2 s) y avance de vuelta a `sha-5072b79` en 27,2 s. Corte medido en los *backends* de unos 2,9 s (reversión) y 2,8 s (avance); a través de Traefik, unos 6,1 s en la reversión (22 sondeos fallidos, 000/5xx) y 3,1 s en el avance (12). Un trabajo encolado por `sha-ba00db4` (un *closure* en la cola `cs08`, que ningún *worker* consume) lo procesó `sha-5072b79` con `queue:work --once`: `jobs=0`, `failed_jobs=0` y el correo llegó a Mailpit. Parada de los *workers* con `pcntl` (#696, ya desplegado): `worker` 0,6 s y `worker-long` 0,9 s (antes 130,9 s y 620,8 s sin `pcntl`).
+
+**Salvedades que acompañan a ese resultado, tal cual**: (1) el trabajo es un *closure*, no una clase de negocio, y no lo consumió el *worker* de systemd sino `queue:work --once` de la imagen nueva; (2) ambas versiones comparten esquema y casi todo el código; (3) `plataforma-migrate` no tenía migraciones pendientes (1,0 s): **no se probó una migración real**; (4) al avanzar, los *workers* del destino de la reversión (`sha-ba00db4`, sin `pcntl`) se pararon con `SIGKILL` a mano porque tardan 130 s y 620 s; con una reversión a una imagen sin `pcntl` la parada vuelve a ser lenta; (5) el sondeo es desde el propio VPS (un 403 de la lista blanca cuenta como «arriba»). **Sigue sin ejecutarse** `CS-17`, `CS-19` y `CS-02` completo, y #693 sigue abierto.
+
+
+## 3c. Ramas: promoción y arreglo urgente (`ADR-080 §4`, paso `0.10e-a`)
+
+**Estado**: el procedimiento, el gancho (`.claude/hooks/block-protected-branch.sh`, probado con su arnés de shell) y los workflows están escritos. **Sin probar** hasta que exista la rama `staging` y su protección en GitHub: que Git rechace un avance no rápido en `staging` y `main` (`CS-01`), que GitHub acepte el *push* de un commit que ya pasó los checks en otra rama con las comprobaciones obligatorias activas, y una promoción completa con etiqueta de ensayo (`CS-02`). Las reglas de protección de `staging` y `main` las crea el propietario en GitHub; no las crea el código.
+
+### 3c.1 Promoción `develop` → `staging` → `main`
+
+Solo la hace la sesión orquestadora o `janitor`, y **`main` solo cuando el propietario lo pide** (publicar una versión). Nunca con el botón de mezclar de GitHub ni con `espera-ci`.
+
+**Primera creación de `staging` (`ADR-080 §4.6`; sin ejecutar a 2026-11-16).** Mientras la rama no exista, el paso 2 siguiente no es aplicable (`origin/staging` no existe). Se crea una sola vez, **después de que el propietario cree las reglas de protección de `staging` y `main` en GitHub**, apuntando al commit de `main` ya reconciliado con `develop`, desde HEAD desacoplado: `git push origin <sha de main, 40 hex>:refs/heads/staging`. A continuación se comprueba `CS-01` (un *push* no avance rápido a `staging` es rechazado) y se ensaya `CS-02`.
+
+1. Elige el commit candidato `<sha>` (40 caracteres hexadecimales) de `develop` con el CI en verde.
+2. Desde **HEAD desacoplado** o un *worktree* (el gancho bloquea el *push* con una rama protegida como actual):
+   ```bash
+   git fetch origin
+   git merge-base --is-ancestor origin/staging <sha> && echo "avance rápido posible"
+   git checkout --detach <sha>
+   git push origin <sha>:refs/heads/staging      # sin --force, sin -f, sin '+'
+   ```
+   Git rechaza solo un *push* que no sea avance rápido; ese rechazo es la protección. Si lo rechaza, **no se fuerza**: se investiga (`§3c.2`).
+3. Despliega `sha-<7>` en staging (`§3b.2`) y comprueba lo que la entrega pida.
+4. A petición del propietario, y con el mismo avance rápido: `git push origin <sha>:refs/heads/main` y etiqueta anotada `vX.Y.Z` sobre ese commit (dispara la imagen de versión, `ADR-037 §5.2`).
+5. Un PR `develop` → `staging` solo sirve para dejar constancia; **nunca se pulsa «Merge»** en él.
+
+La retención de imágenes (`build-images.yml`, job `prune-old-images`, con `.github/scripts/purgar-imagenes.sh`) lista las versiones del paquete con la API de GitHub y conserva las 10 más recientes, toda versión con etiqueta `vX.Y.Z` y toda versión con la etiqueta `sha-<7>` de los commits a los que apuntan `staging` y `main` en ese momento (más los manifiestos sin etiqueta creados a menos de 120 s de una imagen conservada por esas dos reglas, heurística no verificada contra GHCR). No usa `actions/delete-package-versions`: esa acción aplica `ignore-versions` al digest de la versión, no a sus etiquetas. La lógica de selección se prueba sin red con `.github/scripts/test-purgar-imagenes.sh`; **sin verificar** contra GHCR real (permisos del `GITHUB_TOKEN` sobre `/users/<dueño>/packages/container/…` y comportamiento de los manifiestos sin etiqueta). Límite: lo calcula en cada purga (cada *push* a `develop`) a partir de las ramas del remoto; una imagen de un commit que ya no es la punta de `staging` ni de `main` vuelve a estar sujeta a las 10 versiones más recientes.
+
+**Límites conocidos del gancho** (`.claude/hooks/block-protected-branch.sh`; solo protege las sesiones de Claude Code y se prueba con `.claude/hooks/test-block-protected-branch.sh`):
+
+- No cubre `git merge`, `reset`, `cherry-pick`, `rebase`, `tag -f` ni `branch -f` sobre ramas protegidas.
+- No ve comandos dentro de `bash -c`, `env`, `xargs`, alias ni `$(…)`.
+- No distingue remotos: analiza el destino, no a qué remoto va.
+- No frena un *push* manual del propietario desde su terminal.
+- Un texto de varias líneas (cuerpo de un PR, heredoc) con una línea que empiece por `git push …` puede dar un falso bloqueo.
+- El guardarraíl definitivo son las reglas de protección de ramas de GitHub, que crea el propietario (`SYSADMIN.md §4`) y que **siguen sin verificar**.
+
+### 3c.2 Arreglo urgente
+
+- **Norma**: el arreglo va por `develop` (`fix/…`, *squash*) y se promociona.
+- **Excepción**, solo si `develop` contiene algo que no puede ir aún a staging: rama `fix/…` desde `staging`, PR a `staging` con ***merge commit*** (`gh pr merge --merge`, sin borrar `staging`) y **en la misma sesión** un PR `staging` → `develop` también con *merge commit*, para que `staging` vuelva a ser ancestro de `develop`. Hasta que ese segundo PR se mezcle no hay más promociones. Se anota en `memory.md`. Ninguno de estos PR usa `espera-ci`.
+- La reconciliación `main` → `develop` (cuando `main` lleva un commit que `develop` no tiene) se hace igual: PR con *merge commit*, sin borrar la rama de origen.
 
 ## 4. Copias de seguridad y recuperación
 

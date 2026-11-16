@@ -161,11 +161,11 @@ test('_headers lleva la CSP con script-src \'self\' (ADR-075) y todas las cabece
   assert.ok(!/includeSubDomains|preload/.test(h))
 })
 
-test('_redirects redirige www y los otros dominios con 301 al canónico', () => {
+test('_redirects no lleva reglas: Workers no admite nombres de host (#663)', () => {
   const root = makeSite()
   const r = read(root, '_redirects')
-  assert.match(r, /^https:\/\/www\.adagiox\.com\/\* https:\/\/adagiox\.com\/:splat 301!$/m)
-  assert.match(r, /^https:\/\/adagiox\.net\/\* https:\/\/adagiox\.com\/:splat 301!$/m)
+  const reglas = r.split('\n').filter((l) => l.trim() !== '' && !l.trim().startsWith('#'))
+  assert.deepEqual(reglas, [])
 })
 
 test('los valores de idioma se escapan al generar el HTML', () => {

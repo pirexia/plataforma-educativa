@@ -3,9 +3,9 @@
 namespace App\Modules\Core\Http\Resources;
 
 use App\Modules\Core\Domain\Models\UserImport;
+use App\Support\Files\PrivateObjectStore;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
-use Illuminate\Support\Facades\Storage;
 
 /**
  * api.md §7. Recurso desnudo (ADR-038 §3.1). `report_url` es una URL
@@ -31,7 +31,7 @@ class UserImportResource extends JsonResource
             'created_count' => $this->created_count,
             'error_summary' => $this->error_summary,
             'report_url' => $this->report_object_key !== null
-                ? Storage::disk(config('filesystems.default'))->temporaryUrl(
+                ? app(PrivateObjectStore::class)->temporaryUrl(
                     $this->report_object_key,
                     now()->addMinutes((int) config('core.signed_url_ttl_minutes')),
                 )

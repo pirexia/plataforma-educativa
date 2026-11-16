@@ -56,6 +56,12 @@ return [
             'url' => env('AWS_URL'),
             'endpoint' => env('AWS_ENDPOINT'),
             'use_path_style_endpoint' => env('AWS_USE_PATH_STYLE_ENDPOINT', false),
+            // ADR-076 §4: sumas de verificación solo cuando el servicio las exige (compatibilidad con Garage y otros S3).
+            'request_checksum_calculation' => env('AWS_REQUEST_CHECKSUM_CALCULATION', 'when_required'),
+            'response_checksum_validation' => env('AWS_RESPONSE_CHECKSUM_VALIDATION', 'when_required'),
+            // ADR-076 §4: endpoint con el que se FIRMAN las URL (el que alcanza el navegador). Vacío ⇒ el de `endpoint`.
+            // Solo lo lee PrivateObjectStore; nunca se usa para operar.
+            'signing_endpoint' => env('AWS_URL_SIGNING_ENDPOINT') ?: null,
             'throw' => false,
             'report' => false,
         ],

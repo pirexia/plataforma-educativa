@@ -14,7 +14,7 @@ use RuntimeException;
  * la aplicación, tampoco como segmento de una ruta de almacenamiento).
  *
  * 'root' es la forma nativa de Laravel/Flysystem de prefijar un disco;
- * funciona igual para el driver local y para s3 (MinIO en desarrollo).
+ * funciona igual para el driver local y para s3 (Garage en desarrollo).
  */
 final class TenantStorage
 {

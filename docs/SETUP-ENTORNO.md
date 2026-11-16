@@ -683,7 +683,7 @@ Debe terminar con *"Todas las comprobaciones pasan"*. Los ficheros de `seed/sali
 - [ ] `loginctl show-user $USER | grep Linger` dice `yes`
 - [ ] `node -v`, `php -v` y `composer --version` responden
 - [ ] `claude doctor` sin errores
-- [ ] Repositorio con `main` y `develop`, ambas protegidas
+- [ ] Repositorio con `main` y `develop`, ambas protegidas (y `staging`, a crear tras `0.10e-a` con sus reglas, `ADR-080 §4`)
 - [ ] `/agents` lista los 9 subagentes con el modelo correcto
 - [ ] `/mcp` lista GitHub y Context7
 - [ ] Claude Code se **niega** a escribir código sin especificación (Regla 0)

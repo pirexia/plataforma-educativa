@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- cuerpos JSON de la API real, sin tipar a propósito: el test comprueba el contrato, no lo importa. */
+import { downloadExportCsv } from './fixtures/dataExport'
 import {
   test,
   expect,
@@ -12,13 +13,12 @@ import {
  * real con cookie de sesión y CSRF, sin navegador: las pantallas son de 1.15-d). Cubre CA-ALUM-020 (alta, repetición 422),
  * CA-ALUM-025/028 (PATCH de fecha, cambio de grupo 422), CA-ALUM-024 (baja, reintento 409), CA-ALUM-031 (anulación y nueva
  * matrícula), CA-ALUM-026 (`enrollments[]` en la ficha y filtros de `GET /students`), CA-ALUM-040 (lista de clase),
- * CA-ALUM-041/042 (exportación 202, 403 sin permiso y, si el entorno lo permite, descarga del CSV) y CA-ALUM-018b (otro centro: 404).
+ * CA-ALUM-041/042 (exportación 202, 403 sin permiso y descarga del CSV) y CA-ALUM-018b (otro centro: 404).
  *
  * Solo con `E2E_REAL_API=1`: `npm run test:e2e:real:alum` (apps/web/scripts/e2e-real-alum.sh) prepara los dos centros sintéticos
  * (`@example.com`, nombres explícitamente ficticios, `REQ-SEED-005`) y define las variables. La estructura (curso académico,
- * etapa, curso y grupos) y el alumnado los crea el propio spec por la API. La exportación se genera en cola: la descarga solo se
- * comprueba si el *worker* y el almacenamiento S3/MinIO responden dentro del plazo; si no, el spec comprueba el `202` y el estado
- * de la exportación y lo deja como anotación del test (no declara probada la descarga).
+ * etapa, curso y grupos) y el alumnado los crea el propio spec por la API. La exportación se genera en cola: el *worker* escribe el CSV en
+ * Garage (ADR-076) y el spec descarga la URL firmada desde el host y comprueba cabecera y filas; si no termina o no se sirve, falla.
  */
 const API = process.env.E2E_API_URL ?? 'http://127.0.0.1:8000/api/v1'
 const BASE_DOMAIN = process.env.E2E_BASE_DOMAIN ?? 'plataforma.test'
@@ -353,7 +353,7 @@ test.describe('REQ-ALUM-002 (1.15-b): matrícula y exportación contra la API re
     await admin.json('POST', 'enrollments', 201, { data: enroll(2, groupA) })
   })
 
-  test('CA-ALUM-041 CA-ALUM-042: exportación 202, 403 sin permiso, 422 con q y, si el entorno lo permite, CSV descargable con el esquema cerrado', async () => {
+  test('CA-ALUM-041 CA-ALUM-042: exportación 202, 403 sin permiso, 422 con q y CSV descargable de Garage con el esquema cerrado', async () => {
     // Sin matricula.exportar (el tutor legal): 403. Con q: 422.
     expect(
       (await tutor.send('POST', 'enrollments/exports', { data: { academic_year: year } })).status(),
@@ -373,63 +373,17 @@ test.describe('REQ-ALUM-002 (1.15-b): matrícula y exportación contra la API re
     // CA-ALUM-018b: la exportación de otro centro no existe.
     expect((await adminB.send('GET', `data-exports/${exportId}`)).status()).toBe(404)
 
-    // El trabajo va en cola: se espera hasta 30 s a que el worker lo termine.
-    let status = 'pendiente'
-    let downloadUrl = ''
-    for (let i = 0; i < 15; i++) {
-      const response = await admin.send('GET', `data-exports/${exportId}`)
-
-      if (response.status() === 200) {
-        const body = await response.json()
-        status = body.status
-        downloadUrl = body.download_url ?? ''
-        break
-      }
-
-      expect(response.status(), 'export aún no listo: 409').toBe(409)
-      await new Promise((resolve) => setTimeout(resolve, 2000))
-    }
-
-    expect(status, 'la exportación no debe quedar fallida').not.toBe('fallida')
-
-    if (status !== 'completada') {
-      test.info().annotations.push({
-        type: 'no-probado',
-        description: `Exportación aceptada (202) pero no terminada en 30 s (estado ${status}): ¿worker parado? La descarga del CSV NO se ha comprobado.`,
-      })
-
-      return
-    }
-
-    // La URL firmada apunta al almacenamiento S3/MinIO; puede no ser alcanzable desde el host del test.
-    let csv: string | null = null
-    try {
-      const download = await playwrightRequest.newContext()
-      const file = await download.get(downloadUrl)
-      csv = file.ok() ? await file.text() : null
-      await download.dispose()
-    } catch {
-      csv = null
-    }
-
-    if (csv === null) {
-      test.info().annotations.push({
-        type: 'no-probado',
-        description:
-          'Exportación completada, pero la URL firmada no es alcanzable desde el test (S3/MinIO): el contenido del CSV NO se ha comprobado.',
-      })
-
-      return
-    }
-
-    const lines = csv
-      .replace(/^\uFEFF/, '')
-      .trim()
-      .split(/\r?\n/)
+    // El trabajo corre en el worker, escribe en Garage y la URL firmada se descarga desde el host (ADR-076 §2.3).
+    const csv = await downloadExportCsv(admin, exportId)
+    const lines = csv.trim().split(/\r?\n/)
     expect(lines[0]).toBe(
       'enrollment_public_id,student_public_id,family_name,given_name,birth_date,academic_year_code,course_code,group_name,status,enrolled_on,withdrawn_on,withdrawal_reason',
     )
     expect(lines).toHaveLength(1 + 3)
+    // Los tres alumnos sintéticos del spec, con su identificador público de la API.
+    for (const student of students) {
+      expect(lines.some((line) => line.split(',')[1] === student.public_id)).toBe(true)
+    }
     expect(csv).not.toContain('document')
   })
 

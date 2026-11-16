@@ -6,6 +6,151 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-16 · `infra`: `DefaultInstance=1` en `api@.container` para que la API arranque con el host (issue #707)
+
+- **Fix #707 (Alto)**: sin `DefaultInstance=`, Quadlet no generaba `api@1.service` en `default.target.wants` y tras reiniciar el host la API no arrancaba. Comprobado con el generador real (Podman 5.7).
+- `infra/test-install-env.sh`: con el generador, `default.target.wants` debe contener `api@1` y el resto de la pila; falla si se quita `DefaultInstance=1`.
+- `SYSADMIN.md §4c` y `RUNBOOK.md §3b.9`: qué esperar tras un reinicio y cómo comprobarlo.
+- **No verificado**: no desplegado ni reiniciado el host con este cambio.
+- Versiones: `SYSADMIN.md` 0.9.5, `RUNBOOK.md` 0.3.29.
+
+## 2026-11-16 · `infra`: SELinux desactivado solo en Traefik para leer el socket de Podman bajo `enforcing`, provisional hasta `0.10e-d` (issue #705)
+
+- **Fix #705**: con SELinux en `enforcing`, Traefik no se conecta al socket de Podman (`permission denied while trying to connect to the docker API`) y no descubre routers; con `permissive` funcionaba (comprobado a mano el 2026-11-16, antes de este cambio; este cambio no está desplegado ni verificado). `infra/quadlet/traefik.container` añade `SecurityLabelDisable=true` (el generador de Quadlet emite `--security-opt label=disable`). Solo Traefik; el resto sigue confinado. Añade también `NoNewPrivileges=true` y `DropCapability=ALL` (**no verificados con Traefik real**; si no arranca o no descubre routers, se retiran antes de tocar nada más) y quita `,Z` del montaje del socket. Provisional hasta el proxy de socket de `0.10e-d`. Decisión del usuario, 2026-11-16.
+- `infra/test-install-env.sh`: comprueba que solo `traefik.container` lleva la opción y, con generador, que solo el `ExecStart` de `traefik.service` lleva `label=disable`.
+- `ADR-088 §5.3` (riesgo y mitigación), `SYSADMIN.md §4c` y `RUNBOOK.md §3b.9`.
+- **No verificado**: no desplegado; falta comprobar en el VPS con `enforcing` que Traefik descubre los routers.
+- Versiones: `SYSADMIN.md` 0.9.4, `RUNBOOK.md` 0.3.28; `ADR-088` sigue en `PROPUESTA`.
+
+## 2026-11-16 · `infra`: reglas de los routers sin espacios ni barra invertida, que Quadlet descartaba (issue #701)
+
+- **Fix #701 (Alto)**: el generador de Quadlet (Podman 5.8) descarta en silencio un `Label=` con espacios o `\.` y trunca en el primer espacio, así que los routers `plataforma-web` y `plataforma-api` de los centros no existían. Reglas reescritas con `&&` sin espacios y `[.]`; `__TENANCY_BASE_DOMAIN_ESCAPED__` genera `centros[.]adagiox[.]eu` (el nombre del *token* no cambia).
+- `infra/test-install-env.sh`: comprobación estática de `Label=`, texto exacto de las tres reglas renderizadas y, si hay generador de Quadlet, `--dryrun` que exige las reglas completas en el `ExecStart`.
+- `OPEN-088-06` en `ADR-088`, **cerrada como prevista**: `panel.<dominio>` solo tiene *router* para `/api/platform`; el de su SPA (fila 4 de `REQ-BO/operacion.md §0.2`) es del paso de interfaz, `apps/backoffice`, y el *backoffice* se opera solo por API hasta `1.7`/`1.9` (`OPEN-BO-08`).
+- **No verificado**: la parte con Traefik real hasta desplegar.
+
+## 2026-11-16 · `infra`/`docs`: lista blanca de IP también para las rutas de los centros, cerrada por defecto (issue #693, `OPEN-STG-09`)
+
+- **Fix #693 (Media)**: la lista blanca de Traefik solo protegía el *backoffice*. Nuevo *token* `__TENANT_ALLOWED_IPS__` (variable `TENANT_ALLOWED_IPS`, 12.º de `install.sh`) y un middleware propio por unidad: `tenant-ipallowlist` en `plataforma-api` (`api@.container`) y `tenant-ipallowlist-web` en `plataforma-web` (`web.container`), para que la web no dependa de `api@`; el del *backoffice* no cambia.
+- **Cerrada por defecto** (`INV-002`, decisión del usuario del 2026-11-16): `install.sh` aborta si la variable falta o está vacía, y valida IP/CIDR (IPv4 e IPv6) como la del *backoffice*. Producción debe fijarla a `0.0.0.0/0,::/0` de forma explícita.
+- `infra/test-install-env.sh` comprueba la sustitución, el aborto por ausencia, vacío y CIDR inválido, y que los routers de los centros y el del *backoffice* llevan cada uno su middleware.
+- Revisión: validador de listas de IP endurecido en bash (rechaza `:`, `::::`, `a:b`, comas vacías, más de un `::`, grupos fuera de 1-4 hex); la redirección `:80`→`:443` responde antes de la lista blanca (aceptado en staging, `ADR-088`).
+- **No verificado**: no desplegado ni probado con Traefik real (web cerrada con `api@` parada, IP real del cliente, 200/403).
+- Versiones: `SYSADMIN.md` 0.9.3, `RUNBOOK.md` 0.3.27, `README.md` 2.6.56 (sin cambio propio); `ADR-088` sigue en `PROPUESTA`.
+
+## 2026-11-16 · `infra`/`docs`: ayuda de `install.sh` con `restart` de migrate y `start` de unidades generadas; `CS-08` repetido (issues #698, #695, #696)
+
+- **Fix #698 (Alto)**: `plataforma-migrate` es `oneshot` con `RemainAfterExit`; ya activa, `systemctl --user start` no ejecuta el contenedor y las migraciones del tag nuevo no correrían. La ayuda de `install.sh`, `SYSADMIN.md §4c` y `RUNBOOK.md §3b.2`/`§3b.9` indican ahora `daemon-reload`, `restart plataforma-migrate.service` y comprobar `Result=success` antes de reiniciar API y *workers*.
+- **Fix #695 (Baja)**: las unidades generadas por Quadlet no admiten `enable`; la ayuda usa `start` (incluida `mailpit.service` con `--with-mailpit`). `infra/test-install-env.sh` comprueba que la salida no contiene `enable --now` ni `start plataforma-migrate` y sí `restart plataforma-migrate`.
+- **#696 desplegado**: con `pcntl` en la imagen, parada de `worker` en 0,6 s y de `worker-long` en 0,9 s (antes 130,9 s y 620,8 s).
+- **`CS-08`, 2.ª ejecución** (VPS de staging, verificado a mano): reversión `sha-5072b79` → `sha-ba00db4` en 23,2 s y avance en 27,2 s; corte en los *backends* ~2,9 s y ~2,8 s, a través de Traefik ~6,1 s y ~3,1 s; un trabajo encolado por la versión anterior lo procesó la nueva (`jobs=0`, `failed_jobs=0`). **Salvedades** en `RUNBOOK.md §3b.9`: el trabajo es un *closure* consumido con `queue:work --once`, no por el *worker* de systemd; ambas versiones comparten esquema y casi todo el código; sin migraciones pendientes (no se probó una migración real); los *workers* del destino de reversión (sin `pcntl`) se pararon con `SIGKILL` a mano; sondeo desde el propio VPS.
+- **No ejecutado**: `CS-17`, `CS-19` y `CS-02` completo; #693 sigue abierto.
+- Versiones: `SYSADMIN.md` 0.9.1, `RUNBOOK.md` 0.3.25, `README.md` 2.6.56 (sin cambio propio).
+
+## 2026-11-16 · `infra`/`docs`: staging en un VPS con Podman sin privilegios, `0.10e-c` tramos 1-3 (`ADR-080`, `ADR-087`, `ADR-088`; issues #685, #690, #693)
+
+- **Tramo 1** (#689, mezclado) y **tramo 2** (#692, mezclado): `install.sh --user`, rutas por modo, migraciones con `--database=pgsql_owner`, plantillas de unidades con sustitución de tokens y Traefik en red `host` con *backends* en `127.0.0.1` (la IP real del cliente para la lista blanca del *backoffice*). Staging promocionado por avance rápido a `a1f27d2`.
+- **Tramo 3** (rama `chore/0-10e-c-t3-cierre`): Mailpit opcional (`install.sh --with-mailpit`, `ADR-087`, `ACEPTADA` contra la recomendación de `architect`; interfaz solo por túnel SSH, no cierra `CS-19`); `ADR-088` (`PROPUESTA`: red `host`, tokens de `install.sh`, dominios `centros.adagiox.eu` y `panel.adagiox.eu`); documentación: `SYSADMIN.md §4c`, `RUNBOOK.md §3b.9`, `ARCHITECTURE.md §4.1b` (entornos), `CLAUDE.md §9` y `§11` (staging, datos sintéticos).
+- **Verificado a mano el 2026-11-16 en el VPS** (sin prueba automatizada): siete contenedores `healthy` con `sha-a1f27d2`, 130 migraciones, S3 real del proveedor, lista blanca del *backoffice* (200/403), corte del conjunto API + web + Traefik al redesplegar de unos 26 s, y `CS-01` (por el usuario). Los certificados son de **pruebas**.
+- **No ejecutado**: `CS-02` completo, `CS-08`, `CS-17` y `CS-19`; la unidad de Mailpit no se ha arrancado con Quadlet real (sin probar el envío ni la interfaz por túnel); #693 (lista blanca de los centros) abierto.
+- **No ejecutado**: `CS-02` completo (`main` sigue en `12a9834`), `CS-08` (reversión medida), `CS-17` (E2E real), `CS-19` (relay SMTP real); `CS-05`, `CS-06`, `CS-07` y `CS-09` sin evidencia registrada. El estado de datos es de 0 centros y 0 usuarios (`demo:seed` es de `1.15b`).
+- **Hallazgo abierto #693**: la lista blanca de IP solo cubre el *backoffice*, no los routers de los centros (`OPEN-STG-09`).
+- Versiones: `CLAUDE.md` 2.13.1, `README.md` 2.6.56, `ARCHITECTURE.md` 2.5.14, `SYSADMIN.md` 0.9.0, `RUNBOOK.md` 0.3.24, `REQUISITOS` 3.2.35. Los ADR son inmutables y no se tocan.
+
+## 2026-11-16 · `ci`/`docs`: preparación del flujo `develop` → `staging` → `main`, `0.10e-a` (`ADR-080 §4`; issue #686)
+
+- **Gancho** `.claude/hooks/block-protected-branch.sh` reescrito: `staging` pasa a ser rama protegida para `commit`; bloquea `push` forzado (`--force`, `-f`, `--force-with-lease`, refspec con `+`), `--mirror`, `--all`, destinos con comodín o expansión y todo destino `develop`, `staging` o `main` que no sea `<sha de 40 hex>:refs/heads/<rama>`; une continuaciones de línea, reconoce opciones globales de `git` y el cambio de rama dentro del mismo comando. Arnés de pruebas nuevo `.claude/hooks/test-block-protected-branch.sh` (105 casos; `CS-01`). Límites conocidos documentados en `RUNBOOK.md §3c`.
+- **Skills** `espera-ci` y `pr-check`: nunca *squash* con base `staging` o `main`, nunca borrar la rama de origen de un PR cuyo origen sea `main` o `staging`; la reconciliación y los arreglos urgentes se mezclan a mano con *merge commit*.
+- **CI**: `staging` solo en `pull_request.branches` de `ci-api`, `ci-web`, `ci-landing`, `dependency-scan` y `build-images`. **Retención de imágenes** (`ADR-080 §4.5`, que el ADR decía «no cambia» y la retención se especifica aquí, según su propio §4.5): `actions/delete-package-versions` aplicaba `ignore-versions` al digest y no a las etiquetas, así que no protegía nada, tampoco las `vX.Y.Z` (defecto anterior a este paso); se sustituye por `.github/scripts/purgar-imagenes.sh` (`gh api` + `jq`), que conserva las 10 versiones más recientes, las `vX.Y.Z`, los `sha-<7>` de `staging` y `main` y los manifiestos hijos sin etiqueta creados a menos de 120 s de una versión conservada, con prueba en `--dry-run` (15 casos). **Sin verificar contra GHCR real**: permisos de `GITHUB_TOKEN` y endpoint.
+- **Reconciliación** `main` → `develop` (PR #687, *merge commit*): `main` ya no tiene nada que `develop` no tenga.
+- **Documentación**: `CLAUDE.md` 2.13.0 (§4 con las tres ramas, promociones, arreglo urgente y gancho; la fila de runtime pasa a `0.10e-b` y `ADR-080` figura como `ACEPTADA`), `CONTRIBUTING.md`, `RUNBOOK.md §3c` (promoción y arreglo urgente), `SYSADMIN.md`.
+- **Revisión**: Codex no estuvo disponible (cuota de OpenAI agotada hasta el 2026-12-02); revisó `security-reviewer` (régimen de respaldo de `ADR-050`): sin Críticos ni Altos; 3 Medios (continuaciones de línea, `--mirror`/comodines, retención) y 2 Bajos corregidos; 1 Bajo rechazado (`B-3`, comprobar en el gancho que el `sha` está en `develop`: ya es un paso del procedimiento).
+- Versiones: `CLAUDE.md` 2.13.0, `PLAN-IMPLEMENTACION.md` 2.3.25, `README.md` 2.6.50, `SYSADMIN.md` 0.8.27, `RUNBOOK.md` 0.3.18, `CONTRIBUTING.md` 0.3.4, `REQUISITOS` 3.2.34 (corrección menor). `ADR-080 §4.5` es inmutable y no se edita: su «`build-images.yml` no cambia» se refiere a la construcción de imágenes, y el propio §4.5 deja la retención «a especificar en 0.10e»; el cambio queda registrado aquí.
+- **Sin dueño aún**: `ADR-080 §11` pide que `CLAUDE.md §9` y `§11` nombren también staging (solo datos sintéticos, destruible) y `ARCHITECTURE.md` (entornos); se asigna a `0.10e-c`, tramo 3.
+- **Pendiente**: crear la rama `staging` (por avance rápido desde `main`, tras crear el usuario las reglas de protección en GitHub; el *token* actual da 403) y verificar `CS-01` y `CS-02` contra el remoto.
+
+---
+
+## 2026-11-14 · `docs`: ronda de decisiones de la ola 1 (ADR-078, 079, 080, 082, 083 aceptadas; S-2, REQ-CALIF, REQ-INF y REQ-ACAD §1.13-a/-b aprobados)
+
+- **ADR aceptados** (siguen abiertas sus preguntas no bloqueantes y las condiciones jurídicas antes de datos reales): `ADR-078` (motor PDF; `OPEN-PDF-03` = P1), `ADR-082` (firma por niveles; `OPEN-FIRMA-02` y `-15`), `ADR-083` (S3 en producción; `OPEN-STO-03` = un bucket con prefijo por centro, sin cuenta de prueba por ahora, P-15 y P-16 no son condición), `ADR-080` (staging; AlmaLinux o Rocky, Podman sin privilegios, lista blanca de IP) y `ADR-079` (notificaciones; `OPEN-079-02`, `-05`, `-06` y `-09`).
+- **Especificaciones aprobadas**: `REQ-CORE/almacen-objetos.md` (`S-2`), `REQ-CALIF` (`OPEN-CALIF-01` a `-09`, `-12`, `-20` a `-24` y `-26`), `REQ-INF` (`OPEN-INF-01` a `-11` y `-22`; `ADR-085` encargado, sin escribir), `REQ-ACAD/asistencia.md` solo `1.13-a` y `1.13-b` (`1.13-c` parado hasta `ADR-084`, aplazado). `REQ-COM`: bloqueantes de arquitectura decididas (`OPEN-COM-03`, `-04`, `-06`, `-13`, `-14`, `-18`, `-20`), aprobación pendiente. `1.15a-b`: `OPEN-UI-03` y `-04`.
+- `REQUISITOS §5.5` y `§5.50`: dependencias corregidas (`OPEN-CALIF-01`, `OPEN-INF-02`).
+- **Sin decidir**: `ADR-077`, `ADR-081`, `REQ-SEED` (`OPEN-SEED-04`), `OPEN-COM-28` (técnica), `ADR-084`, `ADR-085`, `OPEN-ACAD-56` (revisión de `architect`).
+- Ningún cambio de código ni de infraestructura; no se contrata nada.
+
+---
+
+## 2026-11-14 · `feat(web)`: capa visual de la interfaz, `1.15a-a` (`REQ-CORE`, `ADR-064`; issues #431 y #674)
+
+- **T1 (tokens y radio)**: `--radius` de 2 px y toda la escala `--radius-xs` a `-4xl` igual a `var(--radius)`; tokens `--shadow-auth-panel`, `--scrim-auth`, `--on-scrim`, `--auth-panel-width` y `--auth-visual-min-height`. Los componentes vendorizados de `components/ui/` y las vistas que llevaban sombra se ajustan a la escala de radios y a la lista cerrada de sombras (`RN-UI-16`, `RN-UI-17`). Tests de arquitectura (`CA-UI-001` a `-008`, `-023`) y de contraste del velo.
+- **T2 (pantalla «Panel»)**: `PublicAuthShell.vue` pasa a la disposición «Panel» (`RN-DS-26`, `RN-DS-27`): región visual a la izquierda con imagen del centro o ilustración SVG original (`public/auth/illustration.svg`) y bienvenida genérica sobre un velo; panel de 360-460 px con sombra desde `md`; en móvil, franja superior sin sombra. Selector de idioma público en el pie. Claves `auth.shell.*` y `auth.login.lead` en los cuatro idiomas.
+- **Idioma de las pantallas públicas** (`RN-UI-15`, amplía `CA-AUTH-063`, `OPEN-UI-12` = A): elección guardada si es un idioma activo → navegador ∩ activos → idioma por defecto. La resolución automática no persiste `plataforma.locale` (`applyLocale`; solo la elección explícita usa `setLocale`, #674).
+- Documentación: `docs/design-system.md` (§4, §10.7, §11, §13, §22 y nuevo §23, registro de recursos gráficos), `docs/i18n.md`, `docs/modulos/REQ-AUTH/funcional.md §1.6`.
+- Pendiente de `1.15a-b` (texto de bienvenida personalizable, crítico) y de la imagen `sign-in` de la landing (`CA-UI-025`).
+
+## 2026-11-14 · `docs(landing)`: U6 revisada, programa de startups de Anthropic (issue #579)
+
+- `ADR-072 §11` U6: anotado el estado del programa (cohorte llena, sin requisitos publicados, créditos solo en la API de primera parte, vía VC). Sin cambios en la landing ni en ninguna decisión.
+
+
+## 2026-11-14 · `fix(landing)`: primer despliegue real de la landing (issues #663 y #666; PR #660, #664 y este)
+
+- **Primer despliegue real hecho el 2026-11-14**: `adagiox.com` sirve la landing (en inglés en `/` y en `/es/`, `/de/`, `/fr/`) con las cabeceras de `ADR-072 §4.4`, y `www`, `.es`, `.eu` y `.org` redirigen con 301 por reglas de zona. El primer intento falló por reglas de nombre de host en `_redirects` (#663, corregido en #664); el segundo se completó pero su smoke test dio un 404 transitorio (#666).
+- `deploy.sh`: la primera petición del smoke test se reintenta (10 intentos, 6 s). `wrangler.jsonc`: `preview_urls: false`.
+- Fuera del repositorio: *Always Use HTTPS* activado en la zona `adagiox.com`.
+- `build-images.yml` (#668, PR #669): el gate `require-ci-green` contaba sus propios check runs en curso y bloqueaba toda etiqueta `v*`; ahora los excluye por `run_id`. **Primera etiqueta `v0.1.0` (2026-11-14, sobre `main` `12a9834`)**: gate en verde y publicadas `plataforma-api` y `plataforma-web` en GHCR. La primera `v0.1.0` (sobre `5a8586a`) falló en el gate y se borró y recreó sin haber publicado nada.
+- Fuera del repositorio (detalle en `apps/landing/README.md` y `ADR-086 §4`): DMARC `p=quarantine` en `.com`; MX nulo, SPF `-all` y DMARC `p=reject` en `.es`, `.eu` y `.org`; CAA con `iodef` en las cuatro zonas; *Always Use HTTPS* y TLS mínimo 1.2; 2FA en Arsys, Cloudflare y GitHub; reversión del Worker probada a nivel de API.
+- **Sin hacer** (lista canónica en `memory.md`): el DS de DNSSEC en Arsys (ticket abierto) y después DNSSEC en `.es`, `.eu` y `.org`; `npx wrangler rollback` con el token de CI; el HSTS a un año (hacia el 2026-11-21); DMARC de `.com` a `reject`; `security.txt` (diferido por `ADR-073`); y, del usuario, el bloqueo de transferencia de los dominios y *Certificate Transparency Monitoring*.
+
+## 2026-11-14 · `docs(landing)`: DNS en Cloudflare, dominio del ápice y `ADR-086` (issue #579; PR #660 y este)
+
+- `ADR-086` (`ACEPTADA`): se mantiene Cloudflare pese a los bloqueos de LaLiga (riesgo aceptado, salida a Netlify documentada), cuarto dominio `adagiox.org` en lugar de `.net`, estado del DNS y permisos del token. Sustituye en parte a `ADR-072 §4.7`/`OPEN-072-02` y a `§1.1`/`§4.3` (`.net`).
+- `apps/landing/wrangler.jsonc`: `custom_domain` del ápice `adagiox.com` (PR #660); `README.md` con los registros y servidores de nombres previos para la reversión y con las redirecciones por reglas de zona; `SYSADMIN.md §4b` corregido (permisos del token con los roles actuales de Workers, `.org`, DNSSEC pendiente del DS).
+- Cambios fuera del repositorio, ya hechos: las cuatro zonas dadas de alta en Cloudflare; `adagiox.com` y `adagiox.eu` `active` y con las redirecciones 301 comprobadas con `curl`; `adagiox.es` y `adagiox.org` con la regla creada pero **sin comprobar** (esperaban la propagación de los servidores de nombres); DNSSEC activado en `.com` en `pending`.
+- **No desplegado ni probado**: el despliegue sigue apagado; la asociación del dominio, el `rollback` y el DS de DNSSEC en Arsys no se han verificado.
+
+## 2026-11-13 · `docs(proceso)`: ola 1 de arquitectura y especificación, solo documentación (`ADR-077` a `ADR-083`; PR #636 a #649)
+
+- **Solo documentación: no hay código, migraciones ni cambios de comportamiento, y nada de lo que sigue está decidido, aceptado ni implementado.** Catorce ramas con su PR, abiertos y sin mezclar al escribir esto: siete ADR en `PROPUESTA`, cada uno en su PR (#636 a #642), siete especificaciones en `PROPUESTO` (#643 a #649) y esta rama de ficheros compartidos. Guion: `docs/proceso/ola1-arquitectura-2026-11.md`.
+- ADR en `PROPUESTA`: `ADR-077` purga física de tenant (#636); `ADR-078` motor de renderizado PDF, WeasyPrint en servicio propio (#637); `ADR-079` notificaciones y comunicaciones (#638); `ADR-080` staging, rama y *runtime* de contenedores (#639); `ADR-081` pasarela de pago y SEPA (#640); `ADR-082` firma digital y apoderado (#641); `ADR-083` proveedor S3 de staging y producción y expediente de cumplimiento `docs/cumplimiento/` (#642). `ADR-084` (asistencia sin conexión) y `ADR-085` (datos de categoría especial de 0-3) quedan **reservados, sin redactar**.
+- Especificaciones en `PROPUESTO`: `S-2` almacén de objetos (#643); `1.13` asistencia (#644); `1.15a` capa visual (#645); `1.15b` `REQ-SEED` (#646); `1.16`-`1.17` `REQ-CALIF` (#647); `1.18` `REQ-INF` (#648); `1.19` `REQ-COM` (#649). Ninguna está aprobada ni lista para `implementer`.
+- Ficheros compartidos de esta rama: `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` 3.2.31 (solo el índice de `§18`, «Decisiones abiertas vivas», cabecera e historial; el cuerpo de requisitos no se toca), `PLAN-IMPLEMENTACION.md` 2.3.23 (pasos nuevos y particiones `1.13-a1`..`-c`, `1.15a-a`/`-b`, `1.15b-a`..`-c`, `1.16-a`..`-d`, `1.17-a`/`-b`, `1.18-a1`..`-e2`, `1.19a-1`..`1.19g`, `1.23b-a`..`-c`, `0.10e-a`..`-e`, pasos `P` y `C-2`), `README.md` 2.6.47 y `memory.md`. `ARCHITECTURE.md`, `SYSADMIN.md`, `RUNBOOK.md`, `SECURITY.md`, `PRIVACY.md`, `CLAUDE.md` y `.claude/` **no se modifican**: se actualizarán al implementar o aceptar cada ADR.
+- Correcciones de cifras en el plan: `S-2` son 13 llamadas directas al disco (no 16) y `1.23b` son 66 tablas con `tenant_id` y 261 claves foráneas (no 31 y 85). Marcas de `1.11` y `1.14` alineadas con `memory.md`.
+- Decisiones del usuario recogidas (2026-11-12/13): asistencia partida en cuatro entregas; `1.15a-a` y `1.15a-b` antes de `1.15b`; cada módulo trae su bloque de `REQ-SEED`; cola `calif-pdf` en último puesto tras `notify-bulk`; `EnrollmentRoster` y el registro único de vetos de `alum` se construyen en `1.13-a1`.
+- Proceso: Fable 5.2 se quedó sin créditos durante la ola; las especificaciones B6 (`REQ-INF`) y B7 (`REQ-COM`) y los correctores se hicieron con Opus.
+- **Sin comprobar**: ninguna cifra o afirmación de los ADR sobre proveedores, licencias o rendimiento se ha ejecutado o verificado en esta rama; cada documento lista lo suyo en su apartado de fuentes y hallazgos.
+
+## 2026-11-12 · `feat(files)`: S-1b, E2E contra Garage y retirada de MinIO (`ADR-076`; cierra #38 y #613, resuelve #625)
+
+- Retirados MinIO (servicio y volumen `minio-data` de `compose.yaml`, `infra/quadlet/minio-data.volume`, variables `MINIO_ROOT_*`) y el servidor S3 falso `e2e-fake-s3.php`. `api` y `worker` apuntan a Garage y `compose` exige `GARAGE_ACCESS_KEY_ID`, `GARAGE_SECRET_ACCESS_KEY` y `GARAGE_BUCKET` sin valor de reserva (issue #613, credencial `minioadmin`). Quien tuviera MinIO sigue el procedimiento de migración de `SYSADMIN.md` (el borrado del volumen local lo ejecuta cada desarrollador).
+- Firma de URL de marca, exportaciones e informes de importación por `PrivateObjectStore` (endpoint de firma, tope de 15 minutos, aislamiento por centro): resuelve #625.
+- Los scripts de E2E real y `landing-shots.sh` levantan e inicializan Garage solos (`apps/web/scripts/lib/e2e-garage.sh`); los specs descargan las URL firmadas sin reescribir el *host*.
+- E2E nuevo de la fotografía del alumno (`alum-photo-real.spec.ts`): imagen sintética, descarga de Garage, bytes reprocesados, firma alterada `403`, sustitución y borrado. La descarga del CSV de las exportaciones se comprueba de verdad (`alum-enrollments-real`, `alum-screens-real`, `alum-group-change-real`); desaparecen las ramas «no probada». Cubre lo que dejó pendiente `1.15-d`.
+- Decisión de la pregunta 4 de `ADR-076 §10`: el test de conformidad del almacén corre en todo PR (como ya hace el job `Conformidad del almacén (Garage)`).
+- Documentación viva: `ARCHITECTURE.md`, `RUNBOOK.md`, `SYSADMIN.md`, `apps/landing/README.md` y `operacion.md` de `REQ-PRL`, `REQ-FAM-UNIT` (con `files.signed_url_max_ttl_minutes`), `REQ-ALUM`, `REQ-CORE`, `REQ-AUTH` y `REQ-PERM`; `CA-ALUM-072` en `REQ-ALUM/funcional.md`. Aprobados por el usuario el 2026-11-12 (`ADR-076 §7.2`, sustitución mínima de MinIO por Garage): `CLAUDE.md §1` y `§3` (versión 2.11.4), `.claude/agents/verificador.md` y `.claude/skills/frontend-spa/SKILL.md`.
+- **No cubierto por Garage** (`ADR-076 §2.3`): TLS, versionado, *Object Lock*, cifrado en servidor, ciclo de vida y límites del proveedor; se verifican en *staging*.
+- Guarda de entorno en `ensure_garage` (`apps/web/scripts/lib/e2e-garage.sh`): aborta con código 2 si el `APP_ENV` de `plataforma-api` no es `local` ni `testing`, sin tocar nada; el E2E de alumnado deja `api` y `worker` recreados con `FILESYSTEM_DISK=s3` hasta el siguiente `compose up` sin esa variable.
+- **Cambio de flujo de desarrollo**: `compose` exige en todos los perfiles, también el reducido, las cinco variables `GARAGE_*` (`GARAGE_RPC_SECRET`, `GARAGE_ADMIN_TOKEN`, `GARAGE_ACCESS_KEY_ID`, `GARAGE_SECRET_ACCESS_KEY` y `GARAGE_BUCKET`). Quien tenga un `.env` sin ellas rompe el arranque de `compose` en todos los perfiles hasta que las añada.
+- Recuento de E2E real de alumnado: `alum-photo-real` (5 tests HTTP); los HTTP de alumnado son 16 (3 + 8 + 5) y los de navegador 14.
+
+## 2026-11-11 · `feat(files)`: S-1a, Garage, URL firmadas y test de conformidad (`ADR-076`)
+
+- Servicio `garage` (perfil `full`, imagen `v2.5.0` fijada por digest), `infra/garage/garage.toml` e `init.sh` idempotente; MinIO y el servidor S3 falso siguen hasta `S-1b`. Experimento previo: `docs/proceso/experimento-garage-s1a.md`. **Cambio de flujo de desarrollo**: `compose` exige ahora `GARAGE_RPC_SECRET` y `GARAGE_ADMIN_TOKEN` en `.env` (véase `.env.example`), también en el perfil reducido; quien tenga un `.env` anterior debe añadirlas o `podman compose` falla en todos los perfiles.
+- Disco `s3`: sumas de verificación `when_required`; `AWS_URL_SIGNING_ENDPOINT` (firma con el *endpoint* del navegador, operación con el interno) y tope global `FILES_SIGNED_URL_MAX_TTL_MINUTES` (15) en `PrivateObjectStore`. En `production` y `staging`, si `AWS_URL_SIGNING_ENDPOINT` se define debe ser `https://`; si no, `PrivateObjectStore` lanza `RuntimeException` (falla en cerrado). **Limitación conocida (#625)**: el tope y el *endpoint* de firma solo cubren `PrivateObjectStore`; tres llamadas directas a `Storage` (`DataExportsController`, `UserImportResource`, `BrandingAssetUrlSigner`) siguen sin ellos hasta `S-1b`/`S-2`.
+- Test de conformidad `tests/StorageConformance` (grupo `storage-conformance`, `composer test:conformance`, fuera de `composer test`, se salta sin `STORAGE_CONFORMANCE_ENABLED=1`) y job `Conformidad del almacén (Garage)` en `ci-api.yml` (todo PR y `develop`; no *check* requerido). Renovate sube juntos el digest de `compose.yaml` y el de CI.
+- Discrepancia con `ADR-076 §5.4`: Garage responde `400` (no `403`) a una URL caducada; el test acepta ambos.
+- Documentación: `SYSADMIN.md`, `ARCHITECTURE.md §2` y `§4.1`, `RUNBOOK.md §2.1`. Los manuales y `operacion.md` de módulo que mencionan MinIO se actualizan en `S-1b`.
+
+## 2026-11-11 · `feat(alum)`: 1.15-d pantallas y E2E de alumnado (`REQ-ALUM-001`; criterios `CA-ALUM-070`, `-071` y `-072`)
+
+- SPA `alum` (módulo web nuevo): T1 listado de alumnado con filtros en la URL, ficha y fotografía; T2 matrículas en la ficha (alta, baja con fecha y motivo, anulación), lista de clase con exportación y solicitudes de cambio de grupo (solicitar, aprobar, rechazar con nota obligatoria, cancelar; la propia solicitud no se aprueba). Vínculos de tutor y consentimientos de imagen se piden bajo demanda porque su lectura se audita. Con el curso de solo lectura no hay acciones de escritura y se puede exportar (`RN-ACAD-42`). Textos en es-ES, en, de y fr.
+- T3 E2E de navegador contra la API real: `alum-screens-real` (8) y `alum-group-change-real` (6), 14 tests de navegador, más 11 HTTP de `alum-students-real` y `alum-enrollments-real`; `npm run test:e2e:real:alum` en dos invocaciones de Playwright.
+- **No probado**: la descarga del CSV desde S3 (la exportación se acepta con `202`, el fichero no se descarga) y el E2E de la fotografía; aplazados a la entrega `S-1b` de `ADR-076`, cuando exista un S3 real con firma.
+- Documentación: `REQ-ALUM` (`funcional.md` cabecera, §10, §11.8 y §15; `api.md §1`; `permisos.md`; `operacion.md §9`), manuales de secretaría, docente y dirección, `SYSADMIN.md` y `README.md`. Contradicción corregida antes (issue #614): la ficha no lleva `guardians[]` ni `emergency_contact`, se leen de `fam_unit`.
+- Tests: `CA-ALUM-070` (Vitest), `-071` (foco en diálogos en navegador real; 320 px en navegador real solo en `/alumnado`, `/alumnado/listas` y `/alumnado/cambios-de-grupo`: la ficha y los diálogos de matrícula no se comprueban a 320 px en E2E y no hay comprobación automática tipo axe) y `-072`.
+- **Límites**: no hay pantalla para asignar el primer grupo a una matrícula sin grupo (issue #621); sin curso resuelto no hay acciones ni exportación y las pantallas avisan. Correcciones de revisión: la lista de clase envía el curso efectivo (`GET /enrollments` lo exige), la foto se retira a los 5 minutos como máximo y la ficha recarga al cambiar de alumno.
+
 ## 2026-11-11 · `docs(almacenamiento)`: ADR-076 almacenamiento de objetos (`ACEPTADA`)
 
 - `ADR-076`: la API S3 es el contrato único (Flysystem S3 tras el almacén privado); Garage, fijado por versión y digest, sustituye a MinIO y al servidor S3 falso solo en desarrollo, CI y E2E (nunca en servidores); `TenantObjectStore` en `App\Support\Files` con el prefijo del centro impuesto por la implementación y test de arquitectura; endpoint de firma, sumas de verificación `when_required` y test de conformidad; inventario de limpieza. Concreta `ADR-013` y `ADR-068 §5.3`; sustituye en parte a `ADR-030`, `ADR-037` y `ADR-033 §9` (solo el mecanismo `TenantStorage`; la regla del prefijo se mantiene). Proveedor de producción y cumplimiento, fuera (expediente aparte). Requisitos 3.2.30.

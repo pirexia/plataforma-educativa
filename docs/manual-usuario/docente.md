@@ -1,6 +1,6 @@
 # Manual de profesorado
 
-> Estructura académica (`REQ-ACAD-001`, pasos `1.11-b`, `1.11d-a` y `1.11d-b`). El resto de funciones de este perfil se documentan con cada módulo.
+> Estructura académica (`REQ-ACAD-001`, pasos `1.11-b`, `1.11d-a` y `1.11d-b`) y alumnado de tus grupos (`REQ-ALUM`, paso `1.15-d`). El resto de funciones de este perfil se documentan con cada módulo.
 
 ## Estructura académica del centro
 
@@ -27,4 +27,12 @@ En **Administración → Horarios** (`/academico/horarios`) consultas la rejilla
 ## Reservar un aula o un recurso
 
 En **Administración → Reservas** (`/academico/reservas`) ves las reservas del curso por fecha y hora, con quién hizo cada una, y puedes filtrarlas por espacio o por fechas. **«Nueva reserva»** pide el espacio (un aula o un recurso, como un carro de portátiles o un proyector; necesitas poder ver los espacios), el día, la hora de inicio y la de fin. La hora de fin no se incluye: una reserva hasta las 11:00 y otra desde las 11:00 no chocan. Una reserva no puede coincidir con otra del mismo espacio ni, si es un aula, con una sesión del horario de ese día; si choca, el aviso, junto a los botones, dice con qué y no se guarda. Por defecto el profesorado **solo puede cancelar sus propias reservas**: **«Cancelar»** en la de otra persona responde que no existe. Las reservas no se editan: cancela y reserva de nuevo. Un curso cerrado no admite reservas nuevas ni cancelaciones. Si una persona del profesorado ya no existe en el centro (se ha dado de baja), en las asignaciones, tutorías, sesiones y reservas aparece como **«Usuario eliminado»**: el historial se conserva, pero su nombre ya no se muestra.
+
+## Alumnado de tus grupos
+
+**Qué ves.** En **Alumnado** (`/alumnado`) y **Listas de clase** (`/alumnado/listas`) ves **solo a los alumnos matriculados en los grupos en los que tienes asignación docente o tutoría en el curso elegido**; el resto no aparece, y abrir directamente la dirección de la ficha de otro alumno responde como si no existiera. Si no hay curso resuelto (ni `?academic_year=` ni curso activo), la lista de clase y los cambios de grupo avisan de que falta un curso académico: elige uno en el selector. Si no tienes asignación en ese curso, las pantallas salen vacías: pídele a Dirección que te asigne en **Profesorado** del grupo. El curso académico es el del selector de la barra superior.
+
+**La ficha** muestra los datos personales (el documento **enmascarado**: solo los cuatro últimos caracteres), la fotografía (**«Mostrar fotografía»** la pide en ese momento) y las matrículas del alumno en tus grupos. Es de consulta: por defecto el profesorado no puede dar de alta, corregir ni dar de baja alumnos, ni matricular, ni exportar. Los vínculos con tutores y los consentimientos de imagen aparecen solo si tu rol puede leerlos y se piden con un botón porque **su consulta queda registrada en la auditoría**.
+
+**Cambios de grupo.** En **Cambios de grupo** (`/alumnado/cambios-de-grupo`) ves las solicitudes de los alumnos de tus grupos, de solo lectura: solicitar, aprobar, rechazar y cancelar no están en tu perfil por defecto.
 

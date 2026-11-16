@@ -39,7 +39,7 @@ Lo que sí hace este paso respecto de `RMOD-009` es **consumir** el estado del m
 |----------|------------------|----------------|
 | **PostgreSQL** | Todo. Dos consultas indexadas por comprobación, memoizadas por petición | La API no sirve. Sin degradación posible ni deseable |
 | **Redis** | **Ninguno.** Este paso no cachea permisos (`ADR-044 §4.7`) | **Sin efecto sobre la autorización.** Un Redis caído degrada colas y caché de otros módulos; la resolución de permisos sigue siendo correcta |
-| **S3 / MinIO** | Sólo indirectamente: la exportación de auditoría acotada por ámbito escribe su artefacto | Ya cubierto por `REQ-CORE/operacion.md §3` |
+| **Almacenamiento S3** | Sólo indirectamente: la exportación de auditoría acotada por ámbito escribe su artefacto | Ya cubierto por `REQ-CORE/operacion.md §3` |
 
 **Que Redis no participe es una propiedad de seguridad, no sólo de simplicidad.** El modo de fallo de una caché de permisos mal invalidada es **conceder lo ya revocado**, y es la única dirección de fallo que `INV-002` no admite. Mientras no exista esa caché, un Redis vacío, reiniciado o desalojado por memoria **no puede abrir un permiso**.
 

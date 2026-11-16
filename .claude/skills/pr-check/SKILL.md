@@ -11,9 +11,10 @@ Argumento opcional: el alcance del PR (`api`, `web`, `docs`); si no se da, se de
 
 ## 1. Rama y estado
 
-1. `git branch --show-current`: **no** `develop` ni `main`; nombre `feature/REQ-XXX-…`, `fix/…`, `chore/…` o `docs/…`.
+1. `git branch --show-current`: **no** `develop`, `staging` ni `main`; nombre `feature/REQ-XXX-…`, `fix/…`, `chore/…` o `docs/…`.
 2. `git status --short`: sin cambios sin commitear. Si los hay, para y dilo.
 3. `git fetch -q && git log --oneline origin/develop..HEAD`: lista de commits del PR.
+4. **La base del PR es siempre `develop`.** La única excepción es el arreglo urgente de `ADR-080 §4.4` (rama `fix/…` desde `staging`, PR a `staging` con *merge commit*, y después PR `staging` → `develop`); ahí `git log` se compara contra `origin/staging` y el PR no se mezcla con `espera-ci`. Nunca se abre un PR de trabajo a `main`.
 
 ## 2. Commits y ficheros
 

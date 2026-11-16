@@ -30,8 +30,9 @@ La invalidación en escritura no es un detalle: el [issue #7](https://github.com
 | `APP_URL` | Base de las URLs generadas | `http://localhost` |
 | `MAIL_MAILER` | Envío del correo de invitación | `log` (ver §4) |
 | `MAIL_FROM_ADDRESS`, `MAIL_FROM_NAME` | Remitente transaccional | Ficticios (`@example.com`) |
-| `FILESYSTEM_DISK` | Disco de los activos de marca, ficheros de importación y exportaciones | `s3` (MinIO en desarrollo) |
-| `AWS_BUCKET`, `AWS_ENDPOINT`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_USE_PATH_STYLE_ENDPOINT` | Almacenamiento compatible S3 | MinIO local (perfil `full` de `compose.yaml`) |
+| `FILESYSTEM_DISK` | Disco de los activos de marca, ficheros de importación y exportaciones | `s3` (Garage en desarrollo, `ADR-076`; `local` en el perfil reducido) |
+| `AWS_BUCKET`, `AWS_ENDPOINT`, `AWS_URL_SIGNING_ENDPOINT`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_DEFAULT_REGION`, `AWS_USE_PATH_STYLE_ENDPOINT` | Almacenamiento compatible S3 | Garage local (perfil `full` de `compose.yaml`; credenciales y *bucket* de `GARAGE_*` en `.env`, sin valor de reserva; `SYSADMIN.md`) |
+| `FILES_SIGNED_URL_MAX_TTL_MINUTES` | Tope de caducidad de toda URL firmada del almacén privado (`config/files.php`, `ADR-076 §4`) | `15` |
 | `QUEUE_CONNECTION` | Colas | `database`, consumida por `php artisan queue:work` (servicio `worker`, issue #128; `redis` + Horizon es lo elegido, no instalado) |
 | `CORE_QUEUE_HEALTH_MAX_AGE_MINUTES` | Umbral de `core:queue-health` (issue #128): minutos que puede esperar un trabajo disponible antes de dar la cola por sin consumidor | `5` |
 | `CORE_INVITATION_TTL_DAYS` | Caducidad de la invitación (`RN-CORE-10`) | `7` |
@@ -51,7 +52,7 @@ Ninguna es un secreto salvo las credenciales de S3 y de correo, que van por gest
 |----------|-----|----------------|
 | **PostgreSQL** | Todo | La API no sirve. Sin degradación posible ni deseable |
 | **Redis** | Caché (prefijo por tenant, `ADR-033 §9`). **Colas: no hoy.** El *driver* vigente es `database` (`QUEUE_CONNECTION=database`, tablas `jobs`/`failed_jobs`, consumidas por el *worker* `queue:work` desde el issue [#128](https://github.com/pirexia/plataforma-educativa/issues/128)); Redis como cola con Laravel Horizon está **elegido y no instalado** (Horizon no está en `composer.json`, no hay `config/horizon.php`; `CLAUDE.md §1`, `OPEN-BO-23`) | La caché degrada a consulta directa (más lenta, correcta). **Con el *driver* `database` las colas dependen de PostgreSQL, no de Redis**: sin PostgreSQL la API no sirve (fila anterior). Cuando las colas pasen a Redis, dejarán de degradar: sin Redis no se enviarían invitaciones, no se validarían ni ejecutarían importaciones y no se generarían exportaciones, y la petición deberá fallar con `503`, nunca aceptar en silencio algo que no va a ocurrir |
-| **S3 / MinIO** | Activos de marca, ficheros de importación, artefactos de exportación | Subida y descarga fallan con `503`. El resto del módulo (usuarios, roles, configuración no gráfica, auditoría) sigue funcionando. La configuración se devuelve con las URLs de branding a `null`, no con un error |
+| **Almacenamiento S3** | Activos de marca, ficheros de importación, artefactos de exportación | Subida y descarga fallan con `503`. El resto del módulo (usuarios, roles, configuración no gráfica, auditoría) sigue funcionando. La configuración se devuelve con las URLs de branding a `null`, no con un error |
 | **Correo transaccional** | Invitación | Depende de `0.10c`, **sin decidir** (`OPEN-CORE-04`). El trabajo reintenta; agotados los reintentos, la invitación queda emitida y visible en `GET /invitations`, y el administrador puede reenviarla. **La invitación no se invalida por un fallo de entrega** |
 
 Sin *circuit breaker* en 1.1: no hay ninguna integración con un tercero de latencia impredecible. Cuando llegue `REQ-COM` (1.19) con proveedores de SMS y push, será su decisión.
