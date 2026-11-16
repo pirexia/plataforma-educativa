@@ -17,7 +17,7 @@ Wants=plataforma-network.service postgres.service
 Image=ghcr.io/pirexia/plataforma-api:__TAG__
 ContainerName=plataforma-migrate
 Network=plataforma.network
-EnvironmentFile=/etc/plataforma/plataforma.env
+EnvironmentFile=__ENV_DIR__/plataforma.env
 Exec=php artisan migrate --force
 
 [Service]

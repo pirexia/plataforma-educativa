@@ -98,3 +98,42 @@ warn_acme_staging_in_production() {
     fi
     return 0
 }
+
+# Prepara el directorio de init de PostgreSQL con los scripts del repositorio
+# (sin secretos: las contraseñas llegan al contenedor por las variables
+# TENANCY_*_PASSWORD de plataforma-postgres.env). Idempotente; solo se
+# ejecutan en la inicialización de un volumen nuevo.
+prepare_postgres_init() {
+    local src="$1" dest="$2"
+    mkdir -p "$dest"
+    cp -f "$src"/* "$dest"/
+    chmod 0755 "$dest"/*.sh
+    chmod 0644 "$dest"/*.tpl
+}
+
+# Renderiza las unidades Quadlet de $1 en $2 sustituyendo los tokens con los
+# valores ya cargados (TENANCY_*, ACME_*, BACKOFFICE_*, TRAEFIK_*, ENV_DIR,
+# POSTGRES_INIT_DIR) y la versión $3. Único sitio con el `sed`.
+render_units() {
+    local src="$1" dest="$2" tag="$3" unit name escaped
+    escaped="${TENANCY_BASE_DOMAIN//./\\.}"
+    mkdir -p "$dest"
+    for unit in "$src"/*.container "$src"/*.network "$src"/*.volume; do
+        name="$(basename "$unit")"
+        # __TAG__ es el punto de variación original (ADR-037 §6.1); el resto
+        # son su misma forma, no un sistema de plantillado nuevo.
+        sed \
+            -e "s/__TAG__/$tag/g" \
+            -e "s/__TENANCY_BASE_DOMAIN_ESCAPED__/$escaped/g" \
+            -e "s/__TENANCY_BASE_DOMAIN__/$TENANCY_BASE_DOMAIN/g" \
+            -e "s|__TRAEFIK_IMAGE__|$TRAEFIK_IMAGE|g" \
+            -e "s|__ACME_EMAIL__|$ACME_EMAIL|g" \
+            -e "s|__ACME_CA_SERVER__|$ACME_CA_SERVER|g" \
+            -e "s|__TRAEFIK_ENV_FILE__|$TRAEFIK_ENV_FILE|g" \
+            -e "s|__ENV_DIR__|$ENV_DIR|g" \
+            -e "s|__POSTGRES_INIT_DIR__|$POSTGRES_INIT_DIR|g" \
+            -e "s/__BACKOFFICE_HOST__/$BACKOFFICE_HOST/g" \
+            -e "s|__BACKOFFICE_ALLOWED_IPS__|$BACKOFFICE_ALLOWED_IPS|g" \
+            "$unit" > "$dest/$name"
+    done
+}
