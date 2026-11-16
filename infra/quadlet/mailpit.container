@@ -7,7 +7,7 @@
 #   MAIL_MAILER=smtp
 #   MAIL_HOST=mailpit
 #   MAIL_PORT=1025
-#   (sin cifrado: MAIL_ENCRYPTION vacío o null, sin usuario ni contraseña)
+#   (sin cifrado: MAIL_SCHEME vacío, sin usuario ni contraseña; Mailpit no anuncia STARTTLS sin certificado)
 # El SMTP (1025) solo es alcanzable desde la red de contenedores. La interfaz
 # (8025) se publica únicamente en 127.0.0.1 y se consulta por túnel SSH; no
 # tiene router en Traefik. Sin volumen: el correo capturado se pierde al reiniciar.
@@ -21,6 +21,12 @@ Image=docker.io/axllent/mailpit:v1.33.1@sha256:aef2aacc11f075ec0fb6874275ee4a421
 ContainerName=mailpit
 Network=plataforma.network
 PublishPort=127.0.0.1:8025:8025
+HealthCmd=/mailpit readyz
+HealthInterval=10s
+HealthTimeout=3s
+HealthRetries=10
+HealthStartPeriod=5s
+Notify=healthy
 
 [Service]
 Restart=always
