@@ -9,7 +9,7 @@ name: Imágenes y despliegue
 
 on:
   pull_request:
-    branches: [develop, main]
+    branches: [develop, main, staging]
   push:
     branches: [develop]
     tags: ["v*"]
@@ -216,10 +216,28 @@ jobs:
       matrix:
         package: [plataforma-api, plataforma-web]
     steps:
-      - name: Purgar sha- antiguos, conservar todo vX.Y.Z
+      # ADR-080 §4.5 / 0.10e-a: la imagen `sha-<7>` de los commits a los que apuntan hoy `staging` y `main` no se
+      # purga nunca, por muy lejos que quede de las 10 más recientes de develop. Se lee con `git ls-remote` sobre el
+      # repositorio público (sin credenciales nuevas) y se añade al regex de `ignore-versions`. Si una de las ramas
+      # aún no existe, se omite. El prefijo de 7 caracteres es el de `docker/metadata-action` (`type=sha,format=short`).
+      - name: Calcular imágenes protegidas (staging y main)
+        id: protegidas
+        run: |
+          regex='^v?\d+\.\d+\.\d+$'
+          for rama in staging main; do
+            sha="$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" "refs/heads/${rama}" | cut -c1-7)"
+            if [[ "$sha" =~ ^[0-9a-f]{7}$ ]]; then
+              regex="${regex}|^sha-${sha}$"
+              echo "Protegida: sha-${sha} (${rama})"
+            else
+              echo "La rama ${rama} no existe en el remoto: nada que proteger"
+            fi
+          done
+          echo "regex=${regex}" >> "$GITHUB_OUTPUT"
+      - name: Purgar sha- antiguos, conservar vX.Y.Z y los sha- de staging y main
         uses: actions/delete-package-versions@v5
         with:
           package-name: ${{ matrix.package }}
           package-type: container
           min-versions-to-keep: 10
-          ignore-versions: "^v?\\d+\\.\\d+\\.\\d+$"
+          ignore-versions: ${{ steps.protegidas.outputs.regex }}

@@ -4,7 +4,7 @@ name: CI · Landing
 # (un check filtrado por rutas queda en `pending` en los PR que no lo tocan).
 on:
   pull_request:
-    branches: [develop, main]
+    branches: [develop, main, staging]
     paths: ['apps/landing/**', '.github/workflows/ci-landing.yml']
   push:
     branches: [develop, main]

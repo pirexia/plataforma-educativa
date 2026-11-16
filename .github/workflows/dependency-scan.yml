@@ -2,7 +2,7 @@ name: Escaneo de dependencias
 
 on:
   pull_request:
-    branches: [develop, main]
+    branches: [develop, main, staging]
 
 permissions:
   contents: read
