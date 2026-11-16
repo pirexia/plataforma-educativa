@@ -2,6 +2,10 @@
 
 > Documento vivo, se amplía en cada fase con las pantallas que existan. Hoy cubre lo único que una familia tiene a su disposición: el **muro de condiciones de uso** (`REQ-FAM-UNIT-003`, paso `1.14-c`). El resto de pantallas de familia (comunicaciones, consentimientos, calendario…) se documentarán con cada módulo.
 
+## Idioma de la pantalla de acceso
+
+Antes de iniciar sesión puedes elegir el idioma con el selector del pie de la pantalla de acceso (español, inglés, alemán o francés, cada uno en su propia lengua). La aplicación recuerda tu elección en ese navegador; al iniciar sesión se aplica la preferencia de tu cuenta.
+
 ## Condiciones de uso del centro
 
 **Cuándo aparece.** Si el centro ha publicado unas condiciones de uso y todavía no las has aceptado, al iniciar sesión la aplicación te lleva a la pantalla **«Condiciones de uso»** (`/condiciones-de-uso`) y no te deja entrar a ninguna otra hasta que las aceptes. Es una obligación del centro hacia las personas con vínculo de tutor legal: no afecta al personal.
