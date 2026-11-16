@@ -49,6 +49,16 @@ base_env "BACKOFFICE_ALLOWED_IPS=203.0.113.7/32" "ACME_EMAIL=ops@example.com"
 expect "BACKOFFICE_ALLOWED_IPS con un CIDR" 0 "" validate
 base_env "BACKOFFICE_ALLOWED_IPS=203.0.113.0/24,198.51.100.7/32,2001:db8::/32,198.51.100.9" "ACME_EMAIL=ops@example.com"
 expect "BACKOFFICE_ALLOWED_IPS con varias entradas (IPv4, IPv6, sin prefijo)" 0 "" validate
+base_env "BACKOFFICE_ALLOWED_IPS=999.999.999.999" "ACME_EMAIL=ops@example.com"
+expect "BACKOFFICE_ALLOWED_IPS con octetos > 255 rechazada" 1 "no es IP ni CIDR" validate
+base_env "BACKOFFICE_ALLOWED_IPS=203.0.113.0/33" "ACME_EMAIL=ops@example.com"
+expect "BACKOFFICE_ALLOWED_IPS IPv4 con prefijo /33 rechazada" 1 "no es IP ni CIDR" validate
+base_env "BACKOFFICE_ALLOWED_IPS=2001:db8::/129" "ACME_EMAIL=ops@example.com"
+expect "BACKOFFICE_ALLOWED_IPS IPv6 con prefijo /129 rechazada" 1 "no es IP ni CIDR" validate
+base_env "BACKOFFICE_ALLOWED_IPS=203.0.113.0/24,198.51.100.7,2001:db8::/32,2001:db8::/128" "ACME_EMAIL=ops@example.com"
+expect "BACKOFFICE_ALLOWED_IPS válidas aceptadas" 0 "" validate
+base_env "ACME_EMAIL=ops%t@example.com"
+expect "ACME_EMAIL con % rechazado" 1 "formato de correo" validate
 base_env "BACKOFFICE_ALLOWED_IPS=203.0.113.0/24|rm" "ACME_EMAIL=ops@example.com"
 expect "BACKOFFICE_ALLOWED_IPS con | rechazada" 1 "no es IP ni CIDR" validate
 base_env "BACKOFFICE_ALLOWED_IPS=203.0.113.0/24 &" "ACME_EMAIL=ops@example.com"
@@ -116,6 +126,19 @@ if [[ "$rc" -eq 0 ]] && grep -q 'sourcerange=203.0.113.7/32,198.51.100.0/24' "$H
     echo "ok     install.sh --user con CIDR sustituye la lista y no deja tokens sin sustituir"
 else
     echo "FALLA  install.sh --user con CIDR (rc=$rc): $(tail -3 <<<"$out")"; FAILS=$((FAILS + 1))
+fi
+
+# prepare_postgres_init: destino enlace simbólico, destino escribible, sobrantes.
+mkdir -p "$TMP/real"; ln -s "$TMP/real" "$TMP/enlace"
+expect "init: destino enlace simbólico rechazado" 1 "enlace simbólico" prepare_postgres_init "$HERE/containers/postgres/init" "$TMP/enlace"
+mkdir -p "$TMP/abierto"; chmod 0777 "$TMP/abierto"
+expect "init: destino escribible por otros rechazado" 1 "escribible" prepare_postgres_init "$HERE/containers/postgres/init" "$TMP/abierto"
+mkdir -p "$TMP/init-ok"; chmod 0755 "$TMP/init-ok"; echo x > "$TMP/init-ok/sobrante.sql"
+expect "init: destino propio se prepara" 0 "" prepare_postgres_init "$HERE/containers/postgres/init" "$TMP/init-ok"
+if [[ ! -e "$TMP/init-ok/sobrante.sql" && -x "$TMP/init-ok/01-tenancy.sh" && "$(ls "$TMP/init-ok" | wc -l)" -eq 3 ]]; then
+    echo "ok     init: sobrantes eliminados y solo los tres ficheros del repositorio"
+else
+    echo "FALLA  init: sobrantes"; FAILS=$((FAILS + 1))
 fi
 
 # Rutas por modo (ADR-080 §3.4): ninguna unidad generada lleva rutas fijas del otro modo.
