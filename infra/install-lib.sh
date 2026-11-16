@@ -165,6 +165,9 @@ render_units() {
     mkdir -p "$dest"
     for unit in "$src"/*.container "$src"/*.network "$src"/*.volume; do
         name="$(basename "$unit")"
+        # Mailpit es opt-in (--with-mailpit): sin la opción no se renderiza.
+        # Una unidad ya instalada en $dest no se toca.
+        [[ "$name" != "mailpit.container" || "${WITH_MAILPIT:-0}" == "1" ]] || continue
         # __TAG__ es el punto de variación original (ADR-037 §6.1); el resto
         # son su misma forma, no un sistema de plantillado nuevo.
         sed \

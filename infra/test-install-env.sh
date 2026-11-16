@@ -204,6 +204,31 @@ for f in "$U"/*.container; do
 done
 if [[ -z "$bad" ]]; then echo "ok     Traefik en red host y backends publicados solo en 127.0.0.1"; else echo "FALLA  red host:$bad"; FAILS=$((FAILS + 1)); fi
 
+# Mailpit opcional (staging): sin --with-mailpit no se renderiza ni se anuncia; con la opción sí.
+if [[ ! -e "$U/mailpit.container" ]] && ! grep -q 'mailpit' <<<"$out"; then
+    echo "ok     sin --with-mailpit no se instala ni se anuncia mailpit"
+else
+    echo "FALLA  mailpit aparece sin --with-mailpit"; FAILS=$((FAILS + 1))
+fi
+H2="$TMP/home2"; mkdir -p "$H2/.config"; cp -r "$H/.config/plataforma" "$H2/.config/plataforma"
+out2="$(HOME="$H2" PATH="$TMP/bin:$PATH" bash "$HERE/install.sh" sha-test --user --with-mailpit 2>&1)"; rc2=$?
+M="$H2/.config/containers/systemd/mailpit.container"; bad=""
+[[ "$rc2" -eq 0 ]] || bad="$bad rc=$rc2;"
+[[ -f "$M" ]] || bad="$bad sin mailpit.container;"
+grep -q 'enable --now mailpit.service' <<<"$out2" || bad="$bad sin enable --now;"
+[[ "$(grep -c '^PublishPort=' "$M")" -eq 1 ]] && grep -q '^PublishPort=127.0.0.1:8025:8025$' "$M" || bad="$bad PublishPort;"
+grep -q 'PublishPort=.*1025' "$M" && bad="$bad publica SMTP;"
+grep -q '^Network=plataforma.network$' "$M" || bad="$bad sin red;"
+grep -qE '^(Requires|BindsTo)=' "$M" && bad="$bad Requires/BindsTo;"
+grep -qE '^Image=.+:v[0-9]+\.[0-9]+\.[0-9]+@sha256:[0-9a-f]{64}$' "$M" || bad="$bad imagen sin versión y digest;"
+grep -q '__[A-Z_]*__' "$M" && bad="$bad tokens;"
+if [[ -z "$bad" ]]; then echo "ok     --with-mailpit instala mailpit (127.0.0.1:8025, sin publicar SMTP, sin tokens)"; else echo "FALLA  --with-mailpit:$bad"; FAILS=$((FAILS + 1)); fi
+# Reinstalar sin la opción no borra una unidad mailpit ya instalada.
+HOME="$H2" PATH="$TMP/bin:$PATH" bash "$HERE/install.sh" sha-test --user >/dev/null 2>&1
+[[ -f "$M" ]] && echo "ok     reinstalar sin --with-mailpit conserva la unidad existente" \
+    || { echo "FALLA  reinstalar sin la opción borró mailpit"; FAILS=$((FAILS + 1)); }
+expect "install.sh rechaza opciones desconocidas" 1 "Opción desconocida" env HOME="$H2" bash "$HERE/install.sh" sha-test --nada
+
 # Modo sistema: render_units a un directorio temporal, sin escribir en /etc ni /opt.
 ( ENV_FILE="/etc/plataforma/plataforma.env"; TRAEFIK_ENV_FILE="/etc/plataforma/traefik-cloudflare.env"
   ENV_DIR="/etc/plataforma"; POSTGRES_INIT_DIR="/opt/plataforma/postgres-init"
