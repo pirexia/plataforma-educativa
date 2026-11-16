@@ -4,7 +4,7 @@
 
 ## Idioma de la pantalla de acceso
 
-Antes de iniciar sesión puedes elegir el idioma con el selector del pie de la pantalla de acceso (español, inglés, alemán o francés, cada uno en su propia lengua). La aplicación recuerda tu elección en ese navegador; al iniciar sesión se aplica la preferencia de tu cuenta.
+Antes de iniciar sesión puedes elegir el idioma con el selector del pie de la pantalla de acceso, cada idioma en su propia lengua. Solo aparecen los idiomas que el centro tiene activos, y si el centro tiene uno solo el selector no se muestra. La aplicación recuerda tu elección en ese navegador; al iniciar sesión se aplica la preferencia de tu cuenta, o el idioma por defecto del centro si el tuyo ya no está activo.
 
 ## Condiciones de uso del centro
 
