@@ -38,7 +38,7 @@ Wants=plataforma-network.service postgres.service redis.service plataforma-migra
 Image=ghcr.io/pirexia/plataforma-api:__TAG__
 ContainerName=plataforma-worker
 Network=plataforma.network
-EnvironmentFile=/etc/plataforma/plataforma-worker.env
+EnvironmentFile=__ENV_DIR__/plataforma-worker.env
 NoNewPrivileges=true
 DropCapability=ALL
 Environment=DB_QUEUE_RETRY_AFTER=180

@@ -1,0 +1,35 @@
+# Mailpit: servidor SMTP de captura para STAGING. OPCIONAL (install.sh --with-mailpit).
+# NO debe usarse en producción: captura el correo en memoria y no lo entrega a nadie.
+#
+# Para usarlo, poner a mano en el entorno del VPS (plataforma.env y
+# plataforma-worker*.env; las plantillas .env.example son las de producción
+# y no se tocan):
+#   MAIL_MAILER=smtp
+#   MAIL_HOST=mailpit
+#   MAIL_PORT=1025
+#   (sin cifrado: MAIL_SCHEME vacío, sin usuario ni contraseña; Mailpit no anuncia STARTTLS sin certificado)
+# El SMTP (1025) solo es alcanzable desde la red de contenedores. La interfaz
+# (8025) se publica únicamente en 127.0.0.1 y se consulta por túnel SSH; no
+# tiene router en Traefik. Sin volumen: el correo capturado se pierde al reiniciar.
+[Unit]
+Description=Mailpit — captura de correo (solo staging, opcional)
+After=plataforma-network.service
+Wants=plataforma-network.service
+
+[Container]
+Image=docker.io/axllent/mailpit:v1.33.1@sha256:aef2aacc11f075ec0fb6874275ee4a421e688e11a96ebb296134d1735c7761ce
+ContainerName=mailpit
+Network=plataforma.network
+PublishPort=127.0.0.1:8025:8025
+HealthCmd=/mailpit readyz
+HealthInterval=10s
+HealthTimeout=3s
+HealthRetries=10
+HealthStartPeriod=5s
+Notify=healthy
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=default.target

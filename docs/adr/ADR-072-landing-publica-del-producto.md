@@ -258,6 +258,7 @@ La redacción en es-ES la valida el usuario antes de traducirla.
 - **U4**: decidir `OPEN-072-01`, y con ello los datos de `/legal/`: titular, NIF, domicilio y correo. Redactar o encargar el aviso legal y la política de privacidad en es-ES. **El arquitecto no los redacta**: son textos legales.
 - **U5**: búsqueda de marca (`OPEN-072-07`).
 - **U6**: revisar las condiciones del programa de Anthropic para startups. Este ADR no presupone qué exige; si pide algo que la landing no tiene (correo del dominio, entidad), se vuelve a `§10`.
+  - **Revisada el 2026-11-14 (estado, no decisión)**: la página oficial (`https://claude.com/programs/startups`) dice que la cohorte actual está llena y que no admite solicitudes; no publica requisitos de elegibilidad (entidad, financiación, antigüedad, país, correo de dominio) ni describe el formulario. Beneficios publicados: ofertas y créditos de empresas socias (hasta 45.000 USD, *Startup Stack*) y sesiones de Applied AI; los créditos de la API solo valen en la API de primera parte (Console); hasta 100.000 USD adicionales solo por la vía de un VC de la red de socios. El usuario se suscribió a la newsletter de Claude Startup (2026-11-14). **Sin cambios en la landing por ahora**; cuando abra una cohorte se vuelve a leer la página y se contrastan los requisitos con `OPEN-07` (entidad jurídica). Las guías de terceros sobre requisitos se contradicen y no se toman como fuente.
 
 ---
 

@@ -12,7 +12,7 @@ El menú de navegación, a la izquierda en pantallas grandes y tras el botón de
 
 El menú de usuario (arriba a la derecha, con tu nombre) reúne el acceso a tu contraseña, tus sesiones abiertas, la seguridad de tu cuenta, el selector de idioma, el control de modo de color y cerrar sesión.
 
-**Idioma**: el selector ofrece los idiomas que el centro tiene activos (de los cuatro disponibles: español, inglés, alemán, francés), cada uno en su propia lengua. El cambio es inmediato, sin recargar la página. Si el centro retira mientras tanto el idioma que tenías elegido, la próxima vez que entres verás la interfaz en el idioma por defecto del centro.
+**Idioma**: el selector ofrece los idiomas que el centro tiene activos (de los cuatro disponibles: español, inglés, alemán, francés), cada uno en su propia lengua. El cambio es inmediato, sin recargar la página. Si el centro retira mientras tanto el idioma que tenías elegido, la próxima vez que entres verás la interfaz en el idioma por defecto del centro. También puedes elegir el idioma antes de entrar, con el selector del pie de la pantalla de acceso; la aplicación recuerda tu elección en ese navegador y prevalece sobre el idioma que envíe el navegador.
 
 **Modo de color**: tres opciones — seguir el sistema operativo (por defecto), claro fijo, oscuro fijo. Es una preferencia de tu navegador, no se guarda en el servidor ni se comparte entre tus dispositivos.
 

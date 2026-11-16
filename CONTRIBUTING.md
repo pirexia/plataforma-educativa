@@ -1,19 +1,19 @@
 # CONTRIBUTING.md
 
-> **Versión 0.3.3** · 2026-10-26
+> **Versión 0.3.4** · 2026-11-16
 > Estilo de código, flujo de trabajo Git y revisión de código. Extraído de `CLAUDE.md`, que es la fuente de verdad si algo difiere.
 
 ---
 
 ## 1. Flujo de trabajo Git
 
-- Ramas permanentes: **`main`** (producción) y **`develop`** (integración). Nunca se commitea directamente en ninguna de las dos.
+- Ramas permanentes: **`main`** (producción), **`staging`** (lo que se prueba en el entorno de staging) y **`develop`** (integración). Nunca se commitea directamente en ninguna de las tres.
 - Todo desarrollo cuelga de `develop`:
   - `feature/REQ-XXX-descripcion-corta`
   - `fix/REQ-XXX-descripcion-corta`
   - `chore/descripcion-corta`
 - Merge a `develop` al terminar, con **borrado inmediato de la subrama** local y remota.
-- `main` solo recibe merges desde `develop` en release, etiquetados con versión semántica.
+- Flujo `develop` → `staging` → `main` (`ADR-080 §4`): `staging` y `main` solo avanzan por **avance rápido** (`git push origin <sha de 40 hex>:refs/heads/<rama>`, desde HEAD desacoplado), **sin *squash*, sin `--force` y sin el botón de mezclar**. `main` solo recibe lo que ya está en `staging`, con etiqueta de versión semántica y a petición del propietario. Los PR de trabajo van siempre a `develop`. Procedimiento: `RUNBOOK.md §3c`.
 - Formato de commit: `tipo(ámbito): descripción [REQ-XXX-NNN]`. Todo commit referencia al menos un ID de requisito o de issue.
 - Antes de cualquier merge: tests en verde, lint limpio, documentación del módulo actualizada.
 
