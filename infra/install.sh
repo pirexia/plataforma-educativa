@@ -80,7 +80,7 @@ for unit in "$SOURCE_DIR"/*.container "$SOURCE_DIR"/*.network "$SOURCE_DIR"/*.vo
         -e "s|__ACME_CA_SERVER__|$ACME_CA_SERVER|g" \
         -e "s|__TRAEFIK_ENV_FILE__|$TRAEFIK_ENV_FILE|g" \
         -e "s/__BACKOFFICE_HOST__/$BACKOFFICE_HOST/g" \
-        -e "s/__BACKOFFICE_ALLOWED_IPS__/$BACKOFFICE_ALLOWED_IPS/g" \
+        -e "s|__BACKOFFICE_ALLOWED_IPS__|$BACKOFFICE_ALLOWED_IPS|g" \
         "$unit" > "$DEST_DIR/$name"
 done
 

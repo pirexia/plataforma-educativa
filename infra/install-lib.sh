@@ -42,6 +42,17 @@ load_and_validate_config() {
         echo "BACKOFFICE_HOST de $ENV_FILE no es un nombre de dominio válido (minúsculas, dígitos, puntos y guiones)." >&2
         return 1
     fi
+    if [[ -n "$BACKOFFICE_ALLOWED_IPS" ]]; then
+        local ip_re='^(([0-9]{1,3}\.){3}[0-9]{1,3}|[0-9A-Fa-f:]*:[0-9A-Fa-f:.]*)(/[0-9]{1,3})?$' entry
+        local -a entries
+        IFS=',' read -r -a entries <<<"$BACKOFFICE_ALLOWED_IPS"
+        for entry in "${entries[@]}"; do
+            if [[ ! "$entry" =~ $ip_re ]]; then
+                echo "BACKOFFICE_ALLOWED_IPS de $ENV_FILE tiene una entrada que no es IP ni CIDR (separadas por comas, sin espacios)." >&2
+                return 1
+            fi
+        done
+    fi
     if [[ -z "$ACME_EMAIL" ]]; then
         echo "ACME_EMAIL tiene que estar fijado en $ENV_FILE (email de la cuenta ACME, ADR-080 §3.5)." >&2
         return 1

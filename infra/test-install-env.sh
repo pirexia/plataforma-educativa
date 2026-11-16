@@ -45,6 +45,17 @@ got="$(validate_val)"
 base_env "BACKOFFICE_ALLOWED_IPS=" "ACME_EMAIL=ops@example.com"
 expect "BACKOFFICE_ALLOWED_IPS vacío no aborta" 0 "" validate
 
+base_env "BACKOFFICE_ALLOWED_IPS=213.37.174.145/32" "ACME_EMAIL=ops@example.com"
+expect "BACKOFFICE_ALLOWED_IPS con un CIDR" 0 "" validate
+base_env "BACKOFFICE_ALLOWED_IPS=203.0.113.0/24,198.51.100.7/32,2001:db8::/32,198.51.100.9" "ACME_EMAIL=ops@example.com"
+expect "BACKOFFICE_ALLOWED_IPS con varias entradas (IPv4, IPv6, sin prefijo)" 0 "" validate
+base_env "BACKOFFICE_ALLOWED_IPS=203.0.113.0/24|rm" "ACME_EMAIL=ops@example.com"
+expect "BACKOFFICE_ALLOWED_IPS con | rechazada" 1 "no es IP ni CIDR" validate
+base_env "BACKOFFICE_ALLOWED_IPS=203.0.113.0/24 &" "ACME_EMAIL=ops@example.com"
+expect "BACKOFFICE_ALLOWED_IPS con espacio y & rechazada" 1 "no es IP ni CIDR" validate
+base_env "BACKOFFICE_ALLOWED_IPS=host.example.com" "ACME_EMAIL=ops@example.com"
+expect "BACKOFFICE_ALLOWED_IPS con un nombre rechazada" 1 "no es IP ni CIDR" validate
+
 base_env
 expect "ACME_EMAIL ausente: error claro" 1 "ACME_EMAIL tiene que estar fijado" validate
 
@@ -90,6 +101,21 @@ else
     id() { echo otro-usuario; }
     expect "token de otro propietario (id simulado)" 1 "debe pertenecer" check_token_file
     unset -f id
+fi
+
+# Integración: install.sh --user completo con systemctl simulado y una lista CIDR (regresión del
+# `sed` con delimitador `/`: la lista blanca documentada en CIDR hacía abortar el instalador).
+H="$TMP/home"; mkdir -p "$H/.config/plataforma" "$TMP/bin"
+printf '#!/usr/bin/env bash\nexit 0\n' > "$TMP/bin/systemctl"; chmod +x "$TMP/bin/systemctl"
+printf '%s\n' "TENANCY_BASE_DOMAIN=centros.adagiox.eu" "BACKOFFICE_HOST=panel.adagiox.eu" \
+    "BACKOFFICE_ALLOWED_IPS=213.37.174.145/32,198.51.100.0/24" "ACME_EMAIL=ops@example.com" > "$H/.config/plataforma/plataforma.env"
+printf 'CF_DNS_API_TOKEN=x\n' > "$H/.config/plataforma/traefik-cloudflare.env"; chmod 600 "$H/.config/plataforma/traefik-cloudflare.env"
+out="$(HOME="$H" PATH="$TMP/bin:$PATH" bash "$HERE/install.sh" sha-test --user 2>&1)"; rc=$?
+if [[ "$rc" -eq 0 ]] && grep -q 'sourcerange=213.37.174.145/32,198.51.100.0/24' "$H/.config/containers/systemd/api@.container" \
+   && ! grep -rq '__[A-Z_]*__' "$H/.config/containers/systemd/"; then
+    echo "ok     install.sh --user con CIDR sustituye la lista y no deja tokens sin sustituir"
+else
+    echo "FALLA  install.sh --user con CIDR (rc=$rc): $(tail -3 <<<"$out")"; FAILS=$((FAILS + 1))
 fi
 
 echo "---"
