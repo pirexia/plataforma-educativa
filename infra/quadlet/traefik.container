@@ -94,6 +94,17 @@ Image=__TRAEFIK_IMAGE__
 EnvironmentFile=__TRAEFIK_ENV_FILE__
 ContainerName=plataforma-traefik
 Network=host
+# SELinux (#705, PROVISIONAL hasta el proxy de socket de 0.10e-d): bajo
+# `enforcing` un contenedor `container_t` no tiene `connectto` sobre el proceso
+# de Podman que atiende el socket, aunque el volumen lleve `:Z`, y Traefik falla
+# con `permission denied while trying to connect to the docker API`. Se
+# desactiva el confinamiento SOLO en este contenedor (--security-opt
+# label=disable); el host sigue en `enforcing`. Traefik con acceso al socket ya
+# equivale a control de Podman (supuesto (d) de arriba), así que el confinamiento
+# aportaba poco aquí. NO se aplica a ningún otro contenedor. Con label=disable
+# el `:Z` del socket no tiene efecto (no se reetiqueta nada); el de traefik-acme
+# se mantiene por coherencia y es inocuo.
+SecurityLabelDisable=true
 Volume=traefik-acme.volume:/acme:Z
 Volume=%t/podman/podman.sock:/var/run/docker.sock:ro,Z
 Exec=--providers.docker=true \

@@ -6,6 +6,14 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-17 · `infra`: SELinux desactivado solo en Traefik para leer el socket de Podman bajo `enforcing`, provisional hasta `0.10e-d` (issue #705)
+
+- **Fix #705**: con SELinux en `enforcing`, Traefik no se conecta al socket de Podman (`permission denied while trying to connect to the docker API`) y no descubre routers; con `permissive` funcionaba (comprobado en el VPS). `infra/quadlet/traefik.container` añade `SecurityLabelDisable=true` (el generador de Quadlet emite `--security-opt label=disable`). Solo Traefik; el resto sigue confinado. Provisional hasta el proxy de socket de `0.10e-d`. Decisión del usuario, 2026-11-17.
+- `infra/test-install-env.sh`: comprueba que solo `traefik.container` lleva la opción y, con generador, que solo el `ExecStart` de `traefik.service` lleva `label=disable`.
+- `ADR-088 §5.3` (riesgo y mitigación), `SYSADMIN.md §4c` y `RUNBOOK.md §3b.9`.
+- **No verificado**: no desplegado; falta comprobar en el VPS con `enforcing` que Traefik descubre los routers.
+- Versiones: `SYSADMIN.md` 0.9.4, `RUNBOOK.md` 0.3.28; `ADR-088` sigue en `PROPUESTA`.
+
 ## 2026-11-16 · `infra`: reglas de los routers sin espacios ni barra invertida, que Quadlet descartaba (issue #701)
 
 - **Fix #701 (Alto)**: el generador de Quadlet (Podman 5.8) descarta en silencio un `Label=` con espacios o `\.` y trunca en el primer espacio, así que los routers `plataforma-web` y `plataforma-api` de los centros no existían. Reglas reescritas con `&&` sin espacios y `[.]`; `__TENANCY_BASE_DOMAIN_ESCAPED__` genera `centros[.]adagiox[.]eu` (el nombre del *token* no cambia).

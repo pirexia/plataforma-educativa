@@ -1,6 +1,6 @@
 # RUNBOOK.md
 
-> **Versión 0.3.27** · 2026-11-16
+> **Versión 0.3.28** · 2026-11-17
 > Documento vivo: se actualiza en cada fase (`CLAUDE.md` §6). Cubre el entorno de **desarrollo** en WSL2 (`ADR-030`) y, desde `§3b.9`, el de **staging** en un VPS (con datos sintéticos) — no hay producción, piloto ni usuarios reales todavía. Los procedimientos de guardia, alertas y recuperación ante desastre de un entorno real se documentarán aquí cuando `OPEN-11` (alojamiento del piloto) se resuelva.
 
 ---
@@ -368,6 +368,8 @@ systemctl --user restart api@1.service web.service traefik.service worker.servic
 ```
 
 Sin `migrate:rollback` (las migraciones son aditivas, `CLAUDE.md §9`).
+
+**Si Traefik registra `permission denied while trying to connect to the docker API at unix:///var/run/docker.sock` y no hay routers (#705).** Casi seguro es SELinux en `enforcing` impidiendo la conexión al socket de Podman. Comprobar: `getenforce` y `systemctl --user cat traefik.service | grep -c 'label=disable'` (debe dar `1`: `traefik.container` lleva `SecurityLabelDisable=true`, provisional hasta `0.10e-d`). Si no sale, la unidad instalada es anterior: reinstalar con `./infra/install.sh <tag> --user`, `systemctl --user daemon-reload` y `systemctl --user restart traefik.service`. **No** pongas el host en `permissive` ni desactives SELinux en otros contenedores. Sin verificar aún en el VPS.
 
 **`CS-08`, 2.ª ejecución (2026-11-16/17, VPS de staging; hechos verificados a mano, sin prueba automatizada).** Reversión `sha-5072b79` → `sha-ba00db4` en 23,2 s (`install.sh` 0,6 s; API + web + Traefik 16,5 s; `worker` 0,7 s; `worker-long` 1,2 s) y avance de vuelta a `sha-5072b79` en 27,2 s. Corte medido en los *backends* de unos 2,9 s (reversión) y 2,8 s (avance); a través de Traefik, unos 6,1 s en la reversión (22 sondeos fallidos, 000/5xx) y 3,1 s en el avance (12). Un trabajo encolado por `sha-ba00db4` (un *closure* en la cola `cs08`, que ningún *worker* consume) lo procesó `sha-5072b79` con `queue:work --once`: `jobs=0`, `failed_jobs=0` y el correo llegó a Mailpit. Parada de los *workers* con `pcntl` (#696, ya desplegado): `worker` 0,6 s y `worker-long` 0,9 s (antes 130,9 s y 620,8 s sin `pcntl`).
 

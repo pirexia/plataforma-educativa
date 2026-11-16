@@ -92,6 +92,7 @@ El ajuste es de todo el host: cualquier usuario local puede enlazar cualquier pu
 ### 5.3 · Otros, ya conocidos (no cambian con este ADR)
 
 - Socket de Podman montado en Traefik: un Traefik comprometido controla el Podman del usuario. Lo resuelve el proxy de socket de `0.10e-d` (`ADR-037 §6.3`).
+- **SELinux desactivado solo en Traefik hasta el proxy de socket de `0.10e-d`** (#705, decisión del usuario del 2026-11-17). Con SELinux en `enforcing`, un contenedor `container_t` no puede conectarse (`connectto`) al proceso de Podman que atiende el socket, ni con `:Z`, y Traefik no descubre ningún router (`permission denied while trying to connect to the docker API`). `traefik.container` lleva `SecurityLabelDisable=true` (`--security-opt label=disable`) y **solo él**; el host y el resto de contenedores siguen en `enforcing`. **Riesgo**: un Traefik comprometido (expuesto a Internet en 80/443, con red host) queda sin la barrera de SELinux; ya tenía control de Podman por el socket, así que el confinamiento aportaba poco. **Mitigación**: provisional; se retira al introducir el proxy de socket de `0.10e-d` (que filtra métodos y permite volver al confinamiento); `infra/test-install-env.sh` exige que ninguna otra unidad lo lleve. No verificado en el VPS hasta desplegarlo.
 - Si algún día hay un proxy delante de Traefik, hay que añadir `forwardedHeaders.trustedIPs` en los dos *entrypoints* (comentario de `traefik.container`).
 
 ## 6 · Opciones consideradas para ver la IP del cliente
