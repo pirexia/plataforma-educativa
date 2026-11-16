@@ -39,12 +39,17 @@ if [[ "$USER_MODE" == "--user" ]]; then
     SYSTEMCTL="systemctl --user"
     ENV_FILE="$HOME/.config/plataforma/plataforma.env"
     TRAEFIK_ENV_FILE="$HOME/.config/plataforma/traefik-cloudflare.env"
+    POSTGRES_INIT_DIR="$HOME/.local/share/plataforma/postgres-init"
 else
     DEST_DIR="/etc/containers/systemd"
     SYSTEMCTL="sudo systemctl"
     ENV_FILE="/etc/plataforma/plataforma.env"
     TRAEFIK_ENV_FILE="/etc/plataforma/traefik-cloudflare.env"
+    POSTGRES_INIT_DIR="/opt/plataforma/postgres-init"
 fi
+# Directorio de los ficheros de entorno (api, postgres, workers), derivado
+# del ENV_FILE ya calculado: sistema /etc/plataforma, --user ~/.config/plataforma.
+ENV_DIR="$(dirname "$ENV_FILE")"
 
 if [[ ! -f "$ENV_FILE" ]]; then
     echo "No existe $ENV_FILE — ver RUNBOOK.md para generarlo antes de instalar." >&2
@@ -60,34 +65,14 @@ load_and_validate_config || exit 1
 check_token_file || exit 1
 warn_acme_staging_in_production "$TAG"
 
-# Escapado para HostRegexp (un literal de regexp, no una cadena Traefik):
-# el único metacaracter real en un dominio es el punto.
-TENANCY_BASE_DOMAIN_ESCAPED="${TENANCY_BASE_DOMAIN//./\\.}"
-
 echo "Instalando unidades Quadlet en $DEST_DIR con tag=$TAG"
-mkdir -p "$DEST_DIR"
-
-for unit in "$SOURCE_DIR"/*.container "$SOURCE_DIR"/*.network "$SOURCE_DIR"/*.volume; do
-    name="$(basename "$unit")"
-    # __TAG__ es el punto de variación original (ADR-037 §6.1); los otros
-    # tres son su misma forma, no un sistema de plantillado nuevo.
-    sed \
-        -e "s/__TAG__/$TAG/g" \
-        -e "s/__TENANCY_BASE_DOMAIN_ESCAPED__/$TENANCY_BASE_DOMAIN_ESCAPED/g" \
-        -e "s/__TENANCY_BASE_DOMAIN__/$TENANCY_BASE_DOMAIN/g" \
-        -e "s|__TRAEFIK_IMAGE__|$TRAEFIK_IMAGE|g" \
-        -e "s|__ACME_EMAIL__|$ACME_EMAIL|g" \
-        -e "s|__ACME_CA_SERVER__|$ACME_CA_SERVER|g" \
-        -e "s|__TRAEFIK_ENV_FILE__|$TRAEFIK_ENV_FILE|g" \
-        -e "s/__BACKOFFICE_HOST__/$BACKOFFICE_HOST/g" \
-        -e "s|__BACKOFFICE_ALLOWED_IPS__|$BACKOFFICE_ALLOWED_IPS|g" \
-        "$unit" > "$DEST_DIR/$name"
-done
+render_units "$SOURCE_DIR" "$DEST_DIR" "$TAG"
+prepare_postgres_init "$REPO_ROOT/infra/containers/postgres/init" "$POSTGRES_INIT_DIR"
 
 $SYSTEMCTL daemon-reload
 
 echo "Unidades instaladas. Arrancar con, por ejemplo:"
-echo "  $SYSTEMCTL enable --now plataforma.network"
+echo "  $SYSTEMCTL enable --now plataforma-network.service"
 echo "  $SYSTEMCTL enable --now postgres.service redis.service"
 # plataforma-migrate.container es un oneshot sin sección [Install]: se
 # ejecuta una vez por despliegue, no se habilita para el arranque del

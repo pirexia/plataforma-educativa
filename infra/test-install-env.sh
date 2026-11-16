@@ -118,5 +118,48 @@ else
     echo "FALLA  install.sh --user con CIDR (rc=$rc): $(tail -3 <<<"$out")"; FAILS=$((FAILS + 1))
 fi
 
+# Rutas por modo (ADR-080 §3.4): ninguna unidad generada lleva rutas fijas del otro modo.
+# check_units <nombre> <directorio> <ENV_DIR esperado> <rutas prohibidas...>
+check_units() {
+    local name="$1" dir="$2" envdir="$3" bad="" p f
+    shift 3
+    grep -rq '__[A-Z_]*__' "$dir" && bad="tokens sin sustituir"
+    for p in "$@"; do grep -rqF "$p" "$dir" && bad="$bad contiene $p;"; done
+    for f in "$dir"/*.container; do
+        while IFS= read -r l; do
+            [[ "$l" == "EnvironmentFile=$envdir/"* ]] || bad="$bad $(basename "$f"): $l;"
+        done < <(grep -E '^EnvironmentFile=' "$f")
+    done
+    if [[ -z "$bad" ]]; then echo "ok     $name"; else echo "FALLA  $name: $bad"; FAILS=$((FAILS + 1)); fi
+}
+
+# Modo --user: tras install.sh real (systemctl simulado).
+check_units "unidades de install.sh --user: sin rutas de sistema ni tokens, EnvironmentFile en el directorio del usuario" \
+    "$H/.config/containers/systemd" "$H/.config/plataforma" /etc/plataforma /opt/plataforma
+if grep -qF "Volume=$H/.local/share/plataforma/postgres-init:" "$H/.config/containers/systemd/postgres.container" \
+   && [[ -x "$H/.local/share/plataforma/postgres-init/01-tenancy.sh" && -f "$H/.local/share/plataforma/postgres-init/01-tenancy.sql.tpl" ]] \
+   && ! grep -rqE 'PASSWORD=.' "$H/.local/share/plataforma/postgres-init"; then
+    echo "ok     directorio de init --user preparado con los scripts y sin contraseñas"
+else
+    echo "FALLA  directorio de init --user"; FAILS=$((FAILS + 1))
+fi
+if grep -q 'enable --now plataforma-network.service' <<<"$out" && ! grep -q 'plataforma\.network' <<<"$out"; then
+    echo "ok     aviso final con el nombre real de la unidad de red"
+else
+    echo "FALLA  aviso final de la unidad de red"; FAILS=$((FAILS + 1))
+fi
+
+# Modo sistema: render_units a un directorio temporal, sin escribir en /etc ni /opt.
+( ENV_FILE="/etc/plataforma/plataforma.env"; TRAEFIK_ENV_FILE="/etc/plataforma/traefik-cloudflare.env"
+  ENV_DIR="/etc/plataforma"; POSTGRES_INIT_DIR="/opt/plataforma/postgres-init"
+  TENANCY_BASE_DOMAIN=centros.adagiox.eu; BACKOFFICE_HOST=panel.adagiox.eu; BACKOFFICE_ALLOWED_IPS=10.0.0.0/8
+  ACME_EMAIL=ops@example.com; ACME_CA_SERVER="$ACME_CA_STAGING"
+  render_units "$HERE/quadlet" "$TMP/sistema" sha-test )
+check_units "unidades en modo sistema: EnvironmentFile en /etc/plataforma, sin tokens ni rutas del usuario" \
+    "$TMP/sistema" /etc/plataforma "$H"
+grep -qF "Volume=/opt/plataforma/postgres-init:" "$TMP/sistema/postgres.container" \
+    && echo "ok     modo sistema usa /opt/plataforma/postgres-init" \
+    || { echo "FALLA  init en modo sistema"; FAILS=$((FAILS + 1)); }
+
 echo "---"
 if [[ "$FAILS" -eq 0 ]]; then echo "OK: todas las comprobaciones pasan"; else echo "FALLAN $FAILS comprobaciones"; exit 1; fi
