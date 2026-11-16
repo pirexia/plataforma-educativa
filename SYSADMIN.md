@@ -489,6 +489,7 @@ Estado a **2026-11-16**. Staging es un entorno **de pruebas**, no producción: s
 - **Correo**: el VPS usa hoy un SMTP provisional que no entrega nada; el relay real (`OPEN-079-01`) y `CS-19` están pendientes. Con `--with-mailpit` (`ADR-087`, opcional y nunca en producción) se instala Mailpit y se fija a mano en el entorno del VPS `MAIL_MAILER=smtp`, `MAIL_HOST=mailpit`, `MAIL_PORT=1025` (sin cifrado ni credenciales). El SMTP no se publica fuera de la red de contenedores y el correo vive en memoria (sin volumen: se pierde al reiniciar).
 - **Interfaz de Mailpit**: solo en `127.0.0.1:8025` del VPS, sin router en Traefik; se consulta por túnel SSH (`ssh -L 8025:127.0.0.1:8025 <usuario>@<vps>` y abrir `http://127.0.0.1:8025` en local). Mailpit **no cierra `CS-19`**.
 - **Primer administrador**: `bo:create-admin` envía una invitación por correo, así que necesita un SMTP que la capture (p. ej. Mailpit).
+- **No probado (2026-11-16)**: la unidad de Mailpit no se ha arrancado con Quadlet real; ni el envío desde la API ni la interfaz por túnel SSH se han ejercitado. Los pasos anteriores son el diseño de `ADR-087`, no un procedimiento verificado.
 - **Qué NO es producción**: certificados de pruebas, sin copia de seguridad ni PITR, `plataforma_test` presente (`RUNBOOK.md §3b.2`), Traefik en red `host` con supuestos de host mono-usuario (`ADR-088 §5`, `PROPUESTA`) y reversión sin medir (`RUNBOOK.md §3b.9`).
 
 ## 5. Pendiente de documentar aquí

@@ -237,7 +237,7 @@ Idiomas obligatorios: **es-ES (por defecto), en, de, fr**, en interfaz, document
 - **Red y dependencias** (`ADR-028`): el frontend no hace de proxy hacia la API; la red es externa y no se destruye; `compose down` está prohibido en el servidor; entre servicios de aplicación se usa `Wants=` + `After=`, nunca `Requires=` ni `BindsTo=`; ninguna IP de contenedor escrita a mano.
 - Los workers deben procesar trabajos encolados por la versión anterior.
 - Cada entrega incluye su procedimiento de reversión probado.
-- **Staging** (`ADR-080`, `ADR-088`) es un entorno más, entre desarrollo y producción: se despliega con Quadlet **rootless** (`install.sh <tag> --user`), nunca con `compose`, y es **destruible y sin datos reales**: solo datos sintéticos de `REQ-SEED`. No es producción: certificados de pruebas hasta que el usuario decida otra cosa, y sin garantías de disponibilidad ni de copia de seguridad.
+- **Staging** (`ADR-080`) es un entorno más, entre desarrollo y producción: se despliega con Quadlet **rootless** (`install.sh <tag> --user`), nunca con `compose`, y es **destruible y sin datos reales**: solo datos sintéticos de `REQ-SEED`. No es producción: certificados de pruebas hasta que el usuario decida otra cosa, y en él no se ensayan copias ni restauración (`ADR-080`).
 
 ---
 
