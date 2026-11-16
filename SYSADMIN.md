@@ -1,6 +1,6 @@
 # SYSADMIN.md
 
-> **Versión 0.9.4** · 2026-11-17
+> **Versión 0.9.4** · 2026-11-16
 > Documento vivo: se actualiza en cada fase (`CLAUDE.md` sección 6), no solo al final. Cubre el entorno de **desarrollo** en WSL2 (`ADR-030`) y, desde `§4c`, el de **staging** en un VPS; el alojamiento del piloto y de producción se documentará aquí cuando `OPEN-11` se resuelva.
 
 ---
