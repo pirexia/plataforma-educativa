@@ -47,6 +47,12 @@
       "groupName": null
     },
     {
+      "description": "#739: no subir el constraint npm <12 a 12 (bug npm/cli#9800, EALLOWREMOTE al regenerar package-lock). Retirar cuando se corrija (PR npm/cli #9818 o #9819).",
+      "matchDepNames": ["npm"],
+      "matchUpdateTypes": ["major"],
+      "enabled": false
+    },
+    {
       "matchDepNames": ["docker.io/dxflrs/garage", "dxflrs/garage"],
       "groupName": "garage (compose y CI, ADR-076)"
     }
