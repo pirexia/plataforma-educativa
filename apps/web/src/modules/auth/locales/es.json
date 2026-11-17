@@ -24,7 +24,8 @@
       "pendingHint": "¿Todavía no has activado tu cuenta? Revisa el correo de invitación que recibiste.",
       "forgotPassword": "¿Has olvidado tu contraseña?",
       "activatedBanner": "Tu cuenta se ha activado. Ya puedes iniciar sesión.",
-      "resetBanner": "Tu contraseña se ha restablecido. Inicia sesión con la nueva contraseña."
+      "resetBanner": "Tu contraseña se ha restablecido. Inicia sesión con la nueva contraseña.",
+      "lead": "Entra con la cuenta que te ha dado el centro."
     },
     "activation": {
       "title": "Activa tu cuenta",
@@ -542,6 +543,14 @@
       "passwordChange": "Contraseña",
       "sessions": "Sesiones abiertas",
       "ssoAdministration": "Inicio de sesión institucional (SSO)"
+    },
+    "shell": {
+      "platformName": "Plataforma de Gestión Educativa",
+      "welcomeTitle": "Te damos la bienvenida",
+      "welcomeText": "Accede con tu cuenta para consultar la información de tu centro.",
+      "visualLabel": "Bienvenida",
+      "poweredBy": "Con tecnología de {platform}",
+      "languageNav": "Idioma"
     }
   }
 }

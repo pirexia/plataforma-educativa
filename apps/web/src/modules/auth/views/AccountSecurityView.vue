@@ -339,7 +339,7 @@ async function logoutFromHere(): Promise<void> {
 
 <template>
   <div v-if="!checkingSession" class="mx-auto flex min-h-svh max-w-2xl flex-col px-4 py-10">
-    <div class="border-border bg-background w-full rounded-xl border p-6 shadow-sm">
+    <div class="border-border bg-background w-full rounded-xl border p-6">
       <h1 class="mb-1 text-lg font-semibold">{{ t('auth.mfa.security.title') }}</h1>
       <p class="text-muted-foreground mb-4 text-sm">{{ t('auth.mfa.security.intro') }}</p>
 

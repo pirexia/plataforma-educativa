@@ -24,7 +24,8 @@
       "pendingHint": "Vous n'avez pas encore activé votre compte ? Consultez l'e-mail d'invitation que vous avez reçu.",
       "forgotPassword": "Mot de passe oublié ?",
       "activatedBanner": "Votre compte a été activé. Vous pouvez maintenant vous connecter.",
-      "resetBanner": "Votre mot de passe a été réinitialisé. Connectez-vous avec le nouveau mot de passe."
+      "resetBanner": "Votre mot de passe a été réinitialisé. Connectez-vous avec le nouveau mot de passe.",
+      "lead": "Connectez-vous avec le compte que votre établissement vous a fourni."
     },
     "activation": {
       "title": "Activez votre compte",
@@ -542,6 +543,14 @@
       "passwordChange": "Mot de passe",
       "sessions": "Sessions ouvertes",
       "ssoAdministration": "Connexion institutionnelle (SSO)"
+    },
+    "shell": {
+      "platformName": "Plataforma de Gestión Educativa",
+      "welcomeTitle": "Bienvenue",
+      "welcomeText": "Connectez-vous avec votre compte pour consulter les informations de votre établissement.",
+      "visualLabel": "Bienvenue",
+      "poweredBy": "Avec la technologie de {platform}",
+      "languageNav": "Langue"
     }
   }
 }

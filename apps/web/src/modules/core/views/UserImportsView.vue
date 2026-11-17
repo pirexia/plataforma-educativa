@@ -244,7 +244,7 @@ async function copyHeader(): Promise<void> {
             ref="fileInput"
             type="file"
             accept=".csv"
-            class="border-input bg-background file:text-foreground block w-full max-w-xl rounded-lg border px-2.5 py-1.5 text-sm shadow-xs file:mr-3 file:border-0 file:bg-transparent file:text-sm file:font-medium [@media(any-pointer:coarse)]:min-h-11"
+            class="border-input bg-background file:text-foreground block w-full max-w-xl rounded-lg border px-2.5 py-1.5 text-sm file:mr-3 file:border-0 file:bg-transparent file:text-sm file:font-medium [@media(any-pointer:coarse)]:min-h-11"
             :aria-invalid="fileErrors.length > 0 ? true : undefined"
             :aria-describedby="
               fileErrors.length > 0

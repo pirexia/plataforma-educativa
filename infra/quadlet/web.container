@@ -18,6 +18,8 @@ Wants=plataforma-network.service
 Image=ghcr.io/pirexia/plataforma-web:__TAG__
 ContainerName=plataforma-web
 Network=plataforma.network
+# Publicado SOLO en 127.0.0.1 para Traefik en red host (ver traefik.container).
+PublishPort=127.0.0.1:18080:80
 HealthCmd=curl -f http://localhost:80/ || exit 1
 HealthInterval=10s
 HealthTimeout=3s
@@ -25,9 +27,17 @@ HealthRetries=10
 HealthStartPeriod=5s
 Notify=healthy
 
+# Regla sin espacios ni barra invertida: el generador de Quadlet descarta en silencio
+# (o trunca) un Label= con espacios o con \. (#701). Punto como [.], && sin espacios.
 Label=traefik.enable=true
-Label=traefik.http.routers.plataforma-web.rule=HostRegexp(`^[a-z0-9-]+\.__TENANCY_BASE_DOMAIN_ESCAPED__$`) && PathPrefix(`/`)
+Label=traefik.http.routers.plataforma-web.rule=HostRegexp(`^[a-z0-9-]+[.]__TENANCY_BASE_DOMAIN_ESCAPED__$`)&&PathPrefix(`/`)
 Label=traefik.http.routers.plataforma-web.priority=1
+# #693, INV-002: lista blanca de IP de las rutas de los centros. El
+# middleware se define AQUÍ, en el propio contenedor (con otro nombre que el
+# de api@.container): si api@ cae o se reinicia, la web no pierde su middleware
+# y no responde 404. Mismo valor: __TENANT_ALLOWED_IPS__.
+Label=traefik.http.routers.plataforma-web.middlewares=tenant-ipallowlist-web@docker
+Label=traefik.http.middlewares.tenant-ipallowlist-web.ipallowlist.sourcerange=__TENANT_ALLOWED_IPS__
 Label=traefik.http.services.plataforma-web.loadbalancer.server.port=80
 
 [Service]

@@ -51,8 +51,10 @@ test('.lighthouserc.json: móvil, la portada de cada idioma de LANGS y una pági
 
 test('package.json: dependencias de desarrollo fijadas a versión exacta y script lighthouse', () => {
   const pkg = json('package.json')
-  assert.equal(pkg.devDependencies['@lhci/cli'], '0.16.0')
-  assert.equal(pkg.devDependencies.wrangler, '4.159.0')
+  // Versión exacta (sin ^ ni ~), no un literal: así una subida de Renovate no rompe el test (#711).
+  const exacta = /^\d+\.\d+\.\d+$/
+  assert.match(pkg.devDependencies['@lhci/cli'], exacta)
+  assert.match(pkg.devDependencies.wrangler, exacta)
   assert.deepEqual(Object.keys(pkg.devDependencies).sort(), ['@lhci/cli', 'wrangler'])
   assert.equal(pkg.dependencies, undefined)
   assert.equal(pkg.scripts.lighthouse, 'lhci autorun')
@@ -60,13 +62,15 @@ test('package.json: dependencias de desarrollo fijadas a versión exacta y scrip
 
 // ---- wrangler.jsonc (ADR-072 §4.6, §4.7) ----
 
-test('wrangler.jsonc: Worker de solo activos, sin rutas ni dominios, coherente con dist/', () => {
+test('wrangler.jsonc: Worker de solo activos, solo el ápice como dominio personalizado, coherente con dist/', () => {
   const w = jsonc('wrangler.jsonc')
   assert.equal(w.name, 'adagiox-landing')
   assert.equal(w.main, undefined)
   assert.equal(w.assets.directory, './dist')
   assert.equal(w.workers_dev, true)
-  assert.equal(w.routes, undefined)
+  assert.equal(w.preview_urls, false)
+  // ADR-072 §4.3: canónico = ápice sin `www`; el resto se redirige por reglas de zona, no aquí.
+  assert.deepEqual(w.routes, [{ pattern: 'adagiox.com', custom_domain: true }])
   assert.equal(w.route, undefined)
   assert.match(w.compatibility_date, /^\d{4}-\d{2}-\d{2}$/)
   assert.equal(w.assets.html_handling, 'auto-trailing-slash')
@@ -263,9 +267,60 @@ test('deploy.sh: el smoke test falla si /js/carousel.js falta, no es 200, o su M
   }
 })
 
+test('deploy.sh: reintenta el smoke test si la URL responde 404 al principio y acaba bien (#666)', async () => {
+  const { root } = fakeProject()
+  let n = 0
+  const srv = await new Promise((resolve) => {
+    const s = createServer((req, res) => {
+      if (req.url === '/js/carousel.js') {
+        res.writeHead(200, { 'content-type': 'text/javascript', 'x-content-type-options': 'nosniff' })
+        res.end('//')
+        return
+      }
+      n += 1
+      if (n <= 2) {
+        res.writeHead(404)
+        res.end('aún no')
+        return
+      }
+      res.writeHead(200, SECURITY_HEADERS)
+      res.end('ok')
+    })
+    s.listen(0, '127.0.0.1', () => resolve(s))
+  })
+  try {
+    const env = { ...ENV_OK, DEPLOY_SMOKE_ATTEMPTS: '5', DEPLOY_SMOKE_DELAY: '0' }
+    const r = await runDeploy(root, ['--url', `http://127.0.0.1:${srv.address().port}`], env)
+    assert.equal(r.code, 0, r.out)
+    assert.match(r.out, /intento 1\/5/)
+    assert.match(r.out, /deploy: correcto/)
+  } finally {
+    srv.close()
+  }
+})
+
+test('deploy.sh: el smoke test falla si la URL no responde bien tras todos los intentos (#666)', async () => {
+  const { root } = fakeProject()
+  const srv = await new Promise((resolve) => {
+    const s = createServer((req, res) => {
+      res.writeHead(404)
+      res.end()
+    })
+    s.listen(0, '127.0.0.1', () => resolve(s))
+  })
+  try {
+    const env = { ...ENV_OK, DEPLOY_SMOKE_ATTEMPTS: '2', DEPLOY_SMOKE_DELAY: '0' }
+    const r = await runDeploy(root, ['--url', `http://127.0.0.1:${srv.address().port}`], env)
+    assert.notEqual(r.code, 0)
+    assert.match(r.out, /no respondió correctamente tras 2 intentos/)
+  } finally {
+    srv.close()
+  }
+})
+
 test('deploy.sh: toma la URL de la salida de wrangler si no se pasa --url', async () => {
   const { root } = fakeProject()
-  const r = await runDeploy(root)
+  const r = await runDeploy(root, [], { ...ENV_OK, DEPLOY_SMOKE_ATTEMPTS: '2', DEPLOY_SMOKE_DELAY: '0' })
   // La URL falsa no resuelve: el fallo debe venir de curl contra esa URL, no de no encontrarla.
   assert.notEqual(r.code, 0)
   assert.doesNotMatch(r.out, /no se pudo determinar la URL/)

@@ -7,13 +7,17 @@
 # diaria (eso es Ansible, descartado explícitamente en el ADR).
 #
 # Uso:
-#   ./infra/install.sh <tag> [--user]
+#   ./infra/install.sh <tag> [--user] [--with-mailpit]
 #
 #   <tag>      Versión exacta a desplegar (X.Y.Z en producción, sha-<7>
 #              o "develop" en staging). Nunca "latest" (ADR-037 §5.2).
 #   --user     Instala como unidades de usuario (systemd --user), el modo
 #              en que se prueba en WSL2 (ADR-037 §6.5). Sin esta bandera,
 #              instala como unidades de sistema (root, VPS real).
+#   --with-mailpit  Instala y habilita Mailpit (captura de correo, solo
+#              staging; NO usar en producción). Sin la opción no se
+#              renderiza ni se gestiona su unidad; si ya hay una instalada,
+#              no se borra.
 #
 # Requiere que /etc/plataforma/plataforma.env (o, en modo --user,
 # ~/.config/plataforma/plataforma.env) exista ya — este script no lo crea,
@@ -25,11 +29,26 @@
 # segundo sistema de plantillado, son tres tokens más del mismo tipo. Se
 # leen del propio plataforma.env que este script ya exige que exista,
 # para no pedir tres argumentos más en la línea de comandos.
+#
+# #693, INV-002: TENANT_ALLOWED_IPS (lista blanca de IP de las rutas de los
+# centros, token __TENANT_ALLOWED_IPS__) es OBLIGATORIA y sin valor por
+# defecto: si falta o está vacía, el instalador aborta (cerrada por defecto).
+# Producción la fija a 0.0.0.0/0,::/0 de forma explícita.
 
 set -euo pipefail
 
-TAG="${1:?Uso: install.sh <tag> [--user]}"
-USER_MODE="${2:-}"
+TAG="${1:?Uso: install.sh <tag> [--user] [--with-mailpit]}"
+shift
+USER_MODE=""
+WITH_MAILPIT=0
+for arg in "$@"; do
+    case "$arg" in
+        --user) USER_MODE="--user" ;;
+        --with-mailpit) WITH_MAILPIT=1 ;;
+        *) echo "Opción desconocida: $arg. Uso: install.sh <tag> [--user] [--with-mailpit]" >&2; exit 1 ;;
+    esac
+done
+export WITH_MAILPIT
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SOURCE_DIR="$REPO_ROOT/infra/quadlet"
@@ -38,70 +57,62 @@ if [[ "$USER_MODE" == "--user" ]]; then
     DEST_DIR="$HOME/.config/containers/systemd"
     SYSTEMCTL="systemctl --user"
     ENV_FILE="$HOME/.config/plataforma/plataforma.env"
+    TRAEFIK_ENV_FILE="$HOME/.config/plataforma/traefik-cloudflare.env"
+    POSTGRES_INIT_DIR="$HOME/.local/share/plataforma/postgres-init"
 else
     DEST_DIR="/etc/containers/systemd"
     SYSTEMCTL="sudo systemctl"
     ENV_FILE="/etc/plataforma/plataforma.env"
+    TRAEFIK_ENV_FILE="/etc/plataforma/traefik-cloudflare.env"
+    POSTGRES_INIT_DIR="/opt/plataforma/postgres-init"
 fi
+# Directorio de los ficheros de entorno (api, postgres, workers), derivado
+# del ENV_FILE ya calculado: sistema /etc/plataforma, --user ~/.config/plataforma.
+ENV_DIR="$(dirname "$ENV_FILE")"
 
 if [[ ! -f "$ENV_FILE" ]]; then
     echo "No existe $ENV_FILE — ver RUNBOOK.md para generarlo antes de instalar." >&2
     exit 1
 fi
 
-# Lectura simple de valores del env file, sin exportarlo entero (evita
-# ejecutar secretos como comandos si el fichero tuviera algo raro).
-env_value() {
-    grep -E "^${1}=" "$ENV_FILE" | tail -n1 | cut -d= -f2-
-}
+# Funciones y validaciones (env_value, load_and_validate_config,
+# check_token_file...) en install-lib.sh, para poder probarlas sin systemctl.
+# shellcheck source=infra/install-lib.sh
+source "$REPO_ROOT/infra/install-lib.sh"
 
-TENANCY_BASE_DOMAIN="$(env_value TENANCY_BASE_DOMAIN)"
-BACKOFFICE_HOST="$(env_value BACKOFFICE_HOST)"
-BACKOFFICE_ALLOWED_IPS="$(env_value BACKOFFICE_ALLOWED_IPS)"
-
-if [[ -z "$TENANCY_BASE_DOMAIN" || -z "$BACKOFFICE_HOST" ]]; then
-    echo "TENANCY_BASE_DOMAIN y BACKOFFICE_HOST tienen que estar fijados en $ENV_FILE" >&2
-    echo "(operacion.md §0.4, RN-BO-49: BACKOFFICE_HOST nunca puede ser subdominio de TENANCY_BASE_DOMAIN)." >&2
-    exit 1
-fi
-
-# Escapado para HostRegexp (un literal de regexp, no una cadena Traefik):
-# el único metacaracter real en un dominio es el punto.
-TENANCY_BASE_DOMAIN_ESCAPED="${TENANCY_BASE_DOMAIN//./\\.}"
+load_and_validate_config || exit 1
+check_token_file || exit 1
+warn_acme_staging_in_production "$TAG"
 
 echo "Instalando unidades Quadlet en $DEST_DIR con tag=$TAG"
-mkdir -p "$DEST_DIR"
-
-for unit in "$SOURCE_DIR"/*.container "$SOURCE_DIR"/*.network "$SOURCE_DIR"/*.volume; do
-    name="$(basename "$unit")"
-    # __TAG__ es el punto de variación original (ADR-037 §6.1); los otros
-    # tres son su misma forma, no un sistema de plantillado nuevo.
-    sed \
-        -e "s/__TAG__/$TAG/g" \
-        -e "s/__TENANCY_BASE_DOMAIN_ESCAPED__/$TENANCY_BASE_DOMAIN_ESCAPED/g" \
-        -e "s/__BACKOFFICE_HOST__/$BACKOFFICE_HOST/g" \
-        -e "s/__BACKOFFICE_ALLOWED_IPS__/$BACKOFFICE_ALLOWED_IPS/g" \
-        "$unit" > "$DEST_DIR/$name"
-done
+render_units "$SOURCE_DIR" "$DEST_DIR" "$TAG"
+prepare_postgres_init "$REPO_ROOT/infra/containers/postgres/init" "$POSTGRES_INIT_DIR"
 
 $SYSTEMCTL daemon-reload
 
 echo "Unidades instaladas. Arrancar con, por ejemplo:"
-echo "  $SYSTEMCTL enable --now plataforma.network"
-echo "  $SYSTEMCTL enable --now postgres.service redis.service"
-# plataforma-migrate.container es un oneshot sin sección [Install]: se
-# ejecuta una vez por despliegue, no se habilita para el arranque del
-# sistema (hallazgo de la revisión independiente de doc-reviewer sobre
-# 0.9b — "enable" sobre esta unidad es un no-op sin efecto, y habilitarla
-# sería semánticamente incorrecto: no debe correr en cada reinicio).
-echo "  $SYSTEMCTL start plataforma-migrate.service"
-echo "  $SYSTEMCTL enable --now api@1.service web.service traefik.service"
+# Las unidades las genera Quadlet (/run/.../generator): "enable" falla con
+# "transient or generated" (issue #695). Se activan solas por su [Install]
+# y aquí solo se arrancan con "start".
+echo "  $SYSTEMCTL daemon-reload"
+echo "  $SYSTEMCTL start plataforma-network.service"
+echo "  $SYSTEMCTL start postgres.service redis.service"
+# plataforma-migrate.container es un oneshot con RemainAfterExit: tras la
+# primera ejecución queda "active (exited)" y un "start" no hace nada, así
+# que las migraciones del tag nuevo no se ejecutarían (issue #698). Hay que
+# usar "restart" y comprobar el resultado antes de seguir.
+echo "  $SYSTEMCTL restart plataforma-migrate.service   # restart y no start: la unidad (oneshot + RemainAfterExit) queda activa y start no migra"
+echo "  $SYSTEMCTL show plataforma-migrate.service -p Result --value   # debe ser 'success' antes de seguir"
+echo "  $SYSTEMCTL start api@1.service web.service traefik.service"
 # Worker de colas (issue #128): sin él, los trabajos de cola (correos de
 # MFA, invitaciones, restablecimiento de contraseña, exportaciones) quedan
 # en la tabla `jobs` sin procesar. Lee su propio fichero de entorno,
 # plataforma-worker.env (plantilla: plataforma-worker.env.example). worker-long.service (plataforma-worker-long.env) consume la
 # cola `long` (copia y reversión del rollover del curso, REQ-CURSO 1.12b) con su propio retry_after.
-echo "  $SYSTEMCTL enable --now worker.service worker-long.service"
+echo "  $SYSTEMCTL start worker.service worker-long.service"
+if [[ "$WITH_MAILPIT" == "1" ]]; then
+    echo "  $SYSTEMCTL start mailpit.service   # solo staging; UI en 127.0.0.1:8025 por túnel SSH"
+fi
 if [[ ! -f "$(dirname "$ENV_FILE")/plataforma-worker.env" ]]; then
     echo "AVISO: falta $(dirname "$ENV_FILE")/plataforma-worker.env (plantilla: infra/quadlet/plataforma-worker.env.example); worker.service no arrancará sin él." >&2
 fi

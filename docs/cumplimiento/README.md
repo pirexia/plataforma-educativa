@@ -39,7 +39,7 @@
 - **Sin leer**: las ocho guías de la AEPD (solo se comprobó que existen), las normas ISO, y el estado oficial de la transposición española de NIS2.
 - Evidencias archivadas: **ninguna**.
 - Preguntas (alineado el 2026-11-13): 12 definidas; 1 cerrada (`-02`); 5 decididas por el usuario el 2026-11-12 (`-01`, `-04`, `-08`, `-11`, `-12`; `-04` y `-08` con parte pendiente); 6 abiertas (`-03`, `-05`, `-06`, `-07`, `-09`, `-10`). Detalle en [`preguntas-abiertas.md §1`](preguntas-abiertas.md).
-- Proveedor: elegido por el usuario y **condicionado** (`ADR-083 §11`, `OPEN-STO-01`); nada contratado ni probado. `ADR-083` sigue en `PROPUESTA`.
+- Proveedor: elegido por el usuario y **condicionado** (`ADR-083 §11`, `OPEN-STO-01`); nada contratado ni probado. `ADR-083` está `ACEPTADA` (2026-11-14).
 
 ## 5. Qué va después (propuesta, no decidido)
 
@@ -59,7 +59,7 @@ Este agente no los toca; los aplica la sesión orquestadora al integrar (guion d
 | `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` §4.3 (normativa aplicable) | **Decisión del usuario, no un cambio automático**: la tabla no cita ENS, NIS2 ni el Reglamento de Datos. Si deben figurar, hay que añadirlos con su aplicación; este expediente no lo hace por no inventar requisitos |
 | `PLAN-IMPLEMENTACION.md` | Marcar el expediente de cumplimiento como redactado en borrador; añadir el paso de la skill `cumplimiento-normativo`; anotar que staging (`ADR-080`) depende de `OPEN-STO-01`, `-03`, `-08` y `-11`, y que la entrada de datos reales depende además de `-04`, `-05`, `-07`, `-09` y `-12` |
 | `memory.md` | En «`ADR-076` ACEPTADA…»: la pregunta 1 de `§10` queda contestada por `ADR-083`; los `OPEN-STO-*` ya existen y son una **reconstrucción** (la lista original del 2026-11-11 no se guardó). La recomendación «OVHcloud 3-AZ o Scaleway» pasa de «sin verificar» a «contrastada en parte» con lo que `ADR-083 §9` deja sin comprobar |
-| `CHANGELOG.md` | Dentro de la entrada de la ola 1: expediente `docs/cumplimiento/` y `ADR-083` en `PROPUESTA` |
+| `CHANGELOG.md` | Dentro de la entrada de la ola 1: expediente `docs/cumplimiento/` y `ADR-083` (`ACEPTADA` el 2026-11-14) |
 | `CLAUDE.md §6` (árbol de documentación) | Añadir `/docs/cumplimiento/{README,matriz-normas,preguntas-abiertas,indice-evidencias}.md`. Requiere aprobación del usuario |
 | `PRIVACY.md` | En la sección de encargados y subencargados (hoy bloqueada por `OPEN-07`): remitir a `docs/cumplimiento/` y a `ADR-083`; **sin** afirmar que haya proveedor contratado |
 | `ARCHITECTURE.md`, `SYSADMIN.md`, `RUNBOOK.md` | Nada hasta que `ADR-083` se acepte. Entonces: proveedor y región en `ARCHITECTURE.md`; variables del disco `s3` por entorno en `SYSADMIN.md`; procedimiento de salida ensayado en `RUNBOOK.md` (`OPEN-STO-09`) |

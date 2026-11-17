@@ -27,7 +27,7 @@ Wants=plataforma-network.service postgres.service redis.service plataforma-migra
 Image=ghcr.io/pirexia/plataforma-api:__TAG__
 ContainerName=plataforma-worker-long
 Network=plataforma.network
-EnvironmentFile=/etc/plataforma/plataforma-worker-long.env
+EnvironmentFile=__ENV_DIR__/plataforma-worker-long.env
 NoNewPrivileges=true
 DropCapability=ALL
 Exec=php artisan queue:work database_long --queue=long --tries=1 --timeout=600 --sleep=3 --max-time=3600 --max-jobs=100
