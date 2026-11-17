@@ -8,7 +8,16 @@
  * `manualFiltering`, `enableMultiSort: false`, `ADR-038 §13.3`).
  */
 import { computed, type Ref } from 'vue'
-import { createColumnHelper, getCoreRowModel, useVueTable } from '@tanstack/vue-table'
+import {
+  columnFilteringFeature,
+  columnVisibilityFeature,
+  createColumnHelper,
+  type RowData,
+  rowPaginationFeature,
+  rowSortingFeature,
+  tableFeatures,
+  useTable,
+} from '@tanstack/vue-table'
 import type { DataTableCellValue, DataTableColumn } from './types'
 
 export interface ModelRow<Row> {
@@ -34,6 +43,22 @@ export function cellValueOf<Row>(column: DataTableColumn<Row>, row: Row): DataTa
   return typeof raw === 'string' || typeof raw === 'number' ? raw : null
 }
 
+/**
+ * v9 (`RNF-MANT-007`): las funcionalidades se declaran de forma explícita y
+ * solo las que el modelo necesita. Sin `createSortedRowModel`,
+ * `createFilteredRowModel` ni `createPaginatedRowModel`: orden, filtro y
+ * paginación son del servidor.
+ */
+const features = tableFeatures({
+  columnVisibilityFeature,
+  rowSortingFeature,
+  rowPaginationFeature,
+  columnFilteringFeature,
+})
+
+/** Ajusta el genérico del consumidor a la restricción `RowData` de v9 sin filtrarla a la API pública. */
+type TableRow<Row> = Row & RowData
+
 export function useTableModel<Row>(options: {
   columns: Ref<readonly DataTableColumn<Row>[]>
   rows: Ref<readonly Row[]>
@@ -43,7 +68,7 @@ export function useTableModel<Row>(options: {
   sort: Ref<string | null>
   rowKey: (row: Row) => string
 }) {
-  const helper = createColumnHelper<Row>()
+  const helper = createColumnHelper<typeof features, TableRow<Row>>()
 
   const columnDefs = computed(() =>
     options.columns.value.map((column) =>
@@ -55,15 +80,15 @@ export function useTableModel<Row>(options: {
     ),
   )
 
-  const table = useVueTable<Row>({
+  const table = useTable<typeof features, TableRow<Row>>({
+    features,
     get data() {
-      return options.rows.value as Row[]
+      return options.rows.value as TableRow<Row>[]
     },
     get columns() {
       return columnDefs.value
     },
-    getRowId: (row) => options.rowKey(row),
-    getCoreRowModel: getCoreRowModel(),
+    getRowId: (row) => options.rowKey(row as Row),
     manualPagination: true,
     manualSorting: true,
     manualFiltering: true,

@@ -1,3 +1,4 @@
+import { nextTick } from 'vue'
 import { createRouter, createWebHistory } from 'vue-router'
 import { allModuleRoutes } from '@/navigation/registry'
 import { installNavigationGuard } from './guard'
@@ -38,11 +39,20 @@ const router = createRouter({
       meta: { layout: 'app', permissions: [], titleKey: 'shell.states.error.notFound.title' },
     },
   ],
-  scrollBehavior() {
-    return { top: 0 }
-  },
 })
 
 installNavigationGuard(router)
+
+/**
+ * Cada navegación termina arriba del todo. No se declara `scrollBehavior`
+ * porque desde vue-router 5 (#729) esa opción activa la persistencia de las
+ * posiciones de scroll en `sessionStorage` (`vue-router:scroll`, con la ruta
+ * completa como clave), y `REQ-FAM-UNIT/funcional.md §23.2` UI-3 prohíbe
+ * guardar nada de esta SPA en el almacenamiento del navegador. Sin ella el
+ * router no toca `history.scrollRestoration` ni `sessionStorage`.
+ */
+router.afterEach(() => {
+  void nextTick(() => window.scrollTo({ top: 0 }))
+})
 
 export default router
