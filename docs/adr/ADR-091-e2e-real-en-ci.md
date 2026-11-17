@@ -158,7 +158,7 @@ Precedente: `ADR-060` recibió, en el PR de aceptación de `ADR-089` (commit `9c
 
 > **Sustituido en parte por `ADR-091`** (`ACEPTADA`): de `§5.3` punto 4, solo «con `docker` el soporte es de mejor esfuerzo y sin verificar: no hay trabajo de CI que lo ejecute», y solo para el camino del E2E real que el CI ejecutará con `docker`: la suite `core` desde `E2E-CI-b`; `:prl`, `:alum` y `curso-rollover` desde `E2E-CI-c` (`ADR-091 §4.3`; cada parte cuenta como verificada solo desde su agregador verde en `develop`); de `OPEN-STG-11`, solo «sin trabajo de CI para `docker`». El resto de `§5` (Podman por defecto y único verificado en desarrollo, Quadlet única referencia de producción) sigue vigente.
 
-Y, en el mismo PR, en la fila de `ADR-080` del índice de `§18` se sustituye «`ADR-091` (`PROPUESTA`) propone sustituir en parte» por «sustituido en parte por `ADR-091`».
+Y, en el mismo PR que la línea de cabecera, en la fila de `ADR-080` del índice de `§18` se sustituye «`ADR-091` (`PROPUESTA`) propone sustituir en parte» por «sustituido en parte por `ADR-091`».
 
 ## 8 · Preguntas abiertas
 
