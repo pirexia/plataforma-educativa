@@ -191,6 +191,8 @@ jobs:
     if: always()
     steps:
       - name: Todos los shards deben haber terminado en success
+        # Sin checkout no existe apps/api (el defaults.run del workflow): se ejecuta en la raíz.
+        working-directory: .
         env:
           RESULTADO: ${{ needs.pest.result }}
         run: |
