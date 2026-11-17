@@ -6,6 +6,13 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-17 · `docs`: especificación del E2E real en el CI (#737), `APROBADA`; paso `E2E-CI` en el plan
+
+- `docs/proceso/e2e-real-ci.md`: job de CI condicionado por diff con agregador «E2E real (API)» (patrón de `ADR-089`), piloto con la suite `core`, plan de medición previo a paralelizar, matriz flujo × rol × cobertura (plantilla y método), política visual y relación con `CS-17`. El usuario resolvió las 15 preguntas `OPEN-E2ECI-01` a `-15` en la opción recomendada el 2026-11-17.
+- `PLAN-IMPLEMENTACION.md` 2.3.29: paso `E2E-CI` (`[ ]`) con `E2E-CI-a` a `-e`. `E2E-CI-b` depende de `0.10e-b` y de un ADR previo.
+- Hallazgo: `apps/web/playwright.config.ts` tiene `retries: process.env.CI ? 2 : 0`, que reintenta en silencio en el job simulado de hoy (contradice la norma de intermitentes); se trata en un issue aparte (`OPEN-E2ECI-07`).
+- **No implementado**: ningún subpaso. **No verificado**: lo listado en `§11` de la especificación (p. ej. Podman en `ubuntu-26.04`, tiempo de construcción de la imagen en CI, alcance de descarga de artefactos en repositorio público); la especificación se redactó sin `Bash` y nada se ha ejecutado.
+
 ## 2026-11-17 · `docs`: `CLAUDE.md` 2.16.0 (recorte, issue #426); skill `ahorro-de-cuota` y `docs/proceso/normas-detalle.md`
 
 - `CLAUDE.md` pasa de 33.097 a 27.471 B (−17 %; ≈8.000 → ≈6.700 tokens). **El objetivo de ~20 KB no se alcanzó**: lo que queda son reglas duras; bajar más exige quitar reglas y requiere decisión del usuario (candidatos: §2 resumen de ahorro, §6.7, §9 staging, §3 «cierre entre pasos»).
