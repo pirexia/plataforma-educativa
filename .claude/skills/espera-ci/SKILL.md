@@ -24,8 +24,7 @@ Lanza **una sola** orden con `run_in_background: true` (nunca `sleep` en primer 
 N=<pr>
 merge() {
   gh pr merge "$N" --squash 2>&1 | tail -2
-  B=$(gh pr view "$N" --json headRefName -q .headRefName)
-  git push -q origin --delete "$B" 2>&1 | tail -1
+  git push -q origin --delete <RAMA> 2>&1 | tail -1   # <RAMA>: nombre LITERAL, ver la nota de debajo
   git fetch -q origin develop:develop 2>&1 | tail -1   # actualiza develop sin cambiar de rama el checkout
   gh pr view "$N" --json state,mergeCommit -q '.state + " " + .mergeCommit.oid'
 }
@@ -60,6 +59,8 @@ else
   merge
 fi
 ```
+
+**La rama se escribe literal.** El gancho `block-protected-branch.sh` bloquea todo `push` cuyo destino lleve variable o expansión, y no se relaja (issue #747). Antes de lanzar el script, obtén el nombre con `gh pr view <N> --json headRefName -q .headRefName` y **sustituye `<RAMA>` por ese texto** en el `git push --delete`. El gancho lee también el texto de las órdenes que lo contienen (p. ej. un script de Python o un `heredoc`): no escribas la forma con variable dentro de otra orden.
 
 Máximo ~30 min. Solo mezcla si hay checks y ninguno está `pending` ni `fail`, o si el PR no tiene checks **ni ningún run en cola o ejecutándose** y solo toca documentación o `.claude/` (en ese caso se avisa de que se mezcla **sin CI**).
 
