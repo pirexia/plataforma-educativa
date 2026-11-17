@@ -10,7 +10,7 @@
 | Depende de | `ADR-089` (patrón de agregador), `ADR-076` (Garage en CI y E2E), `ADR-080 §5` (`0.10e-b`, `CONTAINER_RUNTIME`; **no implementado**: ver `OPEN-E2ECI-03`), `ADR-030` (solo datos sintéticos) |
 | Esencial | No aplica (no es módulo) |
 | Estado | **APROBADA** el 2026-11-17: el usuario resolvió las 15 `OPEN-E2ECI` en la opción recomendada (A). **Nada implementado** |
-| Clasificación del paso: crítico | Por entrega en `§9`: `E2E-CI-b`, `-c` y `-d` **críticas**; `E2E-CI-e` ordinaria. La sesión lo comprueba contra el diff |
+| Clasificación del paso: crítico | Por entrega en `§9`: `E2E-CI-b`, `-c` y `-c2` **críticas**; `-d1`..`-dn` ordinarias, **críticas** si el diff toca `apps/api/tests/Support/e2e-real-tenant.php`, los guiones de `apps/web/scripts` o `.github/workflows/ci-e2e-real.yml`; `-e` ordinaria si solo añade *specs* o capturas, **crítica** si cambia el flujo o sube artefactos con trazas; `-a` y `-d0` sin código. La sesión lo comprueba contra el diff; la duda es crítico |
 
 > Convención: **V** = comprobado leyendo el fichero en el *worktree* (`403c78f`); **V-idx** = comprobado en el índice de búsqueda de código de GitHub (commit `fedb617`, dos commits de documentación por detrás de `403c78f`); **NV** = no verificado (esta sesión no tiene `Bash`: no pudo listar directorios, contar ficheros, ejecutar nada ni commitear). Lo que añade esta especificación sin estar en un requisito o ADR va marcado **[DERIVADA]** con su motivo.
 
@@ -33,7 +33,7 @@
 ### 1.1 El CI de hoy
 
 - **V** `.github/workflows/ci-web.yml`, job `e2e` («Tests e2e (Playwright)»): `npm ci`, `npx playwright install --with-deps chromium`, `npm run test:e2e`. No levanta PostgreSQL, Redis, Garage ni la API. Los *specs* reales se saltan solos (`test.skip(process.env.E2E_REAL_API !== '1', …)`, visto en `e2e/core-scroll-real.spec.ts`).
-- **V** `ci-web.yml` se dispara en `pull_request` a `develop`, `main` y `staging`, y en `push` a `develop` y `main`; sin filtro `paths:`. El comentario del job `lint` recuerda que los nombres de job son *required checks* de la protección de rama, que se configuran **a mano** en GitHub (`SYSADMIN.md §4`).
+- **V** `ci-web.yml` se dispara en `pull_request` a `develop`, `main` y `staging`, y en `push` a `develop` y `main`; sin filtro `paths:`. Los comentarios de `ci-api.yml` (líneas 23 y 185) recuerdan que los nombres de job son *required checks* de la protección de rama, que se configuran **a mano** en GitHub (`SYSADMIN.md §4`).
 - **V** `apps/web/playwright.config.ts`: `retries: process.env.CI ? 2 : 0`, `fullyParallel: true`, `webServer` = `npm run dev -- --host 127.0.0.1 --port 5173`, `reuseExistingServer: !process.env.CI`, `locale: 'es-ES'`. **Con `CI=true` (siempre en GitHub Actions) cada test fallido se reintenta dos veces y, si pasa en un reintento, Playwright lo da por bueno («flaky»)**: eso es un reintento silencioso en el sentido de D5. Afecta ya al job simulado de hoy (`OPEN-E2ECI-07`).
 - **V** `ci-api.yml`: patrón de `ADR-089` (matriz `pest` + agregador `test` con `needs`, `if: always()` y fallo si el resultado no es `success`); Garage en CI arrancado con `docker run` e `infra/garage/init.sh` con `CONTAINER_CLI=docker` y secretos efímeros enmascarados (job `storage-conformance`).
 
@@ -47,7 +47,7 @@
 
 ### 1.3 Inventario de *specs*
 
-- **V-idx** `apps/web/e2e/` contiene 34 ficheros `.ts`: 29 *specs* y 5 *fixtures* (`alumReal`, `dataExport`, `realSession`, `tableFixture`, `landingShowcase`). El encargo habla de 28 *specs*; la diferencia (un fichero) **NV**. `e2e-real-api.spec.ts`, citado en un comentario de `e2e-real-api.sh`, está en `apps/web/scripts/` (**V**), no en `e2e/`.
+- **V-idx** `apps/web/e2e/` contiene 34 ficheros `.ts`: 29 *specs* y 5 *fixtures* (`alumReal`, `dataExport`, `realSession`, `tableFixture`, `landingShowcase`). El encargo hablaba de 28 *specs*; son 29 (**V**: `ls apps/web/e2e/*.ts`, comprobado por `doc-reviewer`). `e2e-real-api.spec.ts`, citado en un comentario de `e2e-real-api.sh`, está en `apps/web/scripts/` (**V**), no en `e2e/`.
 - **V** *Specs* que ejecutan los guiones reales: `core-roles` (`CA-PERM-133`), `curso-academic-years` (`CA-CURSO-086`), `core-scroll-real` (`RNF-MANT-007`), `acad-structure` (`CA-ACAD-053`), `acad-periods` y `acad-scales` (`CA-ACAD-101`), `acad-timetable` (`CA-ACAD-135`, intermitente #741), `curso-rollover` (`CA-CURSO-147`), `fam-unit-pickup-real` (`CA-FAM-UNIT-142`), `prl-door-api` (`CA-PRL-002`, `CA-PRL-035`) y `prl-door-real` (`CA-PRL-012`), `alum-students-real`, `alum-enrollments-real`, `alum-photo-real`, `alum-screens-real`, `alum-group-change-real`, `data-table-real`. En `core-roles` y `curso-academic-years` el guion filtra con `-g`: conviven tests reales y simulados en el mismo fichero (**NV** cuántos de cada).
 
 ### 1.4 Lo que hay hoy en la SPA (para la matriz de `§6`)
@@ -84,18 +84,18 @@
 
 ## 3. Diseño del job (resumen; el detalle operativo está en `§12`)
 
-**Propuesta**, condicionada a `OPEN-E2ECI-02` a `-06`:
+**Diseño aprobado** (`OPEN-E2ECI-02` a `-06` resueltas en la opción A, 2026-11-17):
 
 1. **Fichero**: flujo nuevo `.github/workflows/ci-e2e-real.yml` [DERIVADA: aislar un job largo y con servicios propios de `ci-web.yml`, cuyo *job* `e2e` simulado sigue igual] (`OPEN-E2ECI-04`).
 2. **Tres jobs**, mismo patrón que `ADR-089`:
-   - `cambios` («E2E real · detección de cambios»): sin servicios; calcula con `git diff --name-only` contra la base del PR (o contra el commit anterior en `push`) si el cambio toca alguna ruta de la lista de `OPEN-E2ECI-05`; salida `ejecutar=true|false`. **Sin acción de terceros** (`dorny/paths-filter` u otra sería dependencia nueva: `CLAUDE.md §1`).
+   - `cambios` («E2E real · detección de cambios»): sin servicios; calcula con `git diff --name-only` contra la base del PR si el cambio toca alguna ruta de la lista de `OPEN-E2ECI-05` (en `push` a `develop`, `ejecutar=true` siempre, `OPEN-E2ECI-06`); salida `ejecutar=true|false`. **Sin acción de terceros** (`dorny/paths-filter` u otra sería dependencia nueva: `CLAUDE.md §1`).
    - `e2e-real` («E2E real · \<suite\>», en el piloto solo `core`): `needs: cambios`, `if: needs.cambios.outputs.ejecutar == 'true'`. Levanta la pila, prepara el centro sintético con el guion y ejecuta Playwright.
    - Agregador «**E2E real (API)**»: `needs: [cambios, e2e-real]`, `if: always()`. **Verde** si (`cambios` = `success` y `ejecutar` = `false` y `e2e-real` = `skipped`) o (`e2e-real` = `success`). **Rojo** en cualquier otro caso: `cambios` fallido o cancelado, `e2e-real` fallido, cancelado, o saltado con `ejecutar = true`. Es el único que se marca como requerido en GitHub (lo hace el usuario a mano, `SYSADMIN.md §4`).
-3. **Pila en el *runner*** (`OPEN-E2ECI-02`, recomendada A): `compose.yaml` con el perfil `full` (PostgreSQL 18, Redis 8, `api` FrankenPHP con la imagen `dev` construida en el job, `worker`, Garage), red externa `plataforma-net` creada en el job, `.env` raíz y `apps/api/.env` generados en el job con secretos efímeros enmascarados (patrón de `storage-conformance`), migraciones y `platform:sync-registry` aplicados, `127.0.0.1 demo.plataforma.test demo2.plataforma.test` añadido a `/etc/hosts` (el *runner* admite `sudo`: **V**, lo usa `ci-api.yml`). Vite lo arranca Playwright (`webServer`) con `VITE_API_URL` del guion.
+3. **Pila en el *runner*** (`OPEN-E2ECI-02`, recomendada A): `compose.yaml` levantando **solo los servicios nombrados** `postgres redis api worker garage` (PostgreSQL 18, Redis 8, `api` FrankenPHP con la imagen `dev` construida en el job, `worker`, Garage) y **sin `web`**: el perfil `full` lo incluye y su puerto `127.0.0.1:5173` chocaría con el `webServer` de Playwright (con `CI=true`, `reuseExistingServer: false`), además de que `e2e-vite-api-url.sh` leería la SPA que encuentre en `:5173`, red externa `plataforma-net` creada en el job, `.env` raíz y `apps/api/.env` generados en el job con secretos efímeros enmascarados (patrón de `storage-conformance`), migraciones y `platform:sync-registry` aplicados, `127.0.0.1 demo.plataforma.test demo2.plataforma.test` añadido a `/etc/hosts` (el *runner* admite `sudo`: **V**, lo usa `ci-api.yml`). Vite lo arranca Playwright (`webServer`) con `VITE_API_URL` del guion.
 4. **Datos**: el centro sintético del propio guion (`e2e-real-tenant.php setup`), con contraseñas aleatorias por ejecución (`ADR-080 §3.6`). Nada de `REQ-SEED` persistente (D4). La base es efímera y muere con el *runner*; la guarda `E2E_ALLOW_DESTRUCTIVE=1` y la marca del centro **se mantienen igual** (no se relajan porque la base sea desechable) [DERIVADA: un guion que aprende a saltarse su guarda en CI acaba saltándosela en local].
-5. **Sin reintentos**: el job real ejecuta Playwright con `--retries=0` (los guiones pasan `"$@"` a Playwright: **V**). Un test que falla deja el job en rojo; si se sospecha intermitencia, se abre *issue* (D5) y el test no se marca como `skip` sin decisión del usuario.
+5. **Sin reintentos**: el job real ejecuta Playwright con `--retries=0` (los guiones pasan `"$@"` a Playwright: **V**). Un test que falla deja el job en rojo; si se sospecha intermitencia, se abre *issue* (D5) y el test no se marca como `skip` sin decisión del usuario. **Un verde exige tests ejecutados**: tras Playwright, un paso falla el job si el informe JSON muestra algún test `skipped` o menos tests pasados de los esperados por suite (los *specs* reales se saltan solos sin `E2E_REAL_API`, y `e2e-real-alum.sh` usa `--pass-with-no-tests`: sin este paso, un job con todo saltado saldría en verde, el mismo agujero que se cierra). El número esperado por suite lo fija la implementación en un fichero versionado.
 6. **Presupuesto de tiempo** (`OPEN-E2ECI-09`, recomendado): `timeout-minutes: 30` como techo duro; objetivo de reloj del job ≤ 10 min (el umbral de D3). Superarlo es un disparador de D3, no un fallo.
-7. **Evidencias**: resumen de tiempos en `$GITHUB_STEP_SUMMARY` y, si falla, el informe y las trazas de Playwright como artefacto de corta retención (`OPEN-E2ECI-14`).
+7. **Evidencias**: resumen de tiempos en `$GITHUB_STEP_SUMMARY` y, si falla, el informe y las trazas de Playwright como artefacto de corta retención (`OPEN-E2ECI-14`). Con `--retries=0` Playwright **no graba trazas** (`playwright.config.ts` usa `trace: 'on-first-retry'`) y su *reporter* es `list`: el job pasa `--trace=retain-on-failure` y un *reporter* `json` (resumen y comprobación de saltados) más `html` (artefacto).
 
 ---
 
@@ -103,7 +103,7 @@
 
 ### 4.1 Qué se entrega
 
-El flujo de `§3` con la suite `core` (`E2E_ONLY=core`: `core-roles` `CA-PERM-133`, `curso-academic-years` `CA-CURSO-086`, `core-scroll-real` `RNF-MANT-007`), la adaptación mínima de los guiones para correr en el *runner* (`OPEN-E2ECI-03`), la instrumentación de tiempos de `§5` y la demostración de detección de `§4.3`.
+El flujo de `§3` con la suite `core` (`E2E_ONLY=core`: `core-roles` `CA-PERM-133`, `curso-academic-years` `CA-CURSO-086`, `core-scroll-real` `RNF-MANT-007`), la adaptación mínima de los guiones para correr en el *runner* (`OPEN-E2ECI-03`), la instrumentación de tiempos de `§5`, la demostración de detección de `§4.3` y la actualización de los documentos que dicen que el E2E real no corre en el CI: `SYSADMIN.md §4` (tabla de *jobs* requeridos) y la fila «Tests» de `CLAUDE.md §1` (esta, solo con aprobación del usuario, por rama `chore/` y PR).
 
 ### 4.2 Criterios de aceptación
 
@@ -111,10 +111,15 @@ El flujo de `§3` con la suite `core` (`E2E_ONLY=core`: `core-roles` `CA-PERM-13
 - **CA-E2ECI-02** · *Dado* un PR que solo modifica ficheros de `docs/`, *cuando* corre el CI, *entonces* `cambios` termina en `success` con `ejecutar=false`, `e2e-real` queda `skipped` y el agregador queda en **verde**. *Prueba*: PR de prueba solo de documentación (o el propio PR de un paso documental), enlace a la ejecución en el informe.
 - **CA-E2ECI-03** · *Dado* un PR que rompe a propósito el comportamiento que cubre `core-scroll-real` (caso de referencia de #729: p. ej. que una navegación a ruta nueva deje de terminar arriba), *cuando* corre el CI, *entonces* `e2e-real` falla en ese test y el agregador queda en **rojo**. *Prueba*: rama desechable `chore/e2e-ci-prueba-rotura` con la rotura, PR en borrador **que nunca se mezcla**, enlace a la ejecución roja en el informe; después se cierra el PR y se borra la rama. Es la prueba de `CLAUDE.md §3` («un E2E nuevo debe demostrar que detecta el fallo») aplicada al job.
 - **CA-E2ECI-04** · *Dado* que `cambios` dice `ejecutar=true`, *cuando* `e2e-real` se cancela o se salta por otra causa, *entonces* el agregador queda en rojo. *Prueba*: cancelar a mano una ejecución de `e2e-real` en un PR de prueba; resultado literal en el informe.
-- **CA-E2ECI-05** · *Dado* un test real que falla en el primer intento, *cuando* corre en el job, *entonces* no se reintenta y el job queda en rojo. *Prueba*: la misma ejecución de `CA-E2ECI-03`, cuyo informe de Playwright muestra 0 reintentos.
+- **CA-E2ECI-05** · *Dado* un test real que falla en el primer intento, *cuando* corre en el job, *entonces* no se reintenta y el job queda en rojo. *Prueba*: la misma ejecución de `CA-E2ECI-03`, cuyo informe JSON de Playwright muestra 0 reintentos y cuyo artefacto trae la traza del test fallido.
 - **CA-E2ECI-06** · *Dado* el job terminado (verde o rojo), *entonces* `$GITHUB_STEP_SUMMARY` muestra la tabla de tiempos de `§5.2` con todas sus fases, y ningún secreto efímero aparece sin enmascarar en el registro. *Prueba*: revisión del resumen y del registro de la ejecución de `CA-E2ECI-01`.
 - **CA-E2ECI-07** · *Dado* el guion de E2E real ejecutado **en local** tras los cambios de la entrega, *cuando* se lanza `npm run test:e2e:real` sin variables nuevas, *entonces* se comporta como antes (mismas suites, mismos resultados) [regresión de los guiones]. *Prueba*: ejecución local con la skill `espera-e2e`, resultado literal en el informe.
 - **CA-E2ECI-08** · *Dado* el agregador en verde de forma estable en el PR de la entrega, *cuando* se cierra `E2E-CI-b`, *entonces* el usuario lo ha añadido como *required check* de `develop` (y de `staging`/`main` si así lo decide) y el informe lo dice con la fecha (`OPEN-E2ECI-08`).
+
+- **CA-E2ECI-12** · *Dado* un job donde los tests reales quedan todos saltados (p. ej. `E2E_REAL_API` sin definir) o en número menor que el esperado, *cuando* termina Playwright, *entonces* el job falla y el agregador queda en rojo. *Prueba*: ejecución desechable en borrador que fuerza el salto, como `CA-E2ECI-03`; enlace en el informe.
+- **CA-E2ECI-13** · *Dado* un `push` a `develop` (tras mezclar la entrega), *entonces* el job corre sin condición por diff. *Prueba*: ejecución del CI en el commit de mezcla.
+- **CA-E2ECI-14** · *Dado* el flujo `ci-e2e-real.yml`, *entonces* declara `timeout-minutes: 30` y `permissions: contents: read`, y no usa `pull_request_target`. *Prueba*: revisión del YAML en el diff por la sesión y `security-reviewer`.
+- **CA-E2ECI-15** · *Dado* una ejecución verde y una roja, *entonces* el artefacto de informe y trazas solo existe en la roja, con retención de 7 días. *Prueba*: las ejecuciones de `CA-E2ECI-01` (sin artefacto) y `CA-E2ECI-03` (con artefacto).
 
 ### 4.3 Cómo se demuestra que el job detecta el fallo
 
@@ -209,6 +214,8 @@ Columna «Roles»: **NV** en todas las filas (requiere el paso 2). «E2E simulad
 
 ## 7. Pruebas visuales
 
+> Nota: `RN-UI-07` asigna hoy la generación de capturas a `verificador`; con `OPEN-E2ECI-10` = A pasa a un paso del CI (artefacto de corta retención, fuera de Git), sin cambiar el resto de la política. `E2E-CI-e` lo refleja en `REQ-CORE/capa-visual.md`.
+
 ### 7.1 Política vigente que aplica
 
 `docs/modulos/REQ-CORE/capa-visual.md` (**V-idx**):
@@ -244,14 +251,14 @@ Estimación en tramos de `implementer` (`CLAUDE.md §2.7`, ≤3 tramos ≈ 250 l
 | Entrega | Contenido | Tramos | Clasificación | Revisión | ADR | Migraciones |
 |---------|-----------|--------|---------------|----------|-----|-------------|
 | `E2E-CI-a` | Esta especificación | — (`spec-writer`) | — | `doc-precheck`, `doc-reviewer` | — | No |
-| `E2E-CI-b` | Piloto `core` (`§3`, `§4`), instrumentación de tiempos (`§5`), adaptación de guiones al *runner* | 2-3 | **Crítico** (duda): toca guiones con purga por superusuario y la guarda `E2E_ALLOW_DESTRUCTIVE`, genera secretos en CI y cambia un *check* requerido de la protección de rama | Codex; `security-reviewer` (su columna: secretos en CI, permisos del `GITHUB_TOKEN`, guardas destructivas); `doc-precheck` y `doc-reviewer` | Sí, antes de implementar (`OPEN-E2ECI-11`) | No |
+| `E2E-CI-b` | Piloto `core` (`§3`, `§4`), instrumentación de tiempos (`§5`), adaptación de guiones al *runner*, `SYSADMIN.md §4` y fila «Tests» de `CLAUDE.md §1` | 2-3 | **Crítico** (duda): toca guiones con purga por superusuario y la guarda `E2E_ALLOW_DESTRUCTIVE`, genera secretos en CI y cambia un *check* requerido de la protección de rama | Codex; `security-reviewer` (su columna: secretos en CI, permisos del `GITHUB_TOKEN`, guardas destructivas); `doc-precheck` y `doc-reviewer` | Sí, antes de implementar (`OPEN-E2ECI-11`); **debe enmendar `ADR-080 §5.3.4`** (con `docker` el soporte es «de mejor esfuerzo» y «no hay trabajo de CI que lo ejecute»: el CI pasa a ejecutarlo) | No |
 | `E2E-CI-c` | Todas las suites (`core`, `acad-*`, `curso-rollover`, `fam-unit`, `:prl`, `:alum`) en el job; `curso-rollover.spec.ts` sin `podman` escrito a mano; 3 mediciones y, si salta D3, propuesta de reparto | 1-2 | **Crítico** (mismo motivo que `-b`) | Igual que `-b` | No (lo cubre el de `-b`) | No |
 | `E2E-CI-c2` | Solo si D3 se dispara y el usuario aprueba el reparto: matriz por suites con su agregador | 1 | **Crítico** (cambia la topología de un *check* requerido) | Igual que `-b` | Enmienda del ADR de `-b` si cambia su decisión | No |
 | `E2E-CI-d0` | Matriz completa (`§6.2`), con prioridad y propuesta de partición de `-d` | — (`explorer` + `spec-writer`) | — | `doc-precheck`, `doc-reviewer` | No | No |
-| `E2E-CI-d1`..`-dn` | Nuevos E2E reales por grupo de flujos, cada uno ≤3 tramos; tamaño y número salen de `-d0` | ≤3 cada una | **Crítico** si el diff toca `apps/api/tests/Support/e2e-real-tenant.php` (crea usuarios, roles y datos de menores sintéticos; tiene guardas de entorno) o los guiones; **ordinario** si solo añade *specs* | Codex; `security-reviewer` si crítico; `doc-precheck`, `doc-reviewer` | No | No |
-| `E2E-CI-e` | Pruebas visuales según lo que se decida en `OPEN-E2ECI-10` | 1-2 | Ordinario (salvo que la opción elegida cambie algo de seguridad, que no se prevé) | Codex; `doc-precheck`, `doc-reviewer` | Sí si se adopta comparación con referencias, porque cambia `RN-UI-07` (`OPEN-E2ECI-10`) | No |
+| `E2E-CI-d1`..`-dn` | Nuevos E2E reales por grupo de flujos, cada uno ≤3 tramos; tamaño y número salen de `-d0` | ≤3 cada una | **Ordinario**; **crítico** si el diff toca `apps/api/tests/Support/e2e-real-tenant.php` (crea usuarios, roles y datos de menores sintéticos; tiene guardas de entorno), los guiones de `apps/web/scripts` o `ci-e2e-real.yml` | Codex; `security-reviewer` si crítico; `doc-precheck`, `doc-reviewer` | No | No |
+| `E2E-CI-e` | Pruebas visuales según lo que se decida en `OPEN-E2ECI-10` | 1-2 | Ordinario si solo añade *specs* o capturas; **crítico** si cambia `ci-e2e-real.yml` o sube artefactos con trazas | Codex; `doc-precheck`, `doc-reviewer` | Sí si se adopta comparación con referencias, porque cambia `RN-UI-07` (`OPEN-E2ECI-10`) | No |
 
-**E2E / prueba que cubre cada criterio**: `CA-E2ECI-01` a `-08` en `§4.2` (cada uno lleva su prueba). Para `E2E-CI-c`: `CA-E2ECI-09` a `-11` (`§9.1`). Para `-d` y `-e`: los fija `-d0` y la decisión de `OPEN-E2ECI-10`.
+**E2E / prueba que cubre cada criterio**: `CA-E2ECI-01` a `-08` en `§4.2` (cada uno lleva su prueba). Para `E2E-CI-c`: `CA-E2ECI-09` a `-11` y `-16` (`§9.1`). Para `-c2`, `-d` y `-e`: los fija `-d0` (y `-c2`, al aprobarse el reparto); no se escriben antes de tener esos datos, y la entrega no empieza sin ellos.
 
 ### 9.1 Criterios de `E2E-CI-c`
 
@@ -259,10 +266,12 @@ Estimación en tramos de `implementer` (`CLAUDE.md §2.7`, ≤3 tramos ≈ 250 l
 - **CA-E2ECI-10** · *Dado* una rotura deliberada en una suite distinta de `core` (p. ej. el flujo de `alum-group-change-real`), *cuando* corre el CI, *entonces* el agregador queda en rojo. *Prueba*: PR desechable en borrador, como `CA-E2ECI-03`.
 - **CA-E2ECI-11** · *Dado* tres ejecuciones completas en CI, *entonces* el informe del paso recoge mediana y máximo por suite y del job, y dice si se cumple el disparador de D3. *Prueba*: los tres resúmenes enlazados.
 
+- **CA-E2ECI-16** · *Dado* que `acad-timetable` (#741) está en el job, *cuando* se cierra `E2E-CI-c`, *entonces* #741 está cerrado y tres ejecuciones completas seguidas no fallan en esa suite. *Prueba*: enlace al issue cerrado y a los tres resúmenes de `CA-E2ECI-11`.
+
 ### 9.2 Bloqueos y dependencias
 
-- `E2E-CI-b` necesita resueltas `OPEN-E2ECI-02` a `-06`, `-08`, `-09` y `-11` (y escrito el ADR si `-11` = sí).
-- `OPEN-E2ECI-03` puede convertir `0.10e-b` (nivel 1 de *runtime*) en prerrequisito.
+- `E2E-CI-b` tiene como prerrequisitos `0.10e-b` (nivel 1 de *runtime*, `OPEN-E2ECI-03` = A) y el ADR de `OPEN-E2ECI-11` = A, escrito por `architect`, que enmienda `ADR-080 §5.3.4`; el plan de `0.10e-b` lo refleja.
+- El *issue* aparte por `retries: 2` del job simulado es #749 (`OPEN-E2ECI-07`).
 - La intermitencia de `acad-timetable` (#741) hará rojo el job de `E2E-CI-c` de forma aleatoria; con D5 eso no se tapa con reintentos: #741 debe estar resuelto antes de cerrar `-c`, o el usuario decide excluir esa suite del job mientras siga abierto (`OPEN-E2ECI-15`).
 
 ---
@@ -307,13 +316,13 @@ En cada una, la opción recomendada va primero y marcada.
 
 ## 11. Lo no verificado (resumen)
 
-Recuento de *specs* (29 frente a 28) Podman en `ubuntu-26.04`; qué tests de `core-roles` y `curso-academic-years` son reales; roles de cada flujo; cobertura simulada por contenido (solo por nombre de fichero); interacción cubierta por cada *spec* salvo `core-scroll-real`; si la imagen `dev` de la API instala dependencias al arrancar; tiempo de construcción de la imagen en CI; alcance de descarga de artefactos en repositorio público. Ningún fichero se ha ejecutado.
+Podman en `ubuntu-26.04`; qué tests de `core-roles` y `curso-academic-years` son reales; roles de cada flujo; cobertura simulada por contenido (solo por nombre de fichero); interacción cubierta por cada *spec* salvo `core-scroll-real`; si la imagen `dev` de la API instala dependencias al arrancar; tiempo de construcción de la imagen en CI; alcance de descarga de artefactos en repositorio público. Ningún fichero se ha ejecutado.
 
 ---
 
 ## 12. Operación (flujo y guiones propuestos)
 
-Estado: **PROPUESTO** (2026-11-17). Detalle operativo de `§3`. Todo lo que sigue depende de `OPEN-E2ECI-02` a `-06` y `-09`; se escribe con la opción recomendada de cada una y cambia si el usuario decide otra cosa. Sin código: los pasos se describen, no se escriben.
+Estado: **APROBADO** (2026-11-17; `OPEN-E2ECI-02` a `-06` y `-09` resueltas en A). Detalle operativo de `§3`. Nada implementado: los pasos se describen, no se escriben.
 
 ### 12.1. Flujo `ci-e2e-real.yml` (propuesto)
 
@@ -324,6 +333,8 @@ Estado: **PROPUESTO** (2026-11-17). Detalle operativo de `§3`. Todo lo que sigu
 | *Runner* | `ubuntu-26.04` fijado (#609) | Patrón de los flujos actuales |
 | `concurrency` | Grupo por rama con `cancel-in-progress` en PR [DERIVADA: dos ejecuciones del mismo PR no aportan nada y gastan *runner*] | — |
 | Jobs | `cambios` → `e2e-real` → agregador «E2E real (API)» | `§3` |
+| Seguridad | Nunca `pull_request_target`; los PR de forks corren sin secretos (todos son efímeros y se generan en el job); las contraseñas aleatorias que imprime `e2e-real-tenant.php setup` se enmascaran con `::add-mask::` al leerlas | `CLAUDE.md §8`, `ADR-030` |
+| Acciones de terceros | Ninguna. `actions/upload-artifact` es de primera parte pero **nueva** en este repositorio: se fija por SHA según `0.10g-b` | `CLAUDE.md §1` |
 
 #### 12.1.1 Job `cambios`
 
@@ -339,9 +350,9 @@ Pasos en orden (propuesta con `OPEN-E2ECI-02` = A y `-03` = A):
 2. Secretos efímeros (`POSTGRES_PASSWORD`, `TENANCY_*_PASSWORD`, `GARAGE_*`, `APP_KEY`) generados con `openssl rand`, enmascarados con `::add-mask::` y escritos en `.env` raíz y `apps/api/.env` del *runner* (copia de `apps/api/.env.example` más los valores de CI). Mismo patrón que `storage-conformance` en `ci-api.yml`. Mueren con el *runner*.
 3. `127.0.0.1 demo.plataforma.test demo2.plataforma.test` en `/etc/hosts` (con `sudo`).
 4. Red externa `plataforma-net` creada (compose la exige: `external: true`).
-5. `compose --profile full up -d` (PostgreSQL 18, Redis 8, `api`, `worker`, Garage) con `FILESYSTEM_DISK=s3`; construcción de la imagen `dev` de la API (con caché de capas si es viable: **NV** el mecanismo, decisión de implementación); espera a `/api/health`.
+5. `compose up -d postgres redis api worker garage` (sin `web`, ver `§3` punto 3) con `FILESYSTEM_DISK=s3`; construcción de la imagen `dev` de la API (con caché de capas si es viable: **NV** el mecanismo, decisión de implementación); espera a `/api/health`.
 6. `composer install` dentro del contenedor si la imagen `dev` no lo hace sola (**NV**), migraciones con el rol propietario y `platform:sync-registry`; `infra/garage/init.sh`.
-7. `E2E_ONLY=core npm run test:e2e:real -- --retries=0` en `E2E-CI-b`; en `E2E-CI-c`, las tres órdenes (`test:e2e:real`, `:prl`, `:alum`) en serie, cada una con `--retries=0`, y el job falla si falla cualquiera (sin cortar las siguientes, para medir todas).
+7. `E2E_ONLY=core npm run test:e2e:real -- --retries=0 --trace=retain-on-failure --reporter=json,html` en `E2E-CI-b`; en `E2E-CI-c`, las tres órdenes (`test:e2e:real`, `:prl`, `:alum`) en serie, cada una con esas opciones, y el job falla si falla cualquiera (sin cortar las siguientes, para medir todas); después, la comprobación de tests ejecutados de `§3` punto 5.
 8. Siempre: tabla de tiempos en `$GITHUB_STEP_SUMMARY` y `e2e-tiempos.json` como artefacto (`§5.2`).
 9. Solo si falla: informe y trazas de Playwright como artefacto, 7 días (`OPEN-E2ECI-14`); últimas líneas de los registros de `api`, `worker` y Garage en el registro del job.
 
@@ -355,9 +366,11 @@ Pasos en orden (propuesta con `OPEN-E2ECI-02` = A y `-03` = A):
 
 | Guion | Cambio | Entrega |
 |-------|--------|---------|
-| `e2e-real-api.sh`, `e2e-real-prl.sh`, `e2e-real-alum.sh`, `lib/e2e-garage.sh`, `lib/e2e-purge.sh`, `e2e/curso-rollover.spec.ts` | Invocar el *runtime* por `CONTAINER_RUNTIME` (`0.10e-b`) en vez de `podman` escrito a mano | `0.10e-b` o `E2E-CI-b`/`-c` según `OPEN-E2ECI-03` |
+| `e2e-real-api.sh`, `e2e-real-prl.sh`, `e2e-real-alum.sh`, `lib/e2e-garage.sh`, `lib/e2e-purge.sh`, `e2e/curso-rollover.spec.ts` | Invocar el *runtime* por `CONTAINER_RUNTIME` (`0.10e-b`) en vez de `podman` escrito a mano | `0.10e-b` (prerrequisito de `E2E-CI-b`, `OPEN-E2ECI-03` = A); `curso-rollover.spec.ts` en `E2E-CI-c` |
 | Los tres guiones | Línea `E2E_TIEMPO …` por fase y suite | `E2E-CI-b` (las tres, para que `-c` solo active suites) |
 | Ninguno | **No se relaja** ninguna guarda (`APP_ENV`, marca del centro, `E2E_ALLOW_DESTRUCTIVE`) | — |
+
+`lib/e2e-garage.sh` e `infra/garage/init.sh` usan hoy `CONTAINER_CLI` y `ADR-080` define `CONTAINER_RUNTIME`: se propone unificar en `CONTAINER_RUNTIME` dentro de `0.10e-b` (cuyo alcance, `ADR-080 §5.1`, incluye también `landing-shots.sh` e `init.sh`); lo confirma ese paso, no esta especificación.
 
 La duplicación de `purge_tenant_rows` en `e2e-real-prl.sh` y `e2e-real-alum.sh` frente a `lib/e2e-purge.sh` existe hoy; unificarla no entra salvo que el cambio de *runtime* obligue a tocar las tres copias (en ese caso, se dice en el informe; no se refactoriza en silencio).
 
@@ -365,7 +378,7 @@ La duplicación de `purge_tenant_rows` en `e2e-real-prl.sh` y `e2e-real-alum.sh`
 
 | Variable | Dónde | Valor en CI |
 |----------|-------|-------------|
-| `CI` | GitHub | `true` (activa `retries: 2` de `playwright.config.ts`: de ahí `--retries=0` explícito) |
+| `CI` | GitHub | `true` (activa `retries: 2` de `playwright.config.ts`: de ahí `--retries=0` explícito; #749) |
 | `E2E_ONLY` | Guion | `core` en `E2E-CI-b`; vacía en `-c` |
 | `CONTAINER_RUNTIME` | Guiones | `docker` (si `OPEN-E2ECI-03` = A) |
 | `E2E_ALLOW_DESTRUCTIVE` | Guiones | La exportan los propios guiones, como hoy |
