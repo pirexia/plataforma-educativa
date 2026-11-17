@@ -47,8 +47,8 @@
 
 ### 1.3 Inventario de *specs*
 
-- **V-idx** `apps/web/e2e/` contiene 34 ficheros `.ts`: 29 *specs* y 5 *fixtures* (`alumReal`, `dataExport`, `realSession`, `tableFixture`, `landingShowcase`). El encargo habla de 28 *specs*; la diferencia (un fichero) **NV**. `e2e-real-api.spec.ts`, citado en un comentario de `e2e-real-api.sh`, no aparece en `e2e/` (**NV** dónde está).
-- **V** *Specs* que ejecutan los guiones reales: `core-roles` (`CA-PERM-133`), `curso-academic-years` (`CA-CURSO-086`), `core-scroll-real` (`RNF-MANT-007`), `acad-structure` (`CA-ACAD-053`), `acad-periods` y `acad-scales` (`CA-ACAD-101`), `acad-timetable` (`CA-ACAD-135`, intermitente #741), `curso-rollover` (`CA-CURSO-147`), `fam-unit-pickup-real` (`CA-FAM-UNIT-142`), `prl-door-api` y `prl-door-real` (`CA-PRL-012`), `alum-students-real`, `alum-enrollments-real`, `alum-photo-real`, `alum-screens-real`, `alum-group-change-real`, `data-table-real`. En `core-roles` y `curso-academic-years` el guion filtra con `-g`: conviven tests reales y simulados en el mismo fichero (**NV** cuántos de cada).
+- **V-idx** `apps/web/e2e/` contiene 34 ficheros `.ts`: 29 *specs* y 5 *fixtures* (`alumReal`, `dataExport`, `realSession`, `tableFixture`, `landingShowcase`). El encargo habla de 28 *specs*; la diferencia (un fichero) **NV**. `e2e-real-api.spec.ts`, citado en un comentario de `e2e-real-api.sh`, está en `apps/web/scripts/` (**V**), no en `e2e/`.
+- **V** *Specs* que ejecutan los guiones reales: `core-roles` (`CA-PERM-133`), `curso-academic-years` (`CA-CURSO-086`), `core-scroll-real` (`RNF-MANT-007`), `acad-structure` (`CA-ACAD-053`), `acad-periods` y `acad-scales` (`CA-ACAD-101`), `acad-timetable` (`CA-ACAD-135`, intermitente #741), `curso-rollover` (`CA-CURSO-147`), `fam-unit-pickup-real` (`CA-FAM-UNIT-142`), `prl-door-api` (`CA-PRL-002`, `CA-PRL-035`) y `prl-door-real` (`CA-PRL-012`), `alum-students-real`, `alum-enrollments-real`, `alum-photo-real`, `alum-screens-real`, `alum-group-change-real`, `data-table-real`. En `core-roles` y `curso-academic-years` el guion filtra con `-g`: conviven tests reales y simulados en el mismo fichero (**NV** cuántos de cada).
 
 ### 1.4 Lo que hay hoy en la SPA (para la matriz de `§6`)
 
@@ -230,7 +230,7 @@ Contraste a tener en cuenta: las capturas de la *landing* (`landing-shots`, `ADR
 |-------------|----------------|
 | Los *specs* de `apps/web/e2e/` y sus *fixtures*: el mismo test debe poder apuntar a CI, local o staging por variables (`E2E_BASE_URL`, `E2E_API_URL`, `E2E_BASE_DOMAIN` ya existen; `realSession.ts` fija `:8000` en la cabecera `Host`, lo que impide hoy un destino HTTPS en 443) | El entorno: CI usa una pila efímera con imagen `dev`, `APP_ENV` `local`/`testing` y HTTP; staging usa la imagen de producción, `APP_ENV=production`, HTTPS con certificado de pruebas y MFA obligatorio según rol |
 | La forma de los resultados (`§5.2`) y la regla de no reintentar (D5) | La preparación del centro: en CI, el guion `e2e-real-tenant.php` dentro del contenedor `dev`; en staging, `tests/Support` **no viaja en la imagen de producción** y el usuario decidió un **contenedor de un solo uso** con la misma imagen (`ADR-080 §3.6` opción (a); nota viva de `0.10e-c`) |
-| El inventario y la matriz de `§6` | El disparo: CI en cada PR que toque código; staging en cada promoción o ventana (`ADR-090` D1, «el humo evoluciona hacia `CS-17`»), lanzado a mano |
+| El inventario y la matriz de `§6` | El disparo: CI en cada PR que toque código; staging en cada promoción o ventana (`ADR-090` D1 y su anexo, `docs/adr/ADR-090-anexo-plan-parcheo-y-mantenimiento.md`, que prevé que `CS-17` sustituya al humo), lanzado a mano |
 | | La guarda destructiva: en CI la base entera es desechable; en staging la base es compartida y persistente entre ventanas, así que el *teardown* solo puede tocar el centro marcado |
 
 **Consecuencia para el diseño [DERIVADA]**: ninguna entrega de este documento debe escribir en los *specs* algo que solo funcione en el *runner* (p. ej. `127.0.0.1` o `:8000` nuevos). Hacer los *specs* agnósticos al destino es trabajo de `CS-17`, no de aquí; aquí solo se prohíbe empeorarlo.
@@ -307,7 +307,7 @@ En cada una, la opción recomendada va primero y marcada.
 
 ## 11. Lo no verificado (resumen)
 
-Recuento de *specs* (29 frente a 28) y paradero de `e2e-real-api.spec.ts`; Podman en `ubuntu-26.04`; qué tests de `core-roles` y `curso-academic-years` son reales; roles de cada flujo; cobertura simulada por contenido (solo por nombre de fichero); interacción cubierta por cada *spec* salvo `core-scroll-real`; si la imagen `dev` de la API instala dependencias al arrancar; tiempo de construcción de la imagen en CI; alcance de descarga de artefactos en repositorio público. Ningún fichero se ha ejecutado.
+Recuento de *specs* (29 frente a 28) Podman en `ubuntu-26.04`; qué tests de `core-roles` y `curso-academic-years` son reales; roles de cada flujo; cobertura simulada por contenido (solo por nombre de fichero); interacción cubierta por cada *spec* salvo `core-scroll-real`; si la imagen `dev` de la API instala dependencias al arrancar; tiempo de construcción de la imagen en CI; alcance de descarga de artefactos en repositorio público. Ningún fichero se ha ejecutado.
 
 ---
 
@@ -371,7 +371,7 @@ La duplicación de `purge_tenant_rows` en `e2e-real-prl.sh` y `e2e-real-alum.sh`
 | `E2E_ALLOW_DESTRUCTIVE` | Guiones | La exportan los propios guiones, como hoy |
 | `VITE_API_URL` | Guion (`e2e-vite-api-url.sh`) | `http://demo.plataforma.test:8000/api/v1`, como hoy |
 | `FILESYSTEM_DISK` | `compose` | `s3` |
-| Secretos de `§1.2` punto 2 | `.env` del *runner* | Aleatorios por ejecución, enmascarados |
+| Secretos de `§12.1.2`, paso 2 | `.env` del *runner* | Aleatorios por ejecución, enmascarados |
 
 ### 12.4. Reversión
 
