@@ -4,7 +4,7 @@
 **Fecha**: 2026-10-10
 **Paso**: transversal, fuera de la numeración del plan. Rama `chore/tests-paralelos`.
 **Se apoya en**: `ADR-033 §10` (suite sobre PostgreSQL real, RLS, tres conexiones con roles distintos); `INV-015`; `RN-AUTH-03`; `CLAUDE.md §3` y `§9`; issue [#199](https://github.com/pirexia/plataforma-educativa/issues/199).
-**No sustituye** ningún ADR. **No cambia** nada de `ADR-033 §10`: cada proceso sigue corriendo contra PostgreSQL real, con RLS y con `pgsql`/`pgsql_owner`/`pgsql_platform` en sus roles; solo deja de haber una única base de test.
+**Sustituido en parte por `ADR-089`** (`PROPUESTA`): solo la topología de CI de `§4.1.7` y `CA-060-09` (matriz de *shards*). **No sustituye** ningún ADR. **No cambia** nada de `ADR-033 §10`: cada proceso sigue corriendo contra PostgreSQL real, con RLS y con `pgsql`/`pgsql_owner`/`pgsql_platform` en sus roles; solo deja de haber una única base de test.
 **Afecta a**: `apps/api/tests/` (`bootstrap.php`, `Pest.php`, `TestCase.php`, `tests/Support/`, ficheros de `Feature/Backoffice`), `apps/api/composer.json`, `infra/containers/postgres/`, `.github/workflows/ci-api.yml`, `CLAUDE.md §3`, `.claude/agents/{implementer,test-writer,verificador,security-reviewer,db-reviewer,doc-reviewer}.md`, `SYSADMIN.md`, `CONTRIBUTING.md`.
 
 ---
