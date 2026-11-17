@@ -34,7 +34,7 @@
 
 - **V** `.github/workflows/ci-web.yml`, job `e2e` («Tests e2e (Playwright)»): `npm ci`, `npx playwright install --with-deps chromium`, `npm run test:e2e`. No levanta PostgreSQL, Redis, Garage ni la API. Los *specs* reales se saltan solos (`test.skip(process.env.E2E_REAL_API !== '1', …)`, visto en `e2e/core-scroll-real.spec.ts`).
 - **V** `ci-web.yml` se dispara en `pull_request` a `develop`, `main` y `staging`, y en `push` a `develop` y `main`; sin filtro `paths:`. Los comentarios de `ci-api.yml` (líneas 23 y 185) recuerdan que los nombres de job son *required checks* de la protección de rama, que se configuran **a mano** en GitHub (`SYSADMIN.md §4`).
-- **V** `apps/web/playwright.config.ts`: `retries: process.env.CI ? 2 : 0`, `fullyParallel: true`, `webServer` = `npm run dev -- --host 127.0.0.1 --port 5173`, `reuseExistingServer: !process.env.CI`, `locale: 'es-ES'`. **Con `CI=true` (siempre en GitHub Actions) cada test fallido se reintenta dos veces y, si pasa en un reintento, Playwright lo da por bueno («flaky»)**: eso es un reintento silencioso en el sentido de D5. Afecta ya al job simulado de hoy (`OPEN-E2ECI-07`).
+- **V** `apps/web/playwright.config.ts`: `retries: 0` (desde #751; antes `process.env.CI ? 2 : 0`), `fullyParallel: true`, `webServer` = `npm run dev -- --host 127.0.0.1 --port 5173`, `reuseExistingServer: !process.env.CI`, `locale: 'es-ES'`. **Hasta #751 (2026-11-17), con `CI=true` cada test fallido se reintentaba dos veces y, si pasaba en un reintento, Playwright lo daba por bueno («flaky»)**: un reintento silencioso en el sentido de D5. Corregido en #749/#751 (`retries: 0` y `trace: 'retain-on-failure'`).
 - **V** `ci-api.yml`: patrón de `ADR-089` (matriz `pest` + agregador `test` con `needs`, `if: always()` y fallo si el resultado no es `success`); Garage en CI arrancado con `docker run` e `infra/garage/init.sh` con `CONTAINER_CLI=docker` y secretos efímeros enmascarados (job `storage-conformance`).
 
 ### 1.2 Los guiones de E2E real
@@ -75,7 +75,7 @@
 | E2E contra staging (`CS-17`) | Especificación propia (`ADR-080 §6.2`, nota viva de `0.10e-c`). Aquí solo se dice qué se comparte (`§8`) |
 | Centro `demo` persistente, `demo:seed` | D4; `1.15b` |
 | Paralelización por suites | Solo tras el disparador de D3 (`§5`) |
-| Cambiar el job simulado `e2e` de hoy | Fuera del encargo; su `retries: 2` se señala como `OPEN-E2ECI-07` |
+| Cambiar el job simulado `e2e` de hoy | Fuera del encargo; su `retries: 2` se corrigió aparte (#749, #751; `OPEN-E2ECI-07`) |
 | Implementar el nivel 1 de *runtime* (`0.10e-b`) | Es otro paso del plan; esta especificación solo depende de él según `OPEN-E2ECI-03` |
 | Pantallas de familia o de estudiante | No existen (`§1.4`); `1.22` |
 | Herramienta nueva de comparación de píxeles | `RN-UI-07` la excluye; cualquier cambio, `OPEN-E2ECI-10` |
@@ -95,7 +95,7 @@
 4. **Datos**: el centro sintético del propio guion (`e2e-real-tenant.php setup`), con contraseñas aleatorias por ejecución (`ADR-080 §3.6`). Nada de `REQ-SEED` persistente (D4). La base es efímera y muere con el *runner*; la guarda `E2E_ALLOW_DESTRUCTIVE=1` y la marca del centro **se mantienen igual** (no se relajan porque la base sea desechable) [DERIVADA: un guion que aprende a saltarse su guarda en CI acaba saltándosela en local].
 5. **Sin reintentos**: el job real ejecuta Playwright con `--retries=0` (los guiones pasan `"$@"` a Playwright: **V**). Un test que falla deja el job en rojo; si se sospecha intermitencia, se abre *issue* (D5) y el test no se marca como `skip` sin decisión del usuario. **Un verde exige tests ejecutados**: tras Playwright, un paso falla el job si el informe JSON muestra algún test `skipped` o menos tests pasados de los esperados por suite (los *specs* reales se saltan solos sin `E2E_REAL_API`, y `e2e-real-alum.sh` usa `--pass-with-no-tests`: sin este paso, un job con todo saltado saldría en verde, el mismo agujero que se cierra). El número esperado por suite lo fija la implementación en un fichero versionado.
 6. **Presupuesto de tiempo** (`OPEN-E2ECI-09`, recomendado): `timeout-minutes: 30` como techo duro; objetivo de reloj del job ≤ 10 min (el umbral de D3). Superarlo es un disparador de D3, no un fallo.
-7. **Evidencias**: resumen de tiempos en `$GITHUB_STEP_SUMMARY` y, si falla, el informe y las trazas de Playwright como artefacto de corta retención (`OPEN-E2ECI-14`). Con `--retries=0` Playwright **no graba trazas** (`playwright.config.ts` usa `trace: 'on-first-retry'`) y su *reporter* es `list`: el job pasa `--trace=retain-on-failure` y un *reporter* `json` (resumen y comprobación de saltados; el fichero de salida se fija con `PLAYWRIGHT_JSON_OUTPUT_NAME`, **NV**: no ejecutado) más `html` (artefacto).
+7. **Evidencias**: resumen de tiempos en `$GITHUB_STEP_SUMMARY` y, si falla, el informe y las trazas de Playwright como artefacto de corta retención (`OPEN-E2ECI-14`). Con `--retries=0` Playwright **no graba trazas** (hasta #751 `playwright.config.ts` usaba `trace: 'on-first-retry'`; hoy `retain-on-failure`) y su *reporter* es `list`: el job fija `--trace=retain-on-failure` y un *reporter* `json` (resumen y comprobación de saltados; el fichero de salida se fija con `PLAYWRIGHT_JSON_OUTPUT_NAME`, **NV**: no ejecutado) más `html` (artefacto).
 
 ---
 
@@ -294,11 +294,11 @@ En cada una, la opción recomendada va primero y marcada.
   - (B) Usar Podman en el *runner* sin tocar los guiones: depende de que la imagen `ubuntu-26.04` traiga Podman y `podman compose` (**NV**).
 - **OPEN-E2ECI-04 · Fichero del flujo.** **(A, recomendada)** `ci-e2e-real.yml` nuevo. (B) Jobs dentro de `ci-web.yml`.
 - **OPEN-E2ECI-05 · Qué rutas disparan el job.**
-  - **(A, recomendada)** `apps/web/**`, `apps/api/**`, `compose.yaml`, `infra/containers/**`, `infra/garage/**` y el propio flujo: un cambio en la imagen, en Garage o en la definición de la pila rompe el E2E igual que uno de código.
+  - **(A, recomendada)** `apps/web/**`, `apps/api/**`, `compose.yaml`, `infra/containers/**`, `infra/garage/**`, `infra/lib/**` (añadido el 2026-11-17 tras `0.10e-b`: `infra/lib/container-runtime.sh`, del que dependen todos los guiones), el `.env.example` de la raíz (añadido el 2026-11-17, `ADR-091`; se retira si la implementación no lo usa como base del `.env` del *runner*) y el propio flujo: un cambio en la imagen, en Garage o en la definición de la pila rompe el E2E igual que uno de código.
   - (B) Solo `apps/web/**` y `apps/api/**` (lo que dice el encargo).
 - **OPEN-E2ECI-06 · `push` a `develop`.** **(A, recomendada)** Sí, sin condición por diff: detecta roturas por combinación de dos PR verdes por separado. (B) Solo en PR.
 - **OPEN-E2ECI-07 · `retries: 2` del job simulado de hoy.** Contradice D5 (reintento silencioso), pero es ajeno a este encargo.
-  - **(A, recomendada)** Abrir *issue* aparte (Media) y tratarlo fuera de estas entregas; el job real usa `--retries=0` desde el primer día.
+  - **(A, recomendada)** Abrir *issue* aparte (Media) y tratarlo fuera de estas entregas; el job real usa `--retries=0` desde el primer día. **Hecho**: #749 resuelto en #751 (2026-11-17).
   - (B) Corregirlo dentro de `E2E-CI-b` (cambia `playwright.config.ts` y puede volver rojo el job simulado si hay intermitentes ocultos).
 - **OPEN-E2ECI-08 · Cuándo pasa a requerido el agregador.** **(A, recomendada)** Al cerrar `E2E-CI-b`, con `CA-E2ECI-01` a `-05` cumplidos; lo marca el usuario en GitHub. (B) Informativo hasta cerrar `E2E-CI-c`.
 - **OPEN-E2ECI-09 · Presupuesto de tiempo.** **(A, recomendada)** `timeout-minutes: 30` y objetivo ≤ 10 min de reloj, que es el disparador de D3. (B) Otro valor que fije el usuario.
@@ -378,7 +378,7 @@ La duplicación de `purge_tenant_rows` en `e2e-real-prl.sh` y `e2e-real-alum.sh`
 
 | Variable | Dónde | Valor en CI |
 |----------|-------|-------------|
-| `CI` | GitHub | `true` (activa `retries: 2` de `playwright.config.ts`: de ahí `--retries=0` explícito; #749) |
+| `CI` | GitHub | `true` (desde #751 `playwright.config.ts` ya no reintenta; `--retries=0` se mantiene explícito en el job como defensa; #749) |
 | `E2E_ONLY` | Guion | `core` en `E2E-CI-b`; vacía en `-c` |
 | `CONTAINER_RUNTIME` | Guiones | `docker` (si `OPEN-E2ECI-03` = A) |
 | `E2E_ALLOW_DESTRUCTIVE` | Guiones | La exportan los propios guiones, como hoy |

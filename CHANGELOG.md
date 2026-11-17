@@ -6,6 +6,13 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-17 · `docs`: `ADR-091` (E2E real en el CI), `PROPUESTA`
+
+- `ADR-091` (`docs/adr/`): job de CI condicionado por diff, agregador «E2E real (API)» como único *check* requerido y pila efímera con `docker` en el *runner*; extiende `ADR-089 §2`, punto 3, con una excepción declarada y **propone sustituir en parte `ADR-080 §5.3` punto 4 y `OPEN-STG-11`**, solo para el camino del E2E real (hoy: «con `docker`, mejor esfuerzo y sin trabajo de CI»). `ADR-080` queda sin tocar hasta aceptarse `ADR-091` (precedente de `ADR-060`/`ADR-089`). Preguntas abiertas `OPEN-091-01` a `-03` (`-03`: confirmar las decisiones derivadas, entre ellas `infra/lib/**` y `.env.example` en las rutas del job `cambios`).
+- `docs/proceso/e2e-real-ci.md`: puesta al día tras #751 (`playwright.config.ts` ya no reintenta). `REQUISITOS` 3.2.37 (solo el índice de la §18), `PLAN-IMPLEMENTACION.md` 2.3.30.
+- Dato que el ADR recoge: `ci-api.yml` (job de conformidad del almacén) ya lanza `bash infra/garage/init.sh` con `CONTAINER_CLI=docker` (el guion ejecuta `docker exec`), así que la premisa «sin trabajo de CI para docker» ya no era del todo exacta.
+- **No implementado**: nada. **No verificado**: el comportamiento de `docker compose` en `ubuntu-26.04` (montajes `:Z`, propietario de ficheros del montaje de `apps/api`, arranque de servicios con perfil al nombrarlos), el tiempo de construcción de la imagen `dev` en CI y el comportamiento de un *check* requerido ante una promoción por avance rápido.
+
 ## 2026-11-17 · `fix(web)`: Playwright sin reintentos en CI (issue #749)
 
 - `apps/web/playwright.config.ts`: `retries: 0` (antes `process.env.CI ? 2 : 0`) y `trace: 'retain-on-failure'` (antes `on-first-retry`, que sin reintentos nunca grababa). Un test que falla y pasa al reintentar ya no se da por bueno en silencio: contradecía la norma de intermitentes (`docs/proceso/e2e-real-ci.md` D5).
