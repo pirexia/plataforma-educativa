@@ -154,6 +154,13 @@ test.describe('CA-ACAD-135 (REQ-ACAD-002): horarios contra la API real', () => {
     ).toBeVisible()
 
     // La sección de profesorado lee las asignaturas del grupo al montarse: se recarga para que vea las recién asignadas.
+    // #741: la respuesta de las asignaturas del grupo se retrasa a propósito. Si «Asignar profesorado»
+    // se pudiera pulsar antes de que lleguen, el Select del diálogo se montaría sin opciones y Reka UI
+    // lo dejaría sin colocar (lista fuera de pantalla): el botón debe esperar a que carguen.
+    await page.route('**/groups/*/subjects', async (route) => {
+      if (route.request().method() === 'GET') await new Promise((resolve) => setTimeout(resolve, 1500))
+      await route.continue()
+    })
     await page.reload()
 
     // 4. Profesorado: Daniel imparte Matemáticas y Lengua; Marta, Lengua.

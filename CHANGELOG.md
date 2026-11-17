@@ -6,6 +6,15 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-17 · `fix(web)`: «Asignar profesorado» espera a las asignaturas del grupo (issue #741)
+
+- **Causa** (del E2E real `CA-ACAD-135`, intermitente en `develop`: 2 de 5 secuencias): `TeachingSection.vue` mostraba «Asignar profesorado» sin esperar a que se cargaran las asignaturas del grupo (`onMounted`). Si el diálogo y su `Select` se abrían antes, el `Select` se montaba sin opciones, Reka UI 2.11.0 (`SelectItemAlignedPosition.js:40`: exige `selectedItem` y `selectedItemText`) no lo colocaba y nada lo recolocaba al llegar las opciones: lista sin coordenadas y fuera de pantalla («element is outside of the viewport»).
+- **Arreglo**: el botón lleva `:disabled="!ready"`. Sin cambios en permisos (`canAssign` manda) ni textos.
+- **Pruebas**: Vitest en `TeachingSection.spec.ts` (botón deshabilitado hasta que llegan las asignaturas) y, en `acad-timetable.spec.ts`, una `page.route` permanente que retrasa 1,5 s `GET /groups/*/subjects` antes del `reload`, de modo que el E2E real deja de depender del azar.
+- **Demostrado que detectan el fallo**: sin el arreglo, el test de Vitest falla (`expected false to be true`) y el E2E real falla 2 de 2 en solitario (con el retraso, también 2 de 2 sin tocar el *spec* original). Con el arreglo, Vitest 10/10 y E2E 4 de 4 en solitario (una repetición por un fallo de entorno de Garage, #758) y **tres secuencias completas seguidas en verde** (7 suites, `EXIT=0`).
+- **Verificado**: web completo en el host (`eslint`, `lint:i18n`, `vue-tsc -b`, Vitest 161 ficheros y 2.245 tests); revisión de seguridad sin Críticos ni Altos.
+- **No verificado**: otros `Select` con opciones asíncronas (p. ej. «Asignación docente» y «Aula» del diálogo de sesiones); la comprobación en el CI de GitHub (el E2E real no corre allí). Seguimientos: #757 (estado de carga accesible, error de API, otros `Select`) y #758 (Garage `Invalid new layout version`).
+
 ## 2026-11-17 · `docs`: `ADR-091` (E2E real en el CI), `PROPUESTA`
 
 - `ADR-091` (`docs/adr/`): job de CI condicionado por diff, agregador «E2E real (API)» como único *check* requerido y pila efímera con `docker` en el *runner*; extiende `ADR-089 §2`, punto 3, con una excepción declarada y **propone sustituir en parte `ADR-080 §5.3` punto 4 y `OPEN-STG-11`**, solo para el camino del E2E real (hoy: «con `docker`, mejor esfuerzo y sin trabajo de CI»). `ADR-080` queda sin tocar hasta aceptarse `ADR-091` (precedente de `ADR-060`/`ADR-089`). Preguntas abiertas `OPEN-091-01` a `-03` (`-03`: confirmar las decisiones derivadas, entre ellas `infra/lib/**` y `.env.example` en las rutas del job `cambios`).

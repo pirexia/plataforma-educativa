@@ -365,7 +365,9 @@ async function saveTutors(): Promise<void> {
     <div class="flex flex-col gap-2" data-slot="acad-assignments">
       <div class="flex flex-wrap items-center justify-between gap-2">
         <h3 class="text-sm font-medium">{{ t('acad.teaching.assignments') }}</h3>
-        <Button v-if="canAssign" type="button" size="sm" @click="startAssigning">
+        <!-- #741: hasta que no llegan las asignaturas el Select del diálogo se montaría sin opciones y
+             Reka UI no lo colocaría nunca (lista fuera de pantalla). -->
+        <Button v-if="canAssign" type="button" size="sm" :disabled="!ready" @click="startAssigning">
           {{ t('acad.teaching.assign') }}
         </Button>
       </div>
