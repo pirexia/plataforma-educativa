@@ -5,10 +5,13 @@
 #   1. Levanta `garage` (perfil `full`) y ejecuta `infra/garage/init.sh` (idempotente: layout, clave y bucket).
 #   2. Si `api` o `worker` no están configurados contra Garage con `FILESYSTEM_DISK=s3` (el perfil reducido usa el disco
 #      local, ADR-030), los recrea con esa configuración. No toca `postgres`, `redis` ni `web`.
-# Variables: CONTAINER_CLI (podman), API_CONTAINER (plataforma-api), WORKER_CONTAINER (plataforma-worker).
+# Variables: CONTAINER_RUNTIME (podman; alias CONTAINER_CLI, ADR-080 §5), API_CONTAINER (plataforma-api), WORKER_CONTAINER (plataforma-worker).
 # Requiere `.env` en la raíz con las variables GARAGE_* y `apps/api/.env`. Solo datos sintéticos (ADR-030).
 ensure_garage() {
-  local cli="${CONTAINER_CLI:-podman}" api="${API_CONTAINER:-plataforma-api}" worker="${WORKER_CONTAINER:-plataforma-worker}"
+  # shellcheck source=../../../../infra/lib/container-runtime.sh
+  source "$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)/infra/lib/container-runtime.sh"
+  resolve_container_runtime || return 2
+  local cli="$CONTAINER_RUNTIME" api="${API_CONTAINER:-plataforma-api}" worker="${WORKER_CONTAINER:-plataforma-worker}"
   local root
   root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 
@@ -26,7 +29,7 @@ ensure_garage() {
 
   (cd "$root" && "$cli" compose --profile full up -d garage >/dev/null 2>&1) \
     || { echo "ensure_garage: no se pudo levantar el servicio garage (¿falta .env con GARAGE_*?)." >&2; return 2; }
-  (cd "$root" && CONTAINER_CLI="$cli" bash infra/garage/init.sh) \
+  (cd "$root" && CONTAINER_RUNTIME="$cli" bash infra/garage/init.sh) \
     || { echo "ensure_garage: infra/garage/init.sh falló." >&2; return 2; }
 
   local c need=0

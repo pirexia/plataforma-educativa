@@ -6,7 +6,7 @@
 #
 # Contexto de construcción: la RAÍZ del repositorio, no apps/web — la
 # etapa prod necesita infra/containers/web/nginx.conf, fuera de apps/web.
-# (`podman build -f infra/containers/web/Containerfile .`)
+# (`$CONTAINER_RUNTIME build -f infra/containers/web/Containerfile .`)
 #
 #   base   → runtime Node (compartida)
 #     ├─ dev   → servidor de Vite con recarga en caliente, código por bind mount

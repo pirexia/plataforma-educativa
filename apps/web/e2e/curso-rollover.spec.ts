@@ -1,5 +1,6 @@
 import { execSync } from 'node:child_process'
 import { expect, test, type Page } from '@playwright/test'
+import { resolveContainerRuntime } from '../scripts/container-runtime'
 
 /**
  * `docs/modulos/REQ-CURSO/funcional.md §13.8` (1.12b, `REQ-CURSO-002`), `CA-CURSO-147`: apertura del curso siguiente contra
@@ -14,7 +15,7 @@ import { expect, test, type Page } from '@playwright/test'
  */
 const QUEUE_COMMAND =
   process.env.E2E_QUEUE_COMMAND ??
-  'podman exec plataforma-api php artisan queue:work database_long --queue=long --stop-when-empty --tries=1'
+  `${resolveContainerRuntime()} exec plataforma-api php artisan queue:work database_long --queue=long --stop-when-empty --tries=1`
 
 async function login(page: Page): Promise<void> {
   await page.goto('/entrar')
