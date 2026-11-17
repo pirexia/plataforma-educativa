@@ -203,6 +203,26 @@ describe('CA-ACAD-107 / CA-ACAD-109: asignar profesorado', () => {
     expect(wrapper.text()).toContain('Profesorado asignado.')
   })
 
+  it('#741: «Asignar profesorado» está deshabilitado mientras no llegan las asignaturas del grupo y se habilita al llegar', async () => {
+    // Reka UI solo coloca el desplegable de un Select al montarse y nunca lo recoloca si las
+    // opciones llegan después: abrirlo sin asignaturas lo dejaba fuera de pantalla.
+    let release!: (value: { data: ReturnType<typeof subject>[] }) => void
+    vi.mocked(acadApi.listGroupSubjects).mockReturnValue(
+      new Promise((resolve) => {
+        release = resolve as typeof release
+      }) as never,
+    )
+
+    await open()
+
+    expect(buttonByText('Asignar profesorado')!.disabled).toBe(true)
+
+    release({ data: [subject()] })
+    await flushPromises()
+
+    expect(buttonByText('Asignar profesorado')!.disabled).toBe(false)
+  })
+
   it('sin asignatura o sin profesor no se envía nada y se avisa junto al campo', async () => {
     await open()
     buttonByText('Asignar profesorado')!.click()
