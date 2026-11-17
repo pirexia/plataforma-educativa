@@ -1,6 +1,6 @@
 # ADR-089 · Shards de Pest en CI: matriz de 4 jobs más `Concurrency` aparte y agregador `Tests (Pest)`
 
-**Estado**: **PROPUESTA** (2026-11-17).
+**Estado**: **ACEPTADA** (2026-11-17, por el usuario; propuesta el mismo día).
 **Fecha**: 2026-11-17
 **Origen**: issue [#714](https://github.com/pirexia/plataforma-educativa/issues/714) (CI: la suite Pest tarda ~12 min). Rama `chore/ci-pest-shards`.
 **Sustituye en parte a** `ADR-060 §4.1.7` (invocación y procesos en CI) y `CA-060-09` («CI ejecuta `composer test` con 4 procesos»), **solo en la topología de CI**: el job único pasa a ser una matriz de *shards* (`§2`). `ADR-060` no se modifica (inmutable); conserva su vigencia en todo lo demás: una base por proceso, 4 procesos por *runner*, `Concurrency` en serie contra la base exacta `plataforma_test`, guarda de `bootstrap.php`.

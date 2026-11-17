@@ -10,7 +10,7 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 - `ci-api.yml`: el job `Tests (Pest)` pasa a una matriz (`Pest shard 1/4` a `4/4` y `Pest concurrencia`, `fail-fast: false`) y un agregador `Tests (Pest)` (`needs`, `if: always()`) falla si la matriz no termina en `success`.
 - `apps/api/composer.json`: script nuevo `test:shard` (`--shard=$PEST_SHARD`, obligatoria); `test:paralelo` y `composer test` no cambian. `apps/api/phpunit.xml` fija `memory_limit=-1` porque Pest no admite `--passthru-php` junto a `--shard` (falla en `--list-tests`).
-- `ADR-089` (`PROPUESTA`): sustituye en parte a `ADR-060 §4.1.7` y `CA-060-09` (solo la topología de CI). `SYSADMIN.md` 0.9.7.
+- `ADR-089` (`ACEPTADA`): sustituye en parte a `ADR-060 §4.1.7` y `CA-060-09` (solo la topología de CI). `SYSADMIN.md` 0.9.7.
 - **No verificado**: el tiempo real y el comportamiento del agregador solo se ven en el CI del PR.
 
 ## 2026-11-16 · `infra`: `DefaultInstance=1` en `api@.container` para que la API arranque con el host (issue #707)
