@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Ejecuta los tests e2e que necesitan la API real (CA-PERM-133, CA-CURSO-086, CA-CURSO-147, CA-ACAD-053, CA-ACAD-101, CA-ACAD-135 y CA-FAM-UNIT-142, E2E_REAL_API=1):
+# Ejecuta los tests e2e que necesitan la API real (RNF-MANT-007 scroll, CA-PERM-133, CA-CURSO-086, CA-CURSO-147, CA-ACAD-053, CA-ACAD-101, CA-ACAD-135 y CA-FAM-UNIT-142, E2E_REAL_API=1):
 # prepara un centro de pruebas sintético en el contenedor de la API, lanza
 # Playwright con sus credenciales y lo retira por completo al terminar, también
 # si falla.
@@ -110,7 +110,7 @@ prepare_tenant() {
 
 if only core; then
   prepare_tenant
-  npx playwright test e2e/core-roles.spec.ts e2e/curso-academic-years.spec.ts -g "CA-PERM-133|CA-CURSO-086" --workers=1 "$@"
+  npx playwright test e2e/core-roles.spec.ts e2e/curso-academic-years.spec.ts e2e/core-scroll-real.spec.ts -g "CA-PERM-133|CA-CURSO-086|RNF-MANT-007" --workers=1 "$@"
 fi
 
 # REQ-ACAD (1.11-b), CA-ACAD-053: centro propio, con `acad` contratado por el setup.

@@ -546,7 +546,13 @@ describe('CA-PRL-025: aviso de salida con o sin nombre del alumno (OPEN-FAM-UNIT
     )
     expect(JSON.stringify(window.history.state)).not.toContain('Lucas')
     expect(document.title).not.toContain('Lucas')
-    expect(window.localStorage.length + window.sessionStorage.length).toBe(0)
+    // vue-router 5 (#729) deja `vue-router:scroll` = `{}` (sin scrollBehavior):
+    // vacío, sin rutas ni nombres. Nada más en el almacenamiento.
+    expect(window.localStorage.length).toBe(0)
+    expect(Object.keys(window.sessionStorage)).toEqual(
+      window.sessionStorage.length === 0 ? [] : ['vue-router:scroll'],
+    )
+    expect(window.sessionStorage.getItem('vue-router:scroll') ?? '{}').toBe('{}')
   })
 
   it('por URL directa: la cabecera dice solo «Lista de recogida» y el aviso usa la forma sin alumno', async () => {

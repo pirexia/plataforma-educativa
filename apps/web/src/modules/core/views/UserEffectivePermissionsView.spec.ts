@@ -415,6 +415,13 @@ describe('CA-PERM-122 (RN-PERM-45, RN-CORE-50, RN-CORE-63): sin salida del dato'
       for (let index = 0; index < storage.length; index += 1) {
         const key = storage.key(index)!
 
+        // vue-router 5 (#729) deja `vue-router:scroll`; vacío (`{}`) sin
+        // `scrollBehavior`: ni rutas ni datos de filas.
+        if (key === 'vue-router:scroll') {
+          expect(storage.getItem(key)).toBe('{}')
+          continue
+        }
+
         expect(key).toBe('plataforma.table.core.effective_permissions')
         expect(storage.getItem(key)).not.toMatch(/auditoria|salud|configuracion|Coordinación/)
       }
