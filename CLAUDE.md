@@ -42,7 +42,7 @@ Frases prohibidas: "¡Excelente idea!", "Tienes toda la razón" como apertura re
 
 **Prohibido** introducir una dependencia nueva sin justificarla y sin comprobar mantenimiento activo, licencia y frecuencia de releases. Toda dependencia externa se envuelve tras una interfaz propia (`RNF-MANT-007`).
 
-**Versiones y vulnerabilidades** (`ADR-090`): **Renovate** propone las subidas (`renovate.json`: menores agrupadas, mayores una por PR, `npm <12` hasta que se corrija npm/cli#9800); **Dependabot** avisa y abre solo PR de seguridad (sin `dependabot.yml`, para no duplicar a Renovate); **Trivy** escanea dependencias en el CI y, según `ADR-090`, las imágenes. Una excepción de Trivy lleva `exp:` en `.trivyignore` y un issue de seguimiento. Mezclar un PR de Renovate o de Dependabot exige CI en verde y, si cambia un comportamiento visible o de API, su E2E (`§3`).
+**Versiones y vulnerabilidades** (`ADR-090`): **Renovate** propone las subidas (`renovate.json`: menores agrupadas, mayores una por PR, `npm <12` hasta que se corrija npm/cli#9800); **Dependabot** avisa y abre solo PR de seguridad (sin `dependabot.yml`, para no duplicar a Renovate); **Trivy** escanea dependencias en el CI y, según `ADR-090`, las imágenes. Una excepción de Trivy lleva `exp:` en `.trivyignore` y un issue de seguimiento.
 
 **Prohibido mezclar librerías de componentes UI.** shadcn-vue es el design system único.
 
@@ -232,7 +232,7 @@ Idiomas obligatorios: **es-ES (por defecto), en, de, fr**, en interfaz, document
 - Secretos fuera del código, en gestor de secretos.
 - Cabeceras de seguridad y CSP estricta configuradas desde el primer despliegue.
 - Datos de categoría especial (salud, NEAE, convivencia) en tablas separadas, cifrados, con permisos propios y auditoría de lectura.
-- Cada PR pasa escaneo de dependencias y, según `ADR-090` (paso `0.10g-a`, aún sin implementar), de las imágenes construidas.
+- Cada PR pasa escaneo de dependencias y, según `ADR-090` (paso `0.10g-a`), de las imágenes construidas.
 
 ---
 
