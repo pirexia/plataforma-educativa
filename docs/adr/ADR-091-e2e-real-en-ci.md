@@ -1,6 +1,6 @@
 # ADR-091 · E2E real en el CI: job condicionado por diff, agregador y pila efímera en el runner
 
-**Estado**: **PROPUESTA** (2026-11-17, `architect`). Pendiente de aceptación por el usuario y de `OPEN-091-01` y `-02` (`§8`), que no bloquean la implementación de `E2E-CI-b`, salvo el momento de marcar el *check* como requerido.
+**Estado**: **PROPUESTA** (2026-11-17, `architect`). Pendiente de aceptación por el usuario y de `OPEN-091-01` y `-02` (`§8`), que no bloquean la implementación de `E2E-CI-b`: `OPEN-091-01` fija solo el momento de marcar el *check* como requerido y `OPEN-091-02` el de anotar `ADR-080`.
 **Fecha**: 2026-11-17
 **Origen**: issue [#737](https://github.com/pirexia/plataforma-educativa/issues/737) y especificación **APROBADA** `docs/proceso/e2e-real-ci.md` (`OPEN-E2ECI-11` = A: «ADR propio, antes de `E2E-CI-b`, escrito por `architect`»). Este ADR **no reabre** ninguna de las 15 `OPEN-E2ECI` ni las decisiones D1-D5 de su `§0`: las registra como decisión arquitectónica y fija lo que la especificación dejaba a un ADR.
 **Sustituye en parte a** (con efecto **al aceptarse**; hasta entonces `ADR-080` rige sin cambios):
@@ -8,7 +8,7 @@
 - `ADR-080 §10.2`, `OPEN-STG-11`, solo su segunda mitad («sin trabajo de CI para `docker`»). El nivel 1 de runtime (`§5.3` puntos 1, 2, 3, 5 y 6) y `0.10e-b` no cambian.
 - `ADR-080 §8`, fila «El camino con `docker` se rompe sin que nadie lo vea», en la parte que cubre el job (`§4.3`).
 `ADR-080` **no se modifica** (inmutable, `CLAUDE.md §6.3`/`§11`). Al aceptarse este ADR se le añade **solo** una línea de cabecera, como hizo `ADR-060` con `ADR-089` (commit `9c8cc53`): texto exacto en `§7.2`.
-**Concreta sin sustituir**: `ADR-089 §2.3` (patrón de agregador; `§5`), `ADR-076 §2.2`/`§2.3` (Garage en CI; lo verde en CI no cubre la columna «No»), `ADR-030` (solo datos sintéticos; Podman en desarrollo), `ADR-080 §6.2` (`CS-03` y `CS-17`, `§6`).
+**Concreta sin sustituir**: `ADR-089 §2`, punto 3 (patrón de agregador; `§5`), `ADR-076 §2.2`/`§2.3` (Garage en CI; lo verde en CI no cubre la columna «No»), `ADR-030` (solo datos sintéticos; Podman en desarrollo), `ADR-080 §6.2` (`CS-03` y `CS-17`, `§6`).
 **Se apoya en**: `INV-015`, `RNF-MANT-004`, `RNF-MANT-006`, `CLAUDE.md §1` (dependencias), `§3` (los E2E deben existir y demostrar que detectan el fallo), `§8` y `§10`; `SYSADMIN.md §4` (por qué se quitaron los filtros `paths:`).
 **Afecta a** (no los toca este ADR; los cambia `E2E-CI-b`): `.github/workflows/ci-e2e-real.yml` (nuevo), los guiones de `apps/web/scripts/`, `SYSADMIN.md §4`, fila «Tests» de `CLAUDE.md §1`, protección de ramas en GitHub (a mano, el usuario).
 
