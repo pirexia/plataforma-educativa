@@ -168,7 +168,7 @@ Por eso propongo **partir** la entrega (`OPEN-PRL-01`): `1.14b-d1` (lo que no de
 
 Siguen abiertas y **no** las toca `1.14b-d1`: `OPEN-FAM-UNIT-31`, `-32`, `-33`, `-45` y `-52` (apartado 1), y `-40` (protocolo propio del centro).
 
-### 6. Dimensionado (`CLAUDE.md §2` «Ahorro de cuota», puntos 1 y 7)
+### 6. Dimensionado (skill `ahorro-de-cuota`, puntos 1 y 7; resumen en `CLAUDE.md §2`)
 
 `1.14b-d1` cabe en **2 tramos** secuenciales de `implementer` (estimación sin calibrar contra `docs/metricas-agentes.md`, que no he leído; la sesión la ajusta):
 

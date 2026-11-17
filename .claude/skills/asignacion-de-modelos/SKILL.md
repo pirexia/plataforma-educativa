@@ -32,7 +32,7 @@ Plan **Pro con límite de 5 horas**: el gasto de cuota es una restricción de di
 | `explorer` | Haiku | Búsquedas, inventarios, historial de Git y de GitHub, briefing de tramo (solo lectura) |
 | `verificador` | Haiku | Ejecuta suite, linters y E2E real y devuelve el resultado literal; no corrige ni diagnostica |
 | `traductor` | Haiku | Completa en/de/fr a partir de es-ES; nunca textos legales ni de consentimiento |
-| `doc-precheck` | Haiku | Pasada mecánica previa a `doc-reviewer`; no lo sustituye en la primera ronda (sí en la segunda, `CLAUDE.md §2` «Ahorro de cuota», punto 8) |
+| `doc-precheck` | Haiku | Pasada mecánica previa a `doc-reviewer`; no lo sustituye en la primera ronda (sí en la segunda, skill `ahorro-de-cuota`, punto 8; resumen en `CLAUDE.md §2`) |
 | `janitor` | Haiku | `.gitignore`, formateo, commits rutinarios, issues ya clasificados, PR, ramas, `CHANGELOG.md`, correcciones textuales de documentación con hallazgo cerrado |
 
 > **Skills de PR (2026-11-07).** `janitor` lleva cargadas `pr-check` y `espera-ci`; la sesión orquestadora las invoca ella misma. La suite de `pr-check` la lanza siempre `verificador` desde la sesión: un subagente no lanza subagentes.
