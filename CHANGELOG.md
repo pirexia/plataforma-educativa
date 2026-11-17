@@ -6,6 +6,11 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-17 · `fix(web)`: Playwright sin reintentos en CI (issue #749)
+
+- `apps/web/playwright.config.ts`: `retries: 0` (antes `process.env.CI ? 2 : 0`) y `trace: 'retain-on-failure'` (antes `on-first-retry`, que sin reintentos nunca grababa). Un test que falla y pasa al reintentar ya no se da por bueno en silencio: contradecía la norma de intermitentes (`docs/proceso/e2e-real-ci.md` D5).
+- **Verificado**: E2E simulado con `CI=true`: 57 pasados, 53 omitidos (los *specs* reales se saltan sin `E2E_REAL_API`), 0 fallos. Un test temporal que solo pasa al reintentar falla con la configuración nueva y pasa como `flaky` con la antigua (borrado después). **No verificado**: el job de CI en GitHub con la configuración nueva (se verá en este PR) y el E2E real.
+
 ## 2026-11-17 · `docs`: especificación del E2E real en el CI (#737), `APROBADA`; paso `E2E-CI` en el plan
 
 - `docs/proceso/e2e-real-ci.md`: job de CI condicionado por diff con agregador «E2E real (API)» (patrón de `ADR-089`), piloto con la suite `core`, plan de medición previo a paralelizar, matriz flujo × rol × cobertura (plantilla y método), política visual y relación con `CS-17`. El usuario resolvió las 15 preguntas `OPEN-E2ECI-01` a `-15` en la opción recomendada el 2026-11-17.
