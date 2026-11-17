@@ -38,6 +38,12 @@
       "commitMessageSuffix": "[apps/web]"
     },
     {
+      "description": "#717: las subidas MAYORES van una por PR (sin grupo); menores y parches siguen agrupadas. Una mayor que no resuelve el lock no bloquea al resto. Debe ir después de las reglas de grupo de arriba.",
+      "matchFileNames": ["apps/web/**", "apps/api/**"],
+      "matchUpdateTypes": ["major"],
+      "groupName": null
+    },
+    {
       "matchDepNames": ["docker.io/dxflrs/garage", "dxflrs/garage"],
       "groupName": "garage (compose y CI, ADR-076)"
     }
