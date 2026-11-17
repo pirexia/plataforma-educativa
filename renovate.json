@@ -8,6 +8,9 @@
   "semanticCommitScope": "deps",
   "labels": ["dependencies"],
   "automerge": false,
+  "constraints": {
+    "npm": "<12"
+  },
   "vulnerabilityAlerts": {
     "schedule": ["at any time"],
     "labels": ["dependencies", "security"]
