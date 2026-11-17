@@ -25,6 +25,8 @@
         </include>
     </source>
     <php>
+        <!-- ADR-089: con el parámetro shard Pest no admite passthru-php; los procesos hijos fijan aquí el límite de memoria -->
+        <ini name="memory_limit" value="-1"/>
         <!--
             force="true" en todas: sin él, PHPUnit NO sobreescribe una
             variable que ya exista como entorno real del proceso, y
