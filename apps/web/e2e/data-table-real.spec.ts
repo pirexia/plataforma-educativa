@@ -28,7 +28,6 @@ test.describe('RNF-MANT-007 CA-CORE-178 RN-CORE-54: tabla de alumnado (TanStack 
   )
 
   test.use({ baseURL: BASE_URL, viewport: { width: 1280, height: 900 } })
-  test.describe.configure({ mode: 'serial' })
 
   // Letras en vez de dígitos: los nombres ficticios no llevan números.
   const label = [...tag()].map((digit) => String.fromCharCode(97 + Number(digit))).join('')
@@ -41,7 +40,8 @@ test.describe('RNF-MANT-007 CA-CORE-178 RN-CORE-54: tabla de alumnado (TanStack 
     api = await RealSession.login(centreA.slug, centreA.secretariaEmail, centreA.staffPassword)
 
     for (let i = 0; i < 30; i++) {
-      const suffix = String.fromCharCode(97 + Math.floor(i / 26)) + String.fromCharCode(97 + (i % 26))
+      const suffix =
+        String.fromCharCode(97 + Math.floor(i / 26)) + String.fromCharCode(97 + (i % 26))
 
       await createStudent(api, 'Alumno', `${family}${suffix}`)
     }
@@ -163,8 +163,12 @@ test.describe('RNF-MANT-007 CA-CORE-178 RN-CORE-54: tabla de alumnado (TanStack 
     await page.getByRole('menuitemcheckbox', { name: 'Fecha de nacimiento' }).click()
     await page.keyboard.press('Escape')
 
-    await expect(birth).toHaveCount(0)
+    // La tabla se repinta al ocultar: se espera a que las demás cabeceras estén de vuelta antes de afirmar la ausencia, para que
+    // un instante sin cabeceras no dé por buena una columna que sigue ahí.
     await expect(nameHeader()).toBeVisible()
+    await expect(page.getByRole('columnheader', { name: 'Matrícula' })).toBeVisible()
+    await expect(page.locator('tbody tr').first()).toBeVisible()
+    await expect(birth).toHaveCount(0)
     expect(page.url()).not.toMatch(/[?&](q|cursor)=/)
 
     // Restablece las columnas (preferencia en localStorage) para no dejar rastro.
