@@ -294,7 +294,7 @@ En cada una, la opción recomendada va primero y marcada.
   - (B) Usar Podman en el *runner* sin tocar los guiones: depende de que la imagen `ubuntu-26.04` traiga Podman y `podman compose` (**NV**).
 - **OPEN-E2ECI-04 · Fichero del flujo.** **(A, recomendada)** `ci-e2e-real.yml` nuevo. (B) Jobs dentro de `ci-web.yml`.
 - **OPEN-E2ECI-05 · Qué rutas disparan el job.**
-  - **(A, recomendada)** `apps/web/**`, `apps/api/**`, `compose.yaml`, `infra/containers/**`, `infra/garage/**` y el propio flujo: un cambio en la imagen, en Garage o en la definición de la pila rompe el E2E igual que uno de código.
+  - **(A, recomendada)** `apps/web/**`, `apps/api/**`, `compose.yaml`, `infra/containers/**`, `infra/garage/**`, `infra/lib/**` (añadido el 2026-11-17 tras `0.10e-b`: `infra/lib/container-runtime.sh`, del que dependen todos los guiones), el `.env.example` de la raíz (añadido el 2026-11-17, `ADR-091`; se retira si la implementación no lo usa como base del `.env` del *runner*) y el propio flujo: un cambio en la imagen, en Garage o en la definición de la pila rompe el E2E igual que uno de código.
   - (B) Solo `apps/web/**` y `apps/api/**` (lo que dice el encargo).
 - **OPEN-E2ECI-06 · `push` a `develop`.** **(A, recomendada)** Sí, sin condición por diff: detecta roturas por combinación de dos PR verdes por separado. (B) Solo en PR.
 - **OPEN-E2ECI-07 · `retries: 2` del job simulado de hoy.** Contradice D5 (reintento silencioso), pero es ajeno a este encargo.
