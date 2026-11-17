@@ -6,6 +6,14 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-17 · `docs`: `CLAUDE.md` 2.16.0 (recorte, issue #426); skill `ahorro-de-cuota` y `docs/proceso/normas-detalle.md`
+
+- `CLAUDE.md` pasa de 33.097 a 27.471 B (−17 %; ≈8.000 → ≈6.700 tokens). **El objetivo de ~20 KB no se alcanzó**: lo que queda son reglas duras; bajar más exige quitar reglas y requiere decisión del usuario (candidatos: §2 resumen de ahorro, §6.7, §9 staging, §3 «cierre entre pasos»).
+- Texto íntegro movido, sin cambios de contenido, a la skill `ahorro-de-cuota` (ahorro de cuota y caché de prompt) y a `docs/proceso/normas-detalle.md` (colas, PDF, contenedores, Codex, restauración, relanzamiento, suite, E2E, promociones de git). `CLAUDE.md` conserva la regla y la remisión por ancla. Regla 0 y protocolo de arranque de §3 intactos.
+- Citas por número a «Ahorro de cuota» repuntadas a la skill en `README` de la landing, `REQ-COM`, `REQ-ALUM`, `REQ-PRL`, `REQ-ACAD` y dos skills. Siguen con la numeración antigua, por ser históricos, `docs/proceso/casos-reales.md` y `docs/proceso/recorte-trazabilidad.md`.
+- Versiones `2.14.0` y `2.15.0` de `CLAUDE.md` (#738 y #743) no tienen entrada propia en este fichero: se registran aquí. 2.14.0: skill `espera-e2e` y norma «los E2E deben existir». 2.15.0: correcciones de vigencia (#680).
+- **No verificado**: ninguna prueba ejecutable (solo documentación); anclas y citas comprobadas con `grep`.
+
 ## 2026-11-17 · `docs`: ADR-090 (parcheo de vulnerabilidades y ventana de mantenimiento), `ACEPTADA`; paso `0.10g` en el plan
 
 - `ADR-090` y su anexo (`docs/adr/`): política de versiones y vulnerabilidades, escaneo de imágenes, parcheo del VPS y ventana semanal de staging (miércoles 20:00-21:00). Aceptada por el usuario el 2026-11-17 resolviendo `OPEN-090-01` a `-12` (todas con la opción recomendada, salvo `OPEN-090-11`: sin instantáneas del proveedor; copia cifrada de **solo los secretos** a S3, sin datos). Pendientes: `OPEN-090-13` a `-19` (entrega E1) y `-20` a `-25` (copia de secretos). Dato verificado: el compromiso de `aquasecurity/trivy-action` (19-20 de marzo de 2026) es real y `v0.36.0` **no** está afectada.

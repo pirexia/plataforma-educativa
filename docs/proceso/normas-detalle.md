@@ -1,5 +1,7 @@
 # Normas de `CLAUDE.md`: texto íntegro desplazado por el recorte
 
+> **Numeración**: los puntos de «Ahorro de cuota» que citan otros documentos (`puntos 1 y 7`, `punto 9`) son los de la skill `ahorro-de-cuota`, que conserva la numeración original; `CLAUDE.md §2` los resume con otra.
+>
 > Movido desde `CLAUDE.md` 2.15.0 el 2026-11-17 (recorte a 2.16.0, issue #426). `CLAUDE.md` conserva la regla y remite aquí por ancla. Si este texto y `CLAUDE.md` se contradicen, prevalece `CLAUDE.md`: es un fallo de documentación (`CLAUDE.md §6`, regla 6).
 
 ## stack-colas

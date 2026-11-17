@@ -27,7 +27,7 @@
 3. Canales: aviso en la aplicación (base, no desactivable), correo SMTP, Web Push, SMS **reservado sin implementar** (`ADR-079 §4.3`). Tres prioridades: urgente, normal, masiva (`§4.8`).
 4. **Avisar y enlazar**: ningún canal externo lleva el contenido de un mensaje ni datos de categoría especial; del menor, como mucho el nombre de pila y solo en el cuerpo del correo (`ADR-079 §4.11`). Ningún adjunto en correo.
 5. **Sin píxel de seguimiento ni reescritura de enlaces**: la «apertura» de `REQ-COM-003` es la lectura en la aplicación y el acuse.
-6. Textos del producto en es-ES, en, de, fr; contenido del centro por idioma, sin traducción automática; textos legales nunca traducidos automáticamente (`CLAUDE.md §2.9`, `ADR-079 §4.6`).
+6. Textos del producto en es-ES, en, de, fr; contenido del centro por idioma, sin traducción automática; textos legales nunca traducidos automáticamente (skill `ahorro-de-cuota`, punto 9; `ADR-079 §4.6`).
 
 ### 0.3 Partición en entregas (≤3 tramos de `implementer` cada una, `CLAUDE.md §2.7`)
 

@@ -502,7 +502,7 @@ Pest en `apps/api/tests/Feature/Alum/` (concurrencia en `tests/Concurrency/`), V
 
 ---
 
-## 15. Dimensionado (`CLAUDE.md §2` «Ahorro de cuota», puntos 1 y 7)
+## 15. Dimensionado (skill `ahorro-de-cuota`, puntos 1 y 7; resumen en `CLAUDE.md §2`)
 
 **Calibración** con `docs/metricas-agentes.md`: los tramos de `implementer` medidos en modo tramos (`1.14b-c1`, `1.14b-c2`) gastaron 24-50 llamadas cada uno (7 observaciones, orientativas); el agente único sin tramos, 197-209. Las cifras de abajo son **estimaciones** sobre esa base, más altas en los tramos con migraciones y servicios transaccionales, que no tienen precedente medido. Cada entrega ≤ 3 tramos. La ejecución final del E2E real la lanza `verificador`, no es tramo.
 

@@ -697,7 +697,7 @@ Revisión: Codex primero, `security-reviewer` con su columna y `db-reviewer` en 
 
 ---
 
-## 12. Partición en entregas y tramos (`CLAUDE.md §2`, puntos 1 y 7)
+## 12. Partición en entregas y tramos (skill `ahorro-de-cuota`, puntos 1 y 7; resumen en `CLAUDE.md §2`)
 
 El paso **no cabe en tres tramos**: se parte en tres entregas, cada una de ≤ 3 tramos secuenciales. Estimaciones **sin calibrar** contra `docs/metricas-agentes.md` (no leído); la sesión las ajusta.
 

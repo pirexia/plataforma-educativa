@@ -52,7 +52,7 @@ node scripts/check.mjs --publish  # comprobaciones previas a publicar (ver abajo
 ## Idiomas
 
 - `en.json` (`BASE_LANG`) y `es-ES.json` son idiomas de redacción; `de.json` y `fr.json` llevan las claves `home.*` traducidas (tratamiento formal) y sin `_pending_translation`. El indicador sigue existiendo como mecanismo: al añadir claves nuevas en es-ES, se copian a en/de/fr con ese indicador, `check` avisa y `--publish` falla hasta que se traducen y se elimina el indicador.
-- **Los textos legales no se traducen automáticamente** (`CLAUDE.md §2.9`, `OPEN-072-05`): las claves `legal.body.*` se renderizan siempre desde es-ES, con `lang="es-ES"`, en las cuatro rutas `/legal/`. Solo la línea `legal.lang.notice` (aviso de idioma) se traduce.
+- **Los textos legales no se traducen automáticamente** (skill `ahorro-de-cuota`, punto 9; `OPEN-072-05`): las claves `legal.body.*` se renderizan siempre desde es-ES, con `lang="es-ES"`, en las cuatro rutas `/legal/`. Solo la línea `legal.lang.notice` (aviso de idioma) se traduce.
 - Etiquetas del carrusel: cinco claves `home.carousel.{prev,next,goto,pause,resume}` (`goto` lleva `{n}` y `{total}`) más `home.carousel.hint`, que describe los controles y sigue siendo veraz sin JavaScript. Llegan al script por atributos `data-*` del contenedor `.carousel` (`data-prev`, `data-next`, `data-goto`, `data-pause`, `data-resume`) puestos con `{{t:…}}`: el script no contiene texto. Para añadir una etiqueta, se crea la clave en los cuatro idiomas, se pone un `data-…` nuevo con su marcador y el script lo lee con `getAttribute`; `check` exige las cinco actuales.
 - Rutas: `/` (en), `/es/`, `/de/`, `/fr/` y `/legal/`, `/es/legal/`, `/de/legal/`, `/fr/legal/`. Sin redirección por `Accept-Language`: el selector son cuatro enlaces.
 
