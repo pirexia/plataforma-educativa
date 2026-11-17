@@ -1,6 +1,6 @@
 # CLAUDE.md — Normas de trabajo del proyecto
 
-> **Versión 2.14.0** · 2026-11-17 · Fichero de contexto permanente. Se carga en **todas** las sesiones. Contiene solo reglas estables.
+> **Versión 2.15.0** · 2026-11-17 · Fichero de contexto permanente. Se carga en **todas** las sesiones. Contiene solo reglas estables.
 > Proyecto: **Plataforma de Gestión Educativa Multi-tenant**. Fuente de verdad funcional: `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md`.
 
 ---
@@ -33,14 +33,16 @@ Frases prohibidas: "¡Excelente idea!", "Tienes toda la razón" como apertura re
 | Caché | **Redis**, instalado y en uso (prefijo por tenant, `ADR-033 §9`) |
 | Colas | **Hoy**: *driver* `database` de Laravel — `QUEUE_CONNECTION=database`, tablas `jobs` y `failed_jobs`, consumidas por `php artisan queue:work` en **dos procesos** (perfil `worker` de `compose.yaml`): `worker` (conexión `database`, `infra/quadlet/worker.container`; issue #128, resuelto) y `worker-long` (cola `long`, conexión `database_long`, `retry_after` 900 s, `infra/quadlet/worker-long.container`; `1.12b`, ratificado por el usuario el 2026-10-21 porque el `retry_after` es de la conexión con la que se lee la cola). **Elegido y no instalado**: Redis como cola + **Laravel Horizon**. Horizon **no está en `composer.json`** y no hay `config/horizon.php`; adoptarlo es una dependencia nueva sujeta a la regla de abajo y a `OPEN-BO-23` (`docs/modulos/REQ-BO/funcional.md §14`) |
 | Almacenamiento | API S3 como contrato único; Garage en desarrollo, CI y E2E, nunca en servidores (`ADR-076`) |
-| PDF | Servicio contenerizado de renderizado HTML→PDF. **Elegido y no instalado**: WeasyPrint tras la interfaz propia `PdfRenderer` (`ADR-078`, `PROPUESTA`; decisión del usuario del 2026-11-12), con Gotenberg como vuelta atrás; no hay servicio ni código (paso `P` del plan) |
-| Tests | Pest (backend), Vitest + Playwright (frontend) |
+| PDF | Servicio contenerizado de renderizado HTML→PDF. **Elegido y no instalado**: WeasyPrint tras la interfaz propia `PdfRenderer` (`ADR-078`, `ACEPTADA` el 2026-11-14; decisión del usuario), con Gotenberg como vuelta atrás; no hay servicio ni código (paso `P` del plan) |
+| Tests | Pest (backend; en el CI, 4 *shards* más `Concurrency` aparte, `ADR-089`), Vitest + Playwright (frontend). **E2E real contra la API** (`npm run test:e2e:real[:prl\|:alum]`): **no corre en el CI** (allí solo corren los E2E con datos simulados); llevarlo al CI es el alcance del issue #737 |
 | Contenedores | **Podman**. Desarrollo en **WSL2** con perfil reducido (`ADR-030`); `compose.yaml` estándar con `podman compose`; Quadlet/systemd en producción. Kubernetes a partir de 3-5 centros. **Elegido y no implementado**: runtime agnóstico (`CONTAINER_RUNTIME`, Quadlet como referencia; `ADR-080`, `ACEPTADA`, paso `0.10e-b`): ningún guion lee esa variable hoy |
 | Repositorio | Monorepo: `apps/api`, `apps/web`, `infra`, `docs` |
 
 **Esta tabla dice qué está elegido, no qué está instalado.** Cuando no coinciden, la fila lo dice con el issue que lo sigue. Antes de apoyarse en una pieza de esta tabla, se comprueba en `composer.json`/`package.json`. Motivo: `docs/proceso/casos-reales.md#horizon-no-instalado`.
 
 **Prohibido** introducir una dependencia nueva sin justificarla y sin comprobar mantenimiento activo, licencia y frecuencia de releases. Toda dependencia externa se envuelve tras una interfaz propia (`RNF-MANT-007`).
+
+**Versiones y vulnerabilidades** (`ADR-090`): **Renovate** propone las subidas (`renovate.json`: menores agrupadas, mayores una por PR, `npm <12` hasta que se corrija npm/cli#9800); **Dependabot** avisa y abre solo PR de seguridad (sin `dependabot.yml`, para no duplicar a Renovate); **Trivy** escanea dependencias en el CI y, según `ADR-090`, las imágenes. Una excepción de Trivy lleva `exp:` en `.trivyignore` y un issue de seguimiento. Mezclar un PR de Renovate o de Dependabot exige CI en verde y, si cambia un comportamiento visible o de API, su E2E (`§3`).
 
 **Prohibido mezclar librerías de componentes UI.** shadcn-vue es el design system único.
 
@@ -68,7 +70,7 @@ Reglas de composición visual del frontend: `docs/design-system.md §22`.
 
 **Ahorro de cuota (norma del usuario, 2026-11-02).** El gasto de tokens es una restricción de diseño del proceso (motivo: `docs/proceso/casos-reales.md#cuota-semanal`).
 
-1. **Tramos de `implementer`.** Nunca uno largo por paso: tramos **secuenciales** (jamás en paralelo en la misma rama: el contenedor monta el checkout principal) cortados en costuras naturales — datos y permisos / servicios y *endpoints* / UI / E2E real —, de ~60-100 llamadas o <1 h (`docs/proceso/casos-reales.md#coste-tramos`). `implementer` escribe y depura los *specs* de E2E; **la ejecución final del E2E real no es un tramo de `implementer`**: la lanza `verificador` (Haiku) y solo un fallo de código vuelve a `implementer` (sección 3). Cada tramo cierra con un commit `Verificado: X/X …` y deja la nota viva de la sección 3.
+1. **Tramos de `implementer`.** Nunca uno largo por paso: tramos **secuenciales** (jamás en paralelo: el contenedor monta el checkout principal y los E2E comparten la pila de desarrollo, y esto vale también para `verificador`, los E2E y cualquier tarea que toque el checkout; lo que solo escribe documentos —`architect`, `spec-writer`— va en un `git worktree` propio) cortados en costuras naturales — datos y permisos / servicios y *endpoints* / UI / E2E real —, de ~60-100 llamadas o <1 h (`docs/proceso/casos-reales.md#coste-tramos`). `implementer` escribe y depura los *specs* de E2E; **la ejecución final del E2E real no es un tramo de `implementer`**: la lanza la sesión con la skill `espera-e2e` (sin agente; `verificador` solo para diagnosticar) y solo un fallo de código vuelve a `implementer` (sección 3). Cada tramo cierra con un commit `Verificado: X/X …` y deja la nota viva de la sección 3.
 2. **Prompt mínimo por tramo.** Solo las secciones de la especificación que el tramo necesita (fichero y sección) y las decisiones ya aprobadas para que no se reabran; nunca la especificación entera. **Antes de cada tramo de código, `explorer` entrega un briefing** (ficheros a imitar, puntos de contacto, lo que no existe) que la sesión pega en el prompt, para que `implementer` no gaste su arranque explorando. Es experimental hasta 5 tramos medidos (punto 4): se anota en `docs/metricas-agentes.md` como fila `explorer · briefing` y se compara el gasto del `implementer` con y sin él.
 3. **Revisiones acotadas.** Los revisores se lanzan **una vez**, al final del paso, sobre el diff y con las decisiones aprobadas en el prompt. Orden con `ADR-069` (`OPEN-069-01` confirmada): Codex primero; en paso **crítico** después `security-reviewer` solo con su columna del reparto; en paso **ordinario** `security-reviewer` solo si Codex trae un Crítico o Alto aceptado o no está disponible. `spec-writer` clasifica el paso y la sesión lo comprueba contra el diff; la duda es crítico. `db-reviewer` siempre que haya migraciones. **Segunda ronda**: la verifica Codex si hubo Medios o Bajos; el revisor de Claude solo reentra por un Crítico o un Alto (la de documentación, punto 8). Si `OPEN-069-01` dejara de estar confirmada (régimen de `ADR-050`): segunda ronda si la primera trae Críticos, Altos o Medios. Los Bajos se corrigen directamente. Las correcciones se reúnen en **una sola reanudación** tras **todos** los informes.
 4. **Métricas.** Al terminar cada subagente se anota una fila (`subagent_tokens`, `tool_uses`, `duration_ms`; en reanudaciones, el delta) en `docs/metricas-agentes.md`. Al cerrar cada paso se recalculan media, mediana y tokens por llamada **por tipo de agente** y se ajusta el número de tramos del siguiente. Con <5 observaciones por tipo son orientativas; `subagent_tokens` no incluye lecturas de caché.
@@ -230,7 +232,7 @@ Idiomas obligatorios: **es-ES (por defecto), en, de, fr**, en interfaz, document
 - Secretos fuera del código, en gestor de secretos.
 - Cabeceras de seguridad y CSP estricta configuradas desde el primer despliegue.
 - Datos de categoría especial (salud, NEAE, convivencia) en tablas separadas, cifrados, con permisos propios y auditoría de lectura.
-- Cada PR pasa escaneo de dependencias.
+- Cada PR pasa escaneo de dependencias y, según `ADR-090` (paso `0.10g-a`, aún sin implementar), de las imágenes construidas.
 
 ---
 
@@ -244,7 +246,7 @@ Idiomas obligatorios: **es-ES (por defecto), en, de, fr**, en interfaz, document
 - **Red y dependencias** (`ADR-028`): el frontend no hace de proxy hacia la API; la red es externa y no se destruye; `compose down` está prohibido en el servidor; entre servicios de aplicación se usa `Wants=` + `After=`, nunca `Requires=` ni `BindsTo=`; ninguna IP de contenedor escrita a mano.
 - Los workers deben procesar trabajos encolados por la versión anterior.
 - Cada entrega incluye su procedimiento de reversión probado.
-- **Staging** (`ADR-080`) es un entorno más, entre desarrollo y producción: se despliega con Quadlet **rootless** (`install.sh <tag> --user`), nunca con `compose`, y es **destruible y sin datos reales**: solo datos sintéticos de `REQ-SEED`. No es producción: certificados de pruebas hasta que el usuario decida otra cosa, y en él no se ensayan copias ni restauración (`ADR-080`).
+- **Staging** (`ADR-080`) es un entorno más, entre desarrollo y producción: se despliega con Quadlet **rootless** (`install.sh <tag> --user`), nunca con `compose`, y es **destruible y sin datos reales**: solo datos sintéticos de `REQ-SEED`. No es producción: certificados de pruebas hasta que el usuario decida otra cosa, y en él no se ensayan copias ni restauración **de datos del producto** (`ADR-080 §3.3`); la copia cifrada de los **secretos** del VPS sí se hará (`ADR-090`, paso `0.10g-g`).
 
 ---
 
@@ -257,7 +259,7 @@ Un requisito está terminado cuando:
 - [ ] Tiene tests que referencian su ID y están en verde
 - [ ] Tiene E2E real que cubre su flujo (o prueba HTTP real si es solo backend), registrado en el script de E2E y demostrado que falla cuando la función se rompe (§3)
 - [ ] El endpoint está documentado en OpenAPI
-- [ ] Pasa lint, análisis estático y escaneo de dependencias
+- [ ] Pasa lint, análisis estático y escaneo de dependencias (e imágenes, `ADR-090`)
 - [ ] Textos traducidos a los cuatro idiomas
 - [ ] Accesible según WCAG 2.2 AA
 - [ ] Documentación del módulo actualizada
