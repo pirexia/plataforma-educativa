@@ -16,8 +16,22 @@ defaults:
     working-directory: apps/api
 
 jobs:
-  test:
-    name: Tests (Pest)
+  # ADR-089: la suite Pest se parte en 4 shards de Unit + Feature y un job
+  # aparte para Concurrency (serie, base exacta plataforma_test). Para cambiar
+  # N hay un único sitio: esta matriz (cada entrada lleva su «i/N»).
+  # El check «Tests (Pest)» sigue existiendo como resultado único en el job
+  # agregador `test` (más abajo): es el que se marca como required.
+  pest:
+    name: Pest ${{ matrix.etiqueta }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { etiqueta: "shard 1/4", script: "test:shard", shard: "1/4" }
+          - { etiqueta: "shard 2/4", script: "test:shard", shard: "2/4" }
+          - { etiqueta: "shard 3/4", script: "test:shard", shard: "3/4" }
+          - { etiqueta: "shard 4/4", script: "test:shard", shard: "4/4" }
+          - { etiqueta: "concurrencia", script: "test:concurrencia", shard: "" }
     runs-on: ubuntu-26.04  # fijada: ubuntu-latest (suite «resolute») falla resolviendo security.ubuntu.com en apt (#609)
     # ADR-033 §10: PostgreSQL real, no SQLite. RLS es la barrera primaria y
     # SQLite no la tiene: un test de aislamiento sobre SQLite daría verde
@@ -159,12 +173,31 @@ jobs:
           cat /tmp/artisan-serve.log
           exit 1
 
-      # ADR-060 §4.1: Unit + Feature en paralelo (4 procesos, los del runner)
-      # y Concurrency en serie después.
-      - name: Suite de tests (composer test)
+      # ADR-060 §4.1 (4 procesos por runner) y ADR-089 (shards): cada job de
+      # la matriz ejecuta su parte; PEST_SHARD vacío no pasa --shard.
+      - name: Suite de tests (composer ${{ matrix.script }}, ${{ matrix.etiqueta }})
         env:
           PEST_PROCESOS: "4"
-        run: composer test
+          PEST_SHARD: ${{ matrix.shard }}
+        run: composer ${{ matrix.script }}
+
+  # Agregador: conserva el nombre «Tests (Pest)» como resultado único y fiable
+  # (puede estar marcado como required en develop). Un job saltado o cancelado
+  # cuenta como fallo: un check required daría por bueno un job «skipped».
+  test:
+    name: Tests (Pest)
+    runs-on: ubuntu-26.04
+    needs: [pest]
+    if: always()
+    steps:
+      - name: Todos los shards deben haber terminado en success
+        # Sin checkout no existe apps/api (el defaults.run del workflow): se ejecuta en la raíz.
+        working-directory: .
+        env:
+          RESULTADO: ${{ needs.pest.result }}
+        run: |
+          echo "pest: $RESULTADO"
+          [ "$RESULTADO" = "success" ] || { echo "::error::La suite Pest no terminó en success ($RESULTADO)"; exit 1; }
 
   lint:
     name: Lint (Pint)
