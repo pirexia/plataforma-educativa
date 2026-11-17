@@ -33,7 +33,7 @@ Frases prohibidas: "¡Excelente idea!", "Tienes toda la razón" como apertura re
 | Caché | **Redis**, instalado y en uso (prefijo por tenant, `ADR-033 §9`) |
 | Colas | **Hoy**: *driver* `database` (`QUEUE_CONNECTION=database`) con dos procesos `queue:work`: `worker` y `worker-long` (conexión `database_long`, `retry_after` 900 s; `1.12b`). **Elegido y no instalado**: Redis como cola + **Laravel Horizon** (no está en `composer.json`; dependencia nueva sujeta a la regla de abajo y a `OPEN-BO-23`). Detalle: `docs/proceso/normas-detalle.md#stack-colas` |
 | Almacenamiento | API S3 como contrato único; Garage en desarrollo, CI y E2E, nunca en servidores (`ADR-076`) |
-| PDF | **Elegido y no instalado**: WeasyPrint tras la interfaz propia `PdfRenderer` (`ADR-078`, `ACEPTADA`), con Gotenberg como vuelta atrás; no hay servicio ni código (paso `P`) |
+| PDF | **Elegido y no instalado**: WeasyPrint tras la interfaz propia `PdfRenderer` (`ADR-078`, `ACEPTADA`), con Gotenberg como vuelta atrás; no hay servicio ni código (paso `P`). Detalle: `docs/proceso/normas-detalle.md#stack-pdf` |
 | Tests | Pest (backend; en el CI, 4 *shards* más `Concurrency` aparte, `ADR-089`), Vitest + Playwright (frontend). **E2E real contra la API** (`npm run test:e2e:real[:prl\|:alum]`): **no corre en el CI** (allí solo corren los E2E con datos simulados); llevarlo al CI es el alcance del issue #737 |
 | Contenedores | **Podman**; WSL2 en desarrollo (`ADR-030`), `compose.yaml` con `podman compose`, Quadlet/systemd en producción, Kubernetes desde 3-5 centros. **Elegido y no implementado**: runtime agnóstico `CONTAINER_RUNTIME` (`ADR-080`, paso `0.10e-b`); ningún guion lo lee hoy. Detalle: `docs/proceso/normas-detalle.md#stack-contenedores` |
 | Repositorio | Monorepo: `apps/api`, `apps/web`, `infra`, `docs` |
@@ -59,7 +59,7 @@ Reglas de composición visual del frontend: `docs/design-system.md §22`.
 - Delega en subagentes todo lo que no necesite el contexto principal (exploración, lectura de documentación, revisiones, suite): es un recurso escaso.
 - **Un subagente no lanza subagentes.** Quien encadena `implementer` → `traductor` → `verificador` → revisores es la sesión orquestadora.
 - **Revisión con Codex** (`ADR-049`/`050`/`069`, skill `revision-con-codex`): con `ADR-069` (`OPEN-069-01` confirmada por el usuario el 2026-11-02) Codex revisa **primero** y es obligatorio en todo paso con código; lo lanza la sesión solo con `review` y `adversarial-review`; `rescue` prohibido; sin autoridad de bloqueo; un hallazgo contra un ADR vigente se cierra citándolo. Si `OPEN-069-01` dejara de estar confirmada, no se lanza sobre código del proyecto y rige `ADR-050`. Detalle: `docs/proceso/normas-detalle.md#codex`.
-- **Restauración de la configuración del 08/10/2026** (etiqueta `config-claude-2026-10-08`): `docs/proceso/restauracion-configuracion.md`; la etiqueta no se mueve ni se borra.
+- **Restauración de la configuración del 08/10/2026** (etiqueta `config-claude-2026-10-08`): solo si el usuario la pide; procedimiento en `docs/proceso/restauracion-configuracion.md`; `PLAN-IMPLEMENTACION.md` no se restaura entero y la etiqueta no se mueve ni se borra.
 
 **Ahorro de cuota (norma del usuario, 2026-11-02; detalle y motivo en la skill `ahorro-de-cuota`).** El gasto de tokens es una restricción de diseño:
 
