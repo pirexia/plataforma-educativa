@@ -9,7 +9,7 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 ## 2026-11-17 · `docs`: ADR-090 (parcheo de vulnerabilidades y ventana de mantenimiento), `ACEPTADA`; paso `0.10g` en el plan
 
 - `ADR-090` y su anexo (`docs/adr/`): política de versiones y vulnerabilidades, escaneo de imágenes, parcheo del VPS y ventana semanal de staging (miércoles 20:00-21:00). Aceptada por el usuario el 2026-11-17 resolviendo `OPEN-090-01` a `-12` (todas con la opción recomendada, salvo `OPEN-090-11`: sin instantáneas del proveedor; copia cifrada de **solo los secretos** a S3, sin datos). Pendientes: `OPEN-090-13` a `-19` (entrega E1) y `-20` a `-25` (copia de secretos). Dato verificado: el compromiso de `aquasecurity/trivy-action` (19-20 de marzo de 2026) es real y `v0.36.0` **no** está afectada.
-- `ADR-080 §3.3` habla de copias de **datos del producto**; la copia de secretos no lo contradice (la frase «en staging no se ensayan copias» era de `CLAUDE.md §9`, precisada en 2.15.0, PR #743).
+- `ADR-080 §3.3` habla de copias de **datos del producto**; la copia de secretos no lo contradice (la frase «en staging no se ensayan copias» era de `CLAUDE.md §9`, precisión propuesta para 2.15.0 en el PR #743, pendiente de mezcla).
 - `PLAN-IMPLEMENTACION.md` 2.3.28: paso `0.10g-a` a `-g` (`[ ]`) y actualización de `1.11d` (`1.11d-b` ya mezclada, #438 cerrado con la opción C). `REQUISITOS` 3.2.36 (fila de `ADR-090`).
 - **No implementado**: ningún subpaso de `0.10g`. **No verificado**: lo marcado «NV» en `§7` del anexo (versiones de `dnf` en AlmaLinux 10.2, `cloud.cfg`, instantáneas y consola del proveedor, `buildx` con `push` y `load`, `--ignore-policy` de Trivy, `schedule` fuera de la rama por defecto, protección real de ramas).
 
