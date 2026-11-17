@@ -1,7 +1,7 @@
 name: plataforma-educativa
 
 # Perfil reducido (ADR-030): por defecto PostgreSQL, Redis, api y web.
-# Garage (S3 de desarrollo, ADR-076) y el worker se levantan a demanda con: podman compose --profile full up -d
+# Garage (S3 de desarrollo, ADR-076) y el worker se levantan a demanda con: $CONTAINER_RUNTIME compose --profile full up -d (por defecto podman, ADR-080 §5)
 #
 # El servicio de renderizado PDF queda pendiente de elegir motor concreto
 # (ver paso 1.17); no se define aquí para no fijar una dependencia sin
@@ -114,7 +114,7 @@ services:
       # Almacenamiento privado S3 compatible (ADR-013, ADR-068 §5.3, ADR-076): Garage en desarrollo, CI y E2E (perfil `full`).
       # `PrivateObjectStore` rechaza un disco `local` en `production` y `staging`: el perfil reducido de desarrollo
       # (APP_ENV=local, sin Garage) usa el disco local por defecto; con el perfil `full` se arranca con
-      # `FILESYSTEM_DISK=s3 podman compose --profile full up -d` y se inicializa Garage una vez con `infra/garage/init.sh`
+      # `FILESYSTEM_DISK=s3 $CONTAINER_RUNTIME compose --profile full up -d` y se inicializa Garage una vez con `infra/garage/init.sh`
       # (SYSADMIN.md). Los scripts de E2E real lo hacen solos. Credenciales y bucket vienen de `.env` sin valor de reserva
       # (ADR-076 §4); región igual a `s3_region` de infra/garage/garage.toml. `AWS_URL_SIGNING_ENDPOINT` es el endpoint
       # que alcanza el navegador (la firma SigV4 incluye `Host`); `AWS_ENDPOINT`, el de la red de contenedores.
@@ -143,8 +143,8 @@ services:
   # Worker de colas (issue #128). `queue:work` sobre el driver `database`;
   # Horizon NO se adopta (OPEN-BO-23, CLAUDE.md §1). Misma imagen y mismo
   # código que `api`, sin puerto. Perfil reducido (ADR-030): no arranca con
-  # `podman compose up -d`; se activa con
-  #   podman compose --profile worker up -d worker
+  # `$CONTAINER_RUNTIME compose up -d`; se activa con
+  #   $CONTAINER_RUNTIME compose --profile worker up -d worker
   # Orden de --queue = prioridad: correo de usuario primero, `default`,
   # mantenimiento, y exportaciones/importaciones (las más lentas) al final.
   # Toda cola con ->onQueue() en el código debe estar aquí (lo comprueba
@@ -179,7 +179,7 @@ services:
       # Almacenamiento privado S3 compatible (ADR-013, ADR-068 §5.3, ADR-076): Garage en desarrollo, CI y E2E (perfil `full`).
       # `PrivateObjectStore` rechaza un disco `local` en `production` y `staging`: el perfil reducido de desarrollo
       # (APP_ENV=local, sin Garage) usa el disco local por defecto; con el perfil `full` se arranca con
-      # `FILESYSTEM_DISK=s3 podman compose --profile full up -d` y se inicializa Garage una vez con `infra/garage/init.sh`
+      # `FILESYSTEM_DISK=s3 $CONTAINER_RUNTIME compose --profile full up -d` y se inicializa Garage una vez con `infra/garage/init.sh`
       # (SYSADMIN.md). Los scripts de E2E real lo hacen solos. Credenciales y bucket vienen de `.env` sin valor de reserva
       # (ADR-076 §4); región igual a `s3_region` de infra/garage/garage.toml. `AWS_URL_SIGNING_ENDPOINT` es el endpoint
       # que alcanza el navegador (la firma SigV4 incluye `Host`); `AWS_ENDPOINT`, el de la red de contenedores.

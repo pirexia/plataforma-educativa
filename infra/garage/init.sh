@@ -2,14 +2,14 @@
 # Inicialización idempotente de Garage para desarrollo, CI y E2E (ADR-076 §6).
 #
 # La imagen oficial no trae shell: el script corre en el host e invoca el
-# binario /garage dentro del contenedor con `podman exec`.
+# binario /garage dentro del contenedor con `"$CONTAINER_RUNTIME" exec` (podman por defecto, ADR-080 §5).
 #
 # Variables (del entorno o del .env de la raíz; nunca con valores en el repo):
 #   GARAGE_ACCESS_KEY_ID      GK + 24 hex (formato que exige Garage)
 #   GARAGE_SECRET_ACCESS_KEY  64 hex
 #   GARAGE_BUCKET             bucket del entorno (p. ej. plataforma-dev)
 # Opcionales: GARAGE_CONTAINER (plataforma-garage), GARAGE_CAPACITY (1G),
-#   GARAGE_ZONE (dc1), CONTAINER_CLI (podman), GARAGE_WAIT_SECONDS (60).
+#   GARAGE_ZONE (dc1), CONTAINER_RUNTIME (podman o docker; alias CONTAINER_CLI), GARAGE_WAIT_SECONDS (60).
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -34,7 +34,10 @@ for v in GARAGE_ACCESS_KEY_ID GARAGE_SECRET_ACCESS_KEY GARAGE_BUCKET; do
   [ -n "${!v:-}" ] || fail "falta $v (defínela en .env o en el entorno)"
 done
 
-cli="${CONTAINER_CLI:-podman}"
+# shellcheck source=../lib/container-runtime.sh
+source "$root/infra/lib/container-runtime.sh"
+resolve_container_runtime || exit 1
+cli="$CONTAINER_RUNTIME"
 container="${GARAGE_CONTAINER:-plataforma-garage}"
 capacity="${GARAGE_CAPACITY:-1G}"
 zone="${GARAGE_ZONE:-dc1}"
@@ -51,7 +54,6 @@ wait_s="${GARAGE_WAIT_SECONDS:-60}"
 [[ "$capacity" =~ ^[0-9]+[KMGT]?$ ]] || fail "GARAGE_CAPACITY no es válida (p. ej. 1G)"
 [[ "$zone" =~ ^[A-Za-z0-9][A-Za-z0-9_-]{0,31}$ ]] || fail "GARAGE_ZONE no es válida"
 [[ "$container" =~ ^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$ ]] || fail "GARAGE_CONTAINER no es válido"
-[[ "$cli" =~ ^[A-Za-z0-9][A-Za-z0-9_./-]{0,63}$ ]] || fail "CONTAINER_CLI no es válido"
 [[ "$wait_s" =~ ^[0-9]{1,4}$ ]] || fail "GARAGE_WAIT_SECONDS no es válido"
 
 g() { "$cli" exec -e RUST_LOG=warn "$container" /garage "$@"; }

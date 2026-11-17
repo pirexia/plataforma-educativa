@@ -523,7 +523,7 @@ function requireSsoSimulator(): void
     if ($handle === false) {
         throw new RuntimeException(
             'El simulador SSO no responde en localhost:8000: los tests de OIDC y SAML lo necesitan. '
-            .'Arranca la API (`podman start plataforma-api`) y repite.'
+            .'Arranca la API (`$CONTAINER_RUNTIME start plataforma-api`, por defecto podman) y repite.'
         );
     }
 

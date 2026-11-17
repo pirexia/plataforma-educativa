@@ -19,6 +19,10 @@
 # Uso: npm run landing:shots -- [argumentos de playwright]
 set -euo pipefail
 
+# shellcheck source=../../../infra/lib/container-runtime.sh
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)/infra/lib/container-runtime.sh"
+resolve_container_runtime || exit 2
+
 if [[ "${E2E_LANDING_SHOTS:-}" != "1" ]]; then
   echo "Lánzalo con \`npm run landing:shots\` (define E2E_LANDING_SHOTS=1): es una herramienta de capturas, no un test." >&2
   exit 2
@@ -45,7 +49,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/lib/e2e-purge.sh"
 
 # La purga (lib/e2e-purge.sh) exige E2E_ALLOW_DESTRUCTIVE=1 en el entorno: estos scripts solo operan sobre el centro sintético de desarrollo.
 export E2E_ALLOW_DESTRUCTIVE=1
-support() { podman exec -e E2E_ALLOW_DESTRUCTIVE=1 "$API_CONTAINER" php tests/Support/e2e-real-tenant.php "$@"; }
+support() { "$CONTAINER_RUNTIME" exec -e E2E_ALLOW_DESTRUCTIVE=1 "$API_CONTAINER" php tests/Support/e2e-real-tenant.php "$@"; }
 
 # Lee un campo de una línea JSON recibida por stdin (no por argumentos, que serían visibles en `ps`).
 field() { python3 -c 'import json,sys; print(json.load(sys.stdin)[sys.argv[1]])' "$1"; }

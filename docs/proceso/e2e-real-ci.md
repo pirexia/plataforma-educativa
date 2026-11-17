@@ -7,7 +7,7 @@
 | Requisitos que cubre | `INV-015`, `RNF-MANT-004` (CI con build, test, lint, análisis estático y escaneo), `RNF-MANT-006` (aislamiento entre tenants en cada pipeline: el E2E real lo refuerza, no lo sustituye), `CLAUDE.md §3` (E2E contra la API real; los E2E deben existir y demostrar que detectan el fallo) y `§10` |
 | Prioridad | La del issue: Media |
 | Fase | Fase 0/transversal: proceso y CI. No es un *bounded context*: sin tablas, sin *endpoints*, sin permisos, sin pantallas |
-| Depende de | `ADR-089` (patrón de agregador), `ADR-076` (Garage en CI y E2E), `ADR-080 §5` (`0.10e-b`, `CONTAINER_RUNTIME`; **no implementado**: ver `OPEN-E2ECI-03`), `ADR-030` (solo datos sintéticos) |
+| Depende de | `ADR-089` (patrón de agregador), `ADR-076` (Garage en CI y E2E), `ADR-080 §5` (`0.10e-b`, `CONTAINER_RUNTIME`; **implementado el 2026-11-17 en `0.10e-b`**, con alias de respaldo `CONTAINER_CLI`: ver `OPEN-E2ECI-03`), `ADR-030` (solo datos sintéticos) |
 | Esencial | No aplica (no es módulo) |
 | Estado | **APROBADA** el 2026-11-17: el usuario resolvió las 15 `OPEN-E2ECI` en la opción recomendada (A). **Nada implementado** |
 | Clasificación del paso: crítico | Por entrega en `§9`: `E2E-CI-b`, `-c` y `-c2` **críticas**; `-d1`..`-dn` ordinarias, **críticas** si el diff toca `apps/api/tests/Support/e2e-real-tenant.php`, los guiones de `apps/web/scripts` o `.github/workflows/ci-e2e-real.yml`; `-e` ordinaria si solo añade *specs* o capturas, **crítica** si cambia `ci-e2e-real.yml` o sube artefactos con trazas; `-a` y `-d0` sin código. La sesión lo comprueba contra el diff; la duda es crítico |
@@ -289,7 +289,7 @@ En cada una, la opción recomendada va primero y marcada.
   - **(A, recomendada)** `compose.yaml` con perfil `full` e imagen `dev` de la API construida en el job: es la pila que usan los guiones en local, con FrankenPHP; menos divergencia.
   - (B) Servicios de GitHub Actions (PostgreSQL, Redis) + `setup-php` + `php artisan serve`, como `ci-api.yml`: más rápido de arrancar, pero `artisan serve` es de un hilo (#146, interbloqueo con el navegador), no es FrankenPHP y obliga a reescribir los guiones (no hay contenedor `plataforma-api` donde hacer `exec`).
   - (C) Imagen de producción de GHCR: descartable, `tests/Support` no viaja en ella y `build-images.yml` no publica imágenes de PR.
-- **OPEN-E2ECI-03 · Qué *runtime* de contenedores en el *runner*.** Los guiones escriben `podman` a mano y `CONTAINER_RUNTIME` no existe aún (`0.10e-b` sin hacer).
+- **OPEN-E2ECI-03 · Qué *runtime* de contenedores en el *runner*.** Los guiones escriben `podman` a mano y `CONTAINER_RUNTIME` no existía (`0.10e-b`, implementado el 2026-11-17 con alias de respaldo `CONTAINER_CLI`).
   - **(A, recomendada)** Hacer antes `0.10e-b` (un tramo, `ADR-080 §6.1`) y usar `CONTAINER_RUNTIME=docker` en CI, igual que `storage-conformance` usa `CONTAINER_CLI=docker`: Docker en los *runners* de GitHub está documentado y ya se usa en este repositorio.
   - (B) Usar Podman en el *runner* sin tocar los guiones: depende de que la imagen `ubuntu-26.04` traiga Podman y `podman compose` (**NV**).
 - **OPEN-E2ECI-04 · Fichero del flujo.** **(A, recomendada)** `ci-e2e-real.yml` nuevo. (B) Jobs dentro de `ci-web.yml`.
@@ -370,7 +370,7 @@ Pasos en orden (con `OPEN-E2ECI-02` = A y `-03` = A):
 | Los tres guiones | Línea `E2E_TIEMPO …` por fase y suite | `E2E-CI-b` (las tres, para que `-c` solo active suites) |
 | Ninguno | **No se relaja** ninguna guarda (`APP_ENV`, marca del centro, `E2E_ALLOW_DESTRUCTIVE`) | — |
 
-`lib/e2e-garage.sh` e `infra/garage/init.sh` usan hoy `CONTAINER_CLI` y `ADR-080` define `CONTAINER_RUNTIME`: se propone unificar en `CONTAINER_RUNTIME` dentro de `0.10e-b` (cuyo alcance, `ADR-080 §5.1`, incluye también `landing-shots.sh` e `init.sh`); lo confirma ese paso, no esta especificación.
+`lib/e2e-garage.sh` e `infra/garage/init.sh` usan hoy `CONTAINER_CLI` y `ADR-080` define `CONTAINER_RUNTIME`: se unificó en `CONTAINER_RUNTIME` dentro de `0.10e-b` (2026-11-17; alcance de `ADR-080 §5.1`, que incluye también `landing-shots.sh` e `init.sh`), con `CONTAINER_CLI` como alias de respaldo por decisión del usuario; su retirada la sigue #755.
 
 La duplicación de `purge_tenant_rows` en `e2e-real-prl.sh` y `e2e-real-alum.sh` frente a `lib/e2e-purge.sh` existe hoy; unificarla no entra salvo que el cambio de *runtime* obligue a tocar las tres copias (en ese caso, se dice en el informe; no se refactoriza en silencio).
 

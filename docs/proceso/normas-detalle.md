@@ -14,7 +14,7 @@ Servicio contenerizado de renderizado HTML→PDF. **Elegido y no instalado**: We
 
 ## stack-contenedores
 
-**Podman**. Desarrollo en **WSL2** con perfil reducido (`ADR-030`); `compose.yaml` estándar con `podman compose`; Quadlet/systemd en producción. Kubernetes a partir de 3-5 centros. **Elegido y no implementado**: runtime agnóstico (`CONTAINER_RUNTIME`, Quadlet como referencia; `ADR-080`, `ACEPTADA`, paso `0.10e-b`): ningún guion lee esa variable hoy.
+**Podman**. Desarrollo en **WSL2** con perfil reducido (`ADR-030`); `compose.yaml` estándar con `podman compose`; Quadlet/systemd en producción. Kubernetes a partir de 3-5 centros. **Nivel 1 implementado el 2026-11-17** (`0.10e-b`, `ADR-080 §5`): `CONTAINER_RUNTIME` (`podman` por defecto; `docker` admitido, sin verificar salvo `init.sh` en el CI; alias de respaldo `CONTAINER_CLI`, que se retirará en una entrega posterior) resuelta y validada con lista cerrada por `infra/lib/container-runtime.sh` en los guiones de E2E, `landing-shots.sh`, `infra/garage/init.sh` y `curso-rollover.spec.ts`; Quadlet es la referencia de producción. Fuera de alcance por decisión del usuario: el gancho `format-on-edit.sh`, `.mcp.json`, los permisos de `.claude/settings.json` y `compose.prodlike.yaml`. `ADR-091` (`PROPUESTA`) propone que el CI ejecute `docker` para el E2E real.
 
 ## codex
 

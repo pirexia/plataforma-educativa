@@ -115,3 +115,7 @@ Con la pila arrancada:
 3. Recrear el contenedor de la API → Traefik enruta a la IP nueva sin reiniciar nada más.
 
 Si alguna de las tres falla, la configuración está mal y no se despliega.
+
+## Runtime de los guiones (`ADR-080 §5`, `0.10e-b`)
+
+Los ejemplos de esta skill usan `podman`, que es el runtime por defecto y la referencia. Los **guiones** de desarrollo y E2E (`apps/web/scripts/e2e-real-*.sh`, `landing-shots.sh`, `infra/garage/init.sh`, `lib/e2e-*.sh`) invocan `"$CONTAINER_RUNTIME"` (`podman` por defecto; `docker` admitido, sin verificar salvo `init.sh` en el CI; alias de respaldo `CONTAINER_CLI`, issue #755). **Ningún guion nuevo escribe `podman` a mano**: `source infra/lib/container-runtime.sh; resolve_container_runtime || exit 2`. Quadlet y producción no leen la variable.

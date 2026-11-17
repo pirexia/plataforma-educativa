@@ -13,6 +13,10 @@
 # Uso: npm run test:e2e:real:alum -- [argumentos de playwright]
 set -euo pipefail
 
+# shellcheck source=../../../infra/lib/container-runtime.sh
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)/infra/lib/container-runtime.sh"
+resolve_container_runtime || exit 2
+
 API_CONTAINER="${API_CONTAINER:-plataforma-api}"
 DB_CONTAINER="${DB_CONTAINER:-plataforma-postgres}"
 SLUG_A="${E2E_TENANT_SLUG_A:-demo}"
@@ -34,15 +38,15 @@ prepare_vite_api_url "$SLUG_A" || exit 2
 source "$(dirname "${BASH_SOURCE[0]}")/lib/e2e-garage.sh"
 ensure_garage || exit 2
 
-support() { podman exec -e E2E_ALLOW_DESTRUCTIVE=1 "$API_CONTAINER" php tests/Support/e2e-real-tenant.php "$@"; }
+support() { "$CONTAINER_RUNTIME" exec -e E2E_ALLOW_DESTRUCTIVE=1 "$API_CONTAINER" php tests/Support/e2e-real-tenant.php "$@"; }
 field() { python3 -c 'import json,sys; print(json.load(sys.stdin)[sys.argv[1]])' "$1"; }
 
 purge_tenant_rows() {
   local tenant_id="$1"
   [[ "$tenant_id" =~ ^[0-9]+$ ]] || { echo "tenant_id no numérico: no se purga." >&2; return 1; }
   local db_user
-  db_user="$(podman exec "$DB_CONTAINER" printenv POSTGRES_USER)"
-  podman exec -i "$DB_CONTAINER" psql -q -U "$db_user" -d plataforma -v ON_ERROR_STOP=1 <<SQL
+  db_user="$("$CONTAINER_RUNTIME" exec "$DB_CONTAINER" printenv POSTGRES_USER)"
+  "$CONTAINER_RUNTIME" exec -i "$DB_CONTAINER" psql -q -U "$db_user" -d plataforma -v ON_ERROR_STOP=1 <<SQL
 BEGIN;
 SET LOCAL session_replication_role = replica;
 DO \$\$

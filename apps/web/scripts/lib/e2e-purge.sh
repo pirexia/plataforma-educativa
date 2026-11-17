@@ -16,9 +16,12 @@ purge_tenant_rows() {
     return 1
   fi
   [[ "$tenant_id" =~ ^[0-9]+$ ]] || { echo "tenant_id no numérico: no se purga." >&2; return 1; }
+  # shellcheck source=../../../../infra/lib/container-runtime.sh
+  source "$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)/infra/lib/container-runtime.sh"
+  resolve_container_runtime || return 2
   local db_user
-  db_user="$(podman exec "$DB_CONTAINER" printenv POSTGRES_USER)"
-  podman exec -i "$DB_CONTAINER" psql -q -U "$db_user" -d plataforma -v ON_ERROR_STOP=1 <<SQL
+  db_user="$("$CONTAINER_RUNTIME" exec "$DB_CONTAINER" printenv POSTGRES_USER)"
+  "$CONTAINER_RUNTIME" exec -i "$DB_CONTAINER" psql -q -U "$db_user" -d plataforma -v ON_ERROR_STOP=1 <<SQL
 BEGIN;
 SET LOCAL session_replication_role = replica;
 DO \$\$

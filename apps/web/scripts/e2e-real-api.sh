@@ -20,6 +20,10 @@
 # Uso: npm run test:e2e:real -- [argumentos de playwright]
 set -euo pipefail
 
+# shellcheck source=../../../infra/lib/container-runtime.sh
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)/infra/lib/container-runtime.sh"
+resolve_container_runtime || exit 2
+
 API_CONTAINER="${API_CONTAINER:-plataforma-api}"
 DB_CONTAINER="${DB_CONTAINER:-plataforma-postgres}"
 SLUG="${E2E_TENANT_SLUG:-demo}"
@@ -53,7 +57,7 @@ ensure_garage || exit 2
 
 # La purga (lib/e2e-purge.sh) exige E2E_ALLOW_DESTRUCTIVE=1 en el entorno: estos scripts solo operan sobre el centro sintético de desarrollo.
 export E2E_ALLOW_DESTRUCTIVE=1
-support() { podman exec -e E2E_ALLOW_DESTRUCTIVE=1 "$API_CONTAINER" php tests/Support/e2e-real-tenant.php "$@"; }
+support() { "$CONTAINER_RUNTIME" exec -e E2E_ALLOW_DESTRUCTIVE=1 "$API_CONTAINER" php tests/Support/e2e-real-tenant.php "$@"; }
 
 # Lee un campo de una línea JSON recibida por stdin (no por argumentos, que
 # serían visibles en `ps`).
