@@ -13,6 +13,14 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 - Dato que el ADR recoge: `ci-api.yml` (job de conformidad del almacén) ya lanza `bash infra/garage/init.sh` con `CONTAINER_CLI=docker` (el guion ejecuta `docker exec`), así que la premisa «sin trabajo de CI para docker» ya no era del todo exacta.
 - **No implementado**: nada. **No verificado**: el comportamiento de `docker compose` en `ubuntu-26.04` (montajes `:Z`, propietario de ficheros del montaje de `apps/api`, arranque de servicios con perfil al nombrarlos), el tiempo de construcción de la imagen `dev` en CI y el comportamiento de un *check* requerido ante una promoción por avance rápido.
 
+## 2026-11-17 · `feat(infra)`: `0.10e-b` nivel 1 del runtime (`CONTAINER_RUNTIME`); `CLAUDE.md` 2.17.0
+
+- `infra/lib/container-runtime.sh`: `resolve_container_runtime` (`CONTAINER_RUNTIME` → alias `CONTAINER_CLI` → `podman`; lista cerrada `podman|docker`; aborta si ambas difieren o el valor no es válido). Aplicado a `e2e-real-{api,prl,alum}.sh`, `landing-shots.sh`, `lib/e2e-purge.sh`, `lib/e2e-garage.sh`, `infra/garage/init.sh` y, en TypeScript, `apps/web/e2e/curso-rollover.spec.ts` (`scripts/container-runtime.ts`, espejo con la misma lógica). Sin cambio de comportamiento por defecto. Las guardas (`E2E_ALLOW_DESTRUCTIVE`, prefijo `plataforma-*`, `APP_ENV`) no se tocaron.
+- Pruebas: `ContainerRuntimeTest` (Pest, 19) y `container-runtime.spec.ts` (Vitest, 10); ambas demostradas en rojo al romper la validación (Pest: 14 fallan; Vitest: 5 fallan).
+- Documentación: `SYSADMIN.md §2c` (fila de la variable) y `CLAUDE.md §1`, fila «Contenedores» (ya no dice «ningún guion lo lee»; 2.17.0, `ADR-080 §11`).
+- **Fuera de alcance, por decisión del usuario**: hook `format-on-edit.sh`, `.mcp.json`, permisos de `.claude/settings.json`, `compose.prodlike.yaml`. `CONTAINER_CLI` sigue en `ci-api.yml:412` y se retira en una entrega posterior.
+- **No verificado**: nada se ha ejecutado con `docker` real; `docker` sigue «sin verificar» hasta que lo ejerza el CI de `E2E-CI-b` (`ADR-091`, `PROPUESTA`).
+
 ## 2026-11-17 · `fix(web)`: Playwright sin reintentos en CI (issue #749)
 
 - `apps/web/playwright.config.ts`: `retries: 0` (antes `process.env.CI ? 2 : 0`) y `trace: 'retain-on-failure'` (antes `on-first-retry`, que sin reintentos nunca grababa). Un test que falla y pasa al reintentar ya no se da por bueno en silencio: contradecía la norma de intermitentes (`docs/proceso/e2e-real-ci.md` D5).

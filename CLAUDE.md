@@ -1,6 +1,6 @@
 # CLAUDE.md — Normas de trabajo del proyecto
 
-> **Versión 2.16.0** · 2026-11-17 · Fichero de contexto permanente. Se carga en **todas** las sesiones. Contiene solo reglas estables.
+> **Versión 2.17.0** · 2026-11-17 · Fichero de contexto permanente. Se carga en **todas** las sesiones. Contiene solo reglas estables.
 > Proyecto: **Plataforma de Gestión Educativa Multi-tenant**. Fuente de verdad funcional: `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md`.
 
 ---
@@ -35,7 +35,7 @@ Frases prohibidas: "¡Excelente idea!", "Tienes toda la razón" como apertura re
 | Almacenamiento | API S3 como contrato único; Garage en desarrollo, CI y E2E, nunca en servidores (`ADR-076`) |
 | PDF | **Elegido y no instalado**: WeasyPrint tras la interfaz propia `PdfRenderer` (`ADR-078`, `ACEPTADA`), con Gotenberg como vuelta atrás; no hay servicio ni código (paso `P`). Detalle: `docs/proceso/normas-detalle.md#stack-pdf` |
 | Tests | Pest (backend; en el CI, 4 *shards* más `Concurrency` aparte, `ADR-089`), Vitest + Playwright (frontend). **E2E real contra la API** (`npm run test:e2e:real[:prl\|:alum]`): **no corre en el CI** (allí solo corren los E2E con datos simulados); llevarlo al CI es el alcance del issue #737 |
-| Contenedores | **Podman**; WSL2 en desarrollo (`ADR-030`), `compose.yaml` con `podman compose`, Quadlet/systemd en producción, Kubernetes desde 3-5 centros. **Elegido y no implementado**: runtime agnóstico `CONTAINER_RUNTIME` (`ADR-080`, paso `0.10e-b`); ningún guion lo lee hoy. Detalle: `docs/proceso/normas-detalle.md#stack-contenedores` |
+| Contenedores | **Podman**; WSL2 en desarrollo (`ADR-030`), `compose.yaml` con `podman compose`, Quadlet/systemd en producción, Kubernetes desde 3-5 centros. **Nivel 1 implementado** (`0.10e-b`, `ADR-080 §5`): `CONTAINER_RUNTIME` (`podman` por defecto; `docker` admitido pero sin verificar; `CONTAINER_CLI` como alias) en los guiones de desarrollo y E2E, vía `infra/lib/container-runtime.sh`; Quadlet sigue siendo la referencia de producción. Detalle: `docs/proceso/normas-detalle.md#stack-contenedores` |
 | Repositorio | Monorepo: `apps/api`, `apps/web`, `infra`, `docs` |
 
 **Esta tabla dice qué está elegido, no qué está instalado.** Cuando no coinciden, la fila lo dice con el issue que lo sigue. Antes de apoyarse en una pieza de esta tabla, se comprueba en `composer.json`/`package.json`. Motivo: `docs/proceso/casos-reales.md#horizon-no-instalado`.
