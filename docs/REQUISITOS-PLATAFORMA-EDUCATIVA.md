@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |-------|-------|
-| **Versión** | 3.2.36 |
+| **Versión** | 3.2.37 |
 | **Fecha** | 2026-11-17 |
 | **Estado** | Borrador consolidado — pendiente de aprobación |
 | **Autor** | Product Owner |
@@ -3388,6 +3388,7 @@ Se mantendrá una matriz de trazabilidad (generada automáticamente desde las re
 
 | Versión | Fecha | Autor | Descripción |
 |---------|-------|-------|-------------|
+| 3.2.37 | 2026-11-17 | Product Owner | Solo el índice de la §18: alta de `ADR-091` (E2E real en el CI, `PROPUESTA`) y nota en la fila de `ADR-080` (`ADR-091` propone sustituirle en parte `§5.3` punto 4 y `OPEN-STG-11`). Sin cambios de requisitos. |
 | 3.2.36 | 2026-11-17 | Product Owner | `ADR-090` (parcheo de vulnerabilidades y ventana de mantenimiento) pasa a `ACEPTADA` en el índice de la §18; paso `0.10g` en el plan (2.3.28). Solo documentación. |
 | 3.2.35 | 2026-11-16 | Product Owner | `0.10e-c`, tramo 3, solo documentación: `ADR-087` (Mailpit opcional en staging, `ACEPTADA`) y `ADR-088` (Traefik en red `host`, sustituciones de `install.sh` y dominios de staging, `PROPUESTA`) en el índice de `§18`; documentos de operación y entornos alineados (`SYSADMIN.md`, `RUNBOOK.md`, `ARCHITECTURE.md`, `CLAUDE.md` `§9` y `§11`). Sin cambios de requisitos. |
 | 3.2.34 | 2026-11-16 | Product Owner | Corrección menor: la fila `OPEN-11` citaba `ADR-080` como `PROPUESTA`; está `ACEPTADA` desde el 2026-11-14. Sin cambios de requisitos. |
