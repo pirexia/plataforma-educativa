@@ -383,6 +383,15 @@ describe('CA-CORE-262 (RN-CORE-50): nada de filas ni de búsqueda en el almacena
     // … toda escritura es `set`/`remove` sobre una clave de tabla o una de las
     // legítimas ajenas, nombradas explícitamente; nunca `clear` ni sessionStorage.
     for (const write of writes) {
+      // vue-router 5 (#729) escribe `vue-router:scroll` al navegar; sin
+      // `scrollBehavior` (src/router/index.ts) su valor es siempre `{}`: ni
+      // rutas ni datos. Es la única escritura admitida en sessionStorage.
+      if (write.area === 'sessionStorage') {
+        expect(write.key).toBe('vue-router:scroll')
+        expect(write.value).toBe('{}')
+        continue
+      }
+
       expect(write.area).toBe('localStorage')
       expect(write.op).not.toBe('clear')
       expect(
