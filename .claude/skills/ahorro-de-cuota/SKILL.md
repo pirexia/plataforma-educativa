@@ -1,0 +1,29 @@
+---
+name: ahorro-de-cuota
+description: Normas de ahorro de cuota y de tokens del proyecto (norma del usuario, 2026-11-02) y de caché de prompt. Úsala al planificar un paso, dimensionar una entrega, lanzar un `implementer` o un revisor, anotar métricas de agentes, programar una espera (`ScheduleWakeup`) o decidir entre `fork` y un subagente nuevo.
+---
+
+# Ahorro de cuota y caché de prompt
+
+Texto íntegro movido desde `CLAUDE.md §2` el 2026-11-17 (recorte, issue #426). En `CLAUDE.md §2` queda el resumen con las reglas duras; si esta skill y `CLAUDE.md` se contradicen, prevalece `CLAUDE.md` y es un fallo de documentación: corrígelo en el mismo PR.
+
+## Ahorro de cuota (norma del usuario, 2026-11-02)
+
+El gasto de tokens es una restricción de diseño del proceso (motivo: `docs/proceso/casos-reales.md#cuota-semanal`).
+
+1. **Tramos de `implementer`.** Nunca uno largo por paso: tramos **secuenciales** (jamás en paralelo: el contenedor monta el checkout principal y los E2E comparten la pila de desarrollo, y esto vale también para `verificador`, los E2E y cualquier tarea que toque el checkout; lo que solo escribe documentos —`architect`, `spec-writer`— va en un `git worktree` propio) cortados en costuras naturales — datos y permisos / servicios y *endpoints* / UI / E2E real —, de ~60-100 llamadas o <1 h (`docs/proceso/casos-reales.md#coste-tramos`). `implementer` escribe y depura los *specs* de E2E; **la ejecución final del E2E real no es un tramo de `implementer`**: la lanza la sesión con la skill `espera-e2e` (sin agente; `verificador` solo para diagnosticar) y solo un fallo de código vuelve a `implementer` (`CLAUDE.md §3`). Cada tramo cierra con un commit `Verificado: X/X …` y deja la nota viva de `CLAUDE.md §3`.
+2. **Prompt mínimo por tramo.** Solo las secciones de la especificación que el tramo necesita (fichero y sección) y las decisiones ya aprobadas para que no se reabran; nunca la especificación entera. **Antes de cada tramo de código, `explorer` entrega un briefing** (ficheros a imitar, puntos de contacto, lo que no existe) que la sesión pega en el prompt, para que `implementer` no gaste su arranque explorando. Es experimental hasta 5 tramos medidos (punto 4): se anota en `docs/metricas-agentes.md` como fila `explorer · briefing` y se compara el gasto del `implementer` con y sin él.
+3. **Revisiones acotadas.** Los revisores se lanzan **una vez**, al final del paso, sobre el diff y con las decisiones aprobadas en el prompt. Orden con `ADR-069` (`OPEN-069-01` confirmada): Codex primero; en paso **crítico** después `security-reviewer` solo con su columna del reparto; en paso **ordinario** `security-reviewer` solo si Codex trae un Crítico o Alto aceptado o no está disponible. `spec-writer` clasifica el paso y la sesión lo comprueba contra el diff; la duda es crítico. `db-reviewer` siempre que haya migraciones. **Segunda ronda**: la verifica Codex si hubo Medios o Bajos; el revisor de Claude solo reentra por un Crítico o un Alto (la de documentación, punto 8). Si `OPEN-069-01` dejara de estar confirmada (régimen de `ADR-050`): segunda ronda si la primera trae Críticos, Altos o Medios. Los Bajos se corrigen directamente. Las correcciones se reúnen en **una sola reanudación** tras **todos** los informes.
+4. **Métricas.** Al terminar cada subagente se anota una fila (`subagent_tokens`, `tool_uses`, `duration_ms`; en reanudaciones, el delta) en `docs/metricas-agentes.md`. Al cerrar cada paso se recalculan media, mediana y tokens por llamada **por tipo de agente** y se ajusta el número de tramos del siguiente. Con <5 observaciones por tipo son orientativas; `subagent_tokens` no incluye lecturas de caché.
+5. **Contexto principal pequeño.** Lectura, búsqueda y ejecución en subagentes. Se reinicia la sesión por encima de ~50 % de contexto o antes de una pausa larga (la caché caduca tras ~1 h), no por sistema. No releva el cierre de `CLAUDE.md §3`.
+6. **Salidas cortas.** Tests, linters y comandos con salida resumida o a fichero (`tail`, `grep`); ficheros grandes con `offset`/`limit` tras localizar con `grep`.
+7. **Tamaño de entrega.** Al planificar (`spec-writer`/`architect`/plan), cada entrega se dimensiona para caber en **≤3 tramos de `implementer`** (≈250 llamadas; cifra a recalibrar con `docs/metricas-agentes.md`). Si no cabe, se parte en entregas con sufijo de letra, como `1.14b-a`..`1.14b-d`.
+8. **Documentación.** `doc-precheck` (Haiku) se ejecuta **siempre** antes de `doc-reviewer`. La segunda ronda de documentación (que hay si la primera trajo Medios, punto 3) la hace `doc-precheck` sobre la lista cerrada de hallazgos de la primera; `doc-reviewer` solo vuelve a entrar si se corrigió un Crítico o un Alto (`OPEN-069-05`, aprobada el 2026-11-02).
+9. **Traducciones pequeñas.** Hasta ~15 claves nuevas no legales las traduce la sesión orquestadora directamente (lanzar `traductor` cuesta más en arranque y relectura que la propia traducción); con más, va `traductor`. Tratamiento formal («Sie», «vous»), placeholders intactos y paridad de claves comprobada con `TranslationParityTest`. Los textos legales, de consentimiento, de privacidad y de seguridad (p. ej. `prl.protocol.minimal`) no se traducen automáticamente en ningún caso (aprobada por el usuario el 2026-11-02).
+
+## Caché de prompt (vigencia ~5 min; motivo: `docs/proceso/casos-reales.md#cache-prompt`)
+
+- Al esperar (`ScheduleWakeup` u otra pausa) evita ~300 s: usa <270 s para mantener la caché caliente, o 1200-1800 s si es de fondo; nunca un valor redondo intermedio sin motivo.
+- Si la tarea necesita el contexto acumulado y el modelo de la sesión es el adecuado, usa `fork` (comparte caché) en vez de un subagente nuevo (arranca en frío).
+- No cargues herramientas adicionales a mitad de sesión (`ToolSearch`, skills que añaden herramientas) más de lo necesario: invalidan el prefijo cacheado. Decide de una vez qué hará falta.
+- El cierre de `CLAUDE.md §3` prima sobre el ahorro de caché.
