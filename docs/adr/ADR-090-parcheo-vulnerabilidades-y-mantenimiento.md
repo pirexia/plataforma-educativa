@@ -65,7 +65,7 @@ Por eje; el detalle y la evaluación completa están en el anexo.
 
 **Requisitos afectados.** Aporta a `RNF-MANT-004` y `RSEC-PENT-004`. No cumple `RARQ-DEP-012` (preproducción con datos anonimizados), que sigue sin cubrir (`ADR-080 §3.2`). El reinicio del host de producción con un solo host **contradice `RARQ-DEP-001`**: no se resuelve aquí (`OPEN-090-02`).
 
-**Lo que no se ha verificado**: lista completa en el anexo `§8`; cada punto lleva su marca **(NV)** y se resuelve en la entrega que lo necesita.
+**Lo que no se ha verificado**: lista completa en el anexo `§7`; cada punto lleva su marca **(NV)** y se resuelve en la entrega que lo necesita.
 
 **Contacto con `ADR-080`.** La copia de secretos de `OPEN-090-11` **no** contradice `ADR-080`: `§3.3` dice que staging no prueba «copias y restauración (`OPEN-10`, `0.10d`)», es decir, las copias de **datos** del producto (`REQ-BKP`), y esta copia no es un ensayo de ellas; además `§3.2`, regla 3, exige que «nada vive solo allí», que hoy los secretos incumplen y la copia corrige. No hace falta ADR que sustituya a `ADR-080`. La frase de `CLAUDE.md §9` «en él no se ensayan copias ni restauración (`ADR-080`)» resume `§3.3` y puede leerse como prohibición general: se señala a la sesión para que la precise; no se cambia aquí.
 
