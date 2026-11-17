@@ -1,6 +1,6 @@
 # CLAUDE.md — Normas de trabajo del proyecto
 
-> **Versión 2.13.1** · 2026-11-16 · Fichero de contexto permanente. Se carga en **todas** las sesiones. Contiene solo reglas estables.
+> **Versión 2.14.0** · 2026-11-17 · Fichero de contexto permanente. Se carga en **todas** las sesiones. Contiene solo reglas estables.
 > Proyecto: **Plataforma de Gestión Educativa Multi-tenant**. Fuente de verdad funcional: `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md`.
 
 ---
@@ -114,7 +114,14 @@ Un relanzamiento que encuentra esa nota confía en los commits que cubre sin ree
 
 **Cuándo se ejecuta la suite (`ADR-060 §4.4`).** Durante el trabajo, solo los ficheros o directorios afectados (`php -d memory_limit=-1 vendor/bin/pest <rutas>`). La suite completa (`composer test`: Unit y Feature en paralelo, una base `plataforma_test_N` por proceso, y `Concurrency` en serie) se ejecuta **una vez en local antes de abrir el PR**, y CI la repite en cada *push*. Los revisores no la relanzan salvo necesidad justificada en su informe. El mensaje `Verificado` dice su alcance, `(suite completa)` o `(ficheros afectados: …)`, y un relanzamiento solo da por buena la suite completa con un `Verificado` de suite completa. Las bases por proceso se crean con el script de `SYSADMIN.md`; `composer test:serie` queda como vuelta atrás.
 
-**E2E contra la API real (norma del usuario, 2026-11-02).** Con el paso implementado y su suite en verde, se prueba además **de extremo a extremo contra la API real** en ejecución (Playwright o HTTP real con cookie de sesión y CSRF, datos de `REQ-SEED`), no solo con cliente de pruebas ni API simulada. Se permite **recrear el demo o la base** cuantas veces haga falta, sin pedir permiso. **Quién lo ejecuta (2026-11-06):** `verificador` (Haiku) lanza `npm run test:e2e:real[:prl]` y devuelve el resultado literal; si falla por código, la sesión reencarga a `implementer` solo el fallo; si falla por entorno (código 2, pila caída, S3), lo arregla la sesión. Un E2E parcial no se declara verde. El resultado (qué se probó y qué no, p. ej. el S3 real del proveedor, `ADR-076 §2.3`) se registra en `memory.md` y en el informe del paso.
+**E2E contra la API real (norma del usuario, 2026-11-02).** Con el paso implementado y su suite en verde, se prueba además **de extremo a extremo contra la API real** en ejecución (Playwright o HTTP real con cookie de sesión y CSRF, datos de `REQ-SEED`), no solo con cliente de pruebas ni API simulada. Se permite **recrear el demo o la base** cuantas veces haga falta, sin pedir permiso. **Quién lo ejecuta (2026-11-06; 2026-11-17):** la sesión orquestadora con la skill `espera-e2e` (script en segundo plano, resumen corto, sin agente: un agente cuesta decenas de miles de tokens por ejecución); `verificador` (Haiku) solo si hay que diagnosticar. Devuelve el resultado literal; si falla por código, la sesión reencarga a `implementer` solo el fallo; si falla por entorno (código 2, pila caída, S3), lo arregla la sesión. Un E2E parcial no se declara verde. El resultado (qué se probó y qué no, p. ej. el S3 real del proveedor, `ADR-076 §2.3`) se registra en `memory.md` y en el informe del paso.
+
+**Los E2E deben existir, no solo ejecutarse (norma del usuario, 2026-11-17).** Toda implementación deja, en la misma entrega, el E2E real que asegura su funcionamiento, igual que exigimos tests unitarios y de integración (`INV-015`). Motivo: la subida a `vue-router` 5 (PR #729) cambió el comportamiento de scroll y los 8 E2E reales pasaron en verde sin ejercitarlo; solo un spec escrito a propósito lo encontró (issue #737).
+- **Qué se exige.** Funcionalidad con flujo de usuario (pantalla, formulario, tabla, acción): al menos un E2E real (Playwright contra la API real) que referencie el ID del requisito o criterio y ejercite lo que el usuario hace (menús, botones, tablas con orden/filtro/paginación y estado en URL, formularios con validación de servidor, scroll, idioma, según aplique). Funcionalidad solo de backend: una prueba HTTP real con cookie de sesión y CSRF sobre datos de `REQ-SEED`.
+- **Fuera de la obligación:** documentación, refactors sin cambio de comportamiento y subidas de dependencias. Si una subida de dependencia o un refactor **altera un comportamiento visible o de API**, sí exige su E2E antes de mezclar.
+- **Un E2E nuevo debe demostrar que detecta el fallo**: se ejecuta también con la funcionalidad rota (o el cambio comentado) y debe fallar; se anota en el informe. Un E2E que solo pasa no prueba nada.
+- **La especificación lo lista de antemano** (`spec-writer`: qué E2E cubre cada criterio de aceptación) y los prompts de `implementer` lo incluyen; `doc-reviewer` y la sesión comprueban en el diff que el spec existe y está registrado en el script de E2E real. Un paso sin su E2E no se da por terminado (`§10`).
+- **Excepción justificada:** si un E2E real no es viable (p. ej. depende de un servicio externo que `ADR-076 §2.3` deja fuera), se dice en el informe, se cubre con el mejor sustituto (HTTP real parcial, mock del límite) y se abre issue de seguimiento.
 
 ---
 
@@ -248,6 +255,7 @@ Un requisito está terminado cuando:
 - [ ] Cumple sus criterios de aceptación
 - [ ] Cumple las invariantes de la sección 7
 - [ ] Tiene tests que referencian su ID y están en verde
+- [ ] Tiene E2E real que cubre su flujo (o prueba HTTP real si es solo backend), registrado en el script de E2E y demostrado que falla cuando la función se rompe (§3)
 - [ ] El endpoint está documentado en OpenAPI
 - [ ] Pasa lint, análisis estático y escaneo de dependencias
 - [ ] Textos traducidos a los cuatro idiomas
