@@ -42,7 +42,7 @@ Datos: **solo** el centro sintético que crea el propio guion (`e2e-real-tenant.
 
 El job exporta `CONTAINER_RUNTIME=docker` y usa los guiones de `0.10e-b` sin bifurcaciones propias de CI. `0.10e-b` es **prerrequisito** de `E2E-CI-b`. El valor por defecto de los guiones sigue siendo `podman` y en local nada cambia (`CA-E2ECI-07`).
 
-El flujo fija **solo** `CONTAINER_RUNTIME`, nunca el alias de respaldo `CONTAINER_CLI`: `infra/lib/container-runtime.sh` (rama de `0.10e-b`, **V** en `chore/0.10e-b-runtime-agnostico`, no en `develop`) devuelve 2 y aborta si ambas están definidas con valores distintos. El job `storage-conformance` de `ci-api.yml` sigue con `CONTAINER_CLI=docker` (**V**) hasta que una entrega posterior retire el alias; este ADR no lo toca.
+El flujo fija **solo** `CONTAINER_RUNTIME`, nunca el alias de respaldo `CONTAINER_CLI`: `infra/lib/container-runtime.sh` (`0.10e-b`, **V**) devuelve 2 y aborta si ambas están definidas con valores distintos. El alias es una decisión del usuario del 2026-11-17 (*expand/contract*, `CLAUDE.md §9`) que amplía el contrato de una sola variable de `ADR-080 §5.3`, punto 1; su retirada la sigue #755. El job `storage-conformance` de `ci-api.yml` sigue con `CONTAINER_CLI=docker` (**V**) hasta que una entrega posterior retire el alias; este ADR no lo toca.
 
 ### 2.3 Flujo propio y disparo por diff sin filtro `paths:` (`OPEN-E2ECI-04`, `-05`, `-06` = A)
 
