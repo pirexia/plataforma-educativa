@@ -67,7 +67,8 @@ test('ADR-080 §5 CS-03: un valor fuera de la lista cerrada aborta nombrando la 
 
     expect($code)->not->toBe(0)
         ->and($out)->toBe('')
-        ->and($stderr)->toContain('CONTAINER_RUNTIME no válido');
+        ->and($stderr)->toContain('CONTAINER_RUNTIME no válido')
+        ->and($stderr)->toContain(trim($value) !== '' ? $value : 'Valores admitidos');
 })->with(function (): Generator {
     foreach (['rm', 'podman; ls', '  ', 'Docker', 'nerdctl', '$(id)', '/usr/bin/podman'] as $value) {
         yield "CONTAINER_RUNTIME «{$value}»" => [$value, 'CONTAINER_RUNTIME'];

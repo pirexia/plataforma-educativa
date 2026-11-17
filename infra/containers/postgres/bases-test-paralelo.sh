@@ -20,7 +20,7 @@
 #
 # Se ejecuta con el superusuario del clúster. Desarrollo, desde el host (nada
 # se instala en el host, CLAUDE.md §9):
-#   "$CONTAINER_RUNTIME" exec -i plataforma-postgres sh -s -- 6 < infra/containers/postgres/bases-test-paralelo.sh
+#   "${CONTAINER_RUNTIME:-podman}" exec -i plataforma-postgres sh -s -- 6 < infra/containers/postgres/bases-test-paralelo.sh
 # CI: con el `psql` del job, con PGHOST/PGPORT/PGUSER/PGPASSWORD en el entorno.
 set -eu
 
