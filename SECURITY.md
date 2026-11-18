@@ -9,8 +9,8 @@
 
 El repositorio es **público** (`pirexia/plataforma-educativa`; comprobado el 2026-11-18) y el producto no tiene todavía despliegue público (`OPEN-11` sin resolver). Por ser público, todo lo que entra en el historial es visible para cualquiera: nada de secretos, datos reales ni datos personales del propietario en Git (`CLAUDE.md` §4 y §11), y una vulnerabilidad explotable nunca se describe en un *issue* ni en un PR públicos. Mientras tanto:
 
-- Repórtalo a través de **GitHub Security Advisories** en este repositorio (`pirexia/plataforma-educativa`), o directamente a `pirexia` (propietario del repositorio).
-- No abras un issue público para una vulnerabilidad explotable — usa el canal privado de *Security Advisories*.
+- Canal previsto: **GitHub Security Advisories** («Report a vulnerability») en este repositorio (`pirexia/plataforma-educativa`). **Solo es válido cuando el propietario active el reporte privado** (ver el estado del canal más abajo).
+- Mientras no esté activo: abre un *issue* público que diga solo que quieres comunicar un asunto de seguridad, **sin detalles técnicos, pruebas de concepto ni datos**, y se acordará un canal privado. Nunca describas una vulnerabilidad explotable en un *issue*, un PR o un comentario públicos.
 
 **Estado del canal (2026-11-18)**: el reporte privado de vulnerabilidades de GitHub (*private vulnerability reporting*) figura como **desactivado** en el repositorio (`gh api repos/pirexia/plataforma-educativa/private-vulnerability-reporting` → `enabled: false`), de modo que el canal de arriba aún no está operativo hasta que el propietario lo active; pendiente de decisión en #744. Tampoco hay `security.txt` ni se ha podido comprobar desde aquí el estado de *secret scanning* y *push protection*.
 
