@@ -6,6 +6,10 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-18 · `docs`: matriz flujo × rol × cobertura E2E real (`E2E-CI-d0`, issue #737) — BORRADOR
+
+Sin código. `docs/proceso/e2e-real-ci-matriz.md`: 67 filas (11 cubiertas, 18 parciales, 33 sin E2E real, 2 NV, 3 no viables), 53 huecos (31 P1, 14 P2, 8 P3) y partición en `E2E-CI-d1`..`-d5`. `docs/proceso/e2e-real-ci.md`: criterios `CA-E2ECI-17` a `-42` (`§9.4`, con `-22b`), preguntas `OPEN-E2ECI-16` a `-25` (`§10.1`) y corrección de `§6.2`. Pendiente de aprobación del usuario.
+
 ## 2026-11-18 · `feat(ci)`: todas las suites del E2E real en el CI (`E2E-CI-c`, issue #737)
 
 - `ci-e2e-real.yml`: el job `e2e-real` pasa a «E2E real · todas las suites» y ejecuta en serie `test:e2e:real` (siete suites), `:prl` y `:alum`, sin cortar unas por otras, con informe JSON por suite, resumen con tabla de recuentos y tiempos, verificación de cada suite contra `apps/web/e2e/e2e-real-esperados.json` y `timeout-minutes: 30` definitivo. Guiones con informe por suite (`lib/e2e-informe.sh`).
