@@ -1,9 +1,9 @@
 # ADR-091 · E2E real en el CI: job condicionado por diff, agregador y pila efímera en el runner
 
-**Estado**: **PROPUESTA** (2026-11-17, `architect`). Pendiente de aceptación por el usuario y de `OPEN-091-01`, `-02` y `-03` (`§8`): `OPEN-091-01` fija en qué ramas y cuándo se marca el *check* como requerido (bloquea solo `CA-E2ECI-08`); `OPEN-091-02`, cuándo se anota `ADR-080`; `OPEN-091-03`, la confirmación de las decisiones marcadas **[DERIVADA]**, que sí condiciona la implementación de `E2E-CI-b` (regla del agregador y rutas del job `cambios`).
+**Estado**: **ACEPTADA** (2026-11-18, el usuario). `OPEN-091-01` = A (check requerido en `develop`, `staging` y `main`, al cerrar `E2E-CI-b`), `OPEN-091-02` = A (`ADR-080` anotado en el PR de aceptación, `§7.2`) y `OPEN-091-03` = A (decisiones **[DERIVADA]** (a)-(f) confirmadas). Estado anterior: `PROPUESTA` (2026-11-17, `architect`).
 **Fecha**: 2026-11-17
 **Origen**: issue [#737](https://github.com/pirexia/plataforma-educativa/issues/737) y especificación **APROBADA** `docs/proceso/e2e-real-ci.md` (`OPEN-E2ECI-11` = A: «ADR propio, antes de `E2E-CI-b`, escrito por `architect`»). Este ADR **no reabre** ninguna de las 15 `OPEN-E2ECI` ni las decisiones D1-D5 de su `§0`: las registra como decisión arquitectónica y fija lo que la especificación dejaba a un ADR. Lo que este ADR añade sin estar aprobado en la especificación va marcado **[DERIVADA]** con su motivo (convención de la especificación) y se somete a `OPEN-091-03`.
-**Sustituye en parte a** (la decisión rige **al aceptarse**: desde entonces el proyecto se compromete a ejecutar `docker` en el CI; el estado «verificado» solo empieza cuando el job exista y esté verde, `§4.3`; la anotación en `ADR-080` sigue `OPEN-091-02`; hasta la aceptación, `ADR-080` rige sin cambios):
+**Sustituye en parte a** (la decisión rige **al aceptarse**: desde entonces el proyecto se compromete a ejecutar `docker` en el CI; el estado «verificado» solo empieza cuando el job exista y esté verde, `§4.3`; la anotación en `ADR-080` se hizo en el PR de aceptación, `OPEN-091-02` = A):
 - `ADR-080 §5.3`, **punto 4**, solo la frase «Con `docker` el soporte es **de mejor esfuerzo y sin verificar**: no hay trabajo de CI que lo ejecute, y así se dice donde se documente», y solo para el **camino del E2E real que el CI ejecutará**: la suite `core` desde `E2E-CI-b`; `:prl`, `:alum` y `curso-rollover` desde `E2E-CI-c` (`§4.3`). El resto del punto 4 («Podman sigue siendo el runtime por defecto y el único verificado en desarrollo»; `ADR-030` no cambia; el descarte de Docker Desktop sigue en pie) queda **intacto**.
 - `ADR-080 §10.2`, `OPEN-STG-11`, solo su segunda mitad («sin trabajo de CI para `docker`»). El nivel 1 de runtime (`§5.3` puntos 1, 2, 3, 5 y 6) y `0.10e-b` no cambian.
 - `ADR-080 §8`, fila «El camino con `docker` se rompe sin que nadie lo vea», en la parte que cubre el job (`§4.3`).
@@ -152,7 +152,7 @@ Mismo patrón (jobs de trabajo + agregador `if: always()` como único requerido)
 | Reintentos (`retries: 2`) | Reintento silencioso (D5) |
 | Paralelizar desde el principio | D3: solo con datos medidos y aprobación |
 
-### 7.2 Anotación de `ADR-080` (propuesta, condicionada a `OPEN-091-02`)
+### 7.2 Anotación de `ADR-080` (decidida: `OPEN-091-02` = A)
 
 Precedente: `ADR-060` recibió, en el PR de aceptación de `ADR-089` (commit `9c8cc53`), una única línea de cabecera «Sustituido en parte por…», sin tocar su cuerpo; `ADR-088` (`PROPUESTA`) solo se anuncia en el índice hasta aceptarse. El precedente resuelve **la forma** (una línea de cabecera; el cuerpo de `ADR-080` no se toca). **El momento** queda en `OPEN-091-02`, porque aquí, a diferencia de `ADR-089`, la decisión se acepta antes de que exista el job que la cumple: (A) en el PR de aceptación de este ADR; (B) al mezclar `E2E-CI-b`. En cualquiera de los dos, se añade a la cabecera de `ADR-080`, tras la línea «**Sustituye en parte a**» y su lista, esta línea:
 
@@ -162,13 +162,13 @@ Y, en el mismo PR que la línea de cabecera, en la fila de `ADR-080` del índice
 
 ## 8 · Preguntas abiertas
 
-- **OPEN-091-01 · En qué ramas, y desde cuándo, es requerido «E2E real (API)».** El cuándo ya lo fija `OPEN-E2ECI-08` = A (al cerrar `E2E-CI-b`); queda en qué ramas. Bloquea solo `CA-E2ECI-08`.
+- **OPEN-091-01 · En qué ramas, y desde cuándo, es requerido «E2E real (API)».** **Decidida: A (2026-11-18).** El cuándo ya lo fija `OPEN-E2ECI-08` = A (al cerrar `E2E-CI-b`); queda en qué ramas. Bloquea solo `CA-E2ECI-08`.
   - **(A, recomendada)** En las mismas tres ramas y del mismo modo que los demás *required checks* (`develop`, `staging`, `main`, `SYSADMIN.md §4`): un arreglo urgente por PR a `staging` (`ADR-080 §4.4`) no debe saltarse el E2E real. Comportamiento del *check* requerido frente a las promociones por avance rápido (`git push <sha>:refs/heads/staging`): **NV**; el commit promocionado ya trae el *check* de su `push` a `develop`, pero si GitHub lo exige también en el *push* a `staging` hay que comprobarlo en la primera promoción.
   - (B) Solo en `develop`: menos riesgo de bloquear una promoción, pero un arreglo urgente a `staging` entraría sin E2E real.
-- **OPEN-091-02 · Momento de la anotación de `ADR-080`.**
+- **OPEN-091-02 · Momento de la anotación de `ADR-080`.** **Decidida: A (2026-11-18).**
   - **(A, recomendada)** En el PR de aceptación de este ADR (`§7.2`), aunque el job no exista aún: la línea está en futuro y acotada por entrega («ejecutará», «desde `E2E-CI-b`», «desde `E2E-CI-c`»), y `§4.3` fija que el «verificado» empieza con el agregador verde en `develop`. Quien lea `ADR-080` ve la sustitución desde el día en que rige. Mismo momento que en el precedente.
   - (B) Al mezclar `E2E-CI-b`: la cabecera de `ADR-080` solo cambia cuando hay algo ejecutado, a costa de que `ADR-091` quede aceptado sin reflejo en `ADR-080` durante días.
-- **OPEN-091-03 · Confirmar las decisiones marcadas [DERIVADA].** Condiciona la implementación de `E2E-CI-b`. Son:
+- **OPEN-091-03 · Confirmar las decisiones marcadas [DERIVADA].** **Decidida: A, todas confirmadas (2026-11-18).** Condiciona la implementación de `E2E-CI-b`. Son:
   - (a) Regla del agregador más estricta que la especificación (`§2.4`: exige `cambios` = `success` y `ejecutar` = `true` además de `e2e-real` = `success`) y número esperado de tests en un fichero versionado con ruta y formato libres (`§2.4`).
   - (b) `E2E-CI-c2` no necesita ADR nuevo si la matriz conserva nombre y regla del agregador y el disparo por diff (`§2.6`).
   - (c) «Ambos caminos verdes»: un rojo solo con `docker` es *issue* (Media como mínimo), nunca `skip` (`§4.2`).

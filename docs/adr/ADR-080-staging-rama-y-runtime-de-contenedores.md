@@ -8,6 +8,7 @@
 **Sustituye en parte a**:
 - `CLAUDE.md §4` como norma de proceso (no es un ADR, pero es donde vive la decisión): «Ramas permanentes: `main` y `develop`» y «`main` solo recibe merges desde `develop`» pasan a leerse con `staging` en medio (`§4`).
 - `ADR-037 §5.2`, columna «Para qué» de la fila «`push` a `develop`»: la imagen `sha-<7>` construida en `develop` sigue siendo la que se despliega en staging, pero **solo la del commit al que apunta la rama `staging`**; la etiqueta móvil `develop` deja de usarse para desplegar (`§4.5`).
+**Sustituido en parte por `ADR-091`** (`ACEPTADA`): de `§5.3` punto 4, solo «con `docker` el soporte es de mejor esfuerzo y sin verificar: no hay trabajo de CI que lo ejecute», y solo para el camino del E2E real que el CI ejecutará con `docker`: la suite `core` desde `E2E-CI-b`; `:prl`, `:alum` y `curso-rollover` desde `E2E-CI-c` (`ADR-091 §4.3`; cada parte cuenta como verificada solo desde su agregador verde en `develop`); de `OPEN-STG-11`, solo «sin trabajo de CI para `docker`». El resto de `§5` (Podman por defecto y único verificado en desarrollo, Quadlet única referencia de producción) sigue vigente.
 **No cierra**: `OPEN-08` (dominio y DNS de la plataforma), `OPEN-09`, `OPEN-10`, `OPEN-11` (alojamiento del piloto), `OPEN-STO-*` (`ADR-083`, `ACEPTADA` el 2026-11-14).
 **Se apoya en**: `RARQ-CLOUD-001`, `RARQ-CLOUD-005`, `RARQ-CLOUD-006`, `RARQ-DEP-001`, `-006`, `-008`, `-012`, `-013`, `RARQ-INF-002`, `RNF-MANT-007`, `CLAUDE.md §8` y `§9`.
 
