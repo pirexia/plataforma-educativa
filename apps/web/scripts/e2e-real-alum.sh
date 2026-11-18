@@ -29,6 +29,11 @@ for slug in "$SLUG_A" "$SLUG_B"; do
   fi
 done
 
+# shellcheck source=lib/e2e-tiempo.sh
+source "$(dirname "${BASH_SOURCE[0]}")/lib/e2e-tiempo.sh"
+# shellcheck source=lib/e2e-ci.sh
+source "$(dirname "${BASH_SOURCE[0]}")/lib/e2e-ci.sh"
+
 # shellcheck source=e2e-vite-api-url.sh
 source "$(dirname "${BASH_SOURCE[0]}")/e2e-vite-api-url.sh"
 prepare_vite_api_url "$SLUG_A" || exit 2
@@ -79,7 +84,9 @@ cleanup() {
   remove_tenant "$SLUG_B"
 }
 
-trap cleanup EXIT
+# Tiempo de la retirada final (`E2E_TIEMPO ... fase=teardown`); la previa a `prepare` no se mide.
+teardown_final() { e2e_tiempo_medir alum teardown cleanup; }
+trap teardown_final EXIT
 cleanup
 
 prepare() {
@@ -91,6 +98,7 @@ prepare() {
   export "E2E_${prefix}_TUTOR_EMAIL=$(printf '%s' "$json" | field tutor_email)"
   export "E2E_${prefix}_TUTOR_USER=$(printf '%s' "$json" | field tutor_user)"
   export "E2E_${prefix}_STAFF_PASSWORD=$(printf '%s' "$json" | field staff_password)"
+  e2e_enmascarar "$(printf '%s' "$json" | field admin_password)" "$(printf '%s' "$json" | field staff_password)"
   export "E2E_${prefix}_SECRETARIA_EMAIL=$(printf '%s' "$json" | field secretaria_email)"
   export "E2E_${prefix}_DIRECCION_EMAIL=$(printf '%s' "$json" | field direccion_email)"
   export "E2E_${prefix}_DOCENTE_EMAIL=$(printf '%s' "$json" | field docente_email)"
@@ -99,13 +107,17 @@ prepare() {
   export "E2E_${prefix}_DOCENTE2_USER=$(printf '%s' "$json" | field docente2_user)"
 }
 
+inicio=$SECONDS
 prepare A "$SLUG_A"
 prepare B "$SLUG_B"
+e2e_tiempo_emitir alum setup "$inicio"
 export E2E_REAL_API=1
 
 # Dos invocaciones: primero los specs HTTP y después los de navegador. Los accesos a la API están limitados (429, 10 por minuto y centro desde
 # una IP): los specs de navegador esperan lo que pida el servidor, los HTTP no, y por eso van antes.
 status=0
+inicio=$SECONDS
 npx playwright test e2e/alum-students-real.spec.ts e2e/alum-enrollments-real.spec.ts e2e/alum-photo-real.spec.ts --workers=1 --pass-with-no-tests "$@" || status=$?
 npx playwright test e2e/alum-screens-real.spec.ts e2e/alum-group-change-real.spec.ts e2e/data-table-real.spec.ts --workers=1 --pass-with-no-tests "$@" || status=$?
+e2e_tiempo_emitir alum playwright "$inicio"
 exit "$status"
