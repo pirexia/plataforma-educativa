@@ -1,6 +1,6 @@
 # CLAUDE.md — Normas de trabajo del proyecto
 
-> **Versión 2.18.0** · 2026-11-18 · Fichero de contexto permanente. Se carga en **todas** las sesiones. Contiene solo reglas estables.
+> **Versión 2.19.0** · 2026-11-18 · Fichero de contexto permanente. Se carga en **todas** las sesiones. Contiene solo reglas estables.
 > Proyecto: **Plataforma de Gestión Educativa Multi-tenant**. Fuente de verdad funcional: `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md`.
 
 ---
@@ -34,8 +34,8 @@ Frases prohibidas: "¡Excelente idea!", "Tienes toda la razón" como apertura re
 | Colas | **Hoy**: *driver* `database` (`QUEUE_CONNECTION=database`) con dos procesos `queue:work`: `worker` y `worker-long` (conexión `database_long`, `retry_after` 900 s; `1.12b`). **Elegido y no instalado**: Redis como cola + **Laravel Horizon** (no está en `composer.json`; dependencia nueva sujeta a la regla de abajo y a `OPEN-BO-23`). Detalle: `docs/proceso/normas-detalle.md#stack-colas` |
 | Almacenamiento | API S3 como contrato único; Garage en desarrollo, CI y E2E, nunca en servidores (`ADR-076`) |
 | PDF | **Elegido y no instalado**: WeasyPrint tras la interfaz propia `PdfRenderer` (`ADR-078`, `ACEPTADA`), con Gotenberg como vuelta atrás; no hay servicio ni código (paso `P`). Detalle: `docs/proceso/normas-detalle.md#stack-pdf` |
-| Tests | Pest (backend; en el CI, 4 *shards* más `Concurrency` aparte, `ADR-089`), Vitest + Playwright (frontend). **E2E real contra la API** (`npm run test:e2e:real[:prl\|:alum]`): en el CI corre **solo la suite `core`** (`ci-e2e-real.yml`, agregador «E2E real (API)», `ADR-091`); `:prl`, `:alum` y `curso-rollover` llegan con `E2E-CI-c` (issue #737) y `ci-web.yml` sigue ejecutando los E2E con datos simulados |
-| Contenedores | **Podman**; WSL2 en desarrollo (`ADR-030`), `compose.yaml` con `podman compose`, Quadlet/systemd en producción, Kubernetes desde 3-5 centros. **Nivel 1 implementado** (`0.10e-b`, `ADR-080 §5`): `CONTAINER_RUNTIME` (`podman` por defecto; `docker` admitido: verificado solo en `init.sh` y en el camino del E2E real `core` del CI (`ADR-091 §4.3`), sin verificar fuera de ahí; `CONTAINER_CLI` como alias) en los guiones de E2E, `init.sh` y `landing-shots.sh`, vía `infra/lib/container-runtime.sh`; Quadlet sigue siendo la referencia de producción. Detalle: `docs/proceso/normas-detalle.md#stack-contenedores` |
+| Tests | Pest (backend; en el CI, 4 *shards* más `Concurrency` aparte, `ADR-089`), Vitest + Playwright (frontend). **E2E real contra la API** (`npm run test:e2e:real[:prl\|:alum]`): en el CI corren **todas las suites** (`core`, `:prl`, `:alum` y `curso-rollover`) en un único job en serie, ~8 min (`ci-e2e-real.yml`, agregador «E2E real (API)», `ADR-091`, `E2E-CI-c`) y `ci-web.yml` sigue ejecutando los E2E con datos simulados |
+| Contenedores | **Podman**; WSL2 en desarrollo (`ADR-030`), `compose.yaml` con `podman compose`, Quadlet/systemd en producción, Kubernetes desde 3-5 centros. **Nivel 1 implementado** (`0.10e-b`, `ADR-080 §5`): `CONTAINER_RUNTIME` (`podman` por defecto; `docker` admitido: verificado en `init.sh` y en el E2E real completo del CI (`ADR-091 §4.3`, verde en `develop` el 2026-11-18), sin verificar fuera de ahí; `CONTAINER_CLI` como alias) en los guiones de E2E, `init.sh` y `landing-shots.sh`, vía `infra/lib/container-runtime.sh`; Quadlet sigue siendo la referencia de producción. Detalle: `docs/proceso/normas-detalle.md#stack-contenedores` |
 | Repositorio | Monorepo: `apps/api`, `apps/web`, `infra`, `docs` |
 
 **Esta tabla dice qué está elegido, no qué está instalado.** Cuando no coinciden, la fila lo dice con el issue que lo sigue. Antes de apoyarse en una pieza de esta tabla, se comprueba en `composer.json`/`package.json`. Motivo: `docs/proceso/casos-reales.md#horizon-no-instalado`.
