@@ -4,6 +4,10 @@ Los ADR **`001` a `027`** son canónicos en la sección 18 de `docs/REQUISITOS-P
 
 A partir del **`028`**, cada ADR se escribe como fichero propio en este directorio con el nombre `ADR-NNN-titulo-en-kebab-case.md` y se añade una línea de referencia en aquella sección.
 
+## Anexos
+
+Un ADR puede llevar un **anexo** (procedimientos, listas de comprobación, plan de ejecución) como fichero aparte con el nombre `ADR-NNN-anexo-titulo.md`. El anexo **no tiene número propio**: forma parte del ADR `NNN`, su estado debe coincidir con el del ADR y comparte su inmutabilidad, y se cita como «`ADR-NNN`, anexo». Un número identifica una sola decisión. Hoy el único caso es `ADR-090-anexo-plan-parcheo-y-mantenimiento.md`. Una decisión nueva nunca va en un anexo: lleva el siguiente número libre.
+
 ## Plantilla
 
 ```markdown
