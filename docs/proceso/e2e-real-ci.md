@@ -9,7 +9,7 @@
 | Fase | Fase 0/transversal: proceso y CI. No es un *bounded context*: sin tablas, sin *endpoints*, sin permisos, sin pantallas |
 | Depende de | `ADR-089` (patrón de agregador), `ADR-076` (Garage en CI y E2E), `ADR-080 §5` (`0.10e-b`, `CONTAINER_RUNTIME`; **implementado el 2026-11-17 en `0.10e-b`**, con alias de respaldo `CONTAINER_CLI`: ver `OPEN-E2ECI-03`), `ADR-030` (solo datos sintéticos) |
 | Esencial | No aplica (no es módulo) |
-| Estado | **APROBADA** el 2026-11-17: el usuario resolvió las 15 `OPEN-E2ECI` en la opción recomendada (A). **`E2E-CI-b` (piloto `core`) implementado y mezclado (PR #766, 2026-11-18)**: `core` en verde en Actions y en `develop`; verificados `CA-E2ECI-01` a `-08` y `-12` a `-15` («E2E real (API)» es *required check* en `develop`, `staging` y `main`). **`E2E-CI-c` (todas las suites en el CI) implementado y verificado en la rama (PR #776, borrador, a falta del merge)**: verificados `CA-E2ECI-09`, `-10`, `-11`, `-12` (aplicado a `-c`) y `-16`; **pendiente tras el merge** `CA-E2ECI-13` aplicado a `-c`. `E2E-CI-c2` **no se activa** (el job mide ~8 min, por debajo del disparador de `D3`; `§9.3`). `-d0` y siguientes: nada implementado |
+| Estado | **APROBADA** el 2026-11-17: el usuario resolvió las 15 `OPEN-E2ECI` en la opción recomendada (A). **`E2E-CI-b` (piloto `core`) implementado y mezclado (PR #766, 2026-11-18)**: `core` en verde en Actions y en `develop`; verificados `CA-E2ECI-01` a `-08` y `-12` a `-15` («E2E real (API)» es *required check* en `develop`, `staging` y `main`). **`E2E-CI-c` (todas las suites en el CI) implementado y verificado en la rama (PR #776, borrador, a falta del merge)**: verificados `CA-E2ECI-09`, `-10`, `-11`, `-12` (aplicado a `-c`) y `-16`; **pendiente tras el merge** `CA-E2ECI-13` aplicado a `-c`. `E2E-CI-c2` **no se activa** (el job mide ~8 min, por debajo del disparador de `D3`; `§9.3`). **`-d0` escrito el 2026-11-18, en BORRADOR pendiente de aprobación**: matriz en [`e2e-real-ci-matriz.md`](e2e-real-ci-matriz.md), criterios de `-d1`..`-d5` en `§9.4` y preguntas `OPEN-E2ECI-16` a `-25` en `§10.1`. `-d1` y siguientes: nada implementado |
 | Clasificación del paso: crítico | Por entrega en `§9`: `E2E-CI-b`, `-c` y `-c2` **críticas**; `-d1`..`-dn` ordinarias, **críticas** si el diff toca `apps/api/tests/Support/e2e-real-tenant.php`, los guiones de `apps/web/scripts` o `.github/workflows/ci-e2e-real.yml`; `-e` ordinaria si solo añade *specs* o capturas, **crítica** si cambia `ci-e2e-real.yml` o sube artefactos con trazas; `-a` y `-d0` sin código. La sesión lo comprueba contra el diff; la duda es crítico |
 
 > Convención: **V** = comprobado leyendo el fichero en el *worktree* (`403c78f`); **V-idx** = comprobado en el índice de búsqueda de código de GitHub (commit `fedb617`, dos commits de documentación por detrás de `403c78f`); **NV** = no verificado (esta sesión no tiene `Bash`: no pudo listar directorios, contar ficheros, ejecutar nada ni commitear). Lo que añade esta especificación sin estar en un requisito o ADR va marcado **[DERIVADA]** con su motivo.
@@ -160,7 +160,9 @@ Si la mediana del reloj del job completo supera ~10 min (D3), la sesión propone
 
 *Interacción cubierta*: códigos `M` menú y migas, `T` tabla con orden/filtro/paginación y estado en URL, `F` formulario con validación de servidor, `D` diálogo o confirmación, `S` *scroll* y foco, `I` idioma (es/en/de/fr), `C` tema claro/oscuro, `A` accesibilidad (teclado, axe), `R` responsive.
 
-### 6.2 Método para llenarla (lo ejecuta un `explorer` al empezar `E2E-CI-d`, sin `implementer`)
+### 6.2 Método para llenarla (lo ejecuta `E2E-CI-d0`: inventario por `explorer`, roles, prioridad y partición por `spec-writer`; sin `implementer`)
+
+> Corrección del 2026-11-18: este título decía «lo ejecuta un `explorer` al empezar `E2E-CI-d`», en contradicción con `§9` («`-d0` = `explorer` + `spec-writer`»). Se alinea con `§9`, que es como se hizo: el `explorer` no leyó los `permisos.md` (paso 2), que son trabajo de `spec-writer`. Resultado: [`e2e-real-ci-matriz.md`](e2e-real-ci-matriz.md).
 
 1. Rutas y permisos: de cada `apps/web/src/modules/*/shell.ts` (`§6.3` ya lo hace con lo leído).
 2. Roles: de `docs/modulos/REQ-*/permisos.md`, concesiones por defecto de los roles predefinidos (`§11.1` del documento de requisitos). **Nunca se deduce un rol por el nombre de la pantalla**: se comprueba el permiso. Los roles personalizados no entran en la matriz (cualquier rol puede tener cualquier permiso); entran los predefinidos y los que crea el guion (`setup` modos por defecto, `door` y `alum`: administrador, secretaría, conserjería, dirección, docente ×2, `tutor_legal`).
@@ -254,11 +256,11 @@ Estimación en tramos de `implementer` (`CLAUDE.md §2.7`, ≤3 tramos ≈ 250 l
 | `E2E-CI-b` | Piloto `core` (`§3`, `§4`), instrumentación de tiempos (`§5`), adaptación de guiones al *runner*, `SYSADMIN.md §4` y fila «Tests» de `CLAUDE.md §1` | 2-3 | **Crítico** (duda): toca guiones con purga por superusuario y la guarda `E2E_ALLOW_DESTRUCTIVE`, genera secretos en CI y cambia un *check* requerido de la protección de rama | Codex; `security-reviewer` (su columna: secretos en CI, permisos del `GITHUB_TOKEN`, guardas destructivas); `doc-precheck` y `doc-reviewer` | Sí, antes de implementar (`OPEN-E2ECI-11`); **debe enmendar `ADR-080 §5.3, punto 4`** (con `docker` el soporte es «de mejor esfuerzo» y «no hay trabajo de CI que lo ejecute»: el CI pasa a ejecutarlo) | No |
 | `E2E-CI-c` (**hecho a falta del merge**, `§9.3`) | Todas las suites (`core`, `acad-*`, `curso-rollover`, `fam-unit`, `:prl`, `:alum`) en el job; `curso-rollover.spec.ts` sin `podman` escrito a mano; 3 mediciones y, si salta D3, propuesta de reparto | 1-2 | **Crítico** (mismo motivo que `-b`) | Igual que `-b` | No (lo cubre el de `-b`) | No |
 | `E2E-CI-c2` (**no se activa**, `§9.3`) | Solo si D3 se dispara y el usuario aprueba el reparto: matriz por suites con su agregador | 1 | **Crítico** (cambia la topología de un *check* requerido) | Igual que `-b` | Enmienda del ADR de `-b` si cambia su decisión | No |
-| `E2E-CI-d0` | Matriz completa (`§6.2`), con prioridad y propuesta de partición de `-d` | — (`explorer` + `spec-writer`) | — | `doc-precheck`, `doc-reviewer` | No | No |
-| `E2E-CI-d1`..`-dn` | Nuevos E2E reales por grupo de flujos, cada uno ≤3 tramos; tamaño y número salen de `-d0` | ≤3 cada una | **Ordinario**; **crítico** si el diff toca `apps/api/tests/Support/e2e-real-tenant.php` (crea usuarios, roles y datos de menores sintéticos; tiene guardas de entorno), los guiones de `apps/web/scripts` o `ci-e2e-real.yml` | Codex; `security-reviewer` si crítico; `doc-precheck`, `doc-reviewer` | No | No |
+| `E2E-CI-d0` (**escrito, en BORRADOR**, 2026-11-18) | Matriz completa (`§6.2`), con prioridad y propuesta de partición de `-d`: [`e2e-real-ci-matriz.md`](e2e-real-ci-matriz.md) (67 filas, 53 huecos: 31 P1, 14 P2, 8 P3; 3 no viables) | — (`explorer` + `spec-writer`) | — | `doc-precheck`, `doc-reviewer` | No | No |
+| `E2E-CI-d1`..`-d5` (propuesta de `-d0`, matriz `§4.2`) | `-d1` autorización en pantalla; `-d2` datos de menores y familias; `-d3` autenticación; `-d4` escrituras restantes; `-d5` lecturas y transversal | ≤3 cada una (`-d1` 2-3, `-d2` 2-3, `-d3` 3, `-d4` 3, `-d5` 1-2) | **Ordinario**; **crítico** si el diff toca `apps/api/tests/Support/e2e-real-tenant.php` (crea usuarios, roles y datos de menores sintéticos; tiene guardas de entorno), los guiones de `apps/web/scripts` o `ci-e2e-real.yml` | Codex; `security-reviewer` si crítico; `doc-precheck`, `doc-reviewer` | No | No |
 | `E2E-CI-e` | Pruebas visuales según lo que se decida en `OPEN-E2ECI-10` | 1-2 | Ordinario si solo añade *specs* o capturas; **crítico** si cambia `ci-e2e-real.yml` o sube artefactos con trazas | Codex; `doc-precheck`, `doc-reviewer` | Sí si se adopta comparación con referencias, porque cambia `RN-UI-07` (`OPEN-E2ECI-10`) | No |
 
-**E2E / prueba que cubre cada criterio**: `CA-E2ECI-01` a `-08` y `-12` a `-15` en `§4.2` (cada uno lleva su prueba). Para `E2E-CI-c`: `CA-E2ECI-09` a `-11` y `-16` (`§9.1`). Para `-c2`, `-d` y `-e`: los fija `-d0` (y `-c2`, al aprobarse el reparto); no se escriben antes de tener esos datos, y la entrega no empieza sin ellos.
+**E2E / prueba que cubre cada criterio**: `CA-E2ECI-01` a `-08` y `-12` a `-15` en `§4.2` (cada uno lleva su prueba). Para `E2E-CI-c`: `CA-E2ECI-09` a `-11` y `-16` (`§9.1`). Para `-d1`..`-d5`: `CA-E2ECI-17` a `-42` (`§9.4`, propuestos por `-d0`, pendientes de aprobación). Para `-c2` y `-e`: los fija la sesión al aprobarse el reparto (`-c2`) o al decidirse `OPEN-E2ECI-10` (`-e`); no se escriben antes de tener esos datos, y la entrega no empieza sin ellos.
 
 ### 9.1 Criterios de `E2E-CI-c`
 
@@ -302,6 +304,54 @@ Todas las suites corren en un único job «E2E real · todas las suites» (`ci-e
 - El *issue* aparte por `retries: 2` del job simulado es #749 (`OPEN-E2ECI-07`).
 - La intermitencia de `acad-timetable` (#741) hará rojo el job de `E2E-CI-c` de forma aleatoria; con D5 eso no se tapa con reintentos: #741 debe estar resuelto antes de cerrar `-c`, o el usuario decide excluir esa suite del job mientras siga abierto (`OPEN-E2ECI-15`).
 
+### 9.4 Criterios de `E2E-CI-d1`..`-d5` (propuestos por `-d0`, pendientes de aprobación)
+
+Filas, suites y flujos exigidos: [`e2e-real-ci-matriz.md`](e2e-real-ci-matriz.md) `§4.2`, `§4.4` y `§4.5`. Clasificación: **crítica** las cinco mientras no se resuelva `OPEN-E2ECI-21` (cada una registra *specs* en un guion de `apps/web/scripts` y `-d3` toca `e2e-real-tenant.php`).
+
+**Comunes a cada entrega `-dN`**
+
+- **CA-E2ECI-17** · *Dado* el diff de la entrega, *entonces* cada flujo de su lista (`matriz §4.4`) tiene al menos un test real nuevo cuyo título referencia el ID del requisito o criterio que cubre, registrado en el guion de su suite y contado en `apps/web/e2e/e2e-real-esperados.json`. *Prueba*: revisión del diff por la sesión y `doc-reviewer`.
+- **CA-E2ECI-18** · *Dado* cada test nuevo, *cuando* se rompe a propósito la función que cubre (en local o en un PR desechable en borrador que nunca se mezcla), *entonces* ese test falla; el informe recoge por test qué se rompió y el resultado literal (`CLAUDE.md §3`). *Prueba*: el informe de la entrega.
+- **CA-E2ECI-19** · *Dado* el PR de la entrega, *cuando* corre el CI, *entonces* el agregador «E2E real (API)» queda en verde con los recuentos nuevos y **0 saltados** en todas las suites (regla de `§3` punto 5). *Prueba*: ejecución del CI enlazada.
+- **CA-E2ECI-20** · *Dado* la entrega mezclada, *entonces* el informe recoge tres ejecuciones completas en CI con mediana y máximo del job y por suite, y dice si se cumple el disparador de `D3`; si se cumple, la siguiente entrega `-d` no empieza sin la propuesta de reparto de `§5.3` presentada al usuario. *Prueba*: los tres resúmenes enlazados.
+- **CA-E2ECI-21** · *Dado* el diff, *entonces* solo hay datos sintéticos (`REQ-SEED-005`), ninguna guarda de los guiones ni de `e2e-real-tenant.php` se relaja, ningún *spec* añade `127.0.0.1` ni `:8000` nuevos (`§8`) y el guion local se comporta como antes salvo por los tests añadidos (`CA-E2ECI-07`). *Prueba*: revisión del diff y ejecución local con `espera-e2e`.
+
+**`-d1` · autorización en pantalla**
+
+- **CA-E2ECI-22** · *Dado* cada par rol × ruta de `matriz §4.5`, *cuando* ese usuario navega a la ruta, *entonces* ve el estado «sin acceso» sin que la vista se monte (`CA-CORE-095`), la entrada no aparece en su menú (`CA-CORE-100`) y la petición HTTP real al *endpoint* principal de la ruta responde `403` (`CA-CORE-070`). *Prueba*: test real.
+- **CA-E2ECI-23** · *Dado* un usuario en una pantalla que sí puede abrir, *cuando* le falta el permiso de una acción (docente en la estructura académica, secretaría en la puerta, conserje en una alerta), *entonces* la acción no se ofrece (`RN-CORE-61`) y su *endpoint* responde `403` por HTTP real. *Prueba*: test real.
+- **CA-E2ECI-24** · *Dado* el administrador, *cuando* da de alta un usuario con un rol y abre sus permisos efectivos, *entonces* la pantalla muestra los permisos de ese rol; y *cuando* intenta desactivarse a sí mismo o dejar el centro sin administrador, *entonces* la pantalla muestra el error del `409` y el estado no cambia (`RN-CORE-06`/`-07`). *Prueba*: test real.
+- **CA-E2ECI-25** · *Dado* una reserva creada por un docente, *cuando* otro docente intenta cancelarla, *entonces* no puede (`404` por HTTP real, acción no disponible en pantalla), y el autor sí (`CA-ACAD-139`). *Prueba*: test real.
+- **CA-E2ECI-26** · *Dado* una invitación pendiente, *cuando* el administrador la reenvía y la revoca desde la pantalla, *entonces* el listado refleja cada cambio; y secretaría la ve sin esas acciones. *Prueba*: test real.
+
+**`-d2` · datos de menores y familias**
+
+- **CA-E2ECI-27** · *Dado* el tutor del modo `alum` vinculado a un alumno, *cuando* consulta por HTTP real familia, vínculos, consentimientos, autorizados y matrículas, *entonces* recibe solo lo de sus alumnos, `404` en lo ajeno, nunca vínculos revocados (`RN-FAM-UNIT-36`) y `403` en las escrituras que no tiene. *Prueba*: test HTTP real.
+- **CA-E2ECI-28** · *Dado* un vínculo activo, *cuando* el administrador lo revoca desde la ficha de familia, *entonces* la ficha lo muestra revocado y la petición siguiente del tutor sobre ese alumno responde `404`; al levantar la revocación, vuelve a `200`. *Prueba*: test real (navegador + HTTP).
+- **CA-E2ECI-29** · *Dado* un texto de consentimiento publicado por el administrador desde la pantalla de textos legales, *cuando* secretaría registra una decisión presencial y exporta el informe, *entonces* el tutor ve la decisión por HTTP y el CSV se descarga de Garage por la URL firmada. *Prueba*: test real.
+- **CA-E2ECI-30** · *Dado* secretaría en la ficha de un alumno, *cuando* edita, da de baja, restaura y cambia la fotografía, *entonces* cada cambio se refleja en la ficha y en una lectura HTTP real; y un docente con ámbito `grupo` no ve esas acciones. *Prueba*: test real.
+- **CA-E2ECI-31** · *Dado* una versión de condiciones publicada, *cuando* un usuario sujeto al muro inicia sesión, *entonces* llega al muro, acepta y continúa, y antes de aceptar su API responde `403 terms-acceptance-required`; quién es ese usuario en navegador lo decide `OPEN-E2ECI-25`. *Prueba*: test real.
+
+**`-d3` · autenticación** (condicionada a `OPEN-E2ECI-16`, `-17` y `-18`)
+
+- **CA-E2ECI-32** · *Dado* la pantalla de acceso, *cuando* se envía una credencial errónea, *entonces* se muestra el mensaje genérico y no hay sesión (`GET /me` ⇒ `401`). *Prueba*: test real.
+- **CA-E2ECI-33** · *Dado* un usuario obligado a MFA sin exención (dato nuevo del guion, `OPEN-E2ECI-17`), *cuando* inicia sesión, *entonces* llega al muro de MFA; da de alta el TOTP, cierra sesión y vuelve a entrar con segundo factor; y el administrador le restablece el MFA desde `/administracion/mfa`. *Prueba*: test real.
+- **CA-E2ECI-34** · *Dado* el administrador en `/administracion/mfa`, *cuando* concede una exención a otro usuario y la revoca, *entonces* el listado lo refleja; e intentar concedérsela a sí mismo se rechaza (`CA-AUTH-161`). *Prueba*: test real.
+- **CA-E2ECI-35** · *Dado* el mecanismo de `OPEN-E2ECI-16`, *cuando* se invita a un usuario, se pide recuperar la contraseña o se bloquea una cuenta, *entonces* el test obtiene el enlace, completa canje, restablecimiento o desbloqueo y la persona inicia sesión. *Prueba*: test real.
+- **CA-E2ECI-36** · *Dado* el acceso con Google y por SSO institucional, *entonces* el informe declara el E2E real no viable, nombra los tests Pest que lo sustituyen y enlaza el *issue* abierto (`CLAUDE.md §3`); la pantalla de SSO se cubre solo en listado y validación del formulario. *Prueba*: informe e *issue*.
+
+**`-d4` · escrituras restantes de personal**
+
+- **CA-E2ECI-37** · *Dado* cada flujo de escritura de `-d4` (`matriz §4.2`), *cuando* se completa por la interfaz, *entonces* al menos un error de validación del servidor se muestra en el formulario y el resultado se comprueba con una lectura HTTP real. *Prueba*: test real.
+- **CA-E2ECI-38** · *Dado* una escritura hecha por el propio *spec*, *cuando* el administrador filtra la auditoría, *entonces* la encuentra, y su exportación se descarga de Garage. *Prueba*: test real.
+
+**`-d5` · lecturas y transversal**
+
+- **CA-E2ECI-39** · *Dado* una pantalla por módulo con *shell*, *cuando* se cambia el idioma a `en`, `de` y `fr`, *entonces* el menú y el título de la pantalla cambian de idioma y se mantienen tras recargar (mecanismo de persistencia: **NV**, lo confirma el `explorer` de `-d5`). *Prueba*: test real.
+- **CA-E2ECI-40** · *Dado* las mismas pantallas, *cuando* se conmuta el tema claro/oscuro, *entonces* el cambio se aplica sin errores en la consola del navegador (la comparación visual es `E2E-CI-e`). *Prueba*: test real.
+- **CA-E2ECI-41** · *Dado* una anchura de 320 px, *cuando* se abre una pantalla por módulo, *entonces* el menú es accesible y la página no tiene desplazamiento horizontal. *Prueba*: test real.
+- **CA-E2ECI-42** · *Dado* los listados de usuarios y de cursos, *cuando* se filtran y ordenan, *entonces* el estado queda en la URL (sin `q` ni `cursor`, `RN-CORE-54`) y las filas coinciden con las de la API real para los mismos parámetros. *Prueba*: test real.
+
 ---
 
 ## 10. Preguntas abiertas (resueltas)
@@ -339,6 +389,43 @@ En cada una, la opción recomendada va primero y marcada.
 - **OPEN-E2ECI-13 · Familia y estudiante.** **(A, recomendada)** Hasta `1.22`, solo pruebas HTTP reales de la API que ya les sirve (las del `tutor_legal` del modo `alum`), y ninguna fila de pantalla. (B) Esperar a `1.22` para cubrir esos roles.
 - **OPEN-E2ECI-14 · Artefactos en fallo.** **(A, recomendada)** Subir informe y trazas de Playwright solo si el job falla, con retención de 7 días: contienen solo datos sintéticos y las contraseñas aleatorias de un centro que ya no existe. En repositorio público los artefactos los puede descargar cualquier usuario con sesión en GitHub (**NV** el alcance exacto). (B) No subir trazas.
 - **OPEN-E2ECI-15 · `acad-timetable` (#741) en el job.** **(A, recomendada)** Resolver #741 antes de cerrar `E2E-CI-c`; el job incluye la suite desde el principio. (B) Excluirla del job, con decisión explícita del usuario y anotada, hasta cerrar #741.
+
+### 10.1 Preguntas abiertas de `E2E-CI-d0` (2026-11-18, sin resolver)
+
+Contexto en [`e2e-real-ci-matriz.md`](e2e-real-ci-matriz.md). La opción recomendada va primero.
+
+- **OPEN-E2ECI-16 · Cómo obtiene el E2E los enlaces de correo** (invitación, recuperación, desbloqueo; A-02..A-04). El token solo existe en claro en el correo (`REQ-AUTH/permisos.md §1`: se persiste como *hash*), así que no puede leerse de la base.
+  - **(A, recomendada)** Configurar en el *runner* y en local un *mailer* que deje el correo legible sin servicio nuevo (p. ej. el *driver* `log` de Laravel) y que el *spec* lo lea del registro del contenedor de la API. Sin dependencia nueva; **NV** cuál es hoy el *mailer* de la pila de desarrollo.
+  - (B) Añadir un capturador de correo (p. ej. Mailpit) a `compose.yaml`: servicio e imagen nuevos, sujetos a `CLAUDE.md §1` y a revisión de `contenedores-y-red`.
+  - (C) No cubrir esos flujos en E2E real: se declaran no viables con su sustituto Pest y un *issue*.
+- **OPEN-E2ECI-17 · MFA en E2E real** (A-09..A-12).
+  - **(A, recomendada)** `e2e-real-tenant.php setup` crea un usuario sintético más con un rol obligado a MFA y **sin** exención (entrega crítica), y el *fixture* calcula el código TOTP con `node:crypto` (HMAC-SHA1, RFC 6238), sin dependencia nueva.
+  - (B) Lo mismo con una librería TOTP de npm (dependencia nueva, `CLAUDE.md §1`).
+  - (C) No cubrirlo en E2E real (sustituto Pest e *issue*).
+- **OPEN-E2ECI-18 · Google y SSO institucional** (A-05, A-06, A-13).
+  - **(A, recomendada)** Declararlos no viables en E2E real (no hay proveedor de identidad en el *runner* y las guardas `RN-AUTH-113` rechazan destinos internos, como debe ser); cubrir la pantalla de SSO en listado y validación; sustituto Pest e *issue*.
+  - (B) Un proveedor OIDC simulado en contenedor: servicio nuevo y, probablemente, una excepción a las guardas de descubrimiento solo en pruebas, que no se recomienda.
+- **OPEN-E2ECI-19 · Roles predefinidos que el guion no crea** (`administrativo`, `tutor_grupo`, `orientador`; `direccion` en modo `door`).
+  - **(A, recomendada)** No añadirlos: sus concesiones en estos módulos son subconjuntos o copias de las de roles que sí existen (`administrativo` ⊂ `secretaria` en lectura; `tutor_grupo` = `docente` en `alum` y `acad`; `orientador` solo lee `acad`), y la siembra la prueban los tests Pest de cada módulo. P-02 se cubre con el administrador.
+  - (B) Añadir `administrativo`, `tutor_grupo` y `direccion` (en `door`) al guion (entrega crítica; más inicios de sesión, `OPEN-E2ECI-23`).
+- **OPEN-E2ECI-20 · Accesibilidad (`A`) en E2E real.**
+  - **(A, recomendada)** Aserciones explícitas (roles, nombres, foco, `alt`), el precedente ya aprobado de `OPEN-FAM-UNIT-62` A, sin `@axe-core/playwright`.
+  - (B) Añadir `@axe-core/playwright` (dependencia nueva, `CLAUDE.md §1`).
+- **OPEN-E2ECI-21 · Clasificación de las entregas `-d`.** `§9` dice «ordinario; crítico si toca guiones…», pero registrar un *spec* nuevo en su guion (`CLAUDE.md §3`) ya toca `apps/web/scripts`.
+  - **(A, recomendada)** Clasificar `-d1`..`-d5` como **críticas** (en caso de duda, crítico).
+  - (B) Enmendar `§9`: añadir un *spec* a la lista de un guion y subir su recuento en `e2e-real-esperados.json`, sin otro cambio en el guion, es ordinario.
+- **OPEN-E2ECI-22 · Dónde viven los tests de autenticación de `-d3`.**
+  - **(A, recomendada)** En la suite `core` (modo por defecto), ampliando su `setup` con el usuario de `OPEN-E2ECI-17`.
+  - (B) Suite nueva `auth` con su propio centro: aísla los bloqueos y el límite de accesos, a costa de ≈ 10-15 s más de `setup`/`teardown` y arranque.
+- **OPEN-E2ECI-23 · Límite de 10 accesos por minuto y centro.** `-d1` y `-d3` multiplican los inicios de sesión.
+  - **(A, recomendada)** Un inicio de sesión por actor y reutilización del estado de sesión (patrón `loginState` de `fixtures/alumReal.ts`); si no basta, repartir actores entre los dos centros que ya crean `prl` y `alum`. Nunca subir el límite en CI.
+  - (B) Aceptar las esperas por `429` y medirlas (`§5.1`).
+- **OPEN-E2ECI-24 · Orden de las entregas P1.**
+  - **(A, recomendada)** `-d1` (permisos) → `-d2` (menores) → `-d3` (autenticación, condicionada a `-16`..`-18`).
+  - (B) `-d2` antes que `-d1` (los datos de menores son el riesgo legal mayor).
+- **OPEN-E2ECI-25 · El muro de condiciones en navegador** (F-06). `OPEN-E2ECI-13` = A excluye filas de pantalla para la familia, pero `§1.4` dice que el muro lo alcanza cualquier usuario autenticado, también una familia.
+  - **(A, recomendada)** Probar el muro en navegador con un usuario de personal sujeto a él (si las condiciones aplican al personal: **NV**, lo confirma el `explorer` de `-d2` en `REQ-FAM-UNIT/funcional.md §19`) y, para el tutor, solo por HTTP (`T-07`).
+  - (B) Permitir al tutor en navegador solo para el muro, como excepción nominal a `OPEN-E2ECI-13`.
 
 ---
 
