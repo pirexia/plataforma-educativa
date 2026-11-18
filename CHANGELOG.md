@@ -6,6 +6,10 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-18 · `docs`: `docker` verificado en el camino del E2E real `core` (`ADR-091 §4.3`, issue #737)
+
+- Tras mezclar `E2E-CI-b`, el agregador «E2E real (API)» pasó en verde sobre `develop` (commit `4071f75`, run 44297600055): `CA-E2ECI-13` verificado y `docker` cuenta como verificado **solo** en ese camino (suite `core`). `:prl`, `:alum` y `curso-rollover` (`E2E-CI-c`) y el uso local siguen sin verificar. Actualizados `SYSADMIN.md` (fila `CONTAINER_RUNTIME`), la cabecera de `infra/lib/container-runtime.sh` y `memory.md`. Sin cambios de comportamiento.
+
 ## 2026-11-18 · `feat(ci)`: E2E real en el CI, piloto `core` (`E2E-CI-b`, `ADR-091`, issue #737)
 
 - Nuevo `.github/workflows/ci-e2e-real.yml` (`cambios`, `e2e-real`, agregador «E2E real (API)»), `apps/web/e2e/e2e-real-esperados.json`, instrumentación `E2E_TIEMPO` en los tres guiones de E2E real y cabecera de `infra/lib/container-runtime.sh` según `ADR-091 §4.3`.
