@@ -10,11 +10,14 @@ import { resolveContainerRuntime } from '../scripts/container-runtime'
  *
  * Recorrido: crear una etapa en el curso activo, abrir el curso siguiente con el asistente («Abrir curso siguiente»: alta del
  * curso y asistente de cuatro pasos), ver la simulación, confirmar, **ejecutar la cola** (`queue:work database_long --queue=long
- * --stop-when-empty` en el contenedor de la API, o el comando de `E2E_QUEUE_COMMAND`: en desarrollo el servicio `worker-long`
+ * --stop-when-empty` en el contenedor de la API, o el comando de `E2E_QUEUE_COMMAND`, solo con `E2E_ALLOW_DESTRUCTIVE=1`: en desarrollo el servicio `worker-long`
  * no arranca solo) y ver el resultado; revertir y ver la copia revertida.
  */
+// `E2E_QUEUE_COMMAND` es una cadena de shell arbitraria: solo se respeta con `E2E_ALLOW_DESTRUCTIVE=1` (#752, `ADR-080 §5.3`).
+const QUEUE_COMMAND_OVERRIDE =
+  process.env.E2E_ALLOW_DESTRUCTIVE === '1' ? process.env.E2E_QUEUE_COMMAND : undefined
 const QUEUE_COMMAND =
-  process.env.E2E_QUEUE_COMMAND ??
+  QUEUE_COMMAND_OVERRIDE ??
   `${resolveContainerRuntime()} exec plataforma-api php artisan queue:work database_long --queue=long --stop-when-empty --tries=1`
 
 async function login(page: Page): Promise<void> {
