@@ -6,6 +6,13 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-18 · `feat(ci)`: E2E real en el CI, piloto `core` (`E2E-CI-b`, `ADR-091`, issue #737)
+
+- Nuevo `.github/workflows/ci-e2e-real.yml` (`cambios`, `e2e-real`, agregador «E2E real (API)»), `apps/web/e2e/e2e-real-esperados.json`, instrumentación `E2E_TIEMPO` en los tres guiones de E2E real y cabecera de `infra/lib/container-runtime.sh` según `ADR-091 §4.3`.
+- **Hallazgos de `docker` en CI** (primera ejecución real de la pila con `docker compose`): (1) `compose.yaml` no declaraba el fichero de construcción y Docker busca `Dockerfile` (Podman, `Containerfile`): ahora `dockerfile: Containerfile` en los cuatro `build`; (2) `docker compose` valida todo `compose.yaml` también con `exec`, y el servicio `web` declara `env_file: apps/web/.env`: el job lo crea; (3) `runner.temp` no existe en el `env:` de un job.
+- **Fe de erratas de `ADR-091` (§10)**: la API de `compose.yaml` sirve con `php artisan serve`, no con FrankenPHP; la decisión no cambia (opción A del usuario). La imagen `dev` no instala dependencias: `composer install` en el host antes del `compose up`.
+- **Verificado**: `core` en verde en Actions (3 tests, 25,7 s de Playwright). **Demostrado que detecta el fallo** (`CA-E2ECI-03`): con el scroll tras navegar roto a propósito, `e2e-real` falla en `RNF-MANT-007` (2 pasados, 1 fallado, sin reintentos), el agregador queda en rojo y se genera `e2e-real-informe-fallo` (7 días). **No verificado aún**: `CA-E2ECI-02` (PR solo de documentación, verde sin ejecutar), `-04`, `-12` y `-08` (el *check* requerido lo marca el usuario). `CLAUDE.md §1` (filas «Tests» y «Contenedores») sigue diciendo que el E2E real no corre en el CI: su cambio necesita aprobación expresa.
+
 ## 2026-11-18 · `docs`: ADR-091 (E2E real en el CI), `ACEPTADA`; `REQUISITOS` 3.2.38 (issue #737)
 
 - El usuario resolvió `OPEN-091-01` a `-03` en la opción A: *check* requerido en `develop`, `staging` y `main` al cerrar `E2E-CI-b`; `ADR-080` anotado en este PR; decisiones `[DERIVADA]` (a)-(f) confirmadas. Desbloquea `E2E-CI-b`. Solo documentación.
