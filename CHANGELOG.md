@@ -6,6 +6,10 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-18 · `docs`: `SECURITY.md` 0.3.18 (el repositorio es público; reporte privado desactivado) (issue #744)
+
+- Corrige la premisa de `§1` («privado»). El propietario activó el reporte privado de vulnerabilidades de GitHub el 2026-11-18 (verificado con la API); queda pendiente la revisión de las demás medidas con `security-reviewer` (#744).
+
 ## 2026-11-18 · `docs`: los anexos de ADR no llevan número propio (issue #760)
 
 - Decisión del usuario (2026-11-18): el anexo de `ADR-090` sigue como parte del ADR, sin renumerar; `docs/adr/README.md` fija la regla. Solo documentación.
