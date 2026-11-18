@@ -181,3 +181,7 @@ Y, en el mismo PR que la línea de cabecera, en la fila de `ADR-080` del índice
 ## 9 · No verificado
 
 Podman y comportamiento de `docker compose` en `ubuntu-26.04` (montajes `:Z`, propietario de ficheros en montajes, activación de servicios con perfil al nombrarlos); tiempo de construcción de la imagen `dev` en CI y si instala dependencias de Composer al arrancar; comportamiento de un *required check* ante promociones por avance rápido; alcance de descarga de artefactos en repositorio público. Nada se ha ejecutado.
+
+## 10 · Fe de erratas (2026-11-18)
+
+Al preparar `E2E-CI-b` se comprobó que la etapa `dev` de `infra/containers/api/Containerfile` arranca con `php artisan serve --no-reload` y que `compose.yaml` no sobrescribe el `command` de `api`: la pila de `compose.yaml` **no sirve la API con FrankenPHP**, como dicen `§2` y `§3` («FrankenPHP», «el interbloqueo de `artisan serve` con el navegador, #146»). La decisión **no cambia**: el CI usa `compose.yaml` tal cual, porque la razón que la sostiene es que es la misma pila que usan los guiones en local, donde el E2E real ya pasa en verde con `artisan serve` y `--workers=1`. Se corrige solo el hecho. Si #146 apareciera en el piloto, se trata entonces como *issue*. El usuario eligió esta opción el 2026-11-18 (frente a forzar FrankenPHP en el CI o reevaluar con `architect`). Además, la imagen `dev` no instala dependencias: `apps/api/vendor` debe existir en el *runner* (`composer install`) antes de `compose up`, lo que `§9` y la especificación (`§12.1.2` paso 6) tenían como no verificado.
