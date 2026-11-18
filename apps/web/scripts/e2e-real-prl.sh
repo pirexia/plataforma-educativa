@@ -30,6 +30,11 @@ for slug in "$SLUG_A" "$SLUG_B"; do
   fi
 done
 
+# shellcheck source=lib/e2e-tiempo.sh
+source "$(dirname "${BASH_SOURCE[0]}")/lib/e2e-tiempo.sh"
+# shellcheck source=lib/e2e-ci.sh
+source "$(dirname "${BASH_SOURCE[0]}")/lib/e2e-ci.sh"
+
 # shellcheck source=e2e-vite-api-url.sh
 source "$(dirname "${BASH_SOURCE[0]}")/e2e-vite-api-url.sh"
 prepare_vite_api_url "$SLUG_A" || exit 2
@@ -80,7 +85,9 @@ cleanup() {
   remove_tenant "$SLUG_B"
 }
 
-trap cleanup EXIT
+# Tiempo de la retirada final (`E2E_TIEMPO ... fase=teardown`); la previa a `prepare` no se mide.
+teardown_final() { e2e_tiempo_medir prl teardown cleanup; }
+trap teardown_final EXIT
 cleanup
 
 prepare() {
@@ -93,12 +100,15 @@ prepare() {
   export "E2E_${prefix}_CONSERJE_EMAIL=$(printf '%s' "$json" | field conserje_email)"
   export "E2E_${prefix}_SECRETARIA_EMAIL=$(printf '%s' "$json" | field secretaria_email)"
   export "E2E_${prefix}_STAFF_PASSWORD=$(printf '%s' "$json" | field staff_password)"
+  e2e_enmascarar "$(printf '%s' "$json" | field admin_password)" "$(printf '%s' "$json" | field staff_password)"
   export "E2E_${prefix}_STUDENT_1=$(printf '%s' "$json" | field student_1)"
   export "E2E_${prefix}_STUDENT_2=$(printf '%s' "$json" | field student_2)"
 }
 
+inicio=$SECONDS
 prepare A "$SLUG_A"
 prepare B "$SLUG_B"
+e2e_tiempo_emitir prl setup "$inicio"
 export E2E_REAL_API=1
 
-npx playwright test e2e/prl-door-api.spec.ts e2e/prl-door-real.spec.ts --workers=1 "$@"
+e2e_tiempo_medir prl playwright npx playwright test e2e/prl-door-api.spec.ts e2e/prl-door-real.spec.ts --workers=1 "$@"

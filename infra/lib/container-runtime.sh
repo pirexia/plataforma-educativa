@@ -7,8 +7,9 @@
 #   con un mensaje en stderr, para no ejecutar lo que venga en una variable de entorno.
 #   Si ambas variables están definidas y difieren, devuelve 2.
 # Uso:  source infra/lib/container-runtime.sh; resolve_container_runtime || exit 2;  "$CONTAINER_RUNTIME" exec ...
-# Regla hacia delante (ADR-080 §5.3, punto 5): ningún guion nuevo escribe `podman` a mano. Podman es el único runtime verificado;
-# con `docker` el soporte es de mejor esfuerzo y sin verificar.
+# Regla hacia delante (ADR-080 §5.3, punto 5): ningún guion nuevo escribe `podman` a mano. Podman es el único runtime verificado en
+# desarrollo. `docker` lo decide y lo ejecuta el CI para el camino del E2E real desde E2E-CI-b (ADR-091 §4.3); solo cuenta como
+# «verificado» cuando el agregador «E2E real (API)» esté verde en `develop`. Fuera de ese camino sigue de mejor esfuerzo y sin verificar.
 resolve_container_runtime() {
   local primary="${CONTAINER_RUNTIME:-}" alias_value="${CONTAINER_CLI:-}" value
   if [[ -n "$primary" && -n "$alias_value" && "$primary" != "$alias_value" ]]; then

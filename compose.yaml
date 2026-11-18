@@ -59,6 +59,7 @@ services:
   api:
     build:
       context: infra/containers/api
+      dockerfile: Containerfile
       target: dev
     container_name: plataforma-api
     restart: unless-stopped
@@ -155,6 +156,7 @@ services:
   worker:
     build:
       context: infra/containers/api
+      dockerfile: Containerfile
       target: dev
     container_name: plataforma-worker
     restart: unless-stopped
@@ -226,6 +228,7 @@ services:
   worker-long:
     build:
       context: infra/containers/api
+      dockerfile: Containerfile
       target: dev
     container_name: plataforma-worker-long
     restart: unless-stopped
@@ -273,6 +276,7 @@ services:
   web:
     build:
       context: infra/containers/web
+      dockerfile: Containerfile
       target: dev
     container_name: plataforma-web
     restart: unless-stopped
