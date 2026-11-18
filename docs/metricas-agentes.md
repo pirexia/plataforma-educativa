@@ -111,6 +111,8 @@ Registro del gasto de cada subagente, para calibrar el tamaño de los tramos de 
 | E2E-CI-b | doc-precheck | ronda 1 | 81418 | 7 | 0.7 | n/d | 2 Bajos |
 | E2E-CI-b | doc-reviewer | ronda 1 | 111375 | 11 | 1.4 | n/d | 0 C/A; 3 Medios, 6 Bajos (docs desfasadas respecto a lo ya demostrado en Actions) |
 
+| proceso (2026-11-18) | explorer | inventario de grafos (artefacto) | 180864 | 46 | 4.7 | n/d | 8 grupos de datos; marcó lo no verificado (SSO, MFA parcial) |
+
 Filas del 2026-11-17 (sesión de cierre del 2026-11-18): tokens y llamadas de la notificación de fin de cada agente, duraciones redondeadas; el resumen de abajo se recalculó solo para `0.10e-b` (n = 1 `implementer`); el resto de pasos de hoy no son de `implementer`. Las filas del 2026-11-18 no entran en ninguna media.
 
 ## Resumen (se recalcula al cerrar cada paso)
