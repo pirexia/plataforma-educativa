@@ -207,8 +207,11 @@ describe('ci-e2e-real.yml (CA-E2ECI-14, CA-E2ECI-15, ADR-091 §2)', () => {
     expect(workflow).toContain('E2E_INFORMES_DIR=$RUNNER_TEMP/e2e-informes')
     expect(workflow).not.toContain('PLAYWRIGHT_JSON_OUTPUT_NAME')
     expect(workflow).toContain(
-      'jq -r \'keys[] | select(startswith("_") | not)\' e2e/e2e-real-esperados.json',
+      'claves="$(jq -r \'keys[] | select(startswith("_") | not)\' e2e/e2e-real-esperados.json)" || {',
     )
+    expect(workflow).toContain('if [ -z "$claves" ]; then')
+    expect(workflow).toContain('for clave in $claves; do')
+    expect(workflow).not.toContain('for clave in $(jq')
     expect(workflow).toContain('if [ ! -f "$E2E_INFORMES_DIR/$clave.json" ]; then')
     expect(workflow).toContain('for informe in "$E2E_INFORMES_DIR"/*.json; do')
     expect(workflow).toContain('node scripts/e2e-real-verificar.mjs "$informe" "$clave"')

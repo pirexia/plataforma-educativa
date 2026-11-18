@@ -241,7 +241,15 @@ jobs:
             echo
           } >> "$GITHUB_STEP_SUMMARY"
           # Toda clave esperada (sin las que empiezan por `_`) debe tener su informe.
-          for clave in $(jq -r 'keys[] | select(startswith("_") | not)' e2e/e2e-real-esperados.json); do
+          claves="$(jq -r 'keys[] | select(startswith("_") | not)' e2e/e2e-real-esperados.json)" || {
+            echo "::error::No se pudo leer e2e/e2e-real-esperados.json"
+            exit 1
+          }
+          if [ -z "$claves" ]; then
+            echo "::error::e2e/e2e-real-esperados.json no declara ninguna suite"
+            exit 1
+          fi
+          for clave in $claves; do
             if [ ! -f "$E2E_INFORMES_DIR/$clave.json" ]; then
               echo "::error::Falta el informe de la suite «$clave»: no se ejecutó"
               echo "- «$clave»: SIN INFORME (no ejecutada)" >> "$GITHUB_STEP_SUMMARY"

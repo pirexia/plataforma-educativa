@@ -1,5 +1,5 @@
 {
-  "_comentario": "Tests reales que debe ejecutar y pasar cada suite del E2E real en el CI (docs/proceso/e2e-real-ci.md §3 punto 5, ADR-091 §2.4). Subir o bajar un número exige un cambio visible en el PR. Recuentos de las suites de E2E-CI-c obtenidos con `playwright test --list` (tests declarados, no ejecutados): se confirman con la primera ejecución verde en el CI (tramo siguiente) y se ajustan en ese PR si no coinciden. Las claves son las de `e2e_playwright` (scripts/lib/e2e-informe.sh); `alum` va en dos (`alum-http`, `alum-browser`) porque son dos invocaciones.",
+  "_comentario": "Tests reales que debe ejecutar y pasar cada suite del E2E real en el CI (docs/proceso/e2e-real-ci.md §3 punto 5, ADR-091 §2.4). Subir o bajar un número exige un cambio visible en el PR. Recuentos de las suites de E2E-CI-c obtenidos con `playwright test --list` (tests declarados, no ejecutados): confirmados por el run 44326426824 del CI (PR #776): coinciden con las suites ejecutadas. Las claves son las de `e2e_playwright` (scripts/lib/e2e-informe.sh); `alum` va en dos (`alum-http`, `alum-browser`) porque son dos invocaciones.",
   "core": 3,
   "acad-structure": 1,
   "acad-periods": 1,
