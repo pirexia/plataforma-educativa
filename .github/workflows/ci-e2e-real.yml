@@ -71,8 +71,8 @@ jobs:
     runs-on: ubuntu-26.04  # fijada: ubuntu-latest migra a 26.04 hasta el 19-11-2026 (#609, actions/runner-images#14748)
     needs: cambios
     if: needs.cambios.outputs.ejecutar == 'true'
-    # PROVISIONAL (E2E-CI-c, tramo 2): 30 min mientras no hay mediciones; el tramo 3 las toma con las tres ejecuciones
-    # completas y decide el valor definitivo (CA-E2ECI-11, D3).
+    # 30 min, valor definitivo (E2E-CI-c, CA-E2ECI-11): tres ejecuciones completas midieron 7:39, 8:22 y 8:15
+    # (máximo 8:22), holgura ×3,6; por debajo de ~10 min no se cumple el disparador de D3.
     timeout-minutes: 30
     env:
       # `E2E_ONLY` no se define: `e2e-real-api.sh` ejecuta sus siete suites (vacía = todas).
