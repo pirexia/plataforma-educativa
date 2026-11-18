@@ -114,4 +114,4 @@ e2e_tiempo_emitir prl setup "$inicio"
 export E2E_REAL_API=1
 
 # El código de salida de Playwright es el del guion; el informe lleva la clave `prl` (lib/e2e-informe.sh).
-e2e_tiempo_medir prl playwright e2e_playwright prl e2e/prl-door-api.spec.ts e2e/prl-door-real.spec.ts --workers=1 "$@"
+e2e_tiempo_medir prl playwright e2e_playwright prl e2e/prl-door-api.spec.ts e2e/prl-door-real.spec.ts e2e/prl-z-authorization-real.spec.ts --workers=1 "$@"
