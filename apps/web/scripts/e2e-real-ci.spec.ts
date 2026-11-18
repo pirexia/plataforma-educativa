@@ -186,8 +186,12 @@ describe('ci-e2e-real.yml (CA-E2ECI-14, CA-E2ECI-15, ADR-091 §2)', () => {
   it('ejecuta todas las suites en serie sin reintentos, con trazas y reporters json y html (CA-E2ECI-05, CA-E2ECI-09)', () => {
     // `E2E_ONLY` vacío: las siete suites de e2e-real-api.sh (no se define en el job).
     expect(workflow).not.toMatch(/E2E_ONLY:\s*\S/)
-    expect(workflow).toContain('opciones=(--retries=0 --trace=retain-on-failure --reporter=json,html)')
-    expect(workflow).toContain('for orden in test:e2e:real:prl test:e2e:real:alum test:e2e:real; do')
+    expect(workflow).toContain(
+      'opciones=(--retries=0 --trace=retain-on-failure --reporter=json,html)',
+    )
+    expect(workflow).toContain(
+      'for orden in test:e2e:real:prl test:e2e:real:alum test:e2e:real; do',
+    )
     expect(workflow).toContain('npm run "$orden" -- "${opciones[@]}" || fallos+=("$orden")')
     expect(workflow).toContain('if [ "${#fallos[@]}" -gt 0 ]; then')
     // Sin `set -e` en el paso de Playwright: un fallo no corta las órdenes siguientes.
@@ -202,7 +206,9 @@ describe('ci-e2e-real.yml (CA-E2ECI-14, CA-E2ECI-15, ADR-091 §2)', () => {
   it('fija E2E_INFORMES_DIR y verifica cada informe y cada suite esperada (CA-E2ECI-09, CA-E2ECI-12)', () => {
     expect(workflow).toContain('E2E_INFORMES_DIR=$RUNNER_TEMP/e2e-informes')
     expect(workflow).not.toContain('PLAYWRIGHT_JSON_OUTPUT_NAME')
-    expect(workflow).toContain("jq -r 'keys[] | select(startswith(\"_\") | not)' e2e/e2e-real-esperados.json")
+    expect(workflow).toContain(
+      'jq -r \'keys[] | select(startswith("_") | not)\' e2e/e2e-real-esperados.json',
+    )
     expect(workflow).toContain('if [ ! -f "$E2E_INFORMES_DIR/$clave.json" ]; then')
     expect(workflow).toContain('for informe in "$E2E_INFORMES_DIR"/*.json; do')
     expect(workflow).toContain('node scripts/e2e-real-verificar.mjs "$informe" "$clave"')
