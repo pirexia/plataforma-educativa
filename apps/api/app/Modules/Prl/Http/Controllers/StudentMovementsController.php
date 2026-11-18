@@ -31,7 +31,7 @@ class StudentMovementsController extends PrlController
             ->setStatusCode(201)
             ->header('Location', url("/api/v1/student-movements/{$movement->public_id}"));
 
-        return $result['replayed'] ? $response->header('Idempotency-Replayed', 'true') : $response;
+        return $response;
     }
 
     public function index(IndexStudentMovementsRequest $request, StudentMovementService $service, PrlRefs $refs, PrlReadGuard $reads): JsonResponse
