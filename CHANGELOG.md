@@ -6,6 +6,13 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-18 · `feat(ci)`: todas las suites del E2E real en el CI (`E2E-CI-c`, issue #737)
+
+- `ci-e2e-real.yml`: el job `e2e-real` pasa a «E2E real · todas las suites» y ejecuta en serie `test:e2e:real` (siete suites), `:prl` y `:alum`, sin cortar unas por otras, con informe JSON por suite, resumen con tabla de recuentos y tiempos, verificación de cada suite contra `apps/web/e2e/e2e-real-esperados.json` y `timeout-minutes: 30` definitivo. Guiones con informe por suite (`lib/e2e-informe.sh`).
+- **Verificado** (PR #776, borrador, run 44326426824): 3 intentos en verde, job 7:39, 8:22 y 8:15 (mediana 8:15, máximo 8:22; el disparador de `D3` no se cumple y **`E2E-CI-c2` no se activa**); `curso-rollover` pasa sin `worker-long`; `acad-timetable` (#741, cerrado) pasa en los tres. **Demostrado que detecta el fallo**: rotura deliberada en `prl` (run 44332315618, PR desechable #777) deja job y agregador en rojo con el resto de suites ejecutadas; esperado de `prl` subido a 4 (run 44335425615, PR #778) da «E2E real INCOMPLETO» y rojo.
+- **Corrección a la especificación** (`docs/proceso/e2e-real-ci.md §12.2`): `curso-rollover.spec.ts` ya usaba `resolveContainerRuntime()`.
+- **Pendiente tras el merge**: `CA-E2ECI-13` aplicado a `-c` y, solo desde ese verde, `docker` verificado para `:prl`, `:alum` y `curso-rollover` (`ADR-091 §4.3`). `CLAUDE.md` §1 sigue diciendo «solo la suite `core`»: lo actualiza la sesión con aprobación del usuario.
+
 ## 2026-11-18 · `docs`: protección de ramas verificada (rulesets) y `RUNBOOK.md` §2.3 corregido; cierre de la sesión (issue #737)
 
 - Con la API de reglas por rama (`gh api repos/<repo>/rules/branches/<rama>`) se comprobó tras la migración del usuario a *rulesets*: `develop` exige 11 checks (con Trivy), `staging` y `main` 10 (sin Trivy), todos con «E2E real (API)»; excepción de administrador (`always`) y `strict=false`; el *ruleset* antiguo `main-y-staging`, sin excepciones, se conserva a propósito. **Corrección**: antes de ese día el único check requerido era el E2E real; lo que `RUNBOOK.md §2.3` decía («ocho checks required desde 0.7») no era cierto. `RUNBOOK.md §2.3` y `SYSADMIN.md §4` reescritos con lo comprobado.
