@@ -1,16 +1,18 @@
 # SECURITY.md
 
-> **Versión 0.3.17** · 2026-11-02
+> **Versión 0.3.18** · 2026-11-18
 > Documento vivo: se actualiza en cada fase (`CLAUDE.md` §6), no solo al final. Sin datos reales todavía (`ADR-030`, entorno de desarrollo en WSL2).
 
 ---
 
 ## 1. Reporte de vulnerabilidades
 
-El repositorio es privado y el producto no tiene todavía despliegue público (`OPEN-11` sin resolver). Mientras tanto:
+El repositorio es **público** (`pirexia/plataforma-educativa`; comprobado el 2026-11-18) y el producto no tiene todavía despliegue público (`OPEN-11` sin resolver). Por ser público, todo lo que entra en el historial es visible para cualquiera: nada de secretos, datos reales ni datos personales del propietario en Git (`CLAUDE.md` §4 y §11), y una vulnerabilidad explotable nunca se describe en un *issue* ni en un PR públicos. Mientras tanto:
 
 - Repórtalo a través de **GitHub Security Advisories** en este repositorio (`pirexia/plataforma-educativa`), o directamente a `pirexia` (propietario del repositorio).
 - No abras un issue público para una vulnerabilidad explotable — usa el canal privado de *Security Advisories*.
+
+**Estado del canal (2026-11-18)**: el reporte privado de vulnerabilidades de GitHub (*private vulnerability reporting*) figura como **desactivado** en el repositorio (`gh api repos/pirexia/plataforma-educativa/private-vulnerability-reporting` → `enabled: false`), de modo que el canal de arriba aún no está operativo hasta que el propietario lo active; pendiente de decisión en #744. Tampoco hay `security.txt` ni se ha podido comprobar desde aquí el estado de *secret scanning* y *push protection*.
 
 Un contacto de seguridad dedicado (email, política de divulgación responsable con plazos) se publicará aquí en cuanto exista dominio propio (`OPEN-08`) y entidad jurídica (`OPEN-07`).
 
