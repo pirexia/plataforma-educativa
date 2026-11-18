@@ -446,7 +446,7 @@ curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:5173/
 
 ## 4. CI/CD (GitHub Actions)
 
-Tres workflows en `.github/workflows/`, disparados por `push`/`pull_request` sobre `develop` y `main` (y sobre `staging`, solo en `pull_request`). `ci-api.yml` y `ci-web.yml` corrían solo si el PR tocaba `apps/api/**`/`apps/web/**` respectivamente; se quitó ese filtro `paths:` porque combinado con *required status checks* en branch protection dejaba bloqueado para siempre cualquier PR que no tocara esas rutas (p.ej. uno que solo cambia documentación) — GitHub no considera "aprobado" un check requerido que nunca se dispara. Ahora los tres workflows corren siempre.
+Cuatro workflows en `.github/workflows/`, disparados por `push`/`pull_request` sobre `develop` y `main` (y sobre `staging`, solo en `pull_request`). `ci-api.yml` y `ci-web.yml` corrían solo si el PR tocaba `apps/api/**`/`apps/web/**` respectivamente; se quitó ese filtro `paths:` porque combinado con *required status checks* en branch protection dejaba bloqueado para siempre cualquier PR que no tocara esas rutas (p.ej. uno que solo cambia documentación) — GitHub no considera "aprobado" un check requerido que nunca se dispara. Ahora los cuatro workflows corren siempre (`ci-e2e-real.yml` decide por diff dentro del job y su agregador queda verde sin ejecutar el E2E cuando no hay cambios relevantes).
 
 | Workflow | Jobs (nombre mostrado en GitHub) | Qué cubre |
 |----------|------|-----------|
