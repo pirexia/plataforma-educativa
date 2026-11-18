@@ -77,14 +77,18 @@ jobs:
       CONTAINER_RUNTIME: docker
       # compose.yaml: api y worker contra Garage (ADR-076).
       FILESYSTEM_DISK: s3
-      E2E_TIEMPOS_LOG: ${{ runner.temp }}/e2e-tiempos.log
-      PLAYWRIGHT_JSON_OUTPUT_NAME: ${{ runner.temp }}/e2e-informe.json
       PLAYWRIGHT_HTML_OPEN: never
     steps:
       - uses: actions/checkout@v7
 
-      - name: Marcar inicio del job
-        run: echo "E2E_T_INICIO=$(date +%s)" >> "$GITHUB_ENV"
+      # `runner.temp` no existe en el contexto de `env:` a nivel de job (solo en pasos): estas rutas se fijan aquí.
+      - name: Marcar inicio del job y fijar rutas del informe
+        run: |
+          {
+            echo "E2E_T_INICIO=$(date +%s)"
+            echo "E2E_TIEMPOS_LOG=$RUNNER_TEMP/e2e-tiempos.log"
+            echo "PLAYWRIGHT_JSON_OUTPUT_NAME=$RUNNER_TEMP/e2e-informe.json"
+          } >> "$GITHUB_ENV"
 
       - uses: actions/setup-node@v7
         with:
