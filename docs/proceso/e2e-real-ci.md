@@ -9,7 +9,7 @@
 | Fase | Fase 0/transversal: proceso y CI. No es un *bounded context*: sin tablas, sin *endpoints*, sin permisos, sin pantallas |
 | Depende de | `ADR-089` (patrón de agregador), `ADR-076` (Garage en CI y E2E), `ADR-080 §5` (`0.10e-b`, `CONTAINER_RUNTIME`; **implementado el 2026-11-17 en `0.10e-b`**, con alias de respaldo `CONTAINER_CLI`: ver `OPEN-E2ECI-03`), `ADR-030` (solo datos sintéticos) |
 | Esencial | No aplica (no es módulo) |
-| Estado | **APROBADA** el 2026-11-17: el usuario resolvió las 15 `OPEN-E2ECI` en la opción recomendada (A). **`E2E-CI-b` (piloto `core`) implementado y mezclado (PR #766, 2026-11-18)**: `core` en verde en Actions y en `develop`; verificados `CA-E2ECI-01` a `-07`, `-12`, `-13`, `-14` y `-15`; **pendiente `CA-E2ECI-08`** (el usuario marca «E2E real (API)» como *required check*). `E2E-CI-c` y siguientes: nada implementado |
+| Estado | **APROBADA** el 2026-11-17: el usuario resolvió las 15 `OPEN-E2ECI` en la opción recomendada (A). **`E2E-CI-b` (piloto `core`) implementado y mezclado (PR #766, 2026-11-18)**: `core` en verde en Actions y en `develop`; verificados `CA-E2ECI-01` a `-07`, `-12`, `-13`, `-14` y `-15`; **pendiente `CA-E2ECI-08`** (el usuario marca «E2E real (API)» como *required check*). **`E2E-CI-c` (todas las suites en el CI) implementado y verificado en la rama (PR #776, borrador, a falta del merge)**: verificados `CA-E2ECI-09`, `-10`, `-11`, `-12` (aplicado a `-c`) y `-16`; **pendiente tras el merge** `CA-E2ECI-13` aplicado a `-c`. `E2E-CI-c2` **no se activa** (el job mide ~8 min, por debajo del disparador de `D3`; `§9.3`). `-d0` y siguientes: nada implementado |
 | Clasificación del paso: crítico | Por entrega en `§9`: `E2E-CI-b`, `-c` y `-c2` **críticas**; `-d1`..`-dn` ordinarias, **críticas** si el diff toca `apps/api/tests/Support/e2e-real-tenant.php`, los guiones de `apps/web/scripts` o `.github/workflows/ci-e2e-real.yml`; `-e` ordinaria si solo añade *specs* o capturas, **crítica** si cambia `ci-e2e-real.yml` o sube artefactos con trazas; `-a` y `-d0` sin código. La sesión lo comprueba contra el diff; la duda es crítico |
 
 > Convención: **V** = comprobado leyendo el fichero en el *worktree* (`403c78f`); **V-idx** = comprobado en el índice de búsqueda de código de GitHub (commit `fedb617`, dos commits de documentación por detrás de `403c78f`); **NV** = no verificado (esta sesión no tiene `Bash`: no pudo listar directorios, contar ficheros, ejecutar nada ni commitear). Lo que añade esta especificación sin estar en un requisito o ADR va marcado **[DERIVADA]** con su motivo.
@@ -252,8 +252,8 @@ Estimación en tramos de `implementer` (`CLAUDE.md §2.7`, ≤3 tramos ≈ 250 l
 |---------|-----------|--------|---------------|----------|-----|-------------|
 | `E2E-CI-a` | Esta especificación | — (`spec-writer`) | — | `doc-precheck`, `doc-reviewer` | — | No |
 | `E2E-CI-b` | Piloto `core` (`§3`, `§4`), instrumentación de tiempos (`§5`), adaptación de guiones al *runner*, `SYSADMIN.md §4` y fila «Tests» de `CLAUDE.md §1` | 2-3 | **Crítico** (duda): toca guiones con purga por superusuario y la guarda `E2E_ALLOW_DESTRUCTIVE`, genera secretos en CI y cambia un *check* requerido de la protección de rama | Codex; `security-reviewer` (su columna: secretos en CI, permisos del `GITHUB_TOKEN`, guardas destructivas); `doc-precheck` y `doc-reviewer` | Sí, antes de implementar (`OPEN-E2ECI-11`); **debe enmendar `ADR-080 §5.3, punto 4`** (con `docker` el soporte es «de mejor esfuerzo» y «no hay trabajo de CI que lo ejecute»: el CI pasa a ejecutarlo) | No |
-| `E2E-CI-c` | Todas las suites (`core`, `acad-*`, `curso-rollover`, `fam-unit`, `:prl`, `:alum`) en el job; `curso-rollover.spec.ts` sin `podman` escrito a mano; 3 mediciones y, si salta D3, propuesta de reparto | 1-2 | **Crítico** (mismo motivo que `-b`) | Igual que `-b` | No (lo cubre el de `-b`) | No |
-| `E2E-CI-c2` | Solo si D3 se dispara y el usuario aprueba el reparto: matriz por suites con su agregador | 1 | **Crítico** (cambia la topología de un *check* requerido) | Igual que `-b` | Enmienda del ADR de `-b` si cambia su decisión | No |
+| `E2E-CI-c` (**hecho a falta del merge**, `§9.3`) | Todas las suites (`core`, `acad-*`, `curso-rollover`, `fam-unit`, `:prl`, `:alum`) en el job; `curso-rollover.spec.ts` sin `podman` escrito a mano; 3 mediciones y, si salta D3, propuesta de reparto | 1-2 | **Crítico** (mismo motivo que `-b`) | Igual que `-b` | No (lo cubre el de `-b`) | No |
+| `E2E-CI-c2` (**no se activa**, `§9.3`) | Solo si D3 se dispara y el usuario aprueba el reparto: matriz por suites con su agregador | 1 | **Crítico** (cambia la topología de un *check* requerido) | Igual que `-b` | Enmienda del ADR de `-b` si cambia su decisión | No |
 | `E2E-CI-d0` | Matriz completa (`§6.2`), con prioridad y propuesta de partición de `-d` | — (`explorer` + `spec-writer`) | — | `doc-precheck`, `doc-reviewer` | No | No |
 | `E2E-CI-d1`..`-dn` | Nuevos E2E reales por grupo de flujos, cada uno ≤3 tramos; tamaño y número salen de `-d0` | ≤3 cada una | **Ordinario**; **crítico** si el diff toca `apps/api/tests/Support/e2e-real-tenant.php` (crea usuarios, roles y datos de menores sintéticos; tiene guardas de entorno), los guiones de `apps/web/scripts` o `ci-e2e-real.yml` | Codex; `security-reviewer` si crítico; `doc-precheck`, `doc-reviewer` | No | No |
 | `E2E-CI-e` | Pruebas visuales según lo que se decida en `OPEN-E2ECI-10` | 1-2 | Ordinario si solo añade *specs* o capturas; **crítico** si cambia `ci-e2e-real.yml` o sube artefactos con trazas | Codex; `doc-precheck`, `doc-reviewer` | Sí si se adopta comparación con referencias, porque cambia `RN-UI-07` (`OPEN-E2ECI-10`) | No |
@@ -267,6 +267,33 @@ Estimación en tramos de `implementer` (`CLAUDE.md §2.7`, ≤3 tramos ≈ 250 l
 - **CA-E2ECI-11** · *Dado* tres ejecuciones completas en CI, *entonces* el informe del paso recoge mediana y máximo por suite y del job, y dice si se cumple el disparador de D3. *Prueba*: los tres resúmenes enlazados.
 
 - **CA-E2ECI-16** · *Dado* que `acad-timetable` (#741) está en el job, *cuando* se cierra `E2E-CI-c`, *entonces* #741 está cerrado y tres ejecuciones completas seguidas no fallan en esa suite. *Prueba*: enlace al issue cerrado y a los tres resúmenes de `CA-E2ECI-11`.
+
+### 9.3 Estado y evidencias de `E2E-CI-c` (2026-11-18)
+
+Todas las suites corren en un único job «E2E real · todas las suites» (`ci-e2e-real.yml`; el agregador «E2E real (API)» evalúa `needs.e2e-real.result`, no el nombre del job). Run **44326426824** (PR #776, borrador).
+
+- **`CA-E2ECI-09`** · verificado. Intento 1 en verde: job 14:38:22 a 14:46:01 (**7 min 39 s**). Recuento real de Playwright: `prl` 3, `alum-http` 16, `alum-browser` 20, `core` 3 y `acad-structure`, `acad-periods`, `acad-scales`, `acad-timetable`, `curso-rollover` y `fam-unit` 1 cada una; coincide con `apps/web/e2e/e2e-real-esperados.json` (0 saltados). `curso-rollover` pasó **sin `worker-long`**.
+- **`CA-E2ECI-10`** · verificado. Rotura deliberada en `prl` (se quitó la cabecera `Idempotency-Replayed` en `StudentMovementsController`): run **44332315618** (PR desechable #777, cerrado sin mezclar, rama borrada). Job y agregador en rojo; `prl` 2 pasados y 1 fallado; el resto de suites se ejecutaron y pasaron (sin corte entre suites); artefacto `e2e-real-informe-fallo` subido.
+- **`CA-E2ECI-11`** · verificado. Tres ejecuciones completas en verde del mismo run (intentos 1, 2 y 3): job 7:39 (14:38:22 a 14:46:01), 8:22 (14:47:13 a 14:55:35) y 8:15 (14:56:19 a 15:04:34). **Mediana 8:15, máximo 8:22.** Por debajo de ~10 min: **no se cumple el disparador de `D3`**, no se propone `E2E-CI-c2` y `timeout-minutes: 30` se mantiene definitivo (holgura ×3,6 sobre el máximo).
+
+  Tiempo de la fase `playwright` por suite (segundos de reloj del guion, línea `E2E_TIEMPO`; `alum` agrupa `alum-http` y `alum-browser`), intentos 1, 2 y 3 → mediana / máximo:
+
+  | Suite | Intentos 1 / 2 / 3 | Mediana | Máximo |
+  |---|---|---:|---:|
+  | `prl` | 21 / 25 / 21 | 21 | 25 |
+  | `alum` | 95 / 98 / 87 | 95 | 98 |
+  | `core` | 24 / 29 / 20 | 24 | 29 |
+  | `acad-structure` | 15 / 18 / 13 | 15 | 18 |
+  | `acad-periods` | 13 / 14 / 11 | 13 | 14 |
+  | `acad-scales` | 12 / 14 / 9 | 12 | 14 |
+  | `acad-timetable` | 31 / 37 / 29 | 31 | 37 |
+  | `curso-rollover` | 18 / 19 / 16 | 18 | 19 |
+  | `fam-unit` | 9 / 11 / 8 | 9 | 11 |
+
+  Estas cifras (guion, incluye arranque de Playwright) difieren en 1-2 s de las que Playwright informa de sí mismo (p. ej. `prl` 19,8 s en el intento 1). Los segundos de `setup`/`teardown` son de 1 a 7 s por suite.
+- **`CA-E2ECI-12`** (aplicado a `-c`) · verificado. PR desechable #778 (cerrado, rama borrada), run **44335425615**: con el esperado de `prl` subido a 4, «E2E real INCOMPLETO (suite=prl pasados=3 saltados=0 esperados=4)»; job y agregador en rojo.
+- **`CA-E2ECI-16`** · verificado. #741 **cerrado** (2026-11-17); `acad-timetable` pasó en las tres ejecuciones de `CA-E2ECI-11`.
+- **Pendiente tras el merge**: `CA-E2ECI-13` aplicado a `-c` (el job corre en el `push` a `develop` con `-c`) y, solo desde ese verde, `docker` cuenta como verificado también para `:prl`, `:alum` y `curso-rollover` (`ADR-091 §4.3`).
 
 ### 9.2 Bloqueos y dependencias
 
@@ -366,7 +393,7 @@ Pasos en orden (con `OPEN-E2ECI-02` = A y `-03` = A):
 
 | Guion | Cambio | Entrega |
 |-------|--------|---------|
-| `e2e-real-api.sh`, `e2e-real-prl.sh`, `e2e-real-alum.sh`, `lib/e2e-garage.sh`, `lib/e2e-purge.sh`, `e2e/curso-rollover.spec.ts` | Invocar el *runtime* por `CONTAINER_RUNTIME` (`0.10e-b`) en vez de `podman` escrito a mano | `0.10e-b` (prerrequisito de `E2E-CI-b`, `OPEN-E2ECI-03` = A); `curso-rollover.spec.ts` en `E2E-CI-c` |
+| `e2e-real-api.sh`, `e2e-real-prl.sh`, `e2e-real-alum.sh`, `lib/e2e-garage.sh`, `lib/e2e-purge.sh`, `e2e/curso-rollover.spec.ts` | Invocar el *runtime* por `CONTAINER_RUNTIME` (`0.10e-b`) en vez de `podman` escrito a mano | `0.10e-b` (prerrequisito de `E2E-CI-b`, `OPEN-E2ECI-03` = A); `curso-rollover.spec.ts` en `E2E-CI-c` (**corrección del 2026-11-18**: ya usaba `resolveContainerRuntime()`, no tenía `podman` escrito a mano; `-c` no necesitó tocarlo) |
 | Los tres guiones | Línea `E2E_TIEMPO …` por fase y suite | `E2E-CI-b` (las tres, para que `-c` solo active suites) |
 | Ninguno | **No se relaja** ninguna guarda (`APP_ENV`, marca del centro, `E2E_ALLOW_DESTRUCTIVE`) | — |
 
