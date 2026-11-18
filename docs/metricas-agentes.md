@@ -101,11 +101,16 @@ Registro del gasto de cada subagente, para calibrar el tamaño de los tramos de 
 | ADR-091 | doc-precheck | ronda 2 | 104501 | 8 | 1.1 | 13063 | 1 Baja |
 | #741 | security-reviewer | ronda 1 | 68944 | 6 | 0.4 | 11491 | 0 C/A |
 
-Filas del 2026-11-17 (sesión de cierre del 2026-11-18): tokens y llamadas de la notificación de fin de cada agente, duraciones redondeadas; **el resumen de abajo no se ha recalculado** (los pasos de hoy no son de `implementer` salvo `0.10e-b`, con n = 1).
+| #760/#744/#752 y ADR-091 (2026-11-18) | doc-precheck | ronda 1 sobre #761-#765 | 90270 | 7 | 1.2 | n/d | 1 Alto (cabecera de REQUISITOS rota por la sesión), 5 Medios, 2 Bajos; no pudo ejecutar `gh api` (perfil sin ello) |
+| #760/#744/#752 y ADR-091 (2026-11-18) | doc-reviewer | ronda 1 sobre #761-#765 | 94598 | 8 | 1.3 | n/d | 0 C/A; 4 Medios, 4 Bajos |
+| proceso | explorer | inventario de herramientas de test y seguridad | 87211 | 12 | 1.4 | n/d | para el esquema gráfico; no consultó la protección de ramas de GitHub |
+
+Filas del 2026-11-17 (sesión de cierre del 2026-11-18): tokens y llamadas de la notificación de fin de cada agente, duraciones redondeadas; el resumen de abajo se recalculó solo para `0.10e-b` (n = 1 `implementer`); el resto de pasos de hoy no son de `implementer`. Las filas del 2026-11-18 no entran en ninguna media.
 
 ## Resumen (se recalcula al cerrar cada paso)
 
-Provisional, n = 1 paso (`1.14b-a`):
+Provisional, n = 1 paso (`1.14b-a`). **Añadido al cerrar `0.10e-b` (n = 1, un solo tramo de `implementer`; cifras de las notificaciones de fin, sin contrastar):** total 504 k tokens, 76 llamadas, ~19 min de reloj. `implementer` 108 k (21 %), `explorer` (briefing) 65 k, `verificador` 42 k (lo más lento: 10,8 min, y su informe fue parcial), revisores 290 k (57 %: `security-reviewer` 88 k, `doc-precheck` 96 k, `doc-reviewer` 106 k). Con un único tramo de ~19 llamadas la proporción revisores/`implementer` es 2,7 frente a ~0,5 en `1.14b-a`; con n = 1 no es una media y no se saca conclusión.
+
 
 - `implementer`: 849 k tokens y 320 llamadas en total. La primera pasada fue el 86 % de los tokens y el 65 % de las llamadas.
 - Revisores: ronda 1 = 402 k tokens; ronda 2 = 272 k (68 % de la ronda 1). La ronda 2 solo se justificó por un Medio de seguridad y los Medios de documentación.
