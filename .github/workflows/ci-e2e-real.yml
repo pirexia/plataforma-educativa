@@ -149,6 +149,9 @@ jobs:
             echo "GARAGE_BUCKET=plataforma-ci"
           } > .env
           cp apps/api/.env.example apps/api/.env
+          # `docker compose` valida todo compose.yaml, también con `exec`: el servicio `web` (que no se levanta) declara
+          # `env_file: apps/web/.env` y, sin el fichero, cualquier orden de compose falla (primer E2E real en Actions, 2026-11-18).
+          cp apps/web/.env.example apps/web/.env
           poner() {
             grep -q "^$1=" apps/api/.env || { echo "::error::falta $1 en apps/api/.env.example"; exit 1; }
             sed -i "s|^$1=.*|$1=$2|" apps/api/.env
