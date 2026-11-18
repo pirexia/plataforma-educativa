@@ -2,7 +2,8 @@
 
 | Campo | Valor |
 |-------|-------|
-| **Versión** | **Fecha** | 2026-11-17 |
+| **Versión** | 3.2.38 |
+| **Fecha** | 2026-11-18 |
 | **Estado** | Borrador consolidado — pendiente de aprobación |
 | **Autor** | Product Owner |
 | **Documento sustituye a** | v1.2.0 (mismo contenido, reorganizado y ampliado) |
@@ -3387,7 +3388,7 @@ Se mantendrá una matriz de trazabilidad (generada automáticamente desde las re
 
 | Versión | Fecha | Autor | Descripción |
 |---------|-------|-------|-------------|
-| 3.2.38 |
+| 3.2.38 | 2026-11-18 | Product Owner | Solo el índice de la §18: `ADR-091` pasa a `ACEPTADA` (`OPEN-091-01` a `-03` en la opción A) y se anota en la fila de `ADR-080`. Sin cambios de requisitos. |
 | 3.2.37 | 2026-11-17 | Product Owner | Solo el índice de la §18: alta de `ADR-091` (E2E real en el CI, `PROPUESTA`) y nota en la fila de `ADR-080` (`ADR-091` propone sustituirle en parte `§5.3` punto 4 y `OPEN-STG-11`). Sin cambios de requisitos. |
 | 3.2.36 | 2026-11-17 | Product Owner | `ADR-090` (parcheo de vulnerabilidades y ventana de mantenimiento) pasa a `ACEPTADA` en el índice de la §18; paso `0.10g` en el plan (2.3.28). Solo documentación. |
 | 3.2.35 | 2026-11-16 | Product Owner | `0.10e-c`, tramo 3, solo documentación: `ADR-087` (Mailpit opcional en staging, `ACEPTADA`) y `ADR-088` (Traefik en red `host`, sustituciones de `install.sh` y dominios de staging, `PROPUESTA`) en el índice de `§18`; documentos de operación y entornos alineados (`SYSADMIN.md`, `RUNBOOK.md`, `ARCHITECTURE.md`, `CLAUDE.md` `§9` y `§11`). Sin cambios de requisitos. |
@@ -3433,7 +3434,6 @@ Se mantendrá una matriz de trazabilidad (generada automáticamente desde las re
 | 3.1.1 | 2026-08-27 | Product Owner | `ADR-041`: dependencias externas de MFA (`pragmarx/google2fa` en el backend, `uqr` en la SPA), añadido al índice de la sección 18. Requisito previo del paso `1.3` (`REQ-AUTH-003`). |
 | 3.1.0 | 2026-08-12 | Product Owner | `ADR-032`: unificación de las autorizaciones de recogida de menores. Nuevo `REQ-FAM-UNIT-005` como lista maestra única en fase 1. `REQ-PRL-004` reducido al proceso operativo y adelantado a fase 1. `REQ-TRAN-005` pasa a consumir la lista maestra en lugar de mantener una propia. |
 | 3.0.0 | 2026-08-11 | Product Owner | Módulo `REQ-TRAN` reescrito y ampliado de 3 a 12 requisitos, reubicado de COULD/fase 4 a SHOULD/fase 2 (`ADR-031`). Nuevo módulo `REQ-SEED` de datos de demostración, MUST de fase 1, con tres centros ficticios de régimen distinto. Entorno de desarrollo trasladado a WSL2 en equipo personal (`ADR-030`): cerrada `OPEN-06`, abierta `OPEN-11` sobre el alojamiento del piloto. Total: 53 módulos, 31 ADR. |
-| 3.2.38 | 2026-11-18 | Product Owner | Solo el índice de la §18: `ADR-091` pasa a `ACEPTADA` (`OPEN-091-01` a `-03` en la opción A) y se anota en la fila de `ADR-080`. Sin cambios de requisitos. |
 | 2.6.0 | 2026-08-11 | Product Owner | `ADR-028` (topología de red y dependencias de contenedores) y `ADR-029` (identificador público ULID y convenciones de tipos en PostgreSQL), ambos en fichero propio estrenando la regla de `ADR-026`. Añadidas `OPEN-06` a `OPEN-10`. |
 | 2.5.0 | 2026-08-11 | Product Owner | Stack cerrado (`ADR-007`): Laravel + Vue 3/TS + PostgreSQL en monorepo con separación de despliegue. Nuevos `ADR-023` (Tailwind + shadcn-vue + TanStack Table como design system único), `ADR-024` (Compose sobre VPS europeo con evolución a Kubernetes, sin multi-cloud activo-activo), `ADR-025` (sesión por cookie, prohibido JWT en el navegador) y `ADR-026` (documentación híbrida). Cerradas `OPEN-01` a `OPEN-05`. Documentos complementarios: `ARCHITECTURE.md`, `CLAUDE.md`, `PLAN-IMPLEMENTACION.md`. |
 | 2.4.0 | 2026-08-11 | Product Owner | MFA disponible para todos los usuarios con atributo `mfa_obligatorio` por rol, aplicable también a los roles personalizados creados por el Administrador de Centro, con período de gracia y resolución restrictiva en usuarios multi-rol (`REQ-AUTH-003`, `RPERM-014`). Nuevo módulo `REQ-BKP` (copias de seguridad y recuperación) con copia de plataforma y por tenant, restauración granular en cuatro niveles, copia inmutable frente a ransomware y pruebas periódicas de restauración. Nueva sección 8.4 con 13 requisitos de despliegue sin interrupción. `ADR-022` sobre estrategia de copias y su coste bajo base de datos compartida. |
