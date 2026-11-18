@@ -154,33 +154,43 @@ test.describe('CA-E2ECI-24 CA-E2ECI-26 CA-E2ECI-26b (E2E-CI-d1): autorización y
     await expect(row).toContainText(allow.name)
   })
 
-  test('CA-E2ECI-24 (RN-CORE-06): al intentar desactivarse o darse de baja, la pantalla muestra el 409 y el estado no cambia', async () => {
+  test('CA-E2ECI-24 (RN-CORE-06): en su propia ficha el administrador no puede desactivarse ni darse de baja (botones deshabilitados) y el servidor responde 409 por HTTP real', async () => {
     const page = adminPage
 
     await page.goto(`/administracion/usuarios/${adminPublicId}`)
     await expect(page.getByText('No puedes modificar tu propia cuenta desde aquí.')).toBeVisible()
 
-    const deactivate = page.getByRole('button', { name: 'Desactivar', exact: true })
-    const remove = page.getByRole('button', { name: 'Dar de baja', exact: true })
+    // La pantalla lo impide (`CA-CORE-211`): ni «Desactivar» ni «Dar de baja» ni los roles se pueden accionar.
+    await expect(page.getByRole('button', { name: 'Desactivar', exact: true })).toBeDisabled()
+    await expect(page.getByRole('button', { name: 'Dar de baja', exact: true })).toBeDisabled()
 
-    // La ficha propia ya los deshabilita (`CA-CORE-211`); se reactivan en el DOM para que la petición llegue al servidor y la
-    // pantalla pinte el `409` que el servidor es el único que decide (`INV-010`).
-    await expect(deactivate).toBeDisabled()
-    await expect(remove).toBeDisabled()
+    const roles = page.getByRole('region', { name: 'Roles' })
 
-    for (const [button, confirm] of [
-      [deactivate, /^Desactivar a /],
-      [remove, /^Dar de baja a /],
-    ] as const) {
-      await button.evaluate((el: HTMLButtonElement) => {
-        el.disabled = false
-      })
-      await button.click()
-      await page.getByRole('alertdialog').getByRole('button', { name: confirm }).click()
-      await expect(page.getByRole('alert').filter({ hasText: /\S/ })).toContainText(
-        'No puedes realizar esta acción sobre tu propia cuenta.',
-      )
+    await expect(roles.getByRole('button', { name: 'Guardar roles' })).toBeDisabled()
+
+    const checkboxes = roles.getByRole('checkbox')
+
+    expect(await checkboxes.count()).toBeGreaterThan(0)
+
+    for (const checkbox of await checkboxes.all()) {
+      await expect(checkbox).toBeDisabled()
     }
+
+    // Y el servidor lo decide por sí mismo (`INV-010`), sin pasar por la pantalla: `409 core.validation.cannot_modify_self`
+    // (su `detail` traducido, el mismo que muestra la SPA).
+    const selfMessage = 'No puedes realizar esta acción sobre tu propia cuenta.'
+
+    const status = await admin.send('POST', `users/${adminPublicId}/status`, { status: 'inactivo' })
+    const statusBody = await status.text()
+
+    expect(status.status(), statusBody).toBe(409)
+    expect(JSON.parse(statusBody).detail).toBe(selfMessage)
+
+    const remove = await admin.send('DELETE', `users/${adminPublicId}`)
+    const removeBody = await remove.text()
+
+    expect(remove.status(), removeBody).toBe(409)
+    expect(JSON.parse(removeBody).detail).toBe(selfMessage)
 
     const own = await admin.json('GET', `users/${adminPublicId}`, 200)
 
