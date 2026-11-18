@@ -150,7 +150,8 @@ describe('ci-e2e-real.yml (CA-E2ECI-14, CA-E2ECI-15, ADR-091 §2)', () => {
 
   it('define los tres jobs con los nombres que ADR-091 fija', () => {
     expect(workflow).toContain('name: E2E real · detección de cambios')
-    expect(workflow).toContain('name: E2E real · core')
+    expect(workflow).toContain('name: E2E real · todas las suites')
+    expect(workflow).not.toContain('name: E2E real · core')
     expect(workflow).toContain('name: E2E real (API)')
     expect(workflow).toContain('needs: [cambios, e2e-real]')
     expect(workflow).toMatch(/if: needs\.cambios\.outputs\.ejecutar == 'true'/)
@@ -182,9 +183,35 @@ describe('ci-e2e-real.yml (CA-E2ECI-14, CA-E2ECI-15, ADR-091 §2)', () => {
     expect(workflow).not.toMatch(/CONTAINER_CLI:/)
   })
 
-  it('ejecuta core sin reintentos, con trazas y reporters json y html (CA-E2ECI-05)', () => {
-    expect(workflow).toContain('E2E_ONLY: core')
-    expect(workflow).toContain('--retries=0 --trace=retain-on-failure --reporter=json,html')
+  it('ejecuta todas las suites en serie sin reintentos, con trazas y reporters json y html (CA-E2ECI-05, CA-E2ECI-09)', () => {
+    // `E2E_ONLY` vacío: las siete suites de e2e-real-api.sh (no se define en el job).
+    expect(workflow).not.toMatch(/E2E_ONLY:\s*\S/)
+    expect(workflow).toContain('opciones=(--retries=0 --trace=retain-on-failure --reporter=json,html)')
+    expect(workflow).toContain('for orden in test:e2e:real:prl test:e2e:real:alum test:e2e:real; do')
+    expect(workflow).toContain('npm run "$orden" -- "${opciones[@]}" || fallos+=("$orden")')
+    expect(workflow).toContain('if [ "${#fallos[@]}" -gt 0 ]; then')
+    // Sin `set -e` en el paso de Playwright: un fallo no corta las órdenes siguientes.
+    const paso = workflow.slice(
+      workflow.indexOf('id: playwright'),
+      workflow.indexOf('Comprobar que se ejecutaron'),
+    )
+    expect(paso).not.toMatch(/set -[a-z]*e/)
+    expect(workflow).not.toContain('worker-long')
+  })
+
+  it('fija E2E_INFORMES_DIR y verifica cada informe y cada suite esperada (CA-E2ECI-09, CA-E2ECI-12)', () => {
+    expect(workflow).toContain('E2E_INFORMES_DIR=$RUNNER_TEMP/e2e-informes')
+    expect(workflow).not.toContain('PLAYWRIGHT_JSON_OUTPUT_NAME')
+    expect(workflow).toContain("jq -r 'keys[] | select(startswith(\"_\") | not)' e2e/e2e-real-esperados.json")
+    expect(workflow).toContain('if [ ! -f "$E2E_INFORMES_DIR/$clave.json" ]; then')
+    expect(workflow).toContain('for informe in "$E2E_INFORMES_DIR"/*.json; do')
+    expect(workflow).toContain('node scripts/e2e-real-verificar.mjs "$informe" "$clave"')
+    expect(workflow).toContain('exit "$rojo"')
+    expect(workflow).toMatch(/Comprobar que se ejecutaron[\s\S]*?if: \$\{\{ !cancelled\(\)/)
+  })
+
+  it('el agregador sigue dependiendo del resultado del job e2e-real, no de su nombre', () => {
+    expect(workflow).toContain('E2E_REAL: ${{ needs.e2e-real.result }}')
   })
 
   it('enmascara los secretos efímeros', () => {
@@ -198,6 +225,8 @@ describe('ci-e2e-real.yml (CA-E2ECI-14, CA-E2ECI-15, ADR-091 §2)', () => {
     const informe = workflow.slice(workflow.indexOf('Subir informe y trazas de Playwright'))
     expect(informe).toMatch(/if: failure\(\)/)
     expect(informe).toMatch(/retention-days: 7/)
+    expect(informe).toContain('${{ runner.temp }}/e2e-informes')
+    expect(informe).toContain('apps/web/test-results')
   })
 })
 
