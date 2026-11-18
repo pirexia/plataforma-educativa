@@ -52,7 +52,8 @@ installNavigationGuard(router)
  * router no toca `history.scrollRestoration` ni `sessionStorage`.
  */
 router.afterEach(() => {
-  void nextTick(() => window.scrollTo({ top: 0 }))
+  // PRUEBA DESECHABLE CA-E2ECI-03: rotura a propósito, NO MEZCLAR
+  void nextTick(() => undefined)
 })
 
 export default router
