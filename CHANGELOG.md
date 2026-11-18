@@ -6,6 +6,10 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-18 · `docs`: los anexos de ADR no llevan número propio (issue #760)
+
+- Decisión del usuario (2026-11-18): el anexo de `ADR-090` sigue como parte del ADR, sin renumerar; `docs/adr/README.md` fija la regla. Solo documentación.
+
 ## 2026-11-17 · `fix(web)`: «Asignar profesorado» espera a las asignaturas del grupo (issue #741)
 
 - **Causa** (del E2E real `CA-ACAD-135`, intermitente en `develop`: 2 de 5 secuencias): `TeachingSection.vue` mostraba «Asignar profesorado» sin esperar a que se cargaran las asignaturas del grupo (`onMounted`). Si el diálogo y su `Select` se abrían antes, el `Select` se montaba sin opciones, Reka UI 2.11.0 (`SelectItemAlignedPosition.js:40`: exige `selectedItem` y `selectedItemText`) no lo colocaba y nada lo recolocaba al llegar las opciones: lista sin coordenadas y fuera de pantalla («element is outside of the viewport»).
