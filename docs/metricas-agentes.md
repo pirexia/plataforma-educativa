@@ -105,6 +105,12 @@ Registro del gasto de cada subagente, para calibrar el tamaño de los tramos de 
 | #760/#744/#752 y ADR-091 (2026-11-18) | doc-reviewer | ronda 1 sobre #761-#765 | 94598 | 8 | 1.3 | n/d | 0 C/A; 4 Medios, 4 Bajos |
 | proceso | explorer | inventario de herramientas de test y seguridad | 87211 | 12 | 1.4 | n/d | para el esquema gráfico; no consultó la protección de ramas de GitHub |
 
+| E2E-CI-b | explorer | briefing | 154712 | 24 | 2.9 | n/d | encontró la contradicción FrankenPHP/artisan serve y la falta de `composer install`; experimental |
+| E2E-CI-b | implementer | T1 (workflow, guiones, esperados, tiempos) | 172685 | 35 | 6.4 | n/d | 52 Vitest; no pudo validar el YAML (sin actionlint ni docker): 3 fallos de arranque en Actions corregidos por la sesión (`runner.temp` en `env`, `dockerfile:`, `env_file` de web) |
+| E2E-CI-b | security-reviewer | ronda 1 | 99306 | 7 | 1.0 | n/d | 0 C/A/M; 2 Bajos (corregidos o documentados); Codex no disponible |
+| E2E-CI-b | doc-precheck | ronda 1 | 81418 | 7 | 0.7 | n/d | 2 Bajos |
+| E2E-CI-b | doc-reviewer | ronda 1 | 111375 | 11 | 1.4 | n/d | 0 C/A; 3 Medios, 6 Bajos (docs desfasadas respecto a lo ya demostrado en Actions) |
+
 Filas del 2026-11-17 (sesión de cierre del 2026-11-18): tokens y llamadas de la notificación de fin de cada agente, duraciones redondeadas; el resumen de abajo se recalculó solo para `0.10e-b` (n = 1 `implementer`); el resto de pasos de hoy no son de `implementer`. Las filas del 2026-11-18 no entran en ninguna media.
 
 ## Resumen (se recalcula al cerrar cada paso)
