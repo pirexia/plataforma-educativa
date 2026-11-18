@@ -28,6 +28,8 @@ resolve_container_runtime || exit 2
 source "$(dirname "${BASH_SOURCE[0]}")/lib/e2e-tiempo.sh"
 # shellcheck source=lib/e2e-ci.sh
 source "$(dirname "${BASH_SOURCE[0]}")/lib/e2e-ci.sh"
+# shellcheck source=lib/e2e-informe.sh
+source "$(dirname "${BASH_SOURCE[0]}")/lib/e2e-informe.sh"
 
 API_CONTAINER="${API_CONTAINER:-plataforma-api}"
 DB_CONTAINER="${DB_CONTAINER:-plataforma-postgres}"
@@ -101,71 +103,78 @@ prepare_tenant() {
   # retira; si no lo creó el script, teardown se niega y la ejecución aborta en setup.
   cleanup
 
+  # `prepare_tenant` se llama dentro de un `if` (ver `suite`), donde `set -e` no actúa: cada paso que pueda fallar devuelve su
+  # código a mano para que un `setup` roto no siga con credenciales de otra suite.
   local json
-  json="$(support setup "$SLUG" $mode)"
+  json="$(support setup "$SLUG" $mode)" || return 1
 
   export E2E_REAL_API=1
-  E2E_ADMIN_EMAIL="$(printf '%s' "$json" | field admin_email)"
-  E2E_ADMIN_PASSWORD="$(printf '%s' "$json" | field admin_password)"
-  E2E_TARGET_EMAIL="$(printf '%s' "$json" | field target_email)"
+  E2E_ADMIN_EMAIL="$(printf '%s' "$json" | field admin_email)" || return 1
+  E2E_ADMIN_PASSWORD="$(printf '%s' "$json" | field admin_password)" || return 1
+  E2E_TARGET_EMAIL="$(printf '%s' "$json" | field target_email)" || return 1
   export E2E_ADMIN_EMAIL E2E_ADMIN_PASSWORD E2E_TARGET_EMAIL
   e2e_enmascarar "$E2E_ADMIN_PASSWORD"
 
   # Con `door` (`fam_unit` y `prl` contratados, secretaría y conserjería, dos alumnos ficticios).
   if [[ "$mode" == "door" ]]; then
-    E2E_SECRETARIA_EMAIL="$(printf '%s' "$json" | field secretaria_email)"
-    E2E_STAFF_PASSWORD="$(printf '%s' "$json" | field staff_password)"
-    E2E_STUDENT_1="$(printf '%s' "$json" | field student_1)"
+    E2E_SECRETARIA_EMAIL="$(printf '%s' "$json" | field secretaria_email)" || return 1
+    E2E_STAFF_PASSWORD="$(printf '%s' "$json" | field staff_password)" || return 1
+    E2E_STUDENT_1="$(printf '%s' "$json" | field student_1)" || return 1
     export E2E_SECRETARIA_EMAIL E2E_STAFF_PASSWORD E2E_STUDENT_1
     e2e_enmascarar "$E2E_STAFF_PASSWORD"
   fi
 }
 
-if only core; then
-  inicio=$SECONDS; prepare_tenant; e2e_tiempo_emitir core setup "$inicio"
-  e2e_tiempo_medir core playwright npx playwright test e2e/core-roles.spec.ts e2e/curso-academic-years.spec.ts e2e/core-scroll-real.spec.ts -g "CA-PERM-133|CA-CURSO-086|RNF-MANT-007" --workers=1 "$@"
-fi
+# Una suite no oculta a las demás (docs/proceso/e2e-real-ci.md §12.1.2 paso 7, #737): si su `setup` o su Playwright fallan, se
+# anota el fallo, se sigue con las siguientes y el guion termina con código distinto de 0 al final. Con `E2E_ONLY` la ejecución
+# es de una sola suite y su fallo es el del guion, como antes.
+# `suite <nombre> <modo de setup o -> <argumentos de playwright test...>`; el informe lleva el nombre de la suite (`e2e_playwright`).
+status=0
+fallidas=()
+suite() {
+  local nombre="$1" modo="$2" inicio
+  shift 2
+  only "$nombre" || return 0
+  if [[ "$modo" == "-" ]]; then modo=""; fi
+  inicio=$SECONDS
+  if ! prepare_tenant $modo; then
+    echo "E2E real: el setup de la suite «${nombre}» falló." >&2
+    e2e_tiempo_emitir "$nombre" setup "$inicio"
+    status=1
+    fallidas+=("$nombre")
+    return 0
+  fi
+  e2e_tiempo_emitir "$nombre" setup "$inicio"
+  if ! e2e_tiempo_medir "$nombre" playwright e2e_playwright "$nombre" "$@"; then
+    status=1
+    fallidas+=("$nombre")
+  fi
+  return 0
+}
 
+suite core - e2e/core-roles.spec.ts e2e/curso-academic-years.spec.ts e2e/core-scroll-real.spec.ts -g "CA-PERM-133|CA-CURSO-086|RNF-MANT-007" --workers=1 "$@"
 # REQ-ACAD (1.11-b), CA-ACAD-053: centro propio, con `acad` contratado por el setup.
-if only acad-structure; then
-  inicio=$SECONDS; prepare_tenant; e2e_tiempo_emitir acad-structure setup "$inicio"
-  e2e_tiempo_medir acad-structure playwright npx playwright test e2e/acad-structure.spec.ts -g "CA-ACAD-053" --workers=1 "$@"
-fi
-
+suite acad-structure - e2e/acad-structure.spec.ts -g "CA-ACAD-053" --workers=1 "$@"
 # REQ-ACAD (1.11d-a), CA-ACAD-101: períodos lectivos de la ficha de etapa. El test crea su propio curso y su etapa
 # y necesita `acad` contratado, que el setup ya deja hecho.
-if only acad-periods; then
-  inicio=$SECONDS; prepare_tenant; e2e_tiempo_emitir acad-periods setup "$inicio"
-  e2e_tiempo_medir acad-periods playwright npx playwright test e2e/acad-periods.spec.ts -g "CA-ACAD-101" --workers=1 "$@"
-fi
-
+suite acad-periods - e2e/acad-periods.spec.ts -g "CA-ACAD-101" --workers=1 "$@"
 # REQ-ACAD (1.11d-b), CA-ACAD-101 (parte de escalas): escala cualitativa reordenada, mixta 0-10 y 320 px. Crea su propio
 # curso, igual que el de períodos.
-if only acad-scales; then
-  inicio=$SECONDS; prepare_tenant; e2e_tiempo_emitir acad-scales setup "$inicio"
-  e2e_tiempo_medir acad-scales playwright npx playwright test e2e/acad-scales.spec.ts -g "CA-ACAD-101" --workers=1 "$@"
-fi
-
+suite acad-scales - e2e/acad-scales.spec.ts -g "CA-ACAD-101" --workers=1 "$@"
 # REQ-ACAD (1.12-b), CA-ACAD-135: aula, marco ordinario con franjas, asignaciones docentes, sesiones, conflicto de
 # profesor y vista del profesor. Crea su propio curso, etapa, grupo y asignaturas; usa los dos profesores sintéticos
 # (Daniel y Marta Docente) que deja el setup.
-if only acad-timetable; then
-  inicio=$SECONDS; prepare_tenant; e2e_tiempo_emitir acad-timetable setup "$inicio"
-  e2e_tiempo_medir acad-timetable playwright npx playwright test e2e/acad-timetable.spec.ts -g "CA-ACAD-135" --workers=1 "$@"
-fi
-
+suite acad-timetable - e2e/acad-timetable.spec.ts -g "CA-ACAD-135" --workers=1 "$@"
 # REQ-CURSO (1.12b), CA-CURSO-147: apertura del curso siguiente. Crea sus propios cursos y su etapa, y ejecuta la cola `long`
 # dentro del contenedor de la API (`queue:work database_long --queue=long --stop-when-empty`); `acad` lo contrata el setup.
-if only curso-rollover; then
-  inicio=$SECONDS; prepare_tenant; e2e_tiempo_emitir curso-rollover setup "$inicio"
-  e2e_tiempo_medir curso-rollover playwright npx playwright test e2e/curso-rollover.spec.ts -g "CA-CURSO-147" --workers=1 "$@"
-fi
-
+suite curso-rollover - e2e/curso-rollover.spec.ts -g "CA-CURSO-147" --workers=1 "$@"
 # REQ-FAM-UNIT (1.14b-c1 T3), CA-FAM-UNIT-142: sección «Personas autorizadas» en navegador real contra la API real
 # (persona → autorización → fotografía → lista vigente → retirada). Centro propio con `fam_unit` y `prl` (modo `door`).
 # El almacén S3 es Garage (ADR-076): `ensure_garage` lo levanta, ejecuta infra/garage/init.sh y recrea api/worker si hace falta.
 # Su endpoint de firma es 127.0.0.1:3900, alcanzable desde el navegador y desde el host.
-if only fam-unit; then
-  inicio=$SECONDS; prepare_tenant door; e2e_tiempo_emitir fam-unit setup "$inicio"
-  e2e_tiempo_medir fam-unit playwright npx playwright test e2e/fam-unit-pickup-real.spec.ts --workers=1 "$@"
+suite fam-unit door e2e/fam-unit-pickup-real.spec.ts --workers=1 "$@"
+
+if ((${#fallidas[@]} > 0)); then
+  echo "E2E real: suites con fallo: ${fallidas[*]}." >&2
 fi
+exit "$status"
