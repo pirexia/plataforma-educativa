@@ -34,7 +34,7 @@ import {
  *
  * **Orden y datos**: se llama `alum-authorization-…` para correr **antes** de `alum-group-change-real.spec.ts`, que cierra el curso
  * activo en su último test (Playwright ordena los ficheros alfabéticamente con `--workers=1`); la estructura, el alumno, la
- * asignación docente, el espacio y las reservas son propios (nombres con sufijo único) y se retiran al terminar. Un único acceso
+ * asignación docente, el espacio y las reservas son propios (nombres con sufijo único) y se revierten en `afterAll` (mejor esfuerzo); el centro se retira entero al final del guion. Un único acceso
  * por actor (administrador para preparar, `docente`, `docente2`, `secretaria` y `direccion`), porque la API limita los accesos
  * (10 por minuto y centro desde una IP) y `RealSession.login` espera lo que pida el servidor si responde `429`; las llamadas HTTP
  * salen de la sesión de cada actor con su cookie y su CSRF.
@@ -97,11 +97,14 @@ test.describe
   let facilityId = ''
   let facilityCode = ''
   const bookings: string[] = []
+  // Recursos que un POST de denegación crearía si el permiso se rompiera (curso 2040, usuario `…-dir@example.com`).
+  const leaked: string[] = []
 
   test.afterAll(async () => {
     // Revierte lo propio (mejor esfuerzo: el centro se retira entero al terminar el guion).
     for (const id of bookings) await admin?.send('DELETE', `facility-bookings/${id}`)
     if (facilityId) await admin?.send('DELETE', `facilities/${facilityId}`)
+    for (const path of leaked) await admin?.send('DELETE', path)
     if (assignmentId) await admin?.send('DELETE', `teaching-assignments/${assignmentId}`)
     if (enrollmentId) await admin?.send('DELETE', `enrollments/${enrollmentId}`)
     if (studentId) await admin?.send('DELETE', `students/${studentId}`)
@@ -180,6 +183,14 @@ test.describe
     await expect(nav.getByRole('link', { name: contrast, exact: true }).first()).toBeVisible()
 
     const response = await session.send(denied.api.method, denied.api.path, denied.api.body)
+
+    // Si la denegación se rompiera y el POST creara algo, se anota para retirarlo en `afterAll`.
+    if (denied.api.method === 'POST' && response.status() < 300) {
+      const created = (await response.json().catch(() => ({})))?.data?.public_id as
+        string | undefined
+
+      if (created) leaked.push(`${denied.api.path}/${created}`)
+    }
 
     expect(
       response.status(),

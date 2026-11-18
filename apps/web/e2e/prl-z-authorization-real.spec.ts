@@ -7,6 +7,8 @@ import {
   type Page,
   type Request,
 } from '@playwright/test'
+import { RealSession } from './fixtures/realSession'
+import { browserState } from './fixtures/alumReal'
 
 /**
  * `E2E-CI-d1` (#737, `docs/proceso/e2e-real-ci.md §9.4`, matriz `§4.5`), modo `door` (centro A): **autorización en pantalla**
@@ -18,14 +20,17 @@ import {
  *   responde `403` (`CA-CORE-070`): conserje en `acad-structure`, `core-users` y `fam-unit-list`; secretaría en `core-roles`.
  * - `CA-E2ECI-23`: en una pantalla que sí puede abrir, la acción sin permiso no se ofrece (`RN-CORE-61`) y su *endpoint* da
  *   `403`: secretaría en la puerta (sin `entrega_menor.crear`) y conserje en el detalle de una alerta (sin
- *   `alerta_entrega.actualizar`; que no ve «Cerrar la alerta» en una alerta abierta ya lo prueba `prl-door-real`).
+ *   `alerta_entrega.actualizar`). La alerta es la CERRADA de `prl-door-real` (abrir otra interferiría con los *specs* que cuentan
+ *   alertas abiertas), así que aquí no se afirma la ausencia de «Cerrar la alerta» ni de «Guardar la llamada» (tampoco se
+ *   ofrecen en una alerta cerrada con permiso: sería tautológico); esa ausencia con la alerta abierta la cubre
+ *   `prl-door-real.spec.ts` (CA-PRL-035). Lo que cuenta aquí es el `403` del `PATCH` y que el estado no cambie.
  *
  * **Orden y datos**: Playwright ejecuta los ficheros por orden alfabético con `--workers=1`; este se llama `prl-z-…` para correr
  * **después** de `prl-door-real.spec.ts`, cuyos datos reutiliza (el alumno 2 con su tutora y la alerta que el administrador cerró)
  * en vez de crear los suyos, que romperían a `prl-door-api` y `prl-door-real` (el alumno 2 solo cabe en una unidad y esos *specs*
- * cuentan alertas abiertas). Un único acceso por actor (conserje y secretaría, solo en navegador) porque la API limita los
- * accesos (10 por minuto y centro desde una IP) y el centro A ya gasta 8 en los otros dos *specs*; las llamadas HTTP salen de la
- * propia página con su cookie de sesión y su CSRF, como `apiFetch`.
+ * cuentan alertas abiertas). Un único acceso por actor (conserje y secretaría) con `RealSession.login`, que espera el
+ * `Retry-After` si la API limita los accesos (429: 10 por minuto y centro desde una IP; el centro A ya gasta 8 en los otros dos
+ * *specs*); la pestaña reutiliza esa sesión (`browserState`) y las llamadas HTTP salen de ella con su cookie y su CSRF.
  *
  * Solo con `E2E_REAL_API=1`: `npm run test:e2e:real:prl` (apps/web/scripts/e2e-real-prl.sh).
  */
@@ -40,59 +45,31 @@ test.use({
 
 type Http = (method: string, path: string, body?: unknown) => Promise<{ status: number; json: any }>
 
-async function signIn(page: Page, email: string, password: string): Promise<void> {
-  await page.goto('/entrar')
-  await page.getByLabel(/correo/i).fill(email)
-  await page.getByLabel(/contraseña/i).fill(password)
-  await page.getByRole('button', { name: /entrar|acceder/i }).click()
-  await expect(page).not.toHaveURL(/\/entrar/)
-}
-
 /**
- * Sesión de un actor: contexto y pestaña con un único acceso, y `http` que lanza la petición desde la pestaña a la API que usa
- * la SPA (la base se toma de su primera petición, sin repetir el puerto aquí), con cookie de sesión y `X-XSRF-TOKEN`.
+ * Sesión de un actor: un único acceso por la API real (`RealSession.login` espera el `Retry-After` si responde 429), la pestaña
+ * del navegador con esa misma sesión (`browserState`) y `http`, que lanza la petición con su cookie de sesión y su CSRF.
  */
 async function openActor(
   browser: Browser,
   email: string,
   password: string,
-): Promise<{ context: BrowserContext; page: Page; http: Http }> {
-  const context = await browser.newContext({ baseURL: BASE_URL, locale: 'es-ES' })
-  const page = await context.newPage()
-  let apiBase = ''
-
-  page.on('request', (request) => {
-    const match = /^(.*\/api\/v1)\//.exec(request.url())
-
-    if (apiBase === '' && match) apiBase = match[1]!
+): Promise<{ context: BrowserContext; page: Page; http: Http; session: RealSession }> {
+  const session = await RealSession.login(SLUG, email, password)
+  const context = await browser.newContext({
+    baseURL: BASE_URL,
+    locale: 'es-ES',
+    storageState: await browserState(session),
   })
-  await signIn(page, email, password)
-  expect(apiBase, 'la SPA debió pedir la API al iniciar sesión').not.toBe('')
+  const page = await context.newPage()
 
-  const http: Http = async (method, path, body) =>
-    page.evaluate(
-      async ({ url, method, body }) => {
-        const xsrf = decodeURIComponent(
-          /(?:^|;\s*)XSRF-TOKEN=([^;]*)/.exec(document.cookie)?.[1] ?? '',
-        )
-        const response = await fetch(url, {
-          method,
-          credentials: 'include',
-          headers: {
-            Accept: 'application/json',
-            'Content-Type': 'application/json',
-            'X-XSRF-TOKEN': xsrf,
-          },
-          body: body === undefined ? undefined : JSON.stringify(body),
-        })
-        const text = await response.text()
+  const http: Http = async (method, path, body) => {
+    const response = await session.send(method, path, body)
+    const text = await response.text()
 
-        return { status: response.status, json: text === '' ? null : JSON.parse(text) }
-      },
-      { url: `${apiBase}/${path}`, method, body },
-    )
+    return { status: response.status(), json: text === '' ? null : JSON.parse(text) }
+  }
 
-  return { context, page, http }
+  return { context, page, http, session }
 }
 
 /** Rutas de la SPA sin el permiso del conserje: `shell.ts` de cada módulo (`meta.permissions`), entrada de menú y *endpoint*. */
@@ -180,7 +157,12 @@ test.describe
   })
 
   test.afterAll(async () => {
-    await Promise.all([conserje?.context.close(), secretaria?.context.close()])
+    await Promise.all([
+      conserje?.context.close(),
+      secretaria?.context.close(),
+      conserje?.session.dispose(),
+      secretaria?.session.dispose(),
+    ])
   })
 
   for (const denied of CONSERJE_DENIED) {
@@ -255,8 +237,6 @@ test.describe
   test('CA-E2ECI-23 (RN-CORE-61, alerta_entrega.actualizar): el conserje abre el detalle de la alerta sin acciones de cierre y PATCH /pickup-alerts/{id} da 403 sin cambiar nada', async () => {
     await conserje.page.goto(`/conserjeria/alertas/${alertId}`)
     await expect(conserje.page.getByRole('heading', { level: 1, name: 'Alerta' })).toBeVisible()
-    await expect(conserje.page.getByRole('button', { name: 'Cerrar la alerta' })).toHaveCount(0)
-    await expect(conserje.page.getByRole('button', { name: 'Guardar la llamada' })).toHaveCount(0)
 
     const before = await conserje.http('GET', `pickup-alerts/${alertId}`)
     const patch = await conserje.http('PATCH', `pickup-alerts/${alertId}`, {
