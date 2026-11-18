@@ -56,7 +56,8 @@ jobs:
           fi
           # Si el cálculo falla (base no alcanzable, historia insuficiente) el job falla: nunca «no se pudo calcular, así que no corre».
           git diff --name-only -z "origin/${BASE_REF}...HEAD" > "$RUNNER_TEMP/ficheros-cambiados.bin"
-          tr '\0' '\n' < "$RUNNER_TEMP/ficheros-cambiados.bin" | sed 's/^/  /'
+          # `%q` escapa saltos de línea y `::`: un nombre de fichero hostil no puede falsear órdenes de workflow en el registro.
+          xargs -0 -r printf '  %q\n' < "$RUNNER_TEMP/ficheros-cambiados.bin"
           ejecutar="$(bash apps/web/scripts/e2e-real-cambios.sh < "$RUNNER_TEMP/ficheros-cambiados.bin")"
           case "$ejecutar" in
             true|false) ;;
