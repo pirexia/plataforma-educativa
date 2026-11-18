@@ -6,6 +6,12 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-18 · `docs`: `E2E-CI-b` verificado (`CA-E2ECI-02`, `-04`, `-06`, `-07`, `-12`, `-13`), `CLAUDE.md` 2.18.0 (issue #737)
+
+- **`CA-E2ECI-02`** (PR #769, solo `CLAUDE.md`): `cambios` decide `ejecutar=false`, `e2e-real` queda saltado y el agregador verde. **`-04`** (PR desechable #771, cerrado): cancelar `e2e-real` a mano deja el agregador en `failure` (run 44305934380). **`-12`** (PR desechable #770, cerrado): con un test saltado, el verificador de esperados falla, `core` y el agregador en rojo (run 44305921589). **`-06`**: la tabla de tiempos trae las seis fases y el registro de `develop` (run 44297600055, 3.466 líneas) no contiene ninguna contraseña `E2e-` sin enmascarar. **`-07`**: E2E real local de la suite completa, `:prl` y `:alum`, `EXIT=0` en las tres (`core` 3, resto de suites 1 cada una, PRL 3, alumnado 16 + 20). **`-13`**: el *push* a `develop` ejecuta el job sin mirar el diff (run 44297600055).
+- **`CLAUDE.md` 2.18.0** (cambio aprobado expresamente por el usuario): las filas «Tests» y «Contenedores» de `§1` reflejan que el E2E real de `core` corre en el CI y que `docker` está verificado en ese camino.
+- **Pendiente**: `CA-E2ECI-08` (el usuario marca «E2E real (API)» como *required check* en `develop`, `staging` y `main`) y, tras la primera promoción a `staging`, el comportamiento de un *check* requerido ante el avance rápido. Siguiente paso: `E2E-CI-c`. El resumen del job (`$GITHUB_STEP_SUMMARY`) no es accesible por la API de GitHub: se comprobó su contenido por el artefacto `e2e-tiempos.json` y por el éxito del paso que lo escribe.
+
 ## 2026-11-18 · `docs`: `docker` verificado en el camino del E2E real `core` (`ADR-091 §4.3`, issue #737)
 
 - Tras mezclar `E2E-CI-b`, el agregador «E2E real (API)» pasó en verde sobre `develop` (commit `4071f75`, run 44297600055): `CA-E2ECI-13` verificado y `docker` cuenta como verificado **solo** en ese camino (suite `core`). `:prl`, `:alum` y `curso-rollover` (`E2E-CI-c`) y el uso local siguen sin verificar. Actualizados `SYSADMIN.md` (fila `CONTAINER_RUNTIME`), la cabecera de `infra/lib/container-runtime.sh` y `memory.md`. Sin cambios de comportamiento.
