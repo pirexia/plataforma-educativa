@@ -1,7 +1,7 @@
 name: CI · E2E real (API)
 
 # E2E real contra la API real en una pila efímera del runner (issue #737, ADR-091,
-# docs/proceso/e2e-real-ci.md §3 y §12). Piloto E2E-CI-b: solo la suite `core`.
+# docs/proceso/e2e-real-ci.md §3 y §12). E2E-CI-c: todas las suites (las siete de `e2e-real-api.sh`, `:prl` y `:alum`) en un solo job y en serie.
 #
 # Tres jobs, mismo patrón que ADR-089:
 #   cambios   -> decide con `git diff` si el cambio toca algo que el E2E real ejercita
@@ -67,13 +67,15 @@ jobs:
           echo "ejecutar=$ejecutar" >> "$GITHUB_OUTPUT"
 
   e2e-real:
-    name: E2E real · core
+    name: E2E real · todas las suites
     runs-on: ubuntu-26.04  # fijada: ubuntu-latest migra a 26.04 hasta el 19-11-2026 (#609, actions/runner-images#14748)
     needs: cambios
     if: needs.cambios.outputs.ejecutar == 'true'
+    # 30 min, valor definitivo (E2E-CI-c, CA-E2ECI-11): tres ejecuciones completas midieron 7:39, 8:22 y 8:15
+    # (máximo 8:22), holgura ×3,6; por debajo de ~10 min no se cumple el disparador de D3.
     timeout-minutes: 30
     env:
-      E2E_ONLY: core
+      # `E2E_ONLY` no se define: `e2e-real-api.sh` ejecuta sus siete suites (vacía = todas).
       # Un único *runtime* (ADR-091 §2.2): nunca el alias CONTAINER_CLI (los guiones abortan si difieren).
       CONTAINER_RUNTIME: docker
       # compose.yaml: api y worker contra Garage (ADR-076).
@@ -88,7 +90,7 @@ jobs:
           {
             echo "E2E_T_INICIO=$(date +%s)"
             echo "E2E_TIEMPOS_LOG=$RUNNER_TEMP/e2e-tiempos.log"
-            echo "PLAYWRIGHT_JSON_OUTPUT_NAME=$RUNNER_TEMP/e2e-informe.json"
+            echo "E2E_INFORMES_DIR=$RUNNER_TEMP/e2e-informes"
           } >> "$GITHUB_ENV"
 
       - uses: actions/setup-node@v7
@@ -206,16 +208,60 @@ jobs:
           echo "E2E_T_PILA=$(date +%s)" >> "$GITHUB_ENV"
 
       # Sin reintentos (D5): --retries=0 explícito además de la configuración. Trazas solo de lo que falla.
-      - name: Playwright (E2E real, suite core)
-        working-directory: apps/web
-        run: npm run test:e2e:real -- --retries=0 --trace=retain-on-failure --reporter=json,html
-
-      # Un verde exige tests ejecutados: ningún `skipped` y no menos pasados que los esperados (apps/web/e2e/e2e-real-esperados.json).
-      - name: Comprobar que se ejecutaron los tests esperados
+      # Las tres órdenes en serie y sin cortar entre sí (para medir todas): cada fallo se anota y el paso termina en rojo al final.
+      # Con E2E_INFORMES_DIR cada suite escribe `<clave>.json`, `playwright-report/<clave>/` y `test-results/<clave>/` (lib/e2e-informe.sh).
+      - name: Playwright (E2E real, todas las suites)
+        id: playwright
         working-directory: apps/web
         run: |
-          set -o pipefail
-          node scripts/e2e-real-verificar.mjs "$PLAYWRIGHT_JSON_OUTPUT_NAME" "$E2E_ONLY" | tee -a "$GITHUB_STEP_SUMMARY"
+          set -uo pipefail
+          mkdir -p "$E2E_INFORMES_DIR"
+          opciones=(--retries=0 --trace=retain-on-failure --reporter=json,html)
+          fallos=()
+          for orden in test:e2e:real:prl test:e2e:real:alum test:e2e:real; do
+            echo "::group::npm run $orden"
+            npm run "$orden" -- "${opciones[@]}" || fallos+=("$orden")
+            echo "::endgroup::"
+          done
+          if [ "${#fallos[@]}" -gt 0 ]; then
+            echo "::error::Órdenes de E2E real con fallo: ${fallos[*]}"
+            exit 1
+          fi
+
+      # Un verde exige tests ejecutados: ningún `skipped` y no menos pasados que los esperados (apps/web/e2e/e2e-real-esperados.json).
+      # Una suite sin informe es una suite no ejecutada: rojo. Se corre aunque Playwright haya fallado, para ver el estado de cada suite.
+      - name: Comprobar que se ejecutaron los tests esperados
+        if: ${{ !cancelled() && steps.playwright.conclusion != 'skipped' }}
+        working-directory: apps/web
+        run: |
+          set -uo pipefail
+          rojo=0
+          {
+            echo "### Tests por suite"
+            echo
+          } >> "$GITHUB_STEP_SUMMARY"
+          # Toda clave esperada (sin las que empiezan por `_`) debe tener su informe.
+          claves="$(jq -r 'keys[] | select(startswith("_") | not)' e2e/e2e-real-esperados.json)" || {
+            echo "::error::No se pudo leer e2e/e2e-real-esperados.json"
+            exit 1
+          }
+          if [ -z "$claves" ]; then
+            echo "::error::e2e/e2e-real-esperados.json no declara ninguna suite"
+            exit 1
+          fi
+          for clave in $claves; do
+            if [ ! -f "$E2E_INFORMES_DIR/$clave.json" ]; then
+              echo "::error::Falta el informe de la suite «$clave»: no se ejecutó"
+              echo "- «$clave»: SIN INFORME (no ejecutada)" >> "$GITHUB_STEP_SUMMARY"
+              rojo=1
+            fi
+          done
+          shopt -s nullglob
+          for informe in "$E2E_INFORMES_DIR"/*.json; do
+            clave="$(basename "$informe" .json)"
+            node scripts/e2e-real-verificar.mjs "$informe" "$clave" | tee -a "$GITHUB_STEP_SUMMARY" || rojo=1
+          done
+          exit "$rojo"
 
       - name: Tiempos y resumen
         if: always()
@@ -229,12 +275,17 @@ jobs:
             echo "E2E_TIEMPO suite=ci fase=total segundos=$((ahora - E2E_T_INICIO))"
           } >> "$E2E_TIEMPOS_LOG"
           {
-            echo "## E2E real · core"
+            echo "## E2E real · todas las suites"
             echo
-            if [ -f "$PLAYWRIGHT_JSON_OUTPUT_NAME" ]; then
-              jq -r '"Tests: \(.stats.expected) pasados, \(.stats.unexpected) fallidos, \(.stats.skipped) saltados, \(.stats.flaky) intermitentes."' "$PLAYWRIGHT_JSON_OUTPUT_NAME"
-              echo
-            fi
+            shopt -s nullglob
+            echo "| Suite | Pasados | Fallidos | Saltados | Intermitentes |"
+            echo "|---|---:|---:|---:|---:|"
+            for informe in "$E2E_INFORMES_DIR"/*.json; do
+              jq -r --arg s "$(basename "$informe" .json)" '"| \($s) | \(.stats.expected) | \(.stats.unexpected) | \(.stats.skipped) | \(.stats.flaky) |"' "$informe"
+            done
+            echo
+            echo "### Tiempos por suite y fase (segundos)"
+            echo
             node scripts/e2e-real-tiempos.mjs "$E2E_TIEMPOS_LOG" "$RUNNER_TEMP/e2e-tiempos.json"
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -263,9 +314,9 @@ jobs:
         with:
           name: e2e-real-informe-fallo
           path: |
+            ${{ runner.temp }}/e2e-informes
             apps/web/playwright-report
             apps/web/test-results
-            ${{ runner.temp }}/e2e-informe.json
           if-no-files-found: ignore
           retention-days: 7
 

@@ -34,6 +34,8 @@ done
 source "$(dirname "${BASH_SOURCE[0]}")/lib/e2e-tiempo.sh"
 # shellcheck source=lib/e2e-ci.sh
 source "$(dirname "${BASH_SOURCE[0]}")/lib/e2e-ci.sh"
+# shellcheck source=lib/e2e-informe.sh
+source "$(dirname "${BASH_SOURCE[0]}")/lib/e2e-informe.sh"
 
 # shellcheck source=e2e-vite-api-url.sh
 source "$(dirname "${BASH_SOURCE[0]}")/e2e-vite-api-url.sh"
@@ -111,4 +113,5 @@ prepare B "$SLUG_B"
 e2e_tiempo_emitir prl setup "$inicio"
 export E2E_REAL_API=1
 
-e2e_tiempo_medir prl playwright npx playwright test e2e/prl-door-api.spec.ts e2e/prl-door-real.spec.ts --workers=1 "$@"
+# El código de salida de Playwright es el del guion; el informe lleva la clave `prl` (lib/e2e-informe.sh).
+e2e_tiempo_medir prl playwright e2e_playwright prl e2e/prl-door-api.spec.ts e2e/prl-door-real.spec.ts --workers=1 "$@"

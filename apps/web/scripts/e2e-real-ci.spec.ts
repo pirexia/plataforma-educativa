@@ -5,8 +5,9 @@
  * instrumentación de tiempos (CA-E2ECI-06). Lo que solo se ve en GitHub Actions lo prueba la ejecución del CI, no este fichero.
  */
 import { spawnSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join, resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { evaluar } from './e2e-real-verificar.mjs'
 import { parsear, tabla } from './e2e-real-tiempos.mjs'
@@ -30,6 +31,37 @@ describe('e2e-real-esperados.json (CA-E2ECI-01, CA-E2ECI-12)', () => {
 
   it('la suite core espera 3 tests reales (CA-PERM-133, CA-CURSO-086, RNF-MANT-007)', () => {
     expect(esperados.core).toBe(3)
+  })
+
+  it('toda suite de los tres guiones tiene un número esperado entero >= 1 (CA-E2ECI-09)', () => {
+    // Claves de `e2e_playwright`: las del guion de la API (E2E_ONLY), `prl` y las dos invocaciones de `alum`.
+    const claves = [
+      'core',
+      'acad-structure',
+      'acad-periods',
+      'acad-scales',
+      'acad-timetable',
+      'curso-rollover',
+      'fam-unit',
+      'prl',
+      'alum-http',
+      'alum-browser',
+    ]
+    for (const clave of claves) {
+      expect(Number.isInteger(esperados[clave]) && esperados[clave] >= 1, clave).toBe(true)
+    }
+  })
+
+  it('las claves de esperados coinciden con las que usan los guiones (ninguna suite sin verificar)', () => {
+    const usadas = new Set<string>()
+    const api = readFileSync(resolve(__dirname, 'e2e-real-api.sh'), 'utf8')
+    for (const m of api.matchAll(/^suite (\S+) /gm)) usadas.add(m[1])
+    const prl = readFileSync(resolve(__dirname, 'e2e-real-prl.sh'), 'utf8')
+    for (const m of prl.matchAll(/e2e_playwright (\S+) /g)) usadas.add(m[1])
+    const alum = readFileSync(resolve(__dirname, 'e2e-real-alum.sh'), 'utf8')
+    for (const m of alum.matchAll(/^e2e_playwright (\S+) /gm)) usadas.add(m[1])
+    const claves = Object.keys(esperados).filter((k) => !k.startsWith('_'))
+    expect([...usadas].sort()).toEqual([...claves].sort())
   })
 })
 
@@ -118,7 +150,8 @@ describe('ci-e2e-real.yml (CA-E2ECI-14, CA-E2ECI-15, ADR-091 §2)', () => {
 
   it('define los tres jobs con los nombres que ADR-091 fija', () => {
     expect(workflow).toContain('name: E2E real · detección de cambios')
-    expect(workflow).toContain('name: E2E real · core')
+    expect(workflow).toContain('name: E2E real · todas las suites')
+    expect(workflow).not.toContain('name: E2E real · core')
     expect(workflow).toContain('name: E2E real (API)')
     expect(workflow).toContain('needs: [cambios, e2e-real]')
     expect(workflow).toMatch(/if: needs\.cambios\.outputs\.ejecutar == 'true'/)
@@ -150,9 +183,44 @@ describe('ci-e2e-real.yml (CA-E2ECI-14, CA-E2ECI-15, ADR-091 §2)', () => {
     expect(workflow).not.toMatch(/CONTAINER_CLI:/)
   })
 
-  it('ejecuta core sin reintentos, con trazas y reporters json y html (CA-E2ECI-05)', () => {
-    expect(workflow).toContain('E2E_ONLY: core')
-    expect(workflow).toContain('--retries=0 --trace=retain-on-failure --reporter=json,html')
+  it('ejecuta todas las suites en serie sin reintentos, con trazas y reporters json y html (CA-E2ECI-05, CA-E2ECI-09)', () => {
+    // `E2E_ONLY` vacío: las siete suites de e2e-real-api.sh (no se define en el job).
+    expect(workflow).not.toMatch(/E2E_ONLY:\s*\S/)
+    expect(workflow).toContain(
+      'opciones=(--retries=0 --trace=retain-on-failure --reporter=json,html)',
+    )
+    expect(workflow).toContain(
+      'for orden in test:e2e:real:prl test:e2e:real:alum test:e2e:real; do',
+    )
+    expect(workflow).toContain('npm run "$orden" -- "${opciones[@]}" || fallos+=("$orden")')
+    expect(workflow).toContain('if [ "${#fallos[@]}" -gt 0 ]; then')
+    // Sin `set -e` en el paso de Playwright: un fallo no corta las órdenes siguientes.
+    const paso = workflow.slice(
+      workflow.indexOf('id: playwright'),
+      workflow.indexOf('Comprobar que se ejecutaron'),
+    )
+    expect(paso).not.toMatch(/set -[a-z]*e/)
+    expect(workflow).not.toContain('worker-long')
+  })
+
+  it('fija E2E_INFORMES_DIR y verifica cada informe y cada suite esperada (CA-E2ECI-09, CA-E2ECI-12)', () => {
+    expect(workflow).toContain('E2E_INFORMES_DIR=$RUNNER_TEMP/e2e-informes')
+    expect(workflow).not.toContain('PLAYWRIGHT_JSON_OUTPUT_NAME')
+    expect(workflow).toContain(
+      'claves="$(jq -r \'keys[] | select(startswith("_") | not)\' e2e/e2e-real-esperados.json)" || {',
+    )
+    expect(workflow).toContain('if [ -z "$claves" ]; then')
+    expect(workflow).toContain('for clave in $claves; do')
+    expect(workflow).not.toContain('for clave in $(jq')
+    expect(workflow).toContain('if [ ! -f "$E2E_INFORMES_DIR/$clave.json" ]; then')
+    expect(workflow).toContain('for informe in "$E2E_INFORMES_DIR"/*.json; do')
+    expect(workflow).toContain('node scripts/e2e-real-verificar.mjs "$informe" "$clave"')
+    expect(workflow).toContain('exit "$rojo"')
+    expect(workflow).toMatch(/Comprobar que se ejecutaron[\s\S]*?if: \$\{\{ !cancelled\(\)/)
+  })
+
+  it('el agregador sigue dependiendo del resultado del job e2e-real, no de su nombre', () => {
+    expect(workflow).toContain('E2E_REAL: ${{ needs.e2e-real.result }}')
   })
 
   it('enmascara los secretos efímeros', () => {
@@ -166,6 +234,8 @@ describe('ci-e2e-real.yml (CA-E2ECI-14, CA-E2ECI-15, ADR-091 §2)', () => {
     const informe = workflow.slice(workflow.indexOf('Subir informe y trazas de Playwright'))
     expect(informe).toMatch(/if: failure\(\)/)
     expect(informe).toMatch(/retention-days: 7/)
+    expect(informe).toContain('${{ runner.temp }}/e2e-informes')
+    expect(informe).toContain('apps/web/test-results')
   })
 })
 
@@ -204,6 +274,112 @@ describe('instrumentación de tiempos (CA-E2ECI-06, docs/proceso/e2e-real-ci.md 
       expect(texto, guion).toMatch(/e2e_tiempo_(medir|emitir) \S+ playwright/)
       expect(texto, guion).toMatch(/e2e_tiempo_medir \S+ teardown/)
     }
+  })
+})
+
+describe('informes por suite y sin corte entre suites (CA-E2ECI-09, CA-E2ECI-10, docs/proceso/e2e-real-ci.md §12.1.2 paso 7)', () => {
+  const lib = resolve(__dirname, 'lib/e2e-informe.sh')
+
+  // `npx` falso: vuelca las variables que Playwright usaría y sale con el código de FAKE_RC.
+  function conNpxFalso(clavesRc: string, extraEnv: Record<string, string>) {
+    const dir = mkdtempSync(join(tmpdir(), 'e2e-informe-'))
+    const npx = join(dir, 'npx')
+    writeFileSync(
+      npx,
+      '#!/usr/bin/env bash\necho "JSON=${PLAYWRIGHT_JSON_OUTPUT_NAME:-} HTML=${PLAYWRIGHT_HTML_OUTPUT_DIR:-} ARGS=$*"\n[[ "$*" == *"$FAKE_FALLA"* ]] && exit 1\nexit 0\n',
+    )
+    chmodSync(npx, 0o755)
+    const result = spawnSync('bash', ['-c', clavesRc, '_', lib], {
+      encoding: 'utf8',
+      env: { PATH: `${dir}:${process.env.PATH}`, ...extraEnv },
+    })
+    rmSync(dir, { recursive: true, force: true })
+    return result
+  }
+
+  it('con E2E_INFORMES_DIR cada clave escribe su JSON, su informe HTML y sus trazas sin pisar a otra', () => {
+    const informes = mkdtempSync(join(tmpdir(), 'e2e-informes-'))
+    const result = conNpxFalso(
+      'source "$1"; e2e_playwright core a.spec.ts; e2e_playwright prl b.spec.ts; echo rc=$?',
+      { E2E_INFORMES_DIR: informes },
+    )
+    rmSync(informes, { recursive: true, force: true })
+    expect(result.stdout).toContain(
+      `JSON=${informes}/core.json HTML=${informes}/playwright-report/core`,
+    )
+    expect(result.stdout).toContain(`--output=${informes}/test-results/core a.spec.ts`)
+    expect(result.stdout).toContain(
+      `JSON=${informes}/prl.json HTML=${informes}/playwright-report/prl`,
+    )
+    expect(result.stdout).toContain(`--output=${informes}/test-results/prl b.spec.ts`)
+  })
+
+  it('sin E2E_INFORMES_DIR no toca la salida (uso local como antes) y conserva el código de salida', () => {
+    const result = conNpxFalso(
+      'source "$1"; e2e_playwright core a.spec.ts; echo rc=$?; e2e_playwright core FALLA.spec.ts; echo rc=$?',
+      { FAKE_FALLA: 'FALLA' },
+    )
+    expect(result.stdout).toContain('JSON= HTML= ARGS=playwright test a.spec.ts')
+    expect(result.stdout).not.toContain('--output')
+    expect(result.stdout).toMatch(/rc=0[\s\S]*rc=1/)
+  })
+
+  it('rechaza una clave de suite no válida', () => {
+    const result = conNpxFalso('source "$1"; e2e_playwright "../x" a.spec.ts; echo rc=$?', {})
+    expect(result.stdout).toContain('rc=2')
+  })
+
+  it('e2e-real-api.sh: una suite que falla no corta las siguientes y el guion termina distinto de 0', () => {
+    const api = readFileSync(resolve(__dirname, 'e2e-real-api.sh'), 'utf8')
+    const funcion = api.match(/^suite\(\) \{[\s\S]*?^\}$/m)?.[0]
+    expect(funcion).toBeTruthy()
+    // La función real, con las piezas externas sustituidas por dobles; `set -e` activo como en el guion.
+    const guion = [
+      'set -euo pipefail',
+      'only() { return 0; }',
+      'prepare_tenant() { [[ "$FAKE_SETUP_ROTO" != "${1:-}" ]]; }',
+      'e2e_tiempo_emitir() { :; }',
+      'e2e_tiempo_medir() { shift 2; "$@"; }',
+      'e2e_playwright() { echo "EJECUTA $1"; [[ "$1" != "$FAKE_PW_ROTO" ]]; }',
+      'status=0; fallidas=()',
+      funcion,
+      'suite a - x.spec.ts',
+      'suite b - x.spec.ts',
+      'suite c door x.spec.ts',
+      'suite d - x.spec.ts',
+      'echo "status=$status fallidas=${fallidas[*]}"',
+    ].join('\n')
+    const ejecutar = (env: Record<string, string>) =>
+      spawnSync('bash', ['-c', guion], {
+        encoding: 'utf8',
+        env: { PATH: process.env.PATH ?? '', ...env },
+      })
+
+    const verde = ejecutar({ FAKE_SETUP_ROTO: 'nada', FAKE_PW_ROTO: 'nada' })
+    expect(verde.stdout).toContain('status=0 fallidas=')
+
+    const rojo = ejecutar({ FAKE_SETUP_ROTO: 'nada', FAKE_PW_ROTO: 'a' })
+    for (const suite of ['a', 'b', 'c', 'd']) expect(rojo.stdout).toContain(`EJECUTA ${suite}`)
+    expect(rojo.stdout).toContain('status=1 fallidas=a')
+
+    // Un `setup` roto (modo `door` de la suite c) salta solo esa suite: Playwright no corre con credenciales ajenas.
+    const setupRoto = ejecutar({ FAKE_SETUP_ROTO: 'door', FAKE_PW_ROTO: 'nada' })
+    expect(setupRoto.stdout).not.toContain('EJECUTA c')
+    expect(setupRoto.stdout).toContain('EJECUTA d')
+    expect(setupRoto.stdout).toContain('status=1 fallidas=c')
+  })
+
+  it('e2e-real-api.sh y e2e-real-alum.sh no cortan entre suites y terminan con el estado acumulado', () => {
+    const api = readFileSync(resolve(__dirname, 'e2e-real-api.sh'), 'utf8')
+    expect(api).not.toMatch(/^\s*e2e_tiempo_medir \S+ playwright npx /m)
+    expect(api).toMatch(/^exit "\$status"$/m)
+    const alum = readFileSync(resolve(__dirname, 'e2e-real-alum.sh'), 'utf8')
+    expect(alum).not.toMatch(/^npx playwright/m)
+    expect(alum).toContain('e2e_playwright alum-http ')
+    expect(alum).toContain('e2e_playwright alum-browser ')
+    expect(alum).toMatch(/alum-http [^\n]*\|\| status=1/)
+    expect(alum).toMatch(/alum-browser [^\n]*\|\| status=1/)
+    expect(alum).toMatch(/^exit "\$status"$/m)
   })
 })
 

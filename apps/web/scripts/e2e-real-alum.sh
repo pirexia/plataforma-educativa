@@ -33,6 +33,8 @@ done
 source "$(dirname "${BASH_SOURCE[0]}")/lib/e2e-tiempo.sh"
 # shellcheck source=lib/e2e-ci.sh
 source "$(dirname "${BASH_SOURCE[0]}")/lib/e2e-ci.sh"
+# shellcheck source=lib/e2e-informe.sh
+source "$(dirname "${BASH_SOURCE[0]}")/lib/e2e-informe.sh"
 
 # shellcheck source=e2e-vite-api-url.sh
 source "$(dirname "${BASH_SOURCE[0]}")/e2e-vite-api-url.sh"
@@ -115,9 +117,11 @@ export E2E_REAL_API=1
 
 # Dos invocaciones: primero los specs HTTP y después los de navegador. Los accesos a la API están limitados (429, 10 por minuto y centro desde
 # una IP): los specs de navegador esperan lo que pida el servidor, los HTTP no, y por eso van antes.
+# Cada invocación deja su propio informe (claves `alum-http` y `alum-browser`, lib/e2e-informe.sh) y se verifica por separado;
+# si falla la primera, la segunda se ejecuta igualmente y el guion termina con código distinto de 0.
 status=0
 inicio=$SECONDS
-npx playwright test e2e/alum-students-real.spec.ts e2e/alum-enrollments-real.spec.ts e2e/alum-photo-real.spec.ts --workers=1 --pass-with-no-tests "$@" || status=$?
-npx playwright test e2e/alum-screens-real.spec.ts e2e/alum-group-change-real.spec.ts e2e/data-table-real.spec.ts --workers=1 --pass-with-no-tests "$@" || status=$?
+e2e_playwright alum-http e2e/alum-students-real.spec.ts e2e/alum-enrollments-real.spec.ts e2e/alum-photo-real.spec.ts --workers=1 --pass-with-no-tests "$@" || status=1
+e2e_playwright alum-browser e2e/alum-screens-real.spec.ts e2e/alum-group-change-real.spec.ts e2e/data-table-real.spec.ts --workers=1 --pass-with-no-tests "$@" || status=1
 e2e_tiempo_emitir alum playwright "$inicio"
 exit "$status"
