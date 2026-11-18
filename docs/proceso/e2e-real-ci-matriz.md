@@ -5,7 +5,7 @@
 | Ubicación | `docs/proceso/e2e-real-ci-matriz.md`. Anexo de `docs/proceso/e2e-real-ci.md` (`§6`, `§9`); **no es un módulo ni un requisito nuevo** |
 | Entrega | `E2E-CI-d0` (sin código). Inventario de `explorer`; roles, prioridad, partición y criterios de `spec-writer` |
 | Estado | **BORRADOR**, pendiente de aprobación del usuario (2026-11-18). Nada implementado |
-| Clasificación del paso: ordinario | `-d0` no toca código, guiones, flujos ni `e2e-real-tenant.php`. La clasificación de `-d1`..`-d5` está en `§5` (y en `OPEN-E2ECI-21`) |
+| Clasificación del paso: ordinario | `-d0` no toca código, guiones, flujos ni `e2e-real-tenant.php`. La clasificación de `-d1`..`-d5` está en `§4.2` (críticas hasta resolver `OPEN-E2ECI-21`) |
 | Fuentes | `apps/web/src/modules/*/shell.ts` (rutas y `meta.permissions`); `docs/modulos/REQ-{AUTH,CORE,CURSO,ACAD,FAM-UNIT,PRL,ALUM}/permisos.md` (siembra de roles predefinidos); `apps/api/tests/Support/e2e-real-tenant.php` (usuarios del guion); `apps/web/e2e/e2e-real-esperados.json` (recuento); cabeceras de los *specs* reales citados |
 
 > Convención (la de `e2e-real-ci.md`): **V** = comprobado leyendo el fichero en esta sesión; **V-cab** = comprobado solo por el comentario de cabecera o el título del *spec*, no por su cuerpo; **NV** = no verificado. **[DERIVADA]** = propuesta de esta especificación sin requisito o ADR detrás, con su motivo.
@@ -45,7 +45,7 @@ Columnas de `e2e-real-ci.md §6.1`, más dos: **Hueco** (`C` cubierto en E2E rea
 
 | # | Ruta (nombre) | Flujo | Permiso de la ruta | Roles que lo ejercen | E2E real hoy | E2E simulado hoy | Interacción | Hueco | Prio./Entrega |
 |---|---------------|-------|--------------------|----------------------|--------------|------------------|-------------|-------|---------------|
-| A-01 | `login` | Inicio de sesión correcto; credencial errónea (respuesta genérica); bloqueo tras fallos consecutivos (`423`) | pública | Todos | Solo el camino feliz, como paso previo de los *specs* de navegador (**V** `prl-door-real` `signIn`; `core-scroll-real` según `§6.3`) | Por nombre: `public-auth-shell.spec.ts` | `F` parcial | P | P1 · `-d3` |
+| A-01 | `login` | Inicio de sesión correcto; credencial errónea (respuesta genérica); bloqueo tras fallos consecutivos (`423`) | pública | Todos | Solo el camino feliz, como paso previo de los *specs* de navegador (**V** `prl-door-real` `signIn`; `core-scroll-real` según `§6.3`) | Por nombre: `apps/web/e2e/public-auth-shell.spec.ts` | `F` parcial | P | P1 · `-d3` |
 | A-02 | `password-reset-request`, `password-reset` | Recuperar y restablecer la contraseña por enlace de correo | pública (token) | Todos | Ninguno | NV | — | N | P1 · `-d3` (cond. `OPEN-E2ECI-16`) |
 | A-03 | `account-unlock` | Desbloqueo por enlace de correo | pública (token) | Todos | Ninguno | NV | — | N | P1 · `-d3` (cond. `-16`) |
 | A-04 | `invitation-redemption` | Canje de invitación y primer acceso | pública (token) | Usuario invitado | Ninguno | NV | — | N | P1 · `-d3` (cond. `-16`) |
@@ -150,9 +150,9 @@ Usuario del guion: `tutor_legal` del modo `alum` (`§1`). Estudiante: **ninguna 
 |---|-----|--------------|------------------|-------|---------------|
 | X-01 | *Shell*: menú, migas, *scroll* al cambiar de ruta | `core-scroll-real` (`M`, `S`) | `apps/web/e2e/shell.spec.ts` (**V**, simulado) | P | P3 · `-d5` |
 | X-02 | Idioma es/en/de/fr (interfaz) | Ninguno (`I` no aparece) | NV | N | P3 · `-d5` |
-| X-03 | Tema claro/oscuro | Ninguno (`C` no aparece) | Por nombre: `design-system.spec.ts`, `radius.spec.ts` | N | P3 · `-d5` (comparación visual: `E2E-CI-e`) |
+| X-03 | Tema claro/oscuro | Ninguno (`C` no aparece) | Por nombre: `apps/web/e2e/design-system.spec.ts`, `apps/web/e2e/radius.spec.ts` | N | P3 · `-d5` (comparación visual: `E2E-CI-e`) |
 | X-04 | Responsive (320 px) | `alum-screens-real` (`CA-ALUM-071`: `/alumnado`, `/alumnado/listas` y `/alumnado/cambios-de-grupo` sin desbordamiento horizontal, **V** l.196-217); `acad-scales` (**V** por el guion), `acad-periods` (**NV**). Falta en `core`, `curso`, `fam-unit` y `prl` | `core-roles.spec.ts` (`CA-PERM-128`, **V-cab**) | P | P3 · `-d5` (solo lo que falta) |
-| X-05 | Tabla de datos (TanStack) | `data-table-real` | `data-table.spec.ts` | C | — |
+| X-05 | Tabla de datos (TanStack) | `data-table-real` | Por nombre: `apps/web/e2e/data-table.spec.ts` | C | — |
 | X-06 | Selector de curso académico en la URL (`?academic_year=`) | Se navega con el parámetro (**V** `alum-screens-real`); el selector en sí, NV | NV | P | P3 · `-d5` |
 
 ---
@@ -188,16 +188,16 @@ Orden por `OPEN-E2ECI-12` = A. Dentro de P1, `-d1` y `-d2` van antes que `-d3` p
 | Entrega | Filas | Suite donde vive (propuesta) | Tramos | Clasificación | Datos nuevos en el guion (`REQ-SEED-005`) | Coste estimado de reloj (**NV**) |
 |---------|-------|-------------------------------|--------|---------------|--------------------------------------------|----------------------------------|
 | **`-d1`** · autorización en pantalla | C-02, C-03b, C-04, C-05, C-06, C-14, D-01, D-05, P-03 | `alum-browser` (secretaría, dirección, docentes, administrador; `acad` contratado) y `prl` (conserje, secretaría) | 2-3 | **Crítica hasta resolver `OPEN-E2ECI-21`**: registra *specs* en `e2e-real-alum.sh`/`e2e-real-prl.sh` y cambia `e2e-real-esperados.json` | No (usa los usuarios de `alum` y `door`) | +45-60 s (**suposición sin medir**) |
-| **`-d2`** · datos de menores y familias | F-01, F-03..F-07, T-02..T-07, L-03, L-04, L-07 (15) | `alum-http` (tutor) y `alum-browser` (personal) | 2-3 | **Crítica hasta resolver `-21`** (mismo motivo) | No (textos, unidades y vínculos los crea el *spec* por la API) | +30-45 s (**suposición sin medir**) |
-| **`-d3`** · autenticación | A-01..A-04, A-09..A-12, A-13 (listado y validación) | `core` o suite nueva `auth` (`OPEN-E2ECI-22`) | 3 | **Crítica** en cualquier caso: toca `e2e-real-tenant.php` (usuario obligado a MFA sin exención) y, según `OPEN-E2ECI-16`, el guion | **Sí**: un usuario con rol obligado a MFA y sin exención; según `-16`, acceso a los correos | +40-60 s (**suposición sin medir**) |
+| **`-d2`** · datos de menores y familias | F-01, F-03..F-07, T-02..T-07, L-03, L-04, L-07 (15) | Propuesta [DERIVADA]: F-01, F-05, F-06 y F-07 en la suite **`fam-unit`** (modo `door`: administrador y `secretaria`; hoy 1 test, `e2e-real-esperados.json`; `e2e-real-api.sh` l.175); F-03 y F-04 en **`alum-browser`**, porque comprueban el efecto sobre el tutor y solo el modo `alum` crea `tutor_legal` (y contrata `fam_unit`, `e2e-real-tenant.php` l.223-236); T-02..T-07 en **`alum-http`**; L-03, L-04 y L-07 en **`alum-browser`**. Sin suite nueva | 2-3 | **Crítica hasta resolver `-21`** (registra *specs* en `e2e-real-api.sh` y `e2e-real-alum.sh`) | No (textos, unidades y vínculos los crea el *spec* por la API) | +30-45 s (**suposición sin medir**) |
+| **`-d3`** · autenticación | A-01..A-04, A-09..A-12, A-13 (listado y validación) | `core` o suite nueva `auth` (`OPEN-E2ECI-22`) | 3 | **Crítica hasta resolver `-21`**, como las demás; y además crítica por sí misma, porque toca `e2e-real-tenant.php` (usuario obligado a MFA sin exención) y, según `OPEN-E2ECI-16`, el guion: la resolución de `-21` no la cambia | **Sí**: un usuario con rol obligado a MFA y sin exención; según `-16`, acceso a los correos | +40-60 s (**suposición sin medir**) |
 | **`-d4`** · escrituras restantes de personal | A-07, A-08, C-03a, C-07, C-09, C-10, C-11, C-13, U-02, U-03, D-03, D-04, P-02 | `core`, `curso-rollover`, `acad-*` según el módulo | 3 | **Crítica hasta resolver `-21`** | No, salvo `direccion` en modo `door` para P-02 (`OPEN-E2ECI-19`) | +50-70 s (**suposición sin medir**) |
-| **`-d5`** · lecturas y transversal | C-01, C-08 (`R`), C-12, U-01, X-01..X-04 (X-04 solo en `core`, `curso`, `fam-unit` y `prl`), X-06 | `core`, `fam-unit` y `prl` para X-04 | 1-2 | **Crítica hasta resolver `-21`** | No | +30-40 s (**suposición sin medir**) |
+| **`-d5`** · lecturas y transversal | C-01, C-08 (`R`), C-12, U-01, X-01..X-04 (X-04 solo en `core`, `curso`, `fam-unit` y `prl`), X-06 | `core` (y `curso`, que corre en `core`: `curso-academic-years`), `fam-unit` y `prl` para X-04 | 1-2 | **Crítica hasta resolver `-21`** | No | +30-40 s (**suposición sin medir**) |
 
 La comparación visual con referencias **no** está en `-d`: es `E2E-CI-e` (`OPEN-E2ECI-10` = A, capturas como artefacto sin comparación). `-d5` solo comprueba que el cambio de idioma, de tema y de anchura **funciona** (textos, ausencia de errores, sin desbordamiento horizontal), no cómo se ve.
 
 ### 4.3 Tiempo del job y `E2E-CI-c2`
 
-Datos medidos (`e2e-real-ci.md §9.3`, V): tabla oficial de tres ejecuciones, **mediana 8:15, máximo 8:22**; suma de fases `playwright` ≈ 238 s (mediana); `alum` ≈ 95 s con 36 tests; `setup`/`teardown` 1-7 s por suite. Observaciones aparte, fuera de la tabla oficial: 8:27 (cuarta ejecución, run 44338603732) y 7:39 (primer intento).
+Datos medidos (`e2e-real-ci.md §9.3`, V): tabla oficial de tres ejecuciones (7:39, 8:22 y 8:15), **mediana 8:15, máximo 8:22**; suma de fases `playwright` ≈ 238 s (mediana); `alum` ≈ 95 s con 36 tests; `setup`/`teardown` 1-7 s por suite. Observaciones aparte, fuera de la tabla oficial: 8:27 (cuarta ejecución en la rama, run 44338603732) y 7:28 (en `develop`, dato de la sesión; **NV** en esta pasada).
 
 **Todo lo demás de esta sección son suposiciones sin medir** [DERIVADA]: el coste por test, el coste fijo del job (≈ 3:30-3:45, deducido de 8:15 menos ≈ 4:00 de Playwright y ≈ 0:30 de preparación) y todas las cifras «+N s» de `§4.2`. Se recalibran con las tres ejecuciones que exige `CA-E2ECI-20` tras cada entrega.
 
@@ -230,7 +230,7 @@ Sacados de la siembra (V). Solo usuarios que existen hoy (`§1`); el tutor queda
 
 ## 5. Observaciones para la sesión (no son decisiones)
 
-1. **Casi toda entrega `-d` es crítica según la regla de `§9`.** `CLAUDE.md §3` exige que cada E2E nuevo quede **registrado en el guion** de E2E real; si los guiones enumeran sus *specs* (**V-cab**: `e2e-real-alum.sh` «tres *specs* HTTP y tres de navegador», `e2e-real-ci.md §1.2`), añadir uno toca `apps/web/scripts/*`, que `§9` clasifica como crítico. `OPEN-E2ECI-21`.
+1. **Por qué las cinco entregas `-d` son críticas hasta resolver `OPEN-E2ECI-21`** (y `-d3`, además, por `e2e-real-tenant.php`). `CLAUDE.md §3` exige que cada E2E nuevo quede **registrado en el guion** de E2E real; si los guiones enumeran sus *specs* (**V-cab**: `e2e-real-alum.sh` «tres *specs* HTTP y tres de navegador», `e2e-real-ci.md §1.2`), añadir uno toca `apps/web/scripts/*`, que `§9` clasifica como crítico. `OPEN-E2ECI-21`.
 2. **`OPEN-E2ECI-13` = A choca con el muro de condiciones.** `§1.4` dice que el muro (`/condiciones-de-uso`) lo alcanza cualquier usuario autenticado, «incluida una familia», y `OPEN-E2ECI-13` = A dice «ninguna fila de pantalla» para la familia. No se reabre la decisión: se pregunta solo por el muro (`OPEN-E2ECI-25`).
 3. **`e2e-real-ci.md §6.3` decía de las alertas de `prl` «NV (posible en `prl-door-*`)»**: el test de `prl-door-real` l.399 (**V**, título con `CA-PRL-035`) hace que el administrador encuentre la alerta, la filtre por fecha, registre la llamada y la cierre. Se corrige aquí (P-02), no en `§6.3`, que es la primera pasada histórica. Los títulos de los tests citan `CA-PRL-035` y la cabecera del *spec*, `CA-PRL-012` y `CA-PRL-022`: la matriz cita el título.
 4. **`e2e-real-ci.md §6.3` daba la 320 px como solo simulada y los permisos efectivos como NV**: `alum-screens-real` (l.196-217) y `core-roles` (l.475-480) los cubren en real (**V**). Corregido en X-04 y C-05.

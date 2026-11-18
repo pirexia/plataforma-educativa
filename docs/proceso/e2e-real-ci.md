@@ -177,7 +177,7 @@ Columna «Roles»: **NV** en todas las filas (requiere el paso 2). «E2E simulad
 
 | Módulo | Ruta | Permiso (V) | E2E real hoy | E2E simulado hoy |
 |--------|------|-------------|--------------|------------------|
-| auth | `login`, recuperación, restablecimiento, desbloqueo, invitación (`/entrar`, `/recuperar`, `/restablecer/:token`, `/desbloquear/:token`, `/activar/:token`) | pública | Inicio de sesión como paso previo de todos los *specs* de navegador (**V** en `core-scroll-real`); ningún *spec* real del flujo en sí | Por nombre: `public-auth-shell.spec.ts` |
+| auth | `login`, recuperación, restablecimiento, desbloqueo, invitación (`/entrar`, `/recuperar`, `/restablecer/:token`, `/desbloquear/:token`, `/activar/:token`) | pública | Inicio de sesión como paso previo de todos los *specs* de navegador (**V** en `core-scroll-real`); ningún *spec* real del flujo en sí | Por nombre: `apps/web/e2e/public-auth-shell.spec.ts` |
 | auth | `/entrar/google`, `/entrar/sso` | pública | Ninguno | **NV** |
 | auth | `/cuenta/contrasena`, `/cuenta/sesiones`, `/cuenta/seguridad` | `[]` (autoservicio) | Ninguno | Por nombre: `auth-sessions.spec.ts` |
 | auth | `/cuenta/seguridad/obligatorio` (muro MFA) | `[]` | Ninguno | **NV** |
@@ -208,7 +208,7 @@ Columna «Roles»: **NV** en todas las filas (requiere el paso 2). «E2E simulad
 | alum | `/alumnado`, `/alumnado/:id` | `alumno.leer` | `alum-screens-real`, `alum-students-real` (HTTP), `alum-photo-real` (HTTP, Garage) | **NV** |
 | alum | `/alumnado/listas` | `matricula.leer` | **NV** (posible en `alum-screens-real` o `data-table-real`) | **NV** |
 | alum | `/alumnado/cambios-de-grupo` | `matricula.leer` | `alum-group-change-real` | **NV** |
-| — | Transversal: *shell*, radio, *design system*, tabla | — | `data-table-real` (tabla TanStack, `RNF-MANT-007`) | Por nombre: `shell.spec.ts`, `radius.spec.ts`, `design-system.spec.ts`, `data-table.spec.ts`; `landing-shots.spec.ts` es de la *landing* |
+| — | Transversal: *shell*, radio, *design system*, tabla | — | `data-table-real` (tabla TanStack, `RNF-MANT-007`) | Por nombre: `apps/web/e2e/shell.spec.ts` (**V**, simulado), `apps/web/e2e/radius.spec.ts`, `apps/web/e2e/design-system.spec.ts`, `apps/web/e2e/data-table.spec.ts`; `apps/web/e2e/landing-shots.spec.ts` es de la *landing* |
 
 **Familia y estudiante**: sin filas de pantalla, porque no existen (`§1.4`). Para ellos la matriz solo puede tener filas de **API** (prueba HTTP real con cookie y CSRF), y la de estudiante ni eso mientras el guion no cree un usuario estudiante (**NV** si algún *endpoint* de hoy atiende a un estudiante) (`OPEN-E2ECI-13`).
 
@@ -260,7 +260,7 @@ Estimación en tramos de `implementer` (`CLAUDE.md §2.7`, ≤3 tramos ≈ 250 l
 | `E2E-CI-d1`..`-d5` (propuesta de `-d0`, matriz `§4.2`) | `-d1` autorización en pantalla; `-d2` datos de menores y familias; `-d3` autenticación; `-d4` escrituras restantes; `-d5` lecturas y transversal | ≤3 cada una (`-d1` 2-3, `-d2` 2-3, `-d3` 3, `-d4` 3, `-d5` 1-2) | **Críticas las cinco hasta resolver `OPEN-E2ECI-21`** (registrar un *spec* toca los guiones de `apps/web/scripts`; `-d3` toca además `apps/api/tests/Support/e2e-real-tenant.php`, que crea usuarios, roles y datos de menores sintéticos y tiene guardas de entorno). Regla de partida, que `-21` puede enmendar: crítico si el diff toca `e2e-real-tenant.php`, los guiones o `ci-e2e-real.yml` | Codex; `security-reviewer` si crítico; `doc-precheck`, `doc-reviewer` | No | No |
 | `E2E-CI-e` | Pruebas visuales según lo que se decida en `OPEN-E2ECI-10` | 1-2 | Ordinario si solo añade *specs* o capturas; **crítico** si cambia `ci-e2e-real.yml` o sube artefactos con trazas | Codex; `doc-precheck`, `doc-reviewer` | Sí si se adopta comparación con referencias, porque cambia `RN-UI-07` (`OPEN-E2ECI-10`) | No |
 
-**E2E / prueba que cubre cada criterio**: `CA-E2ECI-01` a `-08` y `-12` a `-15` en `§4.2` (cada uno lleva su prueba). Para `E2E-CI-c`: `CA-E2ECI-09` a `-11` y `-16` (`§9.1`). Para `-d1`..`-d5`: `CA-E2ECI-17` a `-42` (`§9.4`, propuestos por `-d0`, pendientes de aprobación). Para `-c2` y `-e`: los fija la sesión al aprobarse el reparto (`-c2`) o al decidirse `OPEN-E2ECI-10` (`-e`); no se escriben antes de tener esos datos, y la entrega no empieza sin ellos.
+**E2E / prueba que cubre cada criterio**: `CA-E2ECI-01` a `-08` y `-12` a `-15` en `§4.2` (cada uno lleva su prueba). Para `E2E-CI-c`: `CA-E2ECI-09` a `-11` y `-16` (`§9.1`). Para `-d1`..`-d5`: `CA-E2ECI-17` a `-42`, más `-22b`, `-26b`, `-31b`, `-31c`, `-42b` y `-42c` (`§9.4`, propuestos por `-d0`, pendientes de aprobación). Para `-c2` y `-e`: los fija la sesión al aprobarse el reparto (`-c2`) o al decidirse `OPEN-E2ECI-10` (`-e`); no se escriben antes de tener esos datos, y la entrega no empieza sin ellos.
 
 ### 9.1 Criterios de `E2E-CI-c`
 
@@ -306,7 +306,7 @@ Todas las suites corren en un único job «E2E real · todas las suites» (`ci-e
 
 ### 9.4 Criterios de `E2E-CI-d1`..`-d5` (propuestos por `-d0`, pendientes de aprobación)
 
-Filas, suites y flujos exigidos: [`e2e-real-ci-matriz.md`](e2e-real-ci-matriz.md) `§4.2`, `§4.4` y `§4.5`. Clasificación: **críticas las cinco hasta resolver `OPEN-E2ECI-21`** (cada una registra *specs* en un guion de `apps/web/scripts` y `-d3` toca `e2e-real-tenant.php`).
+Filas, suites y flujos exigidos: [`e2e-real-ci-matriz.md`](e2e-real-ci-matriz.md) `§4.2`, `§4.4` y `§4.5`. Holgura de tiempo de partida (`§9.3`, tabla oficial de tres ejecuciones 7:39, 8:22 y 8:15): ≈ **1:45** sobre la mediana (8:15) y ≈ **1:38** sobre el máximo (8:22) hasta el disparador de `D3` (~10 min); las cifras de coste por entrega de la matriz (`§4.2`-`§4.3`) son suposiciones sin medir. Clasificación: **críticas las cinco hasta resolver `OPEN-E2ECI-21`** (cada una registra *specs* en un guion de `apps/web/scripts` y `-d3` toca `e2e-real-tenant.php`).
 
 **Comunes a cada entrega `-dN`**
 
@@ -324,6 +324,7 @@ Filas, suites y flujos exigidos: [`e2e-real-ci-matriz.md`](e2e-real-ci-matriz.md
 - **CA-E2ECI-24** · *Dado* el administrador, *cuando* da de alta un usuario **con un rol elegido en el propio formulario de alta** (`core-user-new`, `role_ids`), *entonces* la ficha del usuario muestra ese rol (asignar desde la ficha y ver los permisos efectivos ya lo cubre `core-roles`, `CA-PERM-133`, y no se repite); *cuando* el usuario tiene dos roles y uno deniega lo que el otro permite, *entonces* los permisos efectivos lo muestran denegado (`RPERM-007`); y *cuando* intenta desactivarse a sí mismo o dejar el centro sin administrador, *entonces* la pantalla muestra el error del `409` y el estado no cambia (`RN-CORE-06`/`-07`). *Prueba*: test real.
 - **CA-E2ECI-25** · *Dado* una reserva creada por un docente, *cuando* otro docente intenta cancelarla, *entonces* no puede (`404` por HTTP real, acción no disponible en pantalla), y el autor sí (`CA-ACAD-139`). *Prueba*: test real.
 - **CA-E2ECI-26** · *Dado* una invitación pendiente, *cuando* el administrador la reenvía y la revoca desde la pantalla, *entonces* el listado refleja cada cambio; y secretaría la ve sin esas acciones. *Prueba*: test real.
+- **CA-E2ECI-26b** · *Dado* un usuario con dos roles asignados, *cuando* el administrador le retira uno desde la región «Roles» de su ficha y guarda, *entonces* la ficha muestra solo el rol restante y sus permisos efectivos dejan de incluir lo que solo concedía el rol retirado (C-04; añadir un rol ya lo cubre `CA-PERM-133`). *Prueba*: test real.
 
 **`-d2` · datos de menores y familias**
 
@@ -332,6 +333,8 @@ Filas, suites y flujos exigidos: [`e2e-real-ci-matriz.md`](e2e-real-ci-matriz.md
 - **CA-E2ECI-29** · *Dado* un texto de consentimiento publicado por el administrador desde la pantalla de textos legales, *cuando* secretaría registra una decisión presencial y exporta el informe, *entonces* el tutor ve la decisión por HTTP y el CSV se descarga de Garage por la URL firmada. *Prueba*: test real.
 - **CA-E2ECI-30** · *Dado* secretaría en la ficha de un alumno, *cuando* edita, da de baja, restaura y cambia la fotografía, *entonces* cada cambio se refleja en la ficha y en una lectura HTTP real; y un docente con ámbito `grupo` no ve esas acciones. *Prueba*: test real.
 - **CA-E2ECI-31** · *Dado* una versión de condiciones publicada, *cuando* un usuario sujeto al muro inicia sesión, *entonces* llega al muro, acepta y continúa, y antes de aceptar su API responde `403 terms-acceptance-required`; quién es ese usuario en navegador lo decide `OPEN-E2ECI-25`. *Prueba*: test real.
+- **CA-E2ECI-31b** · *Dado* secretaría en `/familias`, *cuando* da de alta una unidad familiar, un tutor y un vínculo tutor ↔ alumno con una de las personas alumno sintéticas del guion, *entonces* la ficha de la unidad muestra al alumno, al tutor y el vínculo activo, y una lectura HTTP real lo confirma; un error de validación del servidor (p. ej. vínculo duplicado) se muestra en el formulario (F-01). *Prueba*: test real.
+- **CA-E2ECI-31c** · *Dado* un alumno con matrícula activa, *cuando* secretaría la da de baja (`withdrawal`) y, sobre otra, la anula desde la ficha, *entonces* la ficha refleja cada estado y una lectura HTTP real de `GET /enrollments/{id}` lo confirma; un docente con ámbito `grupo` no ve esas acciones (L-07; si `alum-enrollments-real` ya lo cubre por HTTP, solo la parte de pantalla). *Prueba*: test real.
 
 **`-d3` · autenticación** (condicionada a `OPEN-E2ECI-16`, `-17` y `-18`)
 
@@ -352,6 +355,8 @@ Filas, suites y flujos exigidos: [`e2e-real-ci-matriz.md`](e2e-real-ci-matriz.md
 - **CA-E2ECI-40** · *Dado* las mismas pantallas, *cuando* se conmuta el tema claro/oscuro, *entonces* el cambio se aplica sin errores en la consola del navegador (la comparación visual es `E2E-CI-e`). *Prueba*: test real.
 - **CA-E2ECI-41** · *Dado* una anchura de 320 px, *cuando* se abre una pantalla de cada módulo que **aún no** tiene comprobación de 320 px en E2E real (`core`, `curso`, `fam-unit`, `prl`; `alum` ya la tiene en `alum-screens-real`, `CA-ALUM-071`, y `acad` en `acad-scales`/`acad-periods`, `CA-ACAD-101`), *entonces* el menú es accesible y la página no tiene desplazamiento horizontal. *Prueba*: test real.
 - **CA-E2ECI-42** · *Dado* los listados de usuarios y de cursos, *cuando* se filtran y ordenan, *entonces* el estado queda en la URL (sin `q` ni `cursor`, `RN-CORE-54`) y las filas coinciden con las de la API real para los mismos parámetros. *Prueba*: test real.
+- **CA-E2ECI-42b** · *Dado* `direccion` (modo `alum`), *cuando* abre `/administracion/modulos`, *entonces* ve los módulos contratados del centro de pruebas en solo lectura, sin acciones de configuración (C-12, `RN-CORE-87`); y *cuando* `secretaria` abre `/administracion/cursos` y la ficha de un curso, *entonces* los ve sin acciones de alta, edición, activación ni cierre (U-01). Cada lectura se contrasta con la API real. *Prueba*: test real.
+- **CA-E2ECI-42c** · *Dado* una pantalla con selector de curso académico (`meta.academicYearScoped`), *cuando* el usuario elige otro curso en el selector del *shell*, *entonces* la URL pasa a llevar `?academic_year=<id>`, el contenido es el de ese curso según la API real y, al recargar, el selector conserva la elección (X-06, `RN-ACAD-40`). *Prueba*: test real.
 
 ---
 
@@ -396,7 +401,7 @@ En cada una, la opción recomendada va primero y marcada.
 Contexto en [`e2e-real-ci-matriz.md`](e2e-real-ci-matriz.md). La opción recomendada va primero.
 
 - **OPEN-E2ECI-16 · Cómo obtiene el E2E los enlaces de correo** (invitación, recuperación, desbloqueo; A-02..A-04). El token solo existe en claro en el correo (`REQ-AUTH/permisos.md §1`: se persiste como *hash*), así que no puede leerse de la base.
-  - **(A, recomendada)** Configurar en el *runner* y en local un *mailer* que deje el correo legible sin servicio nuevo (p. ej. el *driver* `log` de Laravel) y que el *spec* lo lea del registro del contenedor de la API. Sin dependencia nueva; **NV** cuál es hoy el *mailer* de la pila de desarrollo. **Riesgo**: el enlace con el token en claro (invitación, restablecimiento, desbloqueo) queda en el registro del contenedor, y el job vuelca las últimas líneas de los registros de `api` y `worker` cuando falla (`§12.1.2` paso 9) y sube trazas como artefacto (`OPEN-E2ECI-14`, #779). Son tokens de un solo uso de un centro sintético que muere con el *runner*, el mismo tipo de riesgo aceptado en #779 para contraseñas y cookies; si se elige A, el usuario debe aceptarlo expresamente o pedir que esas líneas se enmascaren o se excluyan del volcado.
+  - **(A, recomendada)** Configurar en el *runner* y en local un *mailer* que deje el correo legible sin servicio nuevo (p. ej. el *driver* `log` de Laravel) y que el *spec* lo lea del registro del contenedor de la API. Sin dependencia nueva; **NV** cuál es hoy el *mailer* de la pila de desarrollo. **Riesgo**: el enlace con el token en claro (invitación, restablecimiento, desbloqueo) queda en el registro del contenedor, y el job vuelca las últimas líneas de los registros de `api`, `worker` y Garage cuando falla (`§12.1.2` paso 9) y sube trazas como artefacto (`OPEN-E2ECI-14`, #779). Son tokens de un solo uso de un centro sintético que muere con el *runner*, el mismo tipo de riesgo aceptado en #779 para contraseñas y cookies; si se elige A, el usuario debe aceptarlo expresamente o pedir que esas líneas se enmascaren o se excluyan del volcado.
   - (B) Añadir un capturador de correo (p. ej. Mailpit) a `compose.yaml`: servicio e imagen nuevos, sujetos a `CLAUDE.md §1` y a revisión de `contenedores-y-red`.
   - (C) No cubrir esos flujos en E2E real: se declaran no viables con su sustituto Pest y un *issue*.
 - **OPEN-E2ECI-17 · MFA en E2E real** (A-09..A-12).
