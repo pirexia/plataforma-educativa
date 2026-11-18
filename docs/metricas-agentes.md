@@ -82,6 +82,26 @@ Registro del gasto de cada subagente, para calibrar el tamaño de los tramos de 
 | 1.15 (spec) | doc-reviewer | ronda 1 | 152088 | 21 | 3.4 | n/d | 1 Alto, 7 Medios, 10 Bajos |
 | 1.15 (spec) | spec-writer (Opus) | correcciones doc-reviewer | 73655 | 40 | 7.5 | n/d | reanudación; tokens = delta (391819 acumulado); reescribió funcional.md entero |
 | 1.15 (spec) | doc-reviewer | ronda 2 | 130051 | 17 | 2.0 | n/d | 0 C/A; 2 Medios y 5 Bajos textuales, corregidos por la sesión |
+| #426 recorte | doc-precheck | ronda 1 | 101226 | 6 | 1.1 | 16871 | 2 Medios, 6 Bajos; cifras de la notificación de fin de agente |
+| #426 recorte | doc-reviewer | ronda 1 | 98835 | 5 | 0.9 | 19767 | 0 C/A; 3 Medios, 3 Bajos |
+| #737 spec | spec-writer (Opus) | E2E-CI-a | 249466 | 52 | 7.4 | 4797 | sin `Bash` (no pudo commitear: lo hizo la sesión); 15 OPEN; error del encargo (`REQ-INF` no es infraestructura) |
+| #737 spec | doc-precheck | ronda 1 | 138159 | 16 | 2.2 | 8635 | 1 Medio, 4 Bajos |
+| #737 spec | doc-reviewer | ronda 1 | 151698 | 21 | 3.1 | 7224 | 0 C/A; 7 Medios, 8 Bajos |
+| #737 spec | doc-precheck | ronda 2 | 113957 | 6 | 1.4 | 18993 | 3 Medios, 5 Bajos (uno era un dato falso propagado desde el doc-reviewer) |
+| 0.10e-b | explorer | briefing | 64856 | 10 | 1.2 | 6486 | experimental (CLAUDE.md §2, punto 2): sin dato comparativo del `implementer` sin briefing |
+| 0.10e-b | implementer | T1 (único tramo) | 107919 | 19 | 3.2 | 5680 | lib + 18 ficheros, 19 Pest y 10 Vitest nuevos, demostradas en rojo |
+| 0.10e-b | verificador | suite completa | 41921 | 17 | 10.8 | 2466 | informe parcial: 1 fallo de entorno (imagen de la API de antes de `pcntl`); no pudo ejecutar web (sin contenedor `plataforma-web`); la sesión repitió suite y web |
+| 0.10e-b | security-reviewer | ronda 1 | 87725 | 5 | 0.9 | 17545 | 0 C/A; 1 Medio (preexistente, #752) y Bajos; ejecutó tests a la vez que el `verificador` (comparten BD) |
+| 0.10e-b | doc-precheck | ronda 1 | 95611 | 11 | 1.3 | 8692 | 0 C/A/M |
+| 0.10e-b | doc-reviewer | ronda 1 | 106282 | 14 | 1.2 | 7592 | 0 C/A; 2 Medios, 6 Bajos |
+| ADR-091 | architect (Opus) | redacción | 138335 | 27 | 3.8 | 5123 | PROPUESTA; 2 OPEN |
+| ADR-091 | doc-precheck | ronda 1 | 126555 | 16 | 2.0 | 7910 | 3 Bajos |
+| ADR-091 | doc-reviewer | ronda 1 | 113451 | 9 | 1.8 | 12606 | 0 C/A; 4 Medios, 6 Bajos; 3 decisiones derivadas sin aprobar |
+| ADR-091 | architect (Opus) | correcciones doc-reviewer | 173730 | 25 | 2.6 | 6949 | reanudación; no consta si el dato de la notificación es delta o acumulado |
+| ADR-091 | doc-precheck | ronda 2 | 104501 | 8 | 1.1 | 13063 | 1 Baja |
+| #741 | security-reviewer | ronda 1 | 68944 | 6 | 0.4 | 11491 | 0 C/A |
+
+Filas del 2026-11-17 (sesión de cierre del 2026-11-18): tokens y llamadas de la notificación de fin de cada agente, duraciones redondeadas; **el resumen de abajo no se ha recalculado** (los pasos de hoy no son de `implementer` salvo `0.10e-b`, con n = 1).
 
 ## Resumen (se recalcula al cerrar cada paso)
 
