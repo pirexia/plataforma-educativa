@@ -6,6 +6,11 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-18 · `docs`: protección de ramas verificada (rulesets) y `RUNBOOK.md` §2.3 corregido; cierre de la sesión (issue #737)
+
+- Con la API de reglas por rama (`gh api repos/<repo>/rules/branches/<rama>`) se comprobó tras la migración del usuario a *rulesets*: `develop` exige 11 checks (con Trivy), `staging` y `main` 10 (sin Trivy), todos con «E2E real (API)»; excepción de administrador (`always`) y `strict=false`; el *ruleset* antiguo `main-y-staging`, sin excepciones, se conserva a propósito. **Corrección**: antes de ese día el único check requerido era el E2E real; lo que `RUNBOOK.md §2.3` decía («ocho checks required desde 0.7») no era cierto. `RUNBOOK.md §2.3` y `SYSADMIN.md §4` reescritos con lo comprobado.
+- `PLAN-IMPLEMENTACION.md`: `E2E-CI-b` hecho; siguiente `E2E-CI-c`. `memory.md`: cierre de la sesión y archivo de los bloques ya cerrados en `docs/proceso/memoria-archivo.md`. Métricas de agentes al día. Solo documentación.
+
 ## 2026-11-18 · `docs`: `E2E-CI-b` verificado (`CA-E2ECI-02`, `-04`, `-06`, `-07`, `-12`, `-13`), `CLAUDE.md` 2.18.0 (issue #737)
 
 - **`CA-E2ECI-02`** (PR #769, solo `CLAUDE.md`): `cambios` decide `ejecutar=false`, `e2e-real` queda saltado y el agregador verde. **`-04`** (PR desechable #771, cerrado): cancelar `e2e-real` a mano deja el agregador en `failure` (run 44305934380). **`-12`** (PR desechable #770, cerrado): con un test saltado, el verificador de esperados falla, `core` y el agregador en rojo (run 44305921589). **`-06`**: la tabla de tiempos trae las seis fases y el registro de `develop` (run 44297600055, 3.466 líneas) no contiene ninguna contraseña `E2e-` sin enmascarar. **`-07`**: E2E real local de la suite completa, `:prl` y `:alum`, `EXIT=0` en las tres (`core` 3, resto de suites 1 cada una, PRL 3, alumnado 16 + 20). **`-13`**: el *push* a `develop` ejecuta el job sin mirar el diff (run 44297600055).
