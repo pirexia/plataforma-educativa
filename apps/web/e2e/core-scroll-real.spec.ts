@@ -15,6 +15,9 @@ test.describe('RNF-MANT-007: scroll al navegar (vue-router 5) contra la API real
     'Necesita la API real: ejecútalo con `npm run test:e2e:real` (apps/web/scripts/e2e-real-api.sh).',
   )
 
+  // PRUEBA DESECHABLE CA-E2ECI-12: fuerza el salto del test. NO MEZCLAR.
+  test.skip(true, 'CA-E2ECI-12: salto forzado')
+
   test.use({
     baseURL: process.env.E2E_BASE_URL ?? 'http://demo.plataforma.test:5173',
     // Viewport bajo: garantiza contenido más alto que la ventana en cualquier lista.
