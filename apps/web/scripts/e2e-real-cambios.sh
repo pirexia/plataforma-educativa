@@ -16,3 +16,4 @@ while IFS= read -r -d '' fichero; do
   esac
 done
 echo "$ejecutar"
+# prueba desechable CA-E2ECI-04 (cancelación), no mezclar
