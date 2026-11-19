@@ -298,6 +298,18 @@ Todas las suites corren en un único job «E2E real · todas las suites» (`ci-e
 - **Guarda de `jq` (#780) verificada en CI**: el commit `76d0e8e` (guarda ante lectura fallida o vacía de `e2e-real-esperados.json`), ya en `c792290`, pasó en el run **44338603732**: job «E2E real · todas las suites» 15:41:58 a 15:50:25 (**8 min 27 s**), agregador verde, 23 checks en verde y 1 saltado. Esa cuarta ejecución es el **máximo observado del job (8:27)**; la tabla oficial de `CA-E2ECI-11` (tres ejecuciones: mediana 8:15, máximo 8:22) no se recalcula, y la conclusión (por debajo de ~10 min, holgura ≈×3,5 del `timeout-minutes: 30`) no cambia. #780 se cierra al mezclar. **Decidido por el usuario (2026-11-18, #779): se mantienen las trazas en el artefacto de fallo; riesgo documentado; #779 se cierra al mezclar.**
 - **Pendiente tras el merge**: `CA-E2ECI-13` aplicado a `-c` (el job corre en el `push` a `develop` con `-c`) y, solo desde ese verde, `docker` cuenta como verificado también para `:prl`, `:alum` y `curso-rollover` (`ADR-091 §4.3`).
 
+### 9.5 Mediciones y evidencias de `E2E-CI-d1` (2026-11-18/19)
+
+Tres ejecuciones completas en CI del PR #786 (run 44418662154, intentos 1 a 3), todas **verdes**, con la suite ya ampliada (`prl` 9, `alum-browser` 39; `CA-E2ECI-19` y `-20`):
+
+| Intento | Job «E2E real · todas las suites» |
+|---|---|
+| 1 | 7 min 13 s |
+| 2 | 8 min 22 s (23:20:24 → 23:28:46) |
+| 3 | 9 min 15 s (23:29:09 → 23:38:24) |
+
+**Mediana del job 8:22; máximo 9:15.** El disparador de D3 (~10 min) **no se cumple**, pero la holgura sobre el máximo es de unos 45 s y `d2` lo superará con alta probabilidad (cifras de coste sin medir en la matriz §4.3); el intento 3 fue más lento en todas las suites a la vez (ruido del *runner*). Tiempos por suite en segundos (líneas `E2E_TIEMPO ... fase=playwright`; mediana / máximo de los tres intentos): `prl` 27 / 33, `alum` 136 / 141, `core` 24 / 28, `acad-structure` 15 / 18, `acad-periods` 12 / 15, `acad-scales` 11 / 14, `acad-timetable` 32 / 38, `curso-rollover` 17 / 20, `fam-unit` 10 / 11. `alum` pasa de 95 s (mediana de `E2E-CI-c`) a 136 s con los 19 tests nuevos de `d1`; `prl` de 21 a 27 s. **Propuesta**: decidir la partición en matriz (`E2E-CI-c2`) antes de empezar `d2`, no después; la decisión es del usuario (`§5.3`).
+
 ### 9.2 Bloqueos y dependencias
 
 - `E2E-CI-b` tiene como prerrequisitos `0.10e-b` (nivel 1 de *runtime*, `OPEN-E2ECI-03` = A) y el ADR de `OPEN-E2ECI-11` = A, escrito por `architect`, que enmienda `ADR-080 §5.3, punto 4`; el plan de `0.10e-b` lo refleja.
