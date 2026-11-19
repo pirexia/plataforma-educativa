@@ -8,7 +8,7 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ## 2026-11-19 · `ci(e2e)`: matriz de dos jobs para el E2E real (`E2E-CI-c2`, issue #737)
 
-`ci-e2e-real.yml`: el job `e2e-real` pasa a matriz de dos jobs paralelos, `alum` y `resto` (`core`, `prl`, `acad-*`, `curso-rollover`, `fam-unit`), con `fail-fast: false`, pila y centro propios por job, comprobación de esperados por grupo, tiempos `suite=ci-<grupo>` y artefactos por grupo. El agregador «E2E real (API)» conserva nombre y regla. Decisión del usuario tras medir (job único 9-11 min; 10:57 en el push a `develop`). `docs/proceso/e2e-real-ci.md §9.6` (`CA-E2ECI-43` a `-46`) y `e2e-real-ci.spec.ts` actualizados. **Sin verificar en CI** (rotura deliberada en cada grupo y tres mediciones pendientes).
+`ci-e2e-real.yml`: el job `e2e-real` pasa a matriz de dos jobs paralelos, `alum` y `resto` (`core`, `prl`, `acad-*`, `curso-rollover`, `fam-unit`), con `fail-fast: false`, pila y centro propios por job, comprobación de esperados por grupo, tiempos `suite=ci-<grupo>` y artefactos por grupo. El agregador «E2E real (API)» conserva nombre y regla. Decisión del usuario tras medir (job único 9-11 min; 10:57 en el push a `develop`). `docs/proceso/e2e-real-ci.md §9.6` (`CA-E2ECI-43` a `-46`) y `e2e-real-ci.spec.ts` actualizados. **Verificado en CI** (PR #789): tres mediciones (`alum` mediana 335 s, `resto` 350 s; reloj mediano 5:50, máximo 8:03 por un `apt` lento) y rotura deliberada en cada grupo (`CA-E2ECI-45` y `-46`). Causa de la dispersión de tiempos: la instalación de paquetes del sistema de Playwright (`apt`), no las suites.
 
 ## 2026-11-18 · `test(e2e)`: autorización en pantalla en el E2E real (`E2E-CI-d1`, issue #737)
 
