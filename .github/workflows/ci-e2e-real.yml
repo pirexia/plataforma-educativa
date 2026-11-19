@@ -1,14 +1,16 @@
 name: CI · E2E real (API)
 
 # E2E real contra la API real en una pila efímera del runner (issue #737, ADR-091,
-# docs/proceso/e2e-real-ci.md §3 y §12). E2E-CI-c: todas las suites (las siete de `e2e-real-api.sh`, `:prl` y `:alum`) en un solo job y en serie.
+# docs/proceso/e2e-real-ci.md §3 y §12). E2E-CI-c2: todas las suites (las siete de `e2e-real-api.sh`, `:prl` y `:alum`) repartidas en una
+# matriz de dos jobs paralelos (`alum` y `resto`), cada uno con su propia pila y su propio centro (nada compartido).
 #
 # Tres jobs, mismo patrón que ADR-089:
 #   cambios   -> decide con `git diff` si el cambio toca algo que el E2E real ejercita
 #                (sin filtro `paths:` en `on:`: un check requerido que no se dispara bloquea el PR
 #                para siempre, SYSADMIN.md §4, y sin acción de terceros, CLAUDE.md §1).
-#   e2e-real  -> levanta la pila de compose.yaml y ejecuta Playwright sin reintentos.
-#   agregador -> «E2E real (API)», el único nombre que se marca como required check (a mano).
+#   e2e-real  -> matriz de dos jobs (`alum`, `resto`): cada uno levanta su pila de compose.yaml y ejecuta Playwright sin reintentos.
+#   agregador -> «E2E real (API)», el único nombre que se marca como required check (a mano). `needs.e2e-real.result` de una
+#                matriz es `success` solo si TODOS los hijos lo son; con uno en `failure` o `cancelled` el resultado no es `success`.
 #
 # Nunca `pull_request_target`: los PR de forks corren sin secretos; todos los que usa el job son
 # efímeros y se generan en él.
@@ -67,15 +69,31 @@ jobs:
           echo "ejecutar=$ejecutar" >> "$GITHUB_OUTPUT"
 
   e2e-real:
-    name: E2E real · todas las suites
+    name: E2E real · ${{ matrix.grupo }}
     runs-on: ubuntu-26.04  # fijada: ubuntu-latest migra a 26.04 hasta el 19-11-2026 (#609, actions/runner-images#14748)
     needs: cambios
     if: needs.cambios.outputs.ejecutar == 'true'
     # 30 min, valor definitivo (E2E-CI-c, CA-E2ECI-11): tres ejecuciones completas midieron 7:39, 8:22 y 8:15
     # (máximo 8:22), holgura ×3,6; por debajo de ~10 min no se cumple el disparador de D3.
     timeout-minutes: 30
+    strategy:
+      # Una suite en rojo no debe ocultar el resultado del otro grupo (D5, sin reintentos): los dos se ejecutan siempre.
+      fail-fast: false
+      matrix:
+        include:
+          # `alum`: la suite más larga (~135-140 s de Playwright), sola en su job.
+          - grupo: alum
+            ordenes: "test:e2e:real:alum"
+            claves: "alum-http alum-browser"
+          # `resto`: las siete suites de `e2e-real-api.sh` (core, acad-*, curso-rollover, fam-unit) y `prl`.
+          - grupo: resto
+            ordenes: "test:e2e:real test:e2e:real:prl"
+            claves: "core acad-structure acad-periods acad-scales acad-timetable curso-rollover fam-unit prl"
     env:
-      # `E2E_ONLY` no se define: `e2e-real-api.sh` ejecuta sus siete suites (vacía = todas).
+      GRUPO: ${{ matrix.grupo }}
+      ORDENES: ${{ matrix.ordenes }}
+      CLAVES_GRUPO: ${{ matrix.claves }}
+      # `E2E_ONLY` no se define: `test:e2e:real` ejecuta sus siete suites (vacía = todas).
       # Un único *runtime* (ADR-091 §2.2): nunca el alias CONTAINER_CLI (los guiones abortan si difieren).
       CONTAINER_RUNTIME: docker
       # compose.yaml: api y worker contra Garage (ADR-076).
@@ -230,9 +248,9 @@ jobs:
           echo "E2E_T_PILA=$(date +%s)" >> "$GITHUB_ENV"
 
       # Sin reintentos (D5): --retries=0 explícito además de la configuración. Trazas solo de lo que falla.
-      # Las tres órdenes en serie y sin cortar entre sí (para medir todas): cada fallo se anota y el paso termina en rojo al final.
+      # Las órdenes del grupo en serie y sin cortar entre sí (para medir todas): cada fallo se anota y el paso termina en rojo al final.
       # Con E2E_INFORMES_DIR cada suite escribe `<clave>.json`, `playwright-report/<clave>/` y `test-results/<clave>/` (lib/e2e-informe.sh).
-      - name: Playwright (E2E real, todas las suites)
+      - name: Playwright (E2E real, grupo de suites)
         id: playwright
         working-directory: apps/web
         run: |
@@ -240,7 +258,7 @@ jobs:
           mkdir -p "$E2E_INFORMES_DIR"
           opciones=(--retries=0 --trace=retain-on-failure --reporter=json,html)
           fallos=()
-          for orden in test:e2e:real:prl test:e2e:real:alum test:e2e:real; do
+          for orden in $ORDENES; do
             echo "::group::npm run $orden"
             npm run "$orden" -- "${opciones[@]}" || fallos+=("$orden")
             echo "::endgroup::"
@@ -271,6 +289,12 @@ jobs:
             echo "::error::e2e/e2e-real-esperados.json no declara ninguna suite"
             exit 1
           fi
+          # Solo las suites de este grupo de la matriz (CLAVES_GRUPO); las del otro grupo las verifica el otro job.
+          claves="$(printf '%s\n' $claves | grep -Fx -f <(printf '%s\n' $CLAVES_GRUPO) || true)"
+          if [ "$(printf '%s\n' $CLAVES_GRUPO | wc -l)" != "$(printf '%s\n' $claves | grep -c .)" ]; then
+            echo "::error::Las claves del grupo «$GRUPO» no coinciden con e2e/e2e-real-esperados.json"
+            exit 1
+          fi
           for clave in $claves; do
             if [ ! -f "$E2E_INFORMES_DIR/$clave.json" ]; then
               echo "::error::Falta el informe de la suite «$clave»: no se ejecutó"
@@ -292,12 +316,12 @@ jobs:
           set -uo pipefail
           ahora="$(date +%s)"
           {
-            [ -n "${E2E_T_INSTALADO:-}" ] && echo "E2E_TIEMPO suite=ci fase=instalacion segundos=$((E2E_T_INSTALADO - E2E_T_INICIO))"
-            [ -n "${E2E_T_PILA:-}" ] && echo "E2E_TIEMPO suite=ci fase=pila segundos=$((E2E_T_PILA - E2E_T_INSTALADO))"
-            echo "E2E_TIEMPO suite=ci fase=total segundos=$((ahora - E2E_T_INICIO))"
+            [ -n "${E2E_T_INSTALADO:-}" ] && echo "E2E_TIEMPO suite=ci-$GRUPO fase=instalacion segundos=$((E2E_T_INSTALADO - E2E_T_INICIO))"
+            [ -n "${E2E_T_PILA:-}" ] && echo "E2E_TIEMPO suite=ci-$GRUPO fase=pila segundos=$((E2E_T_PILA - E2E_T_INSTALADO))"
+            echo "E2E_TIEMPO suite=ci-$GRUPO fase=total segundos=$((ahora - E2E_T_INICIO))"
           } >> "$E2E_TIEMPOS_LOG"
           {
-            echo "## E2E real · todas las suites"
+            echo "## E2E real · grupo $GRUPO"
             echo
             shopt -s nullglob
             echo "| Suite | Pasados | Fallidos | Saltados | Intermitentes |"
@@ -324,7 +348,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: e2e-real-tiempos
+          name: e2e-real-tiempos-${{ matrix.grupo }}
           path: ${{ runner.temp }}/e2e-tiempos.json
           if-no-files-found: ignore
           retention-days: 7
@@ -334,7 +358,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: e2e-real-informe-fallo
+          name: e2e-real-informe-fallo-${{ matrix.grupo }}
           path: |
             ${{ runner.temp }}/e2e-informes
             apps/web/playwright-report
@@ -343,7 +367,7 @@ jobs:
           retention-days: 7
 
   # Único check que se marca como requerido (a mano, SYSADMIN.md §4). Sin checkout: se ejecuta en la raíz.
-  # Regla de ADR-091 §2.4. Un `skipped` solo es verde tras la decisión explícita `ejecutar=false` de `cambios`.
+  # Regla de ADR-091 §2.4 (E2E-CI-c2: `e2e-real` es una matriz; su `result` agrega a todos los hijos). Un `skipped` solo es verde tras la decisión explícita `ejecutar=false` de `cambios`.
   agregador:
     name: E2E real (API)
     runs-on: ubuntu-26.04  # fijada: ubuntu-latest migra a 26.04 hasta el 19-11-2026 (#609, actions/runner-images#14748)
