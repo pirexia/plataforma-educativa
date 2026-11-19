@@ -108,6 +108,7 @@ test.describe('CA-E2ECI-24 CA-E2ECI-26 CA-E2ECI-26b (E2E-CI-d1): autorización y
   }
 
   test('CA-E2ECI-24 (RPERM-013): el administrador da de alta un usuario eligiendo un rol en el formulario y la ficha lo muestra', async () => {
+    expect(1, "ROTURA DELIBERADA CA-E2ECI-46").toBe(2);
     const role = await createRole(`Rol alta ${label}`, {
       code: 'auditoria.leer',
       effect: 'allow',
