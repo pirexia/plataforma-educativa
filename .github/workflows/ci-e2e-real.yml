@@ -99,11 +99,33 @@ jobs:
           cache: npm
           cache-dependency-path: apps/web/package-lock.json
 
-      - name: Dependencias del frontend y navegador de Playwright
+      # Pasos separados para que el CI muestre cuánto tarda cada parte (el paso único tardó 61-257 s, E2E-CI-c1).
+      - name: Dependencias del frontend
         working-directory: apps/web
-        run: |
-          npm ci
-          npx playwright install --with-deps chromium
+        run: npm ci
+
+      - name: Versión de Playwright (clave de la caché del navegador)
+        id: pw
+        working-directory: apps/web
+        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Caché del navegador de Playwright
+        id: pw-cache
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}
+
+      # Sin caché: descarga el navegador y sus paquetes del sistema. Con caché: solo los paquetes del sistema.
+      - name: Navegador de Playwright (descarga)
+        if: steps.pw-cache.outputs.cache-hit != 'true'
+        working-directory: apps/web
+        run: npx playwright install --with-deps chromium
+
+      - name: Navegador de Playwright (solo paquetes del sistema)
+        if: steps.pw-cache.outputs.cache-hit == 'true'
+        working-directory: apps/web
+        run: npx playwright install-deps chromium
 
       - uses: shivammathur/setup-php@v2
         with:
