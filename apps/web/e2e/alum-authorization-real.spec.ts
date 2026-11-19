@@ -308,6 +308,7 @@ test.describe
   }
 
   test('CA-E2ECI-22b (ADR-038 §6.4, RN-ALUM-60, matricula.leer de ámbito grupo): el docente sin asignación en el grupo abre la lista de clase, no ve filas ajenas, el listado sale vacío y el detalle da 404', async () => {
+    expect(1, "ROTURA DELIBERADA CA-E2ECI-45").toBe(2);
     // Contraste: el docente con asignación en el grupo (revertida al terminar) sí ve la matrícula.
     const assignment = await admin.json('POST', 'teaching-assignments', 201, {
       teacher: centreA.docenteUser,
