@@ -23,6 +23,7 @@ test.describe('CA-ACAD-053 (REQ-ACAD-001): estructura académica contra la API r
   test('crear la jerarquía, asignar una asignatura, 409 al borrar el curso y cambiar de curso académico', async ({
     page,
   }) => {
+    expect(1, 'ROTURA DELIBERADA CA-E2ECI-46').toBe(2)
     const email = process.env.E2E_ADMIN_EMAIL ?? ''
     const password = process.env.E2E_ADMIN_PASSWORD ?? ''
 
