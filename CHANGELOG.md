@@ -6,6 +6,10 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-18 · `test(e2e)`: autorización en pantalla en el E2E real (`E2E-CI-d1`, issue #737)
+
+Tres specs nuevos: `prl-z-authorization-real` (suite `prl`, 3→9 tests), `core-authorization-real` y `alum-authorization-real` (suite `alum-browser`, 20→39): denegación por rol × ruta (pantalla «Sin acceso», sin petición al recurso, 403 por HTTP real), ámbito `grupo` y `propios`, alta con rol, permisos efectivos con `deny` y multi-rol, invitaciones, retirar un rol y «a sí mismo». `CA-E2ECI-24` y `-25` enmendados por decisión del usuario (el «último administrador» sale del E2E real, #785; la reserva ajena da 404 mostrado). Cada test demostrado con la función rota. Sin código de producción ni cambios en `e2e-real-tenant.php`. Mediciones del CI: ver `docs/proceso/e2e-real-ci.md §9`.
+
 ## 2026-11-18 · `docs`: matriz flujo × rol × cobertura E2E real (`E2E-CI-d0`, issue #737) — APROBADA
 
 Sin código. `docs/proceso/e2e-real-ci-matriz.md`: 67 filas (11 cubiertas, 18 parciales, 33 sin E2E real, 2 NV, 3 no viables), 53 huecos (31 P1, 14 P2, 8 P3) y partición en `E2E-CI-d1`..`-d5`. `docs/proceso/e2e-real-ci.md`: criterios `CA-E2ECI-17` a `-42` (`§9.4`, con `-22b`), preguntas `OPEN-E2ECI-16` a `-25` (`§10.1`) y corrección de `§6.2`. Aprobada por el usuario el 2026-11-18 (`OPEN-E2ECI-16` a `-25` en la opción A, con el riesgo del token en el log aceptado expresamente).
