@@ -74,7 +74,8 @@ jobs:
     needs: cambios
     if: needs.cambios.outputs.ejecutar == 'true'
     # 30 min, valor definitivo (E2E-CI-c, CA-E2ECI-11): tres ejecuciones completas midieron 7:39, 8:22 y 8:15
-    # (máximo 8:22), holgura ×3,6; por debajo de ~10 min no se cumple el disparador de D3.
+    # (máximo 8:22), holgura ×3,6; por debajo de ~10 min no se cumple el disparador de D3. Cifras del job único anterior
+    # a la matriz de E2E-CI-c2 (con la matriz: reloj mediano 5:50, máximo 8:03; docs/proceso/e2e-real-ci.md §9.6).
     timeout-minutes: 30
     strategy:
       # Una suite en rojo no debe ocultar el resultado del otro grupo (D5, sin reintentos): los dos se ejecutan siempre.
