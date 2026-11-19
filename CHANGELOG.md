@@ -6,6 +6,10 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-19 · `ci(e2e)`: matriz de dos jobs para el E2E real (`E2E-CI-c2`, issue #737)
+
+`ci-e2e-real.yml`: el job `e2e-real` pasa a matriz de dos jobs paralelos, `alum` y `resto` (`core`, `prl`, `acad-*`, `curso-rollover`, `fam-unit`), con `fail-fast: false`, pila y centro propios por job, comprobación de esperados por grupo, tiempos `suite=ci-<grupo>` y artefactos por grupo. El agregador «E2E real (API)» conserva nombre y regla. Decisión del usuario tras medir (job único 9-11 min; 10:57 en el push a `develop`). `docs/proceso/e2e-real-ci.md §9.6` (`CA-E2ECI-43` a `-46`) y `e2e-real-ci.spec.ts` actualizados. **Verificado en CI** (PR #789): tres mediciones (`alum` mediana 335 s, `resto` 350 s; reloj mediano 5:50, máximo 8:03 por un `apt` lento) y rotura deliberada en cada grupo (`CA-E2ECI-45` y `-46`). Causa de la dispersión de tiempos: la instalación de paquetes del sistema de Playwright (`apt`), no las suites.
+
 ## 2026-11-18 · `test(e2e)`: autorización en pantalla en el E2E real (`E2E-CI-d1`, issue #737)
 
 Tres specs nuevos: `prl-z-authorization-real` (suite `prl`, 3→9 tests), `core-authorization-real` y `alum-authorization-real` (suite `alum-browser`, 20→39): denegación por rol × ruta (pantalla «Sin acceso», sin petición al recurso, 403 por HTTP real), ámbito `grupo` y `propios`, alta con rol, permisos efectivos con `deny` y multi-rol, invitaciones, retirar un rol y «a sí mismo». `CA-E2ECI-24` y `-25` enmendados por decisión del usuario (el «último administrador» sale del E2E real, #785; la reserva ajena da 404 mostrado). Cada test demostrado con la función rota. Sin código de producción ni cambios en `e2e-real-tenant.php`. Mediciones del CI: ver `docs/proceso/e2e-real-ci.md §9`.

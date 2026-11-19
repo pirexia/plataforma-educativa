@@ -150,7 +150,7 @@ describe('ci-e2e-real.yml (CA-E2ECI-14, CA-E2ECI-15, ADR-091 §2)', () => {
 
   it('define los tres jobs con los nombres que ADR-091 fija', () => {
     expect(workflow).toContain('name: E2E real · detección de cambios')
-    expect(workflow).toContain('name: E2E real · todas las suites')
+    expect(workflow).toContain('name: E2E real · ${{ matrix.grupo }}')
     expect(workflow).not.toContain('name: E2E real · core')
     expect(workflow).toContain('name: E2E real (API)')
     expect(workflow).toContain('needs: [cambios, e2e-real]')
@@ -189,9 +189,7 @@ describe('ci-e2e-real.yml (CA-E2ECI-14, CA-E2ECI-15, ADR-091 §2)', () => {
     expect(workflow).toContain(
       'opciones=(--retries=0 --trace=retain-on-failure --reporter=json,html)',
     )
-    expect(workflow).toContain(
-      'for orden in test:e2e:real:prl test:e2e:real:alum test:e2e:real; do',
-    )
+    expect(workflow).toContain('for orden in $ORDENES; do')
     expect(workflow).toContain('npm run "$orden" -- "${opciones[@]}" || fallos+=("$orden")')
     expect(workflow).toContain('if [ "${#fallos[@]}" -gt 0 ]; then')
     // Sin `set -e` en el paso de Playwright: un fallo no corta las órdenes siguientes.
@@ -217,6 +215,26 @@ describe('ci-e2e-real.yml (CA-E2ECI-14, CA-E2ECI-15, ADR-091 §2)', () => {
     expect(workflow).toContain('node scripts/e2e-real-verificar.mjs "$informe" "$clave"')
     expect(workflow).toContain('exit "$rojo"')
     expect(workflow).toMatch(/Comprobar que se ejecutaron[\s\S]*?if: \$\{\{ !cancelled\(\)/)
+  })
+
+  it('la matriz reparte las suites en dos jobs sin perder ninguna y sin cortar al otro (E2E-CI-c2, CA-E2ECI-43)', () => {
+    expect(workflow).toMatch(/strategy:\n(?:\s*#[^\n]*\n)* {6}fail-fast: false/)
+    const grupos = [
+      ...workflow.matchAll(/- grupo: (\S+)\n\s+ordenes: "([^"]+)"\n\s+claves: "([^"]+)"/g),
+    ]
+    expect(grupos.map((g) => g[1])).toEqual(['alum', 'resto'])
+    expect(grupos[0][2]).toBe('test:e2e:real:alum')
+    expect(grupos[1][2]).toBe('test:e2e:real test:e2e:real:prl')
+    const claves = grupos.flatMap((g) => g[3].split(' '))
+    // La unión de las claves de los dos grupos es exactamente la de esperados.json, sin repetidas.
+    const esperadas = Object.keys(
+      JSON.parse(readFileSync(resolve(__dirname, '../e2e/e2e-real-esperados.json'), 'utf8')),
+    ).filter((k) => !k.startsWith('_'))
+    expect([...claves].sort()).toEqual([...esperadas].sort())
+    // Artefactos con nombre propio por job (upload-artifact no admite dos con el mismo nombre).
+    expect(workflow).toContain('name: e2e-real-tiempos-${{ matrix.grupo }}')
+    expect(workflow).toContain('name: e2e-real-informe-fallo-${{ matrix.grupo }}')
+    expect(workflow).toContain('suite=ci-$GRUPO fase=total')
   })
 
   it('el agregador sigue dependiendo del resultado del job e2e-real, no de su nombre', () => {
