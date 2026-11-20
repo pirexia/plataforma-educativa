@@ -266,7 +266,11 @@ test.describe('CA-E2ECI-27 (REQ-FAM-UNIT, REQ-ALUM): el tutor por HTTP real solo
     const forbidden = async (method: string, path: string, data?: unknown) => {
       const response = await tutor.send(method, path, data)
 
-      expect(response.status(), `${method} ${path}: ${await response.text()}`).toBe(403)
+      const text = await response.text()
+
+      expect(response.status(), `${method} ${path}: ${text}`).toBe(403)
+      // El 403 es el de la guarda de permiso, no el del muro de condiciones (`terms-acceptance-required`).
+      expect(text, `${method} ${path}`).not.toContain('terms-acceptance-required')
     }
 
     await forbidden('POST', 'family-units', {})
