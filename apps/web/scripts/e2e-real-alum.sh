@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Ejecuta los e2e de alumnado (REQ-ALUM, 1.15-a CA-ALUM-009/012/018a, 1.15-b CA-ALUM-020 a -042 y 1.15-d CA-ALUM-071/072) contra la API real:
 # `alum-students-real.spec.ts`, `alum-enrollments-real.spec.ts` y `alum-photo-real.spec.ts` (foto contra Garage; HTTP real con cookie de sesión y CSRF, sin navegador) y, en navegador real,
-# `alum-authorization-real.spec.ts` (E2E-CI-d1: autorización en pantalla de docente, secretaría y dirección), `alum-screens-real.spec.ts`, `alum-group-change-real.spec.ts`, `alum-image-consent-real.spec.ts` y `alum-student-detail-real.spec.ts` (E2E-CI-d2: consentimiento de imagen y ficha del alumno), `core-authorization-real.spec.ts` (E2E-CI-d1: roles, usuarios e invitaciones) y `data-table-real.spec.ts` (tabla TanStack 9, RNF-MANT-007, PR #727; 1.15-d T3; Playwright arranca la SPA con VITE_API_URL del centro `demo`
+# `alum-authorization-real.spec.ts` (E2E-CI-d1: autorización en pantalla de docente, secretaría y dirección), `alum-screens-real.spec.ts`, `alum-group-change-real.spec.ts`, `alum-image-consent-real.spec.ts` y `alum-student-detail-real.spec.ts`, `alum-family-unit-real.spec.ts`, `alum-enrollment-detail-real.spec.ts` y `alum-terms-wall-real.spec.ts` (E2E-CI-d2: consentimiento de imagen, ficha del alumno, alta de unidad familiar, matrículas y muro de condiciones), `core-authorization-real.spec.ts` (E2E-CI-d1: roles, usuarios e invitaciones) y `data-table-real.spec.ts` (tabla TanStack 9, RNF-MANT-007, PR #727; 1.15-d T3; Playwright arranca la SPA con VITE_API_URL del centro `demo`
 # y se niega si ya hay otra en :5173 con otra URL, como `e2e-real-prl.sh`; necesita `demo.plataforma.test` en /etc/hosts). Prepara DOS centros sintéticos con `alum` y `fam_unit`
 # contratados y un tutor con el rol `tutor_legal` (apps/api/tests/Support/e2e-real-tenant.php setup <slug> alum), lanza Playwright
 # con sus credenciales y los retira al terminar, también si falla (mismo método y garantías que `e2e-real-api.sh`: solo
@@ -122,6 +122,6 @@ export E2E_REAL_API=1
 status=0
 inicio=$SECONDS
 e2e_playwright alum-http e2e/alum-students-real.spec.ts e2e/alum-enrollments-real.spec.ts e2e/alum-photo-real.spec.ts e2e/alum-tutor-http-real.spec.ts --workers=1 --pass-with-no-tests "$@" || status=1
-e2e_playwright alum-browser e2e/alum-authorization-real.spec.ts e2e/alum-screens-real.spec.ts e2e/alum-group-change-real.spec.ts e2e/core-authorization-real.spec.ts e2e/data-table-real.spec.ts e2e/alum-guardian-revocation-real.spec.ts e2e/alum-image-consent-real.spec.ts e2e/alum-student-detail-real.spec.ts --workers=1 --pass-with-no-tests "$@" || status=1
+e2e_playwright alum-browser e2e/alum-authorization-real.spec.ts e2e/alum-screens-real.spec.ts e2e/alum-group-change-real.spec.ts e2e/core-authorization-real.spec.ts e2e/data-table-real.spec.ts e2e/alum-guardian-revocation-real.spec.ts e2e/alum-image-consent-real.spec.ts e2e/alum-student-detail-real.spec.ts e2e/alum-family-unit-real.spec.ts e2e/alum-enrollment-detail-real.spec.ts e2e/alum-terms-wall-real.spec.ts --workers=1 --pass-with-no-tests "$@" || status=1
 e2e_tiempo_emitir alum playwright "$inicio"
 exit "$status"
