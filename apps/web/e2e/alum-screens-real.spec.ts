@@ -118,6 +118,8 @@ test.describe('CA-ALUM-072 CA-ALUM-071 (REQ-ALUM-003): pantallas de alumnado en 
   test('CA-ALUM-072: secretaría ve la lista de clase con el alumno y exporta (202 y CSV descargable de Garage)', async ({
     browser,
   }) => {
+    // El inicio de sesión de abajo espera lo que pida la API si responde 429 (10 accesos por minuto): hasta ~60 s con los specs previos.
+    test.setTimeout(120_000)
     const page = await pageAs(browser, states.secretaria)
     await page.goto(`/alumnado/listas?academic_year=${year.id}`)
 

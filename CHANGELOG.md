@@ -6,6 +6,10 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-11-20 · `test(e2e)`: datos de menores y familias en el E2E real (`E2E-CI-d2`, issue #737)
+
+Siete specs en `alum-http` (16→21) y `alum-browser` (39→52): HTTP del tutor sobre unidades, vínculos, consentimientos, autorizados y matrículas (`CA-E2ECI-27`), revocar y levantar el vínculo desde la ficha de familia (`-28`), texto de consentimiento y exportación desde Garage (`-29`), ficha del alumno con edición, baja, restauración y fotografía (`-30`), muro de condiciones de uso del tutor con `403 terms-acceptance-required` y aceptación en navegador (`-31`, `OPEN-E2ECI-25` = B), alta de unidad, tutor y vínculo por secretaría con error de validación en el formulario (`-31b`) y baja y anulación de matrícula desde la ficha con ámbito del docente (`-31c`). Roturas deliberadas por test (`CA-E2ECI-18`) en `docs/proceso/e2e-real-ci.md §9.7`; sin tocar `e2e-real-tenant.php`. Guion `alum` en local: 2:44 a 4:54. Pendiente: el CI de `CA-E2ECI-19`/`-20`.
+
 ## 2026-11-19 · `ci(e2e)`: matriz de dos jobs para el E2E real (`E2E-CI-c2`, issue #737)
 
 `ci-e2e-real.yml`: el job `e2e-real` pasa a matriz de dos jobs paralelos, `alum` y `resto` (`core`, `prl`, `acad-*`, `curso-rollover`, `fam-unit`), con `fail-fast: false`, pila y centro propios por job, comprobación de esperados por grupo, tiempos `suite=ci-<grupo>` y artefactos por grupo. El agregador «E2E real (API)» conserva nombre y regla. Decisión del usuario tras medir (job único 9-11 min; 10:57 en el push a `develop`). `docs/proceso/e2e-real-ci.md §9.6` (`CA-E2ECI-43` a `-46`) y `e2e-real-ci.spec.ts` actualizados. **Verificado en CI** (PR #789): tres mediciones (`alum` mediana 335 s, `resto` 350 s; reloj mediano 5:50, máximo 8:03 por un `apt` lento) y rotura deliberada en cada grupo (`CA-E2ECI-45` y `-46`). Causa de la dispersión de tiempos: la instalación de paquetes del sistema de Playwright (`apt`), no las suites.

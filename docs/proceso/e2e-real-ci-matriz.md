@@ -4,7 +4,7 @@
 |-------|-------|
 | Ubicación | `docs/proceso/e2e-real-ci-matriz.md`. Anexo de `docs/proceso/e2e-real-ci.md` (`§6`, `§9`); **no es un módulo ni un requisito nuevo** |
 | Entrega | `E2E-CI-d0` (sin código). Inventario de `explorer`; roles, prioridad, partición y criterios de `spec-writer` |
-| Estado | **APROBADO** por el usuario el 2026-11-18 («Acepto todo»), con `OPEN-E2ECI-16` a `-25` resueltas en la opción A (`e2e-real-ci.md §10.1`). Nada implementado |
+| Estado | **APROBADO** por el usuario el 2026-11-18 («Acepto todo»), con `OPEN-E2ECI-16` a `-25` resueltas en la opción A (`e2e-real-ci.md §10.1`). Nada implementado | **Enmienda 2026-11-20**: `OPEN-E2ECI-25` se reabrió y quedó en **B** (el muro solo alcanza a tutores con vínculo activo, `RN-FAM-UNIT-61`): el tutor `e2e-tutor` va en navegador **solo para el muro**, excepción nominal a `OPEN-E2ECI-13` (ver `e2e-real-ci.md §9.7`).
 | Clasificación del paso: ordinario | `-d0` no toca código, guiones, flujos ni `e2e-real-tenant.php`. La clasificación de `-d1`..`-d5` está en `§4.2` (críticas las cinco, `OPEN-E2ECI-21` = A) |
 | Fuentes | `apps/web/src/modules/*/shell.ts` (rutas y `meta.permissions`); `docs/modulos/REQ-{AUTH,CORE,CURSO,ACAD,FAM-UNIT,PRL,ALUM}/permisos.md` (siembra de roles predefinidos); `apps/api/tests/Support/e2e-real-tenant.php` (usuarios del guion); `apps/web/e2e/e2e-real-esperados.json` (recuento); cabeceras de los *specs* reales citados |
 
@@ -108,9 +108,9 @@ Columnas de `e2e-real-ci.md §6.1`, más dos: **Hueco** (`C` cubierto en E2E rea
 | F-04 | `fam-unit-consents` | Consentimientos de imagen: ver, registrar decisión presencial, exportar | `consentimiento_imagen.leer` | Ver: `administrador_centro`, `secretaria`, `direccion`; registrar y exportar: `administrador_centro`, `secretaria` | Ninguno | NV | — | N | P1 · `-d2` |
 | F-05 | `fam-unit-terms` | Redactar, publicar y retirar textos legales (condiciones y consentimiento por nivel) | `texto_legal.leer` | Ver: `administrador_centro`, `secretaria`; escribir y publicar: `administrador_centro` | Ninguno | NV | — | N | P1 · `-d2` |
 | F-06 | `fam-unit-terms-wall` | Muro de condiciones de uso y aceptación | `[]` (`bare`) | Quien tenga condiciones pendientes (**NV** qué usuarios quedan sujetos: no se ha leído `REQ-FAM-UNIT/funcional.md §19`) | Ninguno | Por nombre: `fam-unit-terms-wall.spec.ts` | — | N | P1 · `-d2` (cond. `OPEN-E2ECI-25`) |
-| F-07 | — (sin ruta) | Consulta de aceptaciones (`GET /terms-acceptances`) | `aceptacion_condiciones.leer` | `administrador_centro`, `secretaria` | Ninguno | — | — | N | P2 · `-d2` (HTTP) |
+| F-07 | — (sin ruta) | Consulta de aceptaciones (`GET /terms-acceptances`) | `aceptacion_condiciones.leer` | `administrador_centro`, `secretaria` | Ninguno | — | — | N | P2 · `-d2` (HTTP); **hueco de `-d2` sin criterio `CA-E2ECI` (decisión pendiente, `e2e-real-ci.md §9.7`)** |
 
-### 3.6 Familia: solo API (`OPEN-E2ECI-13` = A; prueba HTTP real con cookie y CSRF)
+### 3.6 Familia: solo API (`OPEN-E2ECI-13` = A; prueba HTTP real con cookie y CSRF) **Enmienda 2026-11-20**: `OPEN-E2ECI-25` se reabrió y quedó en **B** (el muro solo alcanza a tutores con vínculo activo, `RN-FAM-UNIT-61`): el tutor `e2e-tutor` va en navegador **solo para el muro**, excepción nominal a `OPEN-E2ECI-13` (ver `e2e-real-ci.md §9.7`).
 
 Usuario del guion: `tutor_legal` del modo `alum` (`§1`). Estudiante: **ninguna fila**, no hay usuario estudiante en el guion (`OPEN-E2ECI-13`).
 
@@ -216,7 +216,7 @@ Datos medidos (`e2e-real-ci.md §9.3`, V): tabla oficial de tres ejecuciones (7:
 
 ### 4.5 Pares de denegación de `-d1` (rol del guion × ruta sin su permiso)
 
-Sacados de la siembra (V). Solo usuarios que existen hoy (`§1`); el tutor queda fuera de la pantalla por `OPEN-E2ECI-13` = A y se prueba por HTTP en `-d2`.
+Sacados de la siembra (V). Solo usuarios que existen hoy (`§1`); el tutor queda fuera de la pantalla por `OPEN-E2ECI-13` = A y se prueba por HTTP en `-d2`. **Enmienda 2026-11-20**: `OPEN-E2ECI-25` se reabrió y quedó en **B** (el muro solo alcanza a tutores con vínculo activo, `RN-FAM-UNIT-61`): el tutor `e2e-tutor` va en navegador **solo para el muro**, excepción nominal a `OPEN-E2ECI-13` (ver `e2e-real-ci.md §9.7`).
 
 | Rol (modo) | Rutas sin permiso (muestra; el *spec* elige una por módulo como mínimo) |
 |------------|-----------------------------------------------------------------------|
@@ -231,7 +231,7 @@ Sacados de la siembra (V). Solo usuarios que existen hoy (`§1`); el tutor queda
 ## 5. Observaciones para la sesión (no son decisiones)
 
 1. **Por qué las cinco entregas `-d` son críticas** (`OPEN-E2ECI-21` = A, 2026-11-18; y `-d3`, además, por `e2e-real-tenant.php`). `CLAUDE.md §3` exige que cada E2E nuevo quede **registrado en el guion** de E2E real; si los guiones enumeran sus *specs* (**V-cab**: `e2e-real-alum.sh` «tres *specs* HTTP y tres de navegador», `e2e-real-ci.md §1.2`), añadir uno toca `apps/web/scripts/*`, que `§9` clasifica como crítico. `OPEN-E2ECI-21`.
-2. **`OPEN-E2ECI-13` = A choca con el muro de condiciones.** `§1.4` dice que el muro (`/condiciones-de-uso`) lo alcanza cualquier usuario autenticado, «incluida una familia», y `OPEN-E2ECI-13` = A dice «ninguna fila de pantalla» para la familia. No se reabrió la decisión: se preguntó solo por el muro, y `OPEN-E2ECI-25` = A (2026-11-18) lo resuelve: muro en navegador con personal sujeto a él, tutor solo por HTTP.
+2. **`OPEN-E2ECI-13` = A choca con el muro de condiciones.** `§1.4` dice que el muro (`/condiciones-de-uso`) lo alcanza cualquier usuario autenticado, «incluida una familia», y `OPEN-E2ECI-13` = A dice «ninguna fila de pantalla» para la familia. No se reabrió la decisión: se preguntó solo por el muro, y `OPEN-E2ECI-25` = A (2026-11-18) lo resuelve: muro en navegador con personal sujeto a él, tutor solo por HTTP. **Enmienda 2026-11-20**: `OPEN-E2ECI-25` se reabrió y quedó en **B** (el muro solo alcanza a tutores con vínculo activo, `RN-FAM-UNIT-61`): el tutor `e2e-tutor` va en navegador **solo para el muro**, excepción nominal a `OPEN-E2ECI-13` (ver `e2e-real-ci.md §9.7`).
 3. **`e2e-real-ci.md §6.3` decía de las alertas de `prl` «NV (posible en `prl-door-*`)»**: el test de `prl-door-real` l.399 (**V**, título con `CA-PRL-035`) hace que el administrador encuentre la alerta, la filtre por fecha, registre la llamada y la cierre. Se corrige aquí (P-02), no en `§6.3`, que es la primera pasada histórica. Los títulos de los tests citan `CA-PRL-035` y la cabecera del *spec*, `CA-PRL-012` y `CA-PRL-022`: la matriz cita el título.
 4. **`e2e-real-ci.md §6.3` daba la 320 px como solo simulada y los permisos efectivos como NV**: `alum-screens-real` (l.196-217) y `core-roles` (l.475-480) los cubren en real (**V**). Corregido en X-04 y C-05.
 5. Ninguna entrega propone relajar guardas (`E2E_ALLOW_DESTRUCTIVE`, marca del centro, entorno), subir el límite de accesos en CI, ni escribir `127.0.0.1`/`:8000` nuevos en los *specs* (`e2e-real-ci.md §3` punto 4 y `§8`).
