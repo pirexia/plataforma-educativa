@@ -15,6 +15,8 @@ export const centreA = {
   adminEmail: env('ADMIN_EMAIL'),
   adminPassword: env('ADMIN_PASSWORD'),
   staffPassword: env('STAFF_PASSWORD'),
+  tutorEmail: env('TUTOR_EMAIL'),
+  tutorUser: env('TUTOR_USER'),
   secretariaEmail: env('SECRETARIA_EMAIL'),
   direccionEmail: env('DIRECCION_EMAIL'),
   docenteEmail: env('DOCENTE_EMAIL'),
@@ -186,6 +188,31 @@ export async function enroll(
       enrolled_on: year.startsOn,
     })
   ).public_id as string
+}
+
+/**
+ * El tutor del modo `alum` (`e2e-tutor`) solo puede ser tutor **una vez** en el centro (`fam_unit.guardian.already_exists`): lo
+ * crea el primer spec que lo necesita y los demás reutilizan su ficha y su unidad. Devuelve el tutor y la unidad en la que está.
+ */
+export async function tutorGuardian(
+  admin: RealSession,
+): Promise<{ guardian: string; unit: string }> {
+  const found = (await admin.json('GET', `guardians?user=${centreA.tutorUser}`, 200))
+    .data as Array<{
+    public_id: string
+    family_unit: string
+  }>
+
+  if (found.length > 0) {
+    return { guardian: found[0].public_id, unit: found[0].family_unit }
+  }
+
+  const unit = (await admin.json('POST', 'family-units', 201, {})).public_id as string
+  const guardian = (
+    await admin.json('POST', 'guardians', 201, { user: centreA.tutorUser, family_unit: unit })
+  ).public_id as string
+
+  return { guardian, unit }
 }
 
 type StorageState = Awaited<ReturnType<ReturnType<Browser['contexts']>[number]['storageState']>>

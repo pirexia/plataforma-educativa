@@ -121,7 +121,7 @@ export E2E_REAL_API=1
 # si falla la primera, la segunda se ejecuta igualmente y el guion termina con código distinto de 0.
 status=0
 inicio=$SECONDS
-e2e_playwright alum-http e2e/alum-students-real.spec.ts e2e/alum-enrollments-real.spec.ts e2e/alum-photo-real.spec.ts --workers=1 --pass-with-no-tests "$@" || status=1
-e2e_playwright alum-browser e2e/alum-authorization-real.spec.ts e2e/alum-screens-real.spec.ts e2e/alum-group-change-real.spec.ts e2e/core-authorization-real.spec.ts e2e/data-table-real.spec.ts --workers=1 --pass-with-no-tests "$@" || status=1
+e2e_playwright alum-http e2e/alum-students-real.spec.ts e2e/alum-enrollments-real.spec.ts e2e/alum-photo-real.spec.ts e2e/alum-tutor-http-real.spec.ts --workers=1 --pass-with-no-tests "$@" || status=1
+e2e_playwright alum-browser e2e/alum-authorization-real.spec.ts e2e/alum-screens-real.spec.ts e2e/alum-group-change-real.spec.ts e2e/core-authorization-real.spec.ts e2e/data-table-real.spec.ts e2e/alum-guardian-revocation-real.spec.ts --workers=1 --pass-with-no-tests "$@" || status=1
 e2e_tiempo_emitir alum playwright "$inicio"
 exit "$status"
