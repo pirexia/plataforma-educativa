@@ -38,7 +38,7 @@ jobs:
     # con las políticas ausentes.
     services:
       postgres:
-        image: postgres:18
+        image: postgres:19
         env:
           POSTGRES_DB: plataforma_test
           POSTGRES_USER: plataforma
@@ -208,7 +208,7 @@ jobs:
     # (issue #132) — sin ellos el job se cuelga en vez de fallar rápido.
     services:
       postgres:
-        image: postgres:18
+        image: postgres:19
         env:
           POSTGRES_DB: plataforma_test
           POSTGRES_USER: plataforma
@@ -262,7 +262,7 @@ jobs:
     # Ver comentario del job "lint" sobre los servicios.
     services:
       postgres:
-        image: postgres:18
+        image: postgres:19
         env:
           POSTGRES_DB: plataforma_test
           POSTGRES_USER: plataforma
@@ -321,7 +321,7 @@ jobs:
     runs-on: ubuntu-26.04  # fijada por #609
     services:
       postgres:
-        image: postgres:18
+        image: postgres:19
         env:
           POSTGRES_DB: plataforma_test
           POSTGRES_USER: plataforma
@@ -450,7 +450,7 @@ jobs:
     # Mismos servicios que "test": hay que migrar y correr tests de tenant.
     services:
       postgres:
-        image: postgres:18
+        image: postgres:19
         env:
           POSTGRES_DB: plataforma_test
           POSTGRES_USER: plataforma
