@@ -6,7 +6,7 @@ After=plataforma-network.service
 Wants=plataforma-network.service
 
 [Container]
-Image=docker.io/library/postgres:18
+Image=docker.io/library/postgres:19
 ContainerName=plataforma-postgres
 Network=plataforma.network
 Volume=postgres-cluster.volume:/var/lib/postgresql:Z
